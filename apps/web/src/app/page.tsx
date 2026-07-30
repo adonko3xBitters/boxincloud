@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
 import { BrandLockup } from "@/components/brand";
 import { ComicTable } from "@/components/comic-table";
 import { Coverflow } from "@/components/coverflow";
 import { AccountsPanel } from "@/components/accounts-panel";
+import { useComicMenu } from "@/components/comic-menu";
 import { StoragePanel } from "@/components/storage-panel";
 import { AddContentButton, GlobalDropZone, IngestProvider } from "@/components/ingest";
 import { DetailPanel } from "@/components/detail-panel";
@@ -68,6 +69,15 @@ function TopBar() {
   const logout = useLogout();
   const [accountsOpen, setAccountsOpen] = useState(false);
   const [storageOpen, setStorageOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  // Un clic ailleurs referme le menu, comme partout ailleurs dans le système.
+  useEffect(() => {
+    if (!menuOpen) return undefined;
+    const close = () => setMenuOpen(false);
+    document.addEventListener("pointerdown", close);
+    return () => document.removeEventListener("pointerdown", close);
+  }, [menuOpen]);
 
   return (
     <header className="flex h-13 shrink-0 items-center gap-3 border-b border-border bg-surface px-4">
@@ -78,14 +88,31 @@ function TopBar() {
         <SearchOverlay />
         <ThemeToggle />
 
-        <div className="group relative">
+        {/*
+          Menu au CLIC, pas au survol.
+
+          Un menu ouvert au survol se referme dès que le curseur traverse
+          l'espace qui le sépare de son bouton — c'est-à-dire à chaque tentative
+          de l'atteindre. Le clic supprime le problème plutôt que de le
+          contourner en collant les deux éléments.
+        */}
+        <div className="relative">
           <button
+            onClick={() => setMenuOpen((v) => !v)}
+            aria-expanded={menuOpen}
+            aria-haspopup="menu"
             className="pressable grid size-8 place-items-center rounded-full bg-accent-subtle text-ui font-semibold text-accent-text"
             aria-label="Compte"
           >
             {(user?.displayName || user?.username || "?").charAt(0).toUpperCase()}
           </button>
-          <div className="invisible absolute right-0 top-full z-50 mt-1.5 w-52 translate-y-1 rounded-lg border border-border bg-surface-raised p-1.5 opacity-0 shadow-lg transition-[opacity,transform] duration-(--motion-duration-fast) ease-emphasized group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
+
+          {menuOpen && (
+          <div
+            role="menu"
+            onPointerDown={(e) => e.stopPropagation()}
+            className="fade-in absolute right-0 top-full z-50 mt-1.5 w-52 rounded-lg border border-border bg-surface-raised p-1.5 shadow-lg"
+          >
             <p className="truncate px-2 py-1 text-meta text-muted">
               {user?.username} · {user?.role === "admin" ? "admin" : "utilisateur"}
             </p>
@@ -93,13 +120,19 @@ function TopBar() {
             {user?.role === "admin" && (
               <>
                 <button
-                  onClick={() => setStorageOpen(true)}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setStorageOpen(true);
+                  }}
                   className="pressable w-full rounded px-2 py-1.5 text-left text-ui text-muted hover:bg-surface-hover hover:text-fg"
                 >
                   Stockage
                 </button>
                 <button
-                  onClick={() => setAccountsOpen(true)}
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setAccountsOpen(true);
+                  }}
                   className="pressable w-full rounded px-2 py-1.5 text-left text-ui text-muted hover:bg-surface-hover hover:text-fg"
                 >
                   Comptes
@@ -114,6 +147,7 @@ function TopBar() {
               Se déconnecter
             </button>
           </div>
+          )}
         </div>
       </div>
 
@@ -259,6 +293,13 @@ function CoverGrid({
   const { isSelected, select, favorites, ratings } = useWorkspace();
   const ids = comics.map((c) => c.id);
 
+  const titleOf = useMemo(() => {
+    const byId = new Map(comics.map((comic) => [comic.id, comic.title]));
+    return (id: string) => byId.get(id) ?? id;
+  }, [comics]);
+
+  const menu = useComicMenu(titleOf);
+
   return (
     <div
       className="grid gap-x-5 gap-y-6 p-5"
@@ -276,6 +317,7 @@ function CoverGrid({
               const mode = event.shiftKey ? "range" : event.metaKey || event.ctrlKey ? "toggle" : "replace";
               select(comic.id, mode, ids);
             }}
+            onContextMenu={menu.bind(comic.id, ids)}
             style={{
               // Cascade plafonnée : au-delà d'une vingtaine de vignettes,
               // l'effet est acquis et attendre davantage devient une latence.
@@ -384,6 +426,8 @@ function CoverGrid({
           </div>
         );
       })}
+
+      {menu.node}
     </div>
   );
 }

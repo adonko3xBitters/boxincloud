@@ -44,6 +44,9 @@ type ManageRepository interface {
 	// PurgeComic efface la ligne, une fois le fichier supprimé du backend.
 	PurgeComic(ctx context.Context, id uuid.UUID) error
 
+	// RefreshSeries recalcule les compteurs et élague les séries vidées.
+	RefreshSeries(ctx context.Context, libraryID uuid.UUID) error
+
 	MoveComic(ctx context.Context, id uuid.UUID, objectKey, folderPath string) error
 }
 
@@ -86,7 +89,11 @@ func (s *Service) Delete(ctx context.Context, p DeleteParams) error {
 	}
 
 	if !p.DeleteFile {
-		return s.manage.ExcludeComic(ctx, p.ComicID)
+		if err := s.manage.ExcludeComic(ctx, p.ComicID); err != nil {
+			return err
+		}
+		s.refreshSeries(ctx, comic.LibraryID)
+		return nil
 	}
 
 	lib, err := s.libraries.GetLibrary(ctx, comic.LibraryID)
@@ -102,7 +109,30 @@ func (s *Service) Delete(ctx context.Context, p DeleteParams) error {
 		return err
 	}
 
-	return s.manage.PurgeComic(ctx, p.ComicID)
+	if err := s.manage.PurgeComic(ctx, p.ComicID); err != nil {
+		return err
+	}
+
+	s.refreshSeries(ctx, comic.LibraryID)
+	return nil
+}
+
+/*
+refreshSeries recalcule les compteurs et retire les séries vidées.
+
+Sans cela, une série dont on supprime le dernier tome continue de s'afficher
+dans la barre latérale avec un compteur qui ne correspond à rien. Cliquer dessus
+donne une liste vide, ce qui ressemble à un défaut d'affichage alors que c'est
+une donnée périmée.
+
+L'échec est tracé mais n'annule pas la suppression : l'album est bel et bien
+parti, et un prochain parcours remettra les compteurs d'aplomb.
+*/
+func (s *Service) refreshSeries(ctx context.Context, libraryID uuid.UUID) {
+	if err := s.manage.RefreshSeries(ctx, libraryID); err != nil {
+		s.log.Warn("compteurs de séries non rafraîchis",
+			slog.String("library_id", libraryID.String()), slog.Any("err", err))
+	}
 }
 
 // MoveParams décrit un déplacement.

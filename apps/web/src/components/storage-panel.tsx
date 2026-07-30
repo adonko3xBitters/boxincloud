@@ -80,22 +80,131 @@ export function StoragePanel({ onClose }: { onClose: () => void }) {
 // ─── Bibliothèques ───────────────────────────────────────────────────────────
 
 function Libraries() {
+  const [creating, setCreating] = useState(false);
+
   const libraries = useQuery({ queryKey: ["libraries"], queryFn: api.listLibraries });
+  const backends = useQuery({ queryKey: ["backends"], queryFn: api.listBackends });
+
   const list = libraries.data?.libraries ?? [];
+  const hasBackend = (backends.data?.backends.length ?? 0) > 0;
 
   if (libraries.isLoading) {
     return <p className="text-ui text-muted">Chargement…</p>;
   }
-  if (list.length === 0) {
-    return <p className="text-ui text-muted">Aucune bibliothèque.</p>;
-  }
 
   return (
     <div className="flex flex-col gap-3">
+      {/*
+        Une bibliothèque a besoin d'un stockage. Le dire ici, avec le chemin
+        pour en créer un, évite un formulaire qui échouerait sans expliquer
+        pourquoi.
+      */}
+      {!hasBackend ? (
+        <Notice
+          title="Aucun espace de stockage"
+          detail="Une bibliothèque désigne un emplacement dans un espace de stockage. Commencez par en déclarer un dans l'onglet « Espaces de stockage »."
+        />
+      ) : creating ? (
+        <NewLibrary
+          backends={backends.data?.backends ?? []}
+          onDone={() => setCreating(false)}
+        />
+      ) : (
+        <button onClick={() => setCreating(true)} className={buttonClass("primary", "sm")}>
+          Nouvelle bibliothèque
+        </button>
+      )}
+
+      {list.length === 0 && hasBackend && !creating && (
+        <p className="text-ui text-muted">Aucune bibliothèque pour l&apos;instant.</p>
+      )}
+
       {list.map((library) => (
         <LibraryCard key={library.id} id={library.id} name={library.name} count={library.comicCount} />
       ))}
     </div>
+  );
+}
+
+/**
+ * Création d'une bibliothèque.
+ *
+ * Une bibliothèque n'est pas un dossier : c'est un emplacement DANS un espace de
+ * stockage, désigné par un préfixe. Le formulaire le dit, sans quoi le champ
+ * « préfixe » ressemble à un réglage obscur qu'on laisse vide par prudence.
+ */
+function NewLibrary({
+  backends,
+  onDone,
+}: {
+  backends: api.StorageBackend[];
+  onDone: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [name, setName] = useState("");
+  const [backendId, setBackendId] = useState(
+    backends.find((b) => b.isDefault)?.id ?? backends[0]?.id ?? "",
+  );
+  const [prefix, setPrefix] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function create(event: React.FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      await api.createLibrary({ name, backendId, rootPrefix: prefix });
+      await queryClient.invalidateQueries({ queryKey: ["libraries"] });
+      onDone();
+    } catch (err) {
+      setError(describe(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={create} className="flex flex-col gap-3 rounded-lg border border-accent/40 bg-accent/5 p-3">
+      <h3 className="text-ui font-semibold text-fg">Nouvelle bibliothèque</h3>
+
+      <Field label="Nom" value={name} onChange={setName} placeholder="Mes BD" />
+
+      <label className="flex flex-col gap-1">
+        <span className="text-micro uppercase tracking-wide text-subtle">Espace de stockage</span>
+        <select
+          value={backendId}
+          onChange={(e) => setBackendId(e.target.value)}
+          className="h-9 rounded-md border border-border bg-surface px-2 text-ui text-fg"
+        >
+          {backends.map((backend) => (
+            <option key={backend.id} value={backend.id}>
+              {backend.name}
+            </option>
+          ))}
+        </select>
+      </label>
+
+      <Field
+        label="Sous-dossier"
+        value={prefix}
+        onChange={setPrefix}
+        placeholder="bd/"
+        mono
+        hint="Emplacement dans le stockage. Laissez vide pour prendre tout le contenu."
+      />
+
+      {error && <ErrorNote>{error}</ErrorNote>}
+
+      <div className="flex justify-end gap-2">
+        <button type="button" onClick={onDone} className={buttonClass("secondary", "sm")}>
+          Annuler
+        </button>
+        <button type="submit" disabled={busy || !name || !backendId} className={buttonClass("primary", "sm")}>
+          {busy ? "Création…" : "Créer"}
+        </button>
+      </div>
+    </form>
   );
 }
 
@@ -300,17 +409,149 @@ function ScanHistory({ runs }: { runs: api.ScanRun[] }) {
 // ─── Espaces de stockage ─────────────────────────────────────────────────────
 
 function Backends() {
+  const [creating, setCreating] = useState(false);
   const backends = useQuery({ queryKey: ["backends"], queryFn: api.listBackends });
   const list = backends.data?.backends ?? [];
 
   if (backends.isLoading) return <p className="text-ui text-muted">Chargement…</p>;
-  if (list.length === 0) return <p className="text-ui text-muted">Aucun espace de stockage.</p>;
 
   return (
     <div className="flex flex-col gap-3">
+      {creating ? (
+        <NewBackend onDone={() => setCreating(false)} />
+      ) : (
+        <button onClick={() => setCreating(true)} className={buttonClass("primary", "sm")}>
+          Nouvel espace de stockage
+        </button>
+      )}
+
+      {list.length === 0 && !creating && (
+        <Notice
+          title="Aucun espace de stockage"
+          detail="Un espace de stockage est l'endroit où vivent réellement vos fichiers : un dossier du serveur, ou un bucket S3 / MinIO. boxincloud n'en héberge aucun — il lit le vôtre."
+        />
+      )}
+
       {list.map((backend) => (
         <BackendCard key={backend.id} backend={backend} />
       ))}
+    </div>
+  );
+}
+
+/**
+ * Déclaration d'un espace de stockage.
+ *
+ * Le dossier local est proposé en premier parce qu'il ne demande qu'un chemin.
+ * S3 reste disponible pour qui l'a déjà, mais l'imposer d'emblée ferait fuir
+ * quelqu'un qui veut juste lire les fichiers de son NAS.
+ */
+function NewBackend({ onDone }: { onDone: () => void }) {
+  const queryClient = useQueryClient();
+  const [kind, setKind] = useState<"local" | "s3">("local");
+  const [name, setName] = useState("");
+  const [root, setRoot] = useState("");
+  const [endpoint, setEndpoint] = useState("localhost:9000");
+  const [bucket, setBucket] = useState("");
+  const [accessKey, setAccessKey] = useState("");
+  const [secretKey, setSecretKey] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function create(event: React.FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      await api.createBackend({
+        name,
+        kind,
+        config:
+          kind === "local"
+            ? { root }
+            : { endpoint, bucket, use_ssl: "false", path_style: "true" },
+        secrets: kind === "s3" ? { access_key: accessKey, secret_key: secretKey } : undefined,
+      });
+      await queryClient.invalidateQueries({ queryKey: ["backends"] });
+      onDone();
+    } catch (err) {
+      setError(describe(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <form onSubmit={create} className="flex flex-col gap-3 rounded-lg border border-accent/40 bg-accent/5 p-3">
+      <h3 className="text-ui font-semibold text-fg">Nouvel espace de stockage</h3>
+
+      <Field label="Nom" value={name} onChange={setName} placeholder="NAS du salon" />
+
+      <div className="flex flex-col gap-1">
+        <span className="text-micro uppercase tracking-wide text-subtle">Type</span>
+        <div className="flex gap-1.5">
+          {(["local", "s3"] as const).map((option) => (
+            <button
+              key={option}
+              type="button"
+              onClick={() => setKind(option)}
+              aria-pressed={kind === option}
+              className={cx(
+                "pressable rounded-md border px-3 py-1.5 text-ui font-medium",
+                kind === option
+                  ? "border-accent bg-accent text-inverted"
+                  : "border-border text-muted hover:bg-surface-hover hover:text-fg",
+              )}
+            >
+              {option === "local" ? "Dossier du serveur" : "S3 / MinIO"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {kind === "local" ? (
+        <Field
+          label="Chemin du dossier"
+          value={root}
+          onChange={setRoot}
+          placeholder="/var/lib/boxincloud/bd"
+          mono
+          hint="Chemin tel que le SERVEUR le voit, pas votre poste."
+        />
+      ) : (
+        <>
+          <Field label="Endpoint" value={endpoint} onChange={setEndpoint} mono />
+          <Field label="Bucket" value={bucket} onChange={setBucket} mono />
+          <Field label="Clé d'accès" value={accessKey} onChange={setAccessKey} />
+          <Field label="Clé secrète" value={secretKey} onChange={setSecretKey} type="password" />
+        </>
+      )}
+
+      {error && <ErrorNote>{error}</ErrorNote>}
+
+      <div className="flex justify-end gap-2">
+        <button type="button" onClick={onDone} className={buttonClass("secondary", "sm")}>
+          Annuler
+        </button>
+        <button type="submit" disabled={busy || !name} className={buttonClass("primary", "sm")}>
+          {busy ? "Vérification du stockage…" : "Déclarer"}
+        </button>
+      </div>
+
+      <p className="text-meta leading-relaxed text-subtle">
+        Le stockage est joint avant d&apos;être enregistré : un chemin ou des
+        identifiants erronés sont signalés tout de suite, pas au premier scan.
+      </p>
+    </form>
+  );
+}
+
+/** Message explicatif, pour un écran vide qui doit dire quoi faire. */
+function Notice({ title, detail }: { title: string; detail: string }) {
+  return (
+    <div className="rounded-lg border border-border bg-surface-sunken p-3">
+      <p className="text-ui font-medium text-fg">{title}</p>
+      <p className="mt-1 text-meta leading-relaxed text-muted">{detail}</p>
     </div>
   );
 }

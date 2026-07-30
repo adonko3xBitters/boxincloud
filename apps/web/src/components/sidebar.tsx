@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { cx } from "./ui";
+import { ContextMenu, useContextMenu, type MenuItem } from "./context-menu";
 import { FolderDialogs, type FolderDialog } from "./folder-dialogs";
 import * as api from "@/lib/api/endpoints";
 import type { Folder } from "@/lib/api/endpoints";
@@ -38,7 +39,7 @@ export function Sidebar() {
 
   return (
     <aside className="flex h-full w-[var(--layout-sidebar-width)] shrink-0 flex-col overflow-y-auto border-r border-border bg-surface-sunken">
-      <Section title="Bibliothèques" count={libraries.data?.libraries.length}>
+      <Section id="libraries" title="Bibliothèques" count={libraries.data?.libraries.length}>
         <Row
           active={scope.kind === "all"}
           onClick={() => setScope({ kind: "all" })}
@@ -58,6 +59,7 @@ export function Sidebar() {
       </Section>
 
       <Section
+        id="folders"
         title="Dossiers"
         action={
           firstLibrary && (
@@ -83,7 +85,7 @@ export function Sidebar() {
         />
       </Section>
 
-      <Section title="Séries" count={series.data?.items.length}>
+      <Section id="series" title="Séries" count={series.data?.items.length}>
         <div className="max-h-72 overflow-y-auto">
           {series.data?.items.map((item) => (
             <Row
@@ -98,7 +100,7 @@ export function Sidebar() {
         </div>
       </Section>
 
-      <Section title="Listes de lecture">
+      <Section id="lists" title="Listes de lecture">
         <Row
           active={scope.kind === "favorites"}
           onClick={() => setScope({ kind: "favorites" })}
@@ -121,6 +123,18 @@ export function Sidebar() {
       <FolderDialogs dialog={dialog} onClose={() => setDialog(null)} />
     </aside>
   );
+}
+
+/**
+ * Un chemin descend-il d'un autre ?
+ *
+ * La racine demande un traitement à part : son chemin est la chaîne vide, si
+ * bien qu'une comparaison de préfixe naïve testerait `startsWith("/")` — jamais
+ * vrai. Le repli de la racine ne faisait donc rien du tout.
+ */
+function isDescendant(path: string, ancestor: string): boolean {
+  if (path === ancestor) return false;
+  return ancestor === "" ? path !== "" : path.startsWith(ancestor + "/");
 }
 
 // ─── Arborescence ────────────────────────────────────────────────────────────
@@ -149,13 +163,15 @@ function FolderTree({
   // obligerait à cliquer avant de voir quoi que ce soit.
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
+  const menu = useContextMenu<Folder>();
+
   const visible = useMemo(() => {
     const out: Folder[] = [];
     let skipPrefix: string | null = null;
 
     for (const folder of folders) {
       if (skipPrefix !== null) {
-        if (folder.path.startsWith(skipPrefix + "/")) continue;
+        if (isDescendant(folder.path, skipPrefix)) continue;
         skipPrefix = null;
       }
       out.push(folder);
@@ -165,7 +181,7 @@ function FolderTree({
   }, [folders, collapsed]);
 
   const hasChildren = (folder: Folder) =>
-    folders.some((other) => other.path.startsWith(folder.path === "" ? "" : folder.path + "/") && other.path !== folder.path);
+    folders.some((other) => isDescendant(other.path, folder.path));
 
   if (folders.length === 0) {
     return <p className="px-3 py-2 text-meta text-subtle">Aucun dossier</p>;
@@ -179,7 +195,11 @@ function FolderTree({
         const isCollapsed = collapsed.has(folder.path);
 
         return (
-          <div key={folder.path || "__root__"} className="group/tree flex items-center">
+          <div
+            key={folder.path || "__root__"}
+            onContextMenu={(event) => menu.open(event, folder)}
+            className="group/tree flex items-center"
+          >
             {expandable ? (
               <button
                 onClick={() =>
@@ -234,8 +254,90 @@ function FolderTree({
           </div>
         );
       })}
+
+      <ContextMenu
+        position={menu.position}
+        onClose={menu.close}
+        items={menu.target ? folderMenuItems(menu.target, onSelect, onAction, libraryId) : []}
+      />
     </>
   );
+}
+
+/**
+ * Actions d'un dossier, partagées par le bouton ⋮ et le clic droit.
+ *
+ * Une seule liste pour les deux : les dupliquer garantirait qu'une action
+ * ajoutée d'un côté manque de l'autre.
+ */
+function folderMenuItems(
+  folder: Folder,
+  onSelect: (scope: Scope) => void,
+  onAction: (dialog: FolderDialog) => void,
+  libraryId?: string,
+): MenuItem[] {
+  const isRoot = folder.path === "";
+
+  return [
+    {
+      label: "Ouvrir",
+      onSelect: () => onSelect({ kind: "folder", path: folder.path, libraryId }),
+    },
+    { kind: "separator" },
+    {
+      label: "Nouveau sous-dossier…",
+      onSelect: () =>
+        onAction({ kind: "create", libraryId: folder.libraryId, parent: folder.path }),
+    },
+    ...(isRoot
+      ? []
+      : ([
+          {
+            label: "Renommer…",
+            onSelect: () =>
+              onAction({
+                kind: "rename",
+                libraryId: folder.libraryId,
+                path: folder.path,
+                name: folder.name,
+              }),
+          },
+          { kind: "separator" },
+          {
+            label: "Verrouiller…",
+            onSelect: () =>
+              onAction({
+                kind: "lock",
+                libraryId: folder.libraryId,
+                path: folder.path,
+                readOnly: folder.readOnly,
+                hasCode: folder.hasCode,
+              }),
+          },
+          {
+            label: "Partager…",
+            onSelect: () =>
+              onAction({
+                kind: "share",
+                libraryId: folder.libraryId,
+                path: folder.path,
+                hasCode: folder.hasCode,
+              }),
+          },
+          { kind: "separator" },
+          {
+            label: "Supprimer…",
+            destructive: true,
+            onSelect: () =>
+              onAction({
+                kind: "delete",
+                libraryId: folder.libraryId,
+                path: folder.path,
+                comicCount: folder.comicCount,
+              }),
+          },
+        ] as MenuItem[])),
+  ];
 }
 
 /**
@@ -387,27 +489,70 @@ function MenuItem({
 
 // ─── Éléments ────────────────────────────────────────────────────────────────
 
+/**
+ * Section repliable de la barre latérale.
+ *
+ * Toutes les sections ne servent pas à tout le monde : quelqu'un dont les
+ * dossiers portent déjà les noms de ses séries n'a que faire du bloc « Séries ».
+ * Le replier est plus honnête que de le supprimer pour tous — une collection
+ * rangée par éditeur, ou par année, le rend au contraire indispensable.
+ *
+ * L'état est retenu d'une session à l'autre : replier un bloc à chaque
+ * ouverture serait pire que de le subir.
+ */
 function Section({
+  id,
   title,
   count,
   action,
   children,
 }: {
+  id: string;
   title: string;
   count?: number;
   action?: React.ReactNode;
   children: React.ReactNode;
 }) {
+  const [open, setOpen] = useState(() => {
+    if (typeof window === "undefined") return true;
+    return window.localStorage.getItem(`boxincloud.section.${id}`) !== "closed";
+  });
+
+  function toggle() {
+    setOpen((current) => {
+      const next = !current;
+      window.localStorage.setItem(
+        `boxincloud.section.${id}`,
+        next ? "open" : "closed",
+      );
+      return next;
+    });
+  }
+
   return (
     <div className="border-b border-border py-2.5 last:border-b-0">
-      <div className="flex items-center justify-between px-3 pb-1.5">
-        <h2 className="text-micro font-semibold uppercase tracking-wider text-subtle">{title}</h2>
+      <div className="flex items-center gap-1 px-3 pb-1.5">
+        <button
+          onClick={toggle}
+          aria-expanded={open}
+          className="pressable -ml-1 flex min-w-0 flex-1 items-center gap-1 rounded px-1 py-0.5 text-left hover:bg-surface-hover"
+        >
+          <ChevronIcon
+            className={cx(
+              "size-3 shrink-0 text-subtle transition-transform duration-(--motion-duration-normal) ease-spring",
+              open && "rotate-90",
+            )}
+          />
+          <h2 className="truncate text-micro font-semibold uppercase tracking-wider text-subtle">
+            {title}
+          </h2>
+        </button>
         {action}
         {count !== undefined && (
           <span className="text-micro tabular-nums text-subtle">{count}</span>
         )}
       </div>
-      <div className="px-1.5">{children}</div>
+      {open && <div className="px-1.5">{children}</div>}
     </div>
   );
 }

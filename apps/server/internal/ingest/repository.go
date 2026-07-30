@@ -54,6 +54,14 @@ func (r *PostgresManage) PurgeComic(ctx context.Context, id uuid.UUID) error {
 	return r.q.PurgeComic(ctx, id)
 }
 
+func (r *PostgresManage) RefreshSeries(ctx context.Context, libraryID uuid.UUID) error {
+	if err := r.q.RefreshSeriesCounts(ctx, libraryID); err != nil {
+		return err
+	}
+	_, err := r.q.PruneEmptySeries(ctx, libraryID)
+	return err
+}
+
 func (r *PostgresManage) MoveComic(ctx context.Context, id uuid.UUID, objectKey, folderPath string) error {
 	return r.q.MoveComic(ctx, sqlc.MoveComicParams{
 		ID:         id,

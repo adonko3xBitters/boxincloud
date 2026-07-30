@@ -518,8 +518,12 @@ func (q *Queries) RecordCacheEntry(ctx context.Context, arg RecordCacheEntryPara
 const refreshSeriesCounts = `-- name: RefreshSeriesCounts :exec
 UPDATE series
 SET comic_count = (
+        -- Les albums retirés du catalogue à la demande ne comptent pas plus que
+        -- ceux disparus du stockage : les deux sont invisibles de l'utilisateur.
         SELECT count(*) FROM comics
-        WHERE comics.series_id = series.id AND comics.deleted_at IS NULL
+        WHERE comics.series_id = series.id
+          AND comics.deleted_at IS NULL
+          AND comics.excluded_at IS NULL
     ),
     cover_comic_id = coalesce(
         series.cover_comic_id,

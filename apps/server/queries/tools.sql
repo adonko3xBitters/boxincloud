@@ -382,3 +382,19 @@ SELECT EXISTS (
       AND access_code_hash IS NOT NULL
       AND (@path::text = path OR @path::text LIKE path || '/%')
 ) AS locked;
+
+-- Rafraîchit les compteurs de séries et élague celles devenues vides.
+--
+-- Appelé après toute suppression d'album : sans cela, une série dont on a
+-- supprimé le dernier tome continue de s'afficher dans la barre latérale, avec
+-- un compteur qui ne correspond à rien. Cliquer dessus donne une liste vide, ce
+-- qui ressemble à un défaut d'affichage alors que c'est une donnée périmée.
+-- name: PruneEmptySeries :execrows
+DELETE FROM series s
+WHERE s.library_id = $1
+  AND NOT EXISTS (
+      SELECT 1 FROM comics c
+      WHERE c.series_id = s.id
+        AND c.deleted_at IS NULL
+        AND c.excluded_at IS NULL
+  );

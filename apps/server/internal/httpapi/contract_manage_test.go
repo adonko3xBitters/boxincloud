@@ -160,10 +160,55 @@ func TestIntegrationManageComics(t *testing.T) {
 		}
 	})
 
+	/*
+		Supprimer le dernier tome d'une série retire la série.
+
+		Sans cet élagage, elle continue de s'afficher dans la barre latérale avec
+		un compteur qui ne correspond à rien, et cliquer dessus donne une liste
+		vide — ce qui ressemble à un défaut d'affichage alors que c'est une
+		donnée périmée.
+	*/
+	t.Run("une série vidée disparaît", func(t *testing.T) {
+		id := upload(t, "Corto", "Corto Maltese - T01 - La Ballade.cbz")
+
+		before := seriesNames(t, h)
+		if !before["Corto Maltese"] {
+			t.Fatalf("série absente après téléversement : %v", before)
+		}
+
+		h.expect(t, http.MethodDelete, "/api/v1/comics/"+id, nil, http.StatusNoContent)
+
+		if seriesNames(t, h)["Corto Maltese"] {
+			t.Error("la série subsiste alors qu'elle n'a plus d'album")
+		}
+	})
+
 	t.Run("lot : action inconnue", func(t *testing.T) {
 		h.expectRejected(t, http.MethodPost, "/api/v1/comics/manage", map[string]any{
 			"action": "incinerer",
 			"ids":    []string{},
 		}, http.StatusUnprocessableEntity)
 	})
+}
+
+// seriesNames indexe les séries visibles par nom.
+func seriesNames(t *testing.T, h *contractHarness) map[string]bool {
+	t.Helper()
+
+	rec := h.expect(t, http.MethodGet, "/api/v1/series?limit=100", nil, http.StatusOK)
+
+	var payload struct {
+		Items []struct {
+			Name string `json:"name"`
+		} `json:"items"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+
+	out := make(map[string]bool, len(payload.Items))
+	for _, s := range payload.Items {
+		out[s.Name] = true
+	}
+	return out
 }

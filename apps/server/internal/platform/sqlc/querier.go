@@ -227,6 +227,13 @@ type Querier interface {
 	// Seuls les non-explicites : un dossier créé à la main survit au fait d'être
 	// vide, c'est même souvent la raison de l'avoir créé.
 	PruneEmptyFolders(ctx context.Context, libraryID uuid.UUID) (int64, error)
+	// Rafraîchit les compteurs de séries et élague celles devenues vides.
+	//
+	// Appelé après toute suppression d'album : sans cela, une série dont on a
+	// supprimé le dernier tome continue de s'afficher dans la barre latérale, avec
+	// un compteur qui ne correspond à rien. Cliquer dessus donne une liste vide, ce
+	// qui ressemble à un défaut d'affichage alors que c'est une donnée périmée.
+	PruneEmptySeries(ctx context.Context, libraryID uuid.UUID) (int64, error)
 	// Efface définitivement la ligne, une fois le fichier supprimé du backend.
 	PurgeComic(ctx context.Context, id uuid.UUID) error
 	// ─── Cache dérivé ────────────────────────────────────────────────────────────

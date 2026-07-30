@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef } from "react";
 
 import { cx } from "./ui";
+import { useComicMenu } from "./comic-menu";
 import { imageURL } from "@/lib/api/client";
 import type { Comic } from "@/lib/api/client";
 import { useWorkspace } from "@/lib/workspace";
@@ -57,6 +58,13 @@ export function ComicTable({
   }, [focused]);
 
   const visible = useMemo(() => comics.map((c) => c.id), [comics]);
+
+  const titleOf = useMemo(() => {
+    const byId = new Map(comics.map((comic) => [comic.id, comic.title]));
+    return (id: string) => byId.get(id) ?? id;
+  }, [comics]);
+
+  const menu = useComicMenu(titleOf);
   const allSelected = selection.length > 0 && selection.length === comics.length;
 
   const template = COLUMNS.map((c) => c.width).join(" ");
@@ -105,6 +113,7 @@ export function ComicTable({
                 select(comic.id, mode, visible);
               }}
               onDoubleClick={() => router.push(`/read?id=${comic.id}`)}
+              onContextMenu={menu.bind(comic.id, visible)}
               className={cx(
                 "grid cursor-default items-center gap-x-3 border-b border-border/50 px-3 py-2 text-ui",
                 "transition-colors duration-(--motion-duration-fast) ease-standard",
@@ -165,6 +174,8 @@ export function ComicTable({
           );
         })}
       </div>
+
+      {menu.node}
     </div>
   );
 }

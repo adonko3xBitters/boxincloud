@@ -237,8 +237,19 @@ func (r *PostgresRepository) UpsertSeries(ctx context.Context, libraryID uuid.UU
 	return row.ID, nil
 }
 
+/*
+RefreshSeriesCounts recalcule les compteurs et retire les séries vidées.
+
+L'élagage accompagne le recalcul plutôt que de vivre à part : une série sans
+album n'a aucune raison de figurer dans la barre latérale, et un compteur à zéro
+qui subsiste ressemble à un défaut d'affichage plutôt qu'à une donnée périmée.
+*/
 func (r *PostgresRepository) RefreshSeriesCounts(ctx context.Context, libraryID uuid.UUID) error {
-	return r.q.RefreshSeriesCounts(ctx, libraryID)
+	if err := r.q.RefreshSeriesCounts(ctx, libraryID); err != nil {
+		return err
+	}
+	_, err := r.q.PruneEmptySeries(ctx, libraryID)
+	return err
 }
 
 // ─── Bibliothèques et scans ──────────────────────────────────────────────────
