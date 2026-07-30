@@ -191,6 +191,9 @@ func NewRouter(d Deps) http.Handler {
 
 			r.Get("/folders", foldersHandler.List)
 			r.Post("/folders", foldersHandler.Create)
+			r.Put("/folders/lock", foldersHandler.SetLock)
+			r.Post("/folders/unlock", foldersHandler.Unlock)
+			r.Delete("/libraries/{libraryID}/folders/unlock", foldersHandler.Relock)
 			r.Get("/me/marks", toolsHandler.UserMarks)
 			r.Post("/comics/bulk", toolsHandler.Bulk)
 			r.Put("/comics/{comicID}/favorite", toolsHandler.SetFavorite)

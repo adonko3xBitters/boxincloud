@@ -130,6 +130,12 @@ export type Folder = {
   comicCount: number;
   /** Vrai pour un dossier créé à la main, qui survit au fait d'être vide. */
   explicit: boolean;
+  /** Protégé contre les modifications. Ne masque rien. */
+  readOnly: boolean;
+  /** Masqué par un code d'accès. */
+  hasCode: boolean;
+  /** Le code a été saisi et n'a pas expiré. */
+  unlocked: boolean;
 };
 
 export const listFolders = (libraryId?: string) =>
@@ -406,4 +412,22 @@ export const deleteFolder = (
   request<{ removedComics: number }>(`/libraries/${libraryId}/folders`, {
     method: "DELETE",
     query: { path, ...options },
+  });
+
+export const setFolderLock = (
+  libraryId: string,
+  path: string,
+  lock: { readOnly?: boolean; code?: string },
+) => request<Folder>("/folders/lock", { method: "PUT", body: { libraryId, path, ...lock } });
+
+export const unlockFolder = (libraryId: string, path: string, code: string) =>
+  request<{ unlockedUntil: string }>("/folders/unlock", {
+    method: "POST",
+    body: { libraryId, path, code },
+  });
+
+export const relockFolder = (libraryId: string, path: string) =>
+  request<void>(`/libraries/${libraryId}/folders/unlock`, {
+    method: "DELETE",
+    query: { path },
   });

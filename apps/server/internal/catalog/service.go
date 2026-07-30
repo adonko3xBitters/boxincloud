@@ -11,6 +11,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -93,14 +94,14 @@ type Repository interface {
 	ListComics(ctx context.Context, p ListComicsParams) ([]Comic, error)
 	SearchComics(ctx context.Context, p SearchParams) ([]Comic, error)
 	GetComic(ctx context.Context, id uuid.UUID) (Comic, error)
-	ListComicsBySeries(ctx context.Context, seriesID uuid.UUID) ([]Comic, error)
+	ListComicsBySeries(ctx context.Context, seriesID uuid.UUID, lockedPaths []string) ([]Comic, error)
 
 	ListSeries(ctx context.Context, p ListSeriesParams) ([]Series, error)
 	SearchSeries(ctx context.Context, p SearchParams) ([]Series, error)
 	GetSeries(ctx context.Context, id uuid.UUID) (Series, error)
 
 	ListRecent(ctx context.Context, p ListComicsParams) ([]Comic, error)
-	ListNextInSeries(ctx context.Context, v Viewer, libraryIDs []uuid.UUID, limit int32) ([]Comic, error)
+	ListNextInSeries(ctx context.Context, v Viewer, libraryIDs []uuid.UUID, limit int32, lockedPaths []string) ([]Comic, error)
 }
 
 // ListComicsParams décrit une page d'albums à lister.
@@ -116,6 +117,12 @@ type ListComicsParams struct {
 	MaxAgeRating  *int16
 	Cursor        *Cursor
 	Limit         int32
+
+	// LockedPaths masque des dossiers et leur descendance.
+	//
+	// Renseigné par le service, jamais par l'appelant : oublier de le remplir
+	// laisserait passer le contenu qu'un code est censé cacher.
+	LockedPaths []string
 }
 
 // ListSeriesParams décrit une page de séries.
@@ -131,14 +138,64 @@ type SearchParams struct {
 	Query        string
 	MaxAgeRating *int16
 	Limit        int32
+
+	// LockedPaths masque des dossiers et leur descendance.
+	LockedPaths []string
 }
+
+/*
+LockResolver retourne les dossiers masqués pour ce compte.
+
+Injecté plutôt qu'importé : le paquet folders dépend des bibliothèques et du
+stockage, alors que le catalogue est délibérément mince. L'inverser créerait un
+cycle, et importer le premier ici alourdirait le second sans raison.
+
+Un résolveur absent signifie « aucun dossier masqué » — l'état d'une instance qui
+n'utilise pas de code d'accès.
+*/
+type LockResolver func(ctx context.Context, userID uuid.UUID, libraryIDs []uuid.UUID) ([]string, error)
 
 // Service porte la logique de consultation.
 type Service struct {
-	repo Repository
+	repo   Repository
+	locked LockResolver
 }
 
 func NewService(repo Repository) *Service { return &Service{repo: repo} }
+
+// SetLockResolver câble la résolution des dossiers masqués.
+func (s *Service) SetLockResolver(resolve LockResolver) { s.locked = resolve }
+
+// lockedPaths résout les dossiers masqués, ou une tranche vide.
+func (s *Service) lockedPaths(ctx context.Context, v Viewer, libraryIDs []uuid.UUID) ([]string, error) {
+	if s.locked == nil {
+		return []string{}, nil
+	}
+	paths, err := s.locked(ctx, v.UserID, libraryIDs)
+	if err != nil {
+		return nil, err
+	}
+	if paths == nil {
+		return []string{}, nil
+	}
+	return paths, nil
+}
+
+/*
+hiddenByLock indique si un chemin tombe sous un dossier masqué.
+
+Utilisé sur le chemin d'accès à UN album — détail, manifeste, pages, couverture,
+progression. Tous passent par GetComic, ce qui en fait le seul endroit où poser
+ce contrôle.
+*/
+func hiddenByLock(folderPath string, locked []string) bool {
+	for _, path := range locked {
+		if folderPath == path || strings.HasPrefix(folderPath, path+"/") {
+			return true
+		}
+	}
+	return false
+}
 
 // Limites de pagination.
 //
@@ -252,9 +309,15 @@ func (s *Service) ListComics(ctx context.Context, v Viewer, q ListComicsQuery) (
 	// Une ligne de plus que demandé : sa présence indique qu'il reste une page,
 	// sans avoir à compter le total — un COUNT sur une grande table coûterait
 	// plus cher que la requête elle-même.
+	locked, err := s.lockedPaths(ctx, v, libraryIDs)
+	if err != nil {
+		return Page[Comic]{}, err
+	}
+
 	comics, err := s.repo.ListComics(ctx, ListComicsParams{
 		UserID:        v.UserID,
 		LibraryIDs:    libraryIDs,
+		LockedPaths:   locked,
 		SeriesID:      q.SeriesID,
 		State:         q.State,
 		ReadStatus:    normalizeReadStatus(q.ReadStatus),
@@ -315,6 +378,17 @@ func (s *Service) GetComic(ctx context.Context, v Viewer, id uuid.UUID) (Comic, 
 	if !s.ageAllowed(v, comic.AgeRating) {
 		return Comic{}, ErrNotFound
 	}
+
+	// Un dossier masqué l'est aussi pour qui connaît l'identifiant d'un album
+	// qu'il contient : sans ce contrôle, le code ne protégerait que l'affichage.
+	locked, err := s.lockedPaths(ctx, v, []uuid.UUID{comic.LibraryID})
+	if err != nil {
+		return Comic{}, err
+	}
+	if hiddenByLock(comic.FolderPath, locked) {
+		return Comic{}, ErrNotFound
+	}
+
 	return comic, nil
 }
 
@@ -367,7 +441,14 @@ func (s *Service) GetSeries(ctx context.Context, v Viewer, id uuid.UUID) (Series
 		return Series{}, nil, ErrNotFound
 	}
 
-	comics, err := s.repo.ListComicsBySeries(ctx, id)
+	// Une série peut être répartie sur plusieurs dossiers, dont certains
+	// masqués : le filtre porte sur les albums, pas sur la série.
+	locked, err := s.lockedPaths(ctx, v, []uuid.UUID{series.LibraryID})
+	if err != nil {
+		return Series{}, nil, err
+	}
+
+	comics, err := s.repo.ListComicsBySeries(ctx, id, locked)
 	if err != nil {
 		return Series{}, nil, err
 	}
@@ -409,11 +490,17 @@ func (s *Service) Search(ctx context.Context, v Viewer, query string, libraryID 
 		return SearchResult{Comics: []Comic{}, Series: []Series{}}, nil
 	}
 
+	locked, err := s.lockedPaths(ctx, v, libraryIDs)
+	if err != nil {
+		return SearchResult{}, err
+	}
+
 	p := SearchParams{
 		LibraryIDs:   libraryIDs,
 		Query:        query,
 		MaxAgeRating: v.MaxAgeRating,
 		Limit:        clampLimit(limit),
+		LockedPaths:  locked,
 	}
 
 	comics, err := s.repo.SearchComics(ctx, p)
@@ -451,16 +538,22 @@ func (s *Service) GetHome(ctx context.Context, v Viewer, limit int32) (Home, err
 
 	l := clampLimit(limit)
 
+	locked, err := s.lockedPaths(ctx, v, libraryIDs)
+	if err != nil {
+		return Home{}, err
+	}
+
 	recent, err := s.repo.ListRecent(ctx, ListComicsParams{
 		LibraryIDs:   libraryIDs,
 		MaxAgeRating: v.MaxAgeRating,
 		Limit:        l,
+		LockedPaths:  locked,
 	})
 	if err != nil {
 		return Home{}, err
 	}
 
-	next, err := s.repo.ListNextInSeries(ctx, v, libraryIDs, l)
+	next, err := s.repo.ListNextInSeries(ctx, v, libraryIDs, l, locked)
 	if err != nil {
 		return Home{}, err
 	}

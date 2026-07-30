@@ -3,9 +3,11 @@ package folders
 import (
 	"context"
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 
 	"github.com/adonko3xBitters/boxincloud/server/internal/platform/sqlc"
 )
@@ -143,5 +145,114 @@ func folderFromRow(row sqlc.Folder) Folder {
 		Name:      row.Name,
 		Depth:     int(row.Depth),
 		Explicit:  row.Explicit,
+		ReadOnly:  row.ReadOnly,
+		HasCode:   row.AccessCodeHash != nil,
 	}
+}
+
+// ─── Verrous ─────────────────────────────────────────────────────────────────
+
+var _ LockRepository = (*PostgresRepository)(nil)
+
+func (r *PostgresRepository) SetReadOnly(
+	ctx context.Context, libraryID uuid.UUID, path string, readOnly bool,
+) (Folder, error) {
+	row, err := r.q.SetFolderReadOnly(ctx, sqlc.SetFolderReadOnlyParams{
+		LibraryID: libraryID,
+		Path:      path,
+		ReadOnly:  readOnly,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Folder{}, ErrNotFound
+	}
+	if err != nil {
+		return Folder{}, err
+	}
+	return folderFromRow(row), nil
+}
+
+func (r *PostgresRepository) SetAccessCode(
+	ctx context.Context, libraryID uuid.UUID, path string, hash *string,
+) (Folder, error) {
+	row, err := r.q.SetFolderAccessCode(ctx, sqlc.SetFolderAccessCodeParams{
+		LibraryID:      libraryID,
+		Path:           path,
+		AccessCodeHash: hash,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Folder{}, ErrNotFound
+	}
+	if err != nil {
+		return Folder{}, err
+	}
+	return folderFromRow(row), nil
+}
+
+func (r *PostgresRepository) AccessCode(
+	ctx context.Context, libraryID uuid.UUID, path string,
+) (uuid.UUID, *string, error) {
+	row, err := r.q.GetFolderAccessCode(ctx, sqlc.GetFolderAccessCodeParams{
+		LibraryID: libraryID,
+		Path:      path,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return uuid.Nil, nil, ErrNotFound
+	}
+	if err != nil {
+		return uuid.Nil, nil, err
+	}
+	return row.ID, row.AccessCodeHash, nil
+}
+
+func (r *PostgresRepository) LockedFolders(
+	ctx context.Context, userID uuid.UUID, libraryIDs []uuid.UUID,
+) ([]LockedFolder, error) {
+	rows, err := r.q.ListLockedFolders(ctx, sqlc.ListLockedFoldersParams{
+		UserID:     userID,
+		LibraryIds: libraryIDs,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]LockedFolder, 0, len(rows))
+	for _, row := range rows {
+		folder := LockedFolder{ID: row.ID, LibraryID: row.LibraryID, Path: row.Path}
+		if row.ExpiresAt.Valid {
+			until := row.ExpiresAt.Time
+			folder.UnlockedUntil = &until
+		}
+		out = append(out, folder)
+	}
+	return out, nil
+}
+
+func (r *PostgresRepository) Unlock(
+	ctx context.Context, userID, folderID uuid.UUID, until time.Time,
+) error {
+	return r.q.UnlockFolder(ctx, sqlc.UnlockFolderParams{
+		UserID:    userID,
+		FolderID:  folderID,
+		ExpiresAt: pgtype.Timestamptz{Time: until, Valid: true},
+	})
+}
+
+func (r *PostgresRepository) Relock(ctx context.Context, userID, folderID uuid.UUID) error {
+	return r.q.LockFolderAgain(ctx, sqlc.LockFolderAgainParams{
+		UserID:   userID,
+		FolderID: folderID,
+	})
+}
+
+func (r *PostgresRepository) RevokeUnlocks(ctx context.Context, folderID uuid.UUID) error {
+	return r.q.RevokeFolderUnlocks(ctx, folderID)
+}
+
+func (r *PostgresRepository) TreeReadOnly(
+	ctx context.Context, libraryID uuid.UUID, path string,
+) (bool, error) {
+	return r.q.IsFolderTreeReadOnly(ctx, sqlc.IsFolderTreeReadOnlyParams{
+		LibraryID: libraryID,
+		Path:      path,
+	})
 }

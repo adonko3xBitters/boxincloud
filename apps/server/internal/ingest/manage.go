@@ -79,6 +79,12 @@ func (s *Service) Delete(ctx context.Context, p DeleteParams) error {
 		return ErrComicNotFound
 	}
 
+	// Retirer un album d'un dossier protégé le modifie tout autant que d'y en
+	// ajouter un : la protection vaut dans les deux sens.
+	if err := s.ensureWritable(ctx, comic.LibraryID, folderOfObjectKey(ctx, s, comic)); err != nil {
+		return err
+	}
+
 	if !p.DeleteFile {
 		return s.manage.ExcludeComic(ctx, p.ComicID)
 	}
@@ -135,6 +141,15 @@ func (s *Service) Move(ctx context.Context, p MoveParams) (string, error) {
 
 	if target == comic.ObjectKey {
 		return "", ErrSameFolder
+	}
+
+	// Source et destination : sortir un album d'un dossier protégé le vide,
+	// l'y faire entrer le modifie.
+	if err := s.ensureWritable(ctx, lib.ID, indexer.FolderOf(comic.ObjectKey, lib.RootPrefix)); err != nil {
+		return "", err
+	}
+	if err := s.ensureWritable(ctx, lib.ID, p.Folder); err != nil {
+		return "", err
 	}
 
 	provider, err := s.libraries.ProviderForLibrary(ctx, lib)
@@ -226,4 +241,16 @@ const MaxBulkItems = 1000
 // le dossier demandé est nettoyé, et celui qui en ressort peut différer.
 func FolderOfKey(objectKey, rootPrefix string) string {
 	return strings.TrimSuffix(indexer.FolderOf(objectKey, rootPrefix), "/")
+}
+
+// folderOfObjectKey retrouve le dossier d'un album à partir de sa clé.
+//
+// La bibliothèque est relue pour son préfixe : le dossier enregistré sur l'album
+// pourrait avoir divergé de la clé réelle, et c'est la clé qui fait foi.
+func folderOfObjectKey(ctx context.Context, s *Service, comic indexer.Comic) string {
+	lib, err := s.libraries.GetLibrary(ctx, comic.LibraryID)
+	if err != nil {
+		return ""
+	}
+	return indexer.FolderOf(comic.ObjectKey, lib.RootPrefix)
 }

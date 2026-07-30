@@ -92,6 +92,7 @@ type Querier interface {
 	GetDefaultStorageBackend(ctx context.Context) (StorageBackend, error)
 	GetDevice(ctx context.Context, id uuid.UUID) (Device, error)
 	GetFolder(ctx context.Context, arg GetFolderParams) (Folder, error)
+	GetFolderAccessCode(ctx context.Context, arg GetFolderAccessCodeParams) (GetFolderAccessCodeRow, error)
 	GetFolderByID(ctx context.Context, id uuid.UUID) (Folder, error)
 	GetLibrary(ctx context.Context, id uuid.UUID) (Library, error)
 	GetLibraryByName(ctx context.Context, name string) (Library, error)
@@ -110,11 +111,17 @@ type Querier interface {
 	GetUserByUsername(ctx context.Context, username string) (User, error)
 	GrantLibraryAccess(ctx context.Context, arg GrantLibraryAccessParams) error
 	InsertComicPage(ctx context.Context, arg InsertComicPageParams) error
+	// Le dossier lui-même ou l'un de ses ancêtres est-il en lecture seule ?
+	//
+	// La protection est héritée : verrouiller « BD » protège tout ce qu'il contient,
+	// ce qu'on attend de ce geste. La vérifier ancêtre par ancêtre côté service
+	// coûterait une requête par niveau.
+	IsFolderTreeReadOnly(ctx context.Context, arg IsFolderTreeReadOnlyParams) (bool, error)
 	ListAccessByUser(ctx context.Context, userID uuid.UUID) ([]LibraryAccess, error)
 	ListCacheEntriesForEviction(ctx context.Context, limit int32) ([]ListCacheEntriesForEvictionRow, error)
 	ListComicPages(ctx context.Context, comicID uuid.UUID) ([]ComicPage, error)
 	ListComicsByLibrary(ctx context.Context, arg ListComicsByLibraryParams) ([]Comic, error)
-	ListComicsBySeries(ctx context.Context, seriesID uuid.NullUUID) ([]ListComicsBySeriesRow, error)
+	ListComicsBySeries(ctx context.Context, arg ListComicsBySeriesParams) ([]ListComicsBySeriesRow, error)
 	ListComicsInFolderTree(ctx context.Context, arg ListComicsInFolderTreeParams) ([]ListComicsInFolderTreeRow, error)
 	// Requêtes de consultation du catalogue.
 	//
@@ -151,6 +158,13 @@ type Querier interface {
 	ListLibraries(ctx context.Context) ([]Library, error)
 	ListLibrariesWithBackend(ctx context.Context) ([]ListLibrariesWithBackendRow, error)
 	ListLibraryAccess(ctx context.Context, libraryID uuid.UUID) ([]LibraryAccess, error)
+	// Dossiers masqués d'une bibliothèque, avec l'échéance du déverrouillage
+	// éventuel accordé à ce compte.
+	//
+	// Une seule requête plutôt que deux : la liste des dossiers à code et celle des
+	// déverrouillages sont toujours consultées ensemble, et les séparer laisserait
+	// une fenêtre où l'une aurait changé sans l'autre.
+	ListLockedFolders(ctx context.Context, arg ListLockedFoldersParams) ([]ListLockedFoldersRow, error)
 	// Étagère « Suite de la série » : le premier album non lu de chaque série déjà
 	// entamée. C'est la suggestion la plus utile d'une page d'accueil de lecteur.
 	ListNextInSeries(ctx context.Context, arg ListNextInSeriesParams) ([]ListNextInSeriesRow, error)
@@ -173,6 +187,7 @@ type Querier interface {
 	// qu'une restriction existe, seuls les utilisateurs listés y ont accès. Les
 	// administrateurs voient tout.
 	ListVisibleLibraries(ctx context.Context, arg ListVisibleLibrariesParams) ([]Library, error)
+	LockFolderAgain(ctx context.Context, arg LockFolderAgainParams) error
 	// Marque comme supprimés les objets absents du dernier scan.
 	// On ne supprime pas la ligne : un backend momentanément injoignable ne doit
 	// pas détruire la progression de lecture des utilisateurs.
@@ -197,6 +212,11 @@ type Querier interface {
 	RenameFolderTree(ctx context.Context, arg RenameFolderTreeParams) (int64, error)
 	RestoreComic(ctx context.Context, id uuid.UUID) error
 	RevokeAllUserSessions(ctx context.Context, userID uuid.UUID) (int64, error)
+	// Retire tous les déverrouillages d'un dossier, quel que soit le compte.
+	//
+	// Appelé quand le code change ou disparaît : un déverrouillage obtenu avec
+	// l'ancien code ne doit pas survivre au nouveau.
+	RevokeFolderUnlocks(ctx context.Context, folderID uuid.UUID) error
 	RevokeLibraryAccess(ctx context.Context, arg RevokeLibraryAccessParams) error
 	RevokeSession(ctx context.Context, id uuid.UUID) error
 	// Détection de réutilisation : si un jeton déjà tourné est présenté, c'est
@@ -228,6 +248,9 @@ type Querier interface {
 	SetDefaultStorageBackend(ctx context.Context, id uuid.UUID) error
 	// ─── Favoris ─────────────────────────────────────────────────────────────────
 	SetFavorite(ctx context.Context, arg SetFavoriteParams) error
+	SetFolderAccessCode(ctx context.Context, arg SetFolderAccessCodeParams) (Folder, error)
+	// ─── Verrous de dossiers ─────────────────────────────────────────────────────
+	SetFolderReadOnly(ctx context.Context, arg SetFolderReadOnlyParams) (Folder, error)
 	SetLibraryScanResult(ctx context.Context, arg SetLibraryScanResultParams) error
 	// ─── Notes ───────────────────────────────────────────────────────────────────
 	SetRating(ctx context.Context, arg SetRatingParams) error
@@ -244,6 +267,7 @@ type Querier interface {
 	TouchCacheEntry(ctx context.Context, key string) (int64, error)
 	TouchDevice(ctx context.Context, id uuid.UUID) error
 	TouchUserLogin(ctx context.Context, id uuid.UUID) error
+	UnlockFolder(ctx context.Context, arg UnlockFolderParams) error
 	UnsetFavorite(ctx context.Context, arg UnsetFavoriteParams) error
 	UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (User, error)
 	// Ingestion idempotente : la clé naturelle (library_id, object_key) permet de

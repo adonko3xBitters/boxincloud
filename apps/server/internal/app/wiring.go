@@ -93,7 +93,15 @@ func BuildCore(ctx context.Context, cfg *config.Config, pool *db.Pool, log *slog
 
 	processor := imaging.NewPureGo()
 	catalogService := catalog.NewService(catalog.NewPostgresRepository(queries))
-	folderService := folders.NewService(folders.NewPostgresRepository(queries), libraries, log)
+
+	folderRepo := folders.NewPostgresRepository(queries)
+	folderService := folders.NewService(folderRepo, libraries, log)
+	folderService.SetLockRepository(folderRepo)
+
+	// Le catalogue masque ce que les codes d'accès cachent. Le résolveur est
+	// injecté plutôt qu'importé : le catalogue est délibérément mince, et
+	// dépendre du paquet folders créerait un cycle.
+	catalogService.SetLockResolver(folderService.LockedPaths)
 
 	jobClient, err := jobs.New(pool, cfg.Jobs, log, func(w *river.Workers) {
 		indexer.Register(w, indexer.Deps{
@@ -124,6 +132,7 @@ func BuildCore(ctx context.Context, cfg *config.Config, pool *db.Pool, log *slog
 	// l'ingestion : elle est empruntée plutôt que réécrite.
 	folderService.SetComicRemover(ingestService.BulkDelete)
 	ingestService.SetFolderRegistrar(folderService.Ensure)
+	ingestService.SetWriteGuard(folderService.EnsureWritable)
 
 	return &Core{
 		Queries:  queries,

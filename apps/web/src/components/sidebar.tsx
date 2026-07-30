@@ -216,6 +216,15 @@ function FolderTree({
             >
               <FolderIcon className="size-4 shrink-0 opacity-70" />
               <span className="truncate">{folder.path === "" ? "Racine" : folder.name}</span>
+
+              {/* Les cadenas disent lequel des deux verrous est posé : le plein
+                  protège, l'ouvert signale un dossier masqué qu'on a ouvert. */}
+              {folder.readOnly && (
+                <LockIcon className="size-3.5 shrink-0 opacity-60" title="Lecture seule" />
+              )}
+              {folder.hasCode && (
+                <KeyIcon className="size-3.5 shrink-0 opacity-60" title="Déverrouillé pour le moment" />
+              )}
               <span className={cx("ml-auto shrink-0 text-meta tabular-nums", active ? "opacity-80" : "text-subtle")}>
                 {folder.comicCount}
               </span>
@@ -293,6 +302,19 @@ function FolderMenu({
 
           {!isRoot && (
             <>
+              <MenuItem
+                onClick={() =>
+                  onAction({
+                    kind: "lock",
+                    libraryId: folder.libraryId,
+                    path: folder.path,
+                    readOnly: folder.readOnly,
+                    hasCode: folder.hasCode,
+                  })
+                }
+              >
+                Verrouiller…
+              </MenuItem>
               <MenuItem
                 onClick={() =>
                   onAction({
@@ -469,6 +491,24 @@ function DotIcon({ className }: { className?: string }) {
   return (
     <svg viewBox="0 0 16 16" fill="currentColor" className={cx("size-3", className)} aria-hidden="true">
       <circle cx="8" cy="8" r="4" />
+    </svg>
+  );
+}
+
+function LockIcon({ className, title }: { className?: string; title?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" className={className} aria-label={title}>
+      <rect x="3.5" y="7" width="9" height="6" rx="1.2" stroke="currentColor" strokeWidth="1.4" />
+      <path d="M5.5 7V5.5a2.5 2.5 0 0 1 5 0V7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function KeyIcon({ className, title }: { className?: string; title?: string }) {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" className={className} aria-label={title}>
+      <rect x="3.5" y="7" width="9" height="6" rx="1.2" stroke="currentColor" strokeWidth="1.4" />
+      <path d="M5.5 7V5.5a2.5 2.5 0 0 1 4.8-1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
     </svg>
   );
 }

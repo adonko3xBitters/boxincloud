@@ -468,6 +468,16 @@ type Folder struct {
 	Explicit   bool
 	CreatedAt  pgtype.Timestamptz
 	UpdatedAt  pgtype.Timestamptz
+	// Interdit renommage, déplacement, dépôt et suppression. Ne masque rien.
+	ReadOnly bool
+	// argon2id. Non nul : le dossier est masqué tant qu'il n'est pas déverrouillé.
+	AccessCodeHash *string
+}
+
+type FolderUnlock struct {
+	UserID    uuid.UUID
+	FolderID  uuid.UUID
+	ExpiresAt pgtype.Timestamptz
 }
 
 type Library struct {

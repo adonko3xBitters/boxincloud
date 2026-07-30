@@ -9,6 +9,7 @@ import (
 	"context"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 const bulkMarkRead = `-- name: BulkMarkRead :execrows
@@ -267,7 +268,7 @@ func (q *Queries) ExcludeComic(ctx context.Context, id uuid.UUID) error {
 }
 
 const getFolder = `-- name: GetFolder :one
-SELECT id, library_id, path, name, depth, parent_path, explicit, created_at, updated_at FROM folders WHERE library_id = $1 AND path = $2
+SELECT id, library_id, path, name, depth, parent_path, explicit, created_at, updated_at, read_only, access_code_hash FROM folders WHERE library_id = $1 AND path = $2
 `
 
 type GetFolderParams struct {
@@ -288,12 +289,35 @@ func (q *Queries) GetFolder(ctx context.Context, arg GetFolderParams) (Folder, e
 		&i.Explicit,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ReadOnly,
+		&i.AccessCodeHash,
 	)
 	return i, err
 }
 
+const getFolderAccessCode = `-- name: GetFolderAccessCode :one
+SELECT id, access_code_hash FROM folders WHERE library_id = $1 AND path = $2
+`
+
+type GetFolderAccessCodeParams struct {
+	LibraryID uuid.UUID
+	Path      string
+}
+
+type GetFolderAccessCodeRow struct {
+	ID             uuid.UUID
+	AccessCodeHash *string
+}
+
+func (q *Queries) GetFolderAccessCode(ctx context.Context, arg GetFolderAccessCodeParams) (GetFolderAccessCodeRow, error) {
+	row := q.db.QueryRow(ctx, getFolderAccessCode, arg.LibraryID, arg.Path)
+	var i GetFolderAccessCodeRow
+	err := row.Scan(&i.ID, &i.AccessCodeHash)
+	return i, err
+}
+
 const getFolderByID = `-- name: GetFolderByID :one
-SELECT id, library_id, path, name, depth, parent_path, explicit, created_at, updated_at FROM folders WHERE id = $1
+SELECT id, library_id, path, name, depth, parent_path, explicit, created_at, updated_at, read_only, access_code_hash FROM folders WHERE id = $1
 `
 
 func (q *Queries) GetFolderByID(ctx context.Context, id uuid.UUID) (Folder, error) {
@@ -309,8 +333,36 @@ func (q *Queries) GetFolderByID(ctx context.Context, id uuid.UUID) (Folder, erro
 		&i.Explicit,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ReadOnly,
+		&i.AccessCodeHash,
 	)
 	return i, err
+}
+
+const isFolderTreeReadOnly = `-- name: IsFolderTreeReadOnly :one
+SELECT EXISTS (
+    SELECT 1 FROM folders
+    WHERE library_id = $1
+      AND read_only = true
+      AND ($2::text = path OR $2::text LIKE path || '/%')
+) AS locked
+`
+
+type IsFolderTreeReadOnlyParams struct {
+	LibraryID uuid.UUID
+	Path      string
+}
+
+// Le dossier lui-même ou l'un de ses ancêtres est-il en lecture seule ?
+//
+// La protection est héritée : verrouiller « BD » protège tout ce qu'il contient,
+// ce qu'on attend de ce geste. La vérifier ancêtre par ancêtre côté service
+// coûterait une requête par niveau.
+func (q *Queries) IsFolderTreeReadOnly(ctx context.Context, arg IsFolderTreeReadOnlyParams) (bool, error) {
+	row := q.db.QueryRow(ctx, isFolderTreeReadOnly, arg.LibraryID, arg.Path)
+	var locked bool
+	err := row.Scan(&locked)
+	return locked, err
 }
 
 const listComicsInFolderTree = `-- name: ListComicsInFolderTree :many
@@ -475,7 +527,7 @@ func (q *Queries) ListFolders(ctx context.Context, libraryIds []uuid.UUID) ([]Li
 
 const listFoldersByLibraries = `-- name: ListFoldersByLibraries :many
 
-SELECT id, library_id, path, name, depth, parent_path, explicit, created_at, updated_at FROM folders
+SELECT id, library_id, path, name, depth, parent_path, explicit, created_at, updated_at, read_only, access_code_hash FROM folders
 WHERE library_id = ANY($1::uuid[])
 ORDER BY library_id, path
 `
@@ -500,6 +552,61 @@ func (q *Queries) ListFoldersByLibraries(ctx context.Context, libraryIds []uuid.
 			&i.Explicit,
 			&i.CreatedAt,
 			&i.UpdatedAt,
+			&i.ReadOnly,
+			&i.AccessCodeHash,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listLockedFolders = `-- name: ListLockedFolders :many
+SELECT f.id, f.library_id, f.path, u.expires_at
+FROM folders f
+LEFT JOIN folder_unlocks u
+       ON u.folder_id = f.id AND u.user_id = $1 AND u.expires_at > now()
+WHERE f.library_id = ANY($2::uuid[])
+  AND f.access_code_hash IS NOT NULL
+ORDER BY f.path
+`
+
+type ListLockedFoldersParams struct {
+	UserID     uuid.UUID
+	LibraryIds []uuid.UUID
+}
+
+type ListLockedFoldersRow struct {
+	ID        uuid.UUID
+	LibraryID uuid.UUID
+	Path      string
+	ExpiresAt pgtype.Timestamptz
+}
+
+// Dossiers masqués d'une bibliothèque, avec l'échéance du déverrouillage
+// éventuel accordé à ce compte.
+//
+// Une seule requête plutôt que deux : la liste des dossiers à code et celle des
+// déverrouillages sont toujours consultées ensemble, et les séparer laisserait
+// une fenêtre où l'une aurait changé sans l'autre.
+func (q *Queries) ListLockedFolders(ctx context.Context, arg ListLockedFoldersParams) ([]ListLockedFoldersRow, error) {
+	rows, err := q.db.Query(ctx, listLockedFolders, arg.UserID, arg.LibraryIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListLockedFoldersRow{}
+	for rows.Next() {
+		var i ListLockedFoldersRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.LibraryID,
+			&i.Path,
+			&i.ExpiresAt,
 		); err != nil {
 			return nil, err
 		}
@@ -538,6 +645,20 @@ func (q *Queries) ListRatings(ctx context.Context, userID uuid.UUID) ([]ListRati
 		return nil, err
 	}
 	return items, nil
+}
+
+const lockFolderAgain = `-- name: LockFolderAgain :exec
+DELETE FROM folder_unlocks WHERE user_id = $1 AND folder_id = $2
+`
+
+type LockFolderAgainParams struct {
+	UserID   uuid.UUID
+	FolderID uuid.UUID
+}
+
+func (q *Queries) LockFolderAgain(ctx context.Context, arg LockFolderAgainParams) error {
+	_, err := q.db.Exec(ctx, lockFolderAgain, arg.UserID, arg.FolderID)
+	return err
 }
 
 const moveComic = `-- name: MoveComic :exec
@@ -656,6 +777,19 @@ func (q *Queries) RestoreComic(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const revokeFolderUnlocks = `-- name: RevokeFolderUnlocks :exec
+DELETE FROM folder_unlocks WHERE folder_id = $1
+`
+
+// Retire tous les déverrouillages d'un dossier, quel que soit le compte.
+//
+// Appelé quand le code change ou disparaît : un déverrouillage obtenu avec
+// l'ancien code ne doit pas survivre au nouveau.
+func (q *Queries) RevokeFolderUnlocks(ctx context.Context, folderID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, revokeFolderUnlocks, folderID)
+	return err
+}
+
 const setComicFolder = `-- name: SetComicFolder :exec
 UPDATE comics SET folder_path = $2 WHERE id = $1
 `
@@ -688,6 +822,66 @@ func (q *Queries) SetFavorite(ctx context.Context, arg SetFavoriteParams) error 
 	return err
 }
 
+const setFolderAccessCode = `-- name: SetFolderAccessCode :one
+UPDATE folders SET access_code_hash = $3 WHERE library_id = $1 AND path = $2 RETURNING id, library_id, path, name, depth, parent_path, explicit, created_at, updated_at, read_only, access_code_hash
+`
+
+type SetFolderAccessCodeParams struct {
+	LibraryID      uuid.UUID
+	Path           string
+	AccessCodeHash *string
+}
+
+func (q *Queries) SetFolderAccessCode(ctx context.Context, arg SetFolderAccessCodeParams) (Folder, error) {
+	row := q.db.QueryRow(ctx, setFolderAccessCode, arg.LibraryID, arg.Path, arg.AccessCodeHash)
+	var i Folder
+	err := row.Scan(
+		&i.ID,
+		&i.LibraryID,
+		&i.Path,
+		&i.Name,
+		&i.Depth,
+		&i.ParentPath,
+		&i.Explicit,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ReadOnly,
+		&i.AccessCodeHash,
+	)
+	return i, err
+}
+
+const setFolderReadOnly = `-- name: SetFolderReadOnly :one
+
+UPDATE folders SET read_only = $3 WHERE library_id = $1 AND path = $2 RETURNING id, library_id, path, name, depth, parent_path, explicit, created_at, updated_at, read_only, access_code_hash
+`
+
+type SetFolderReadOnlyParams struct {
+	LibraryID uuid.UUID
+	Path      string
+	ReadOnly  bool
+}
+
+// ─── Verrous de dossiers ─────────────────────────────────────────────────────
+func (q *Queries) SetFolderReadOnly(ctx context.Context, arg SetFolderReadOnlyParams) (Folder, error) {
+	row := q.db.QueryRow(ctx, setFolderReadOnly, arg.LibraryID, arg.Path, arg.ReadOnly)
+	var i Folder
+	err := row.Scan(
+		&i.ID,
+		&i.LibraryID,
+		&i.Path,
+		&i.Name,
+		&i.Depth,
+		&i.ParentPath,
+		&i.Explicit,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.ReadOnly,
+		&i.AccessCodeHash,
+	)
+	return i, err
+}
+
 const setRating = `-- name: SetRating :exec
 
 INSERT INTO comic_ratings (user_id, comic_id, rating)
@@ -704,6 +898,23 @@ type SetRatingParams struct {
 // ─── Notes ───────────────────────────────────────────────────────────────────
 func (q *Queries) SetRating(ctx context.Context, arg SetRatingParams) error {
 	_, err := q.db.Exec(ctx, setRating, arg.UserID, arg.ComicID, arg.Rating)
+	return err
+}
+
+const unlockFolder = `-- name: UnlockFolder :exec
+INSERT INTO folder_unlocks (user_id, folder_id, expires_at)
+VALUES ($1, $2, $3)
+ON CONFLICT (user_id, folder_id) DO UPDATE SET expires_at = EXCLUDED.expires_at
+`
+
+type UnlockFolderParams struct {
+	UserID    uuid.UUID
+	FolderID  uuid.UUID
+	ExpiresAt pgtype.Timestamptz
+}
+
+func (q *Queries) UnlockFolder(ctx context.Context, arg UnlockFolderParams) error {
+	_, err := q.db.Exec(ctx, unlockFolder, arg.UserID, arg.FolderID, arg.ExpiresAt)
 	return err
 }
 
@@ -726,7 +937,7 @@ INSERT INTO folders (id, library_id, path, name, depth, parent_path, explicit)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
 ON CONFLICT (library_id, path) DO UPDATE
 SET explicit = folders.explicit OR EXCLUDED.explicit
-RETURNING id, library_id, path, name, depth, parent_path, explicit, created_at, updated_at
+RETURNING id, library_id, path, name, depth, parent_path, explicit, created_at, updated_at, read_only, access_code_hash
 `
 
 type UpsertFolderParams struct {
@@ -762,6 +973,8 @@ func (q *Queries) UpsertFolder(ctx context.Context, arg UpsertFolderParams) (Fol
 		&i.Explicit,
 		&i.CreatedAt,
 		&i.UpdatedAt,
+		&i.ReadOnly,
+		&i.AccessCodeHash,
 	)
 	return i, err
 }

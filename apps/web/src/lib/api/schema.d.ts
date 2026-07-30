@@ -565,6 +565,82 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/folders/lock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Verrouiller un dossier
+         * @description Deux verrous indépendants, qui répondent à deux besoins distincts et se
+         *     cumulent librement.
+         *
+         *     **Lecture seule** protège d'une fausse manœuvre : le dossier reste
+         *     parfaitement visible, mais ne peut plus être renommé, déplacé, ni recevoir
+         *     ou perdre un album. La protection s'hérite — verrouiller « BD » protège
+         *     tout ce qu'il contient.
+         *
+         *     **Code d'accès** masque : le dossier et son contenu disparaissent des
+         *     listages, de la recherche et de l'accès direct tant que le code n'a pas
+         *     été saisi. Un code vide le retire.
+         *
+         *     Dans les deux cas de changement de code, les déverrouillages en cours
+         *     sont révoqués : un accès obtenu avec l'ancien code ne survit pas au
+         *     nouveau.
+         */
+        put: operations["setFolderLock"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/folders/unlock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Saisir le code d'accès d'un dossier
+         * @description Ouvre le dossier pour ce compte, jusqu'à échéance. Le déverrouillage
+         *     n'est pas porté par le jeton d'accès — celui-ci est autoporteur, donc ni
+         *     révocable ni modifiable une fois émis — mais enregistré côté serveur.
+         *
+         *     Un code ne contourne pas les droits, il s'y ajoute : l'accès à la
+         *     bibliothèque reste requis.
+         */
+        post: operations["unlockFolder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/libraries/{libraryId}/folders/unlock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Refermer un dossier avant échéance */
+        delete: operations["relockFolder"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/folders/path": {
         parameters: {
             query?: never;
@@ -1169,6 +1245,17 @@ export interface components {
              *     contient plus rien.
              */
             explicit: boolean;
+            /** @description Protégé contre les modifications. Ne masque rien. */
+            readOnly: boolean;
+            /**
+             * @description Masqué par un code d'accès. Un dossier masqué non déverrouillé
+             *     n'apparaît pas du tout dans cette liste — ce drapeau ne peut donc
+             *     être vrai que sur un dossier déverrouillé, ou pour un administrateur
+             *     qui vient de poser le code.
+             */
+            hasCode: boolean;
+            /** @description Le code a été saisi et n'a pas expiré. */
+            unlocked: boolean;
         };
         ComicPage: {
             items: components["schemas"]["Comic"][];
@@ -2243,6 +2330,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description Le dossier de destination est en lecture seule */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             /** @description Fichier au-delà de la limite configurée */
             413: {
                 headers: {
@@ -2313,7 +2409,115 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            /** @description Le dossier, ou l'un de ses parents, est en lecture seule */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             422: components["responses"]["ValidationFailed"];
+        };
+    };
+    setFolderLock: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    libraryId: string;
+                    path: string;
+                    readOnly?: boolean;
+                    /**
+                     * @description Quatre caractères minimum. Ce n'est pas un mot de passe de
+                     *     compte : il ne protège pas l'accès au serveur mais la
+                     *     visibilité d'un dossier pour quelqu'un déjà connecté. Vide
+                     *     pour retirer le code.
+                     */
+                    code?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Dossier après verrouillage */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Folder"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    unlockFolder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    libraryId: string;
+                    path: string;
+                    code: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Dossier déverrouillé */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: date-time */
+                        unlockedUntil: string;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    relockFolder: {
+        parameters: {
+            query: {
+                path: string;
+            };
+            header?: never;
+            path: {
+                libraryId: components["parameters"]["LibraryIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Dossier refermé */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
         };
     };
     relocateFolder: {
@@ -2349,6 +2553,15 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
+            /** @description Le dossier, ou l'un de ses parents, est en lecture seule */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             422: components["responses"]["ValidationFailed"];
         };
     };
@@ -2382,7 +2595,10 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
-            /** @description Le dossier contient encore des albums */
+            /**
+             * @description Le dossier contient encore des albums, ou il est en lecture seule.
+             *     Le champ `type` distingue les deux cas.
+             */
             409: {
                 headers: {
                     [name: string]: unknown;
@@ -2643,6 +2859,15 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
+            /** @description Le dossier, ou l'un de ses parents, est en lecture seule */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
         };
     };
     editComic: {

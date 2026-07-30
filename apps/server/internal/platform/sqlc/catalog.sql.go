@@ -77,16 +77,27 @@ FROM comics c
 LEFT JOIN series s ON s.id = c.series_id
 WHERE c.series_id = $1 AND c.deleted_at IS NULL
   AND c.excluded_at IS NULL
+  -- Dossiers masqués par un code non saisi. La comparaison couvre les
+  -- sous-dossiers : masquer « Privé » masque tout ce qu'il contient.
+  AND NOT EXISTS (
+      SELECT 1 FROM unnest($2::text[]) AS locked(p)
+      WHERE c.folder_path = locked.p OR c.folder_path LIKE locked.p || '/%'
+  )
 ORDER BY c.number_sort NULLS LAST, c.title
 `
+
+type ListComicsBySeriesParams struct {
+	SeriesID    uuid.NullUUID
+	LockedPaths []string
+}
 
 type ListComicsBySeriesRow struct {
 	Comic      Comic
 	SeriesName string
 }
 
-func (q *Queries) ListComicsBySeries(ctx context.Context, seriesID uuid.NullUUID) ([]ListComicsBySeriesRow, error) {
-	rows, err := q.db.Query(ctx, listComicsBySeries, seriesID)
+func (q *Queries) ListComicsBySeries(ctx context.Context, arg ListComicsBySeriesParams) ([]ListComicsBySeriesRow, error) {
+	rows, err := q.db.Query(ctx, listComicsBySeries, arg.SeriesID, arg.LockedPaths)
 	if err != nil {
 		return nil, err
 	}
@@ -148,51 +159,58 @@ LEFT JOIN reading_progress p
 WHERE c.library_id = ANY($2::uuid[])
   AND c.deleted_at IS NULL
   AND c.excluded_at IS NULL
-  AND ($3::uuid IS NULL OR c.series_id = $3::uuid)
-  AND ($4::text = '' OR c.state::text = $4)
+  -- Dossiers masqués par un code non saisi. La comparaison couvre les
+  -- sous-dossiers : masquer « Privé » masque tout ce qu'il contient.
+  AND NOT EXISTS (
+      SELECT 1 FROM unnest($3::text[]) AS locked(p)
+      WHERE c.folder_path = locked.p OR c.folder_path LIKE locked.p || '/%'
+  )
+  AND ($4::uuid IS NULL OR c.series_id = $4::uuid)
+  AND ($5::text = '' OR c.state::text = $5)
   -- Filtrage par dossier. Le préfixe permet d'inclure les sous-dossiers, ce
   -- qu'attend un utilisateur qui clique sur un nœud de l'arbre.
-  AND ($5::text IS NULL
-       OR c.folder_path = $5::text
-       OR c.folder_path LIKE $5::text || '/%')
-  AND ($6::boolean = false
+  AND ($6::text IS NULL
+       OR c.folder_path = $6::text
+       OR c.folder_path LIKE $6::text || '/%')
+  AND ($7::boolean = false
        OR EXISTS (SELECT 1 FROM favorites f
                   WHERE f.comic_id = c.id AND f.user_id = $1))
   -- Filtrage par classification d'âge, pour les profils restreints.
-  AND ($7::smallint IS NULL
+  AND ($8::smallint IS NULL
        OR c.age_rating IS NULL
-       OR c.age_rating <= $7::smallint)
+       OR c.age_rating <= $8::smallint)
   -- Filtrage par statut de lecture. « unread » couvre l'absence de ligne :
   -- un album jamais ouvert n'a pas d'entrée dans reading_progress.
-  AND ($8::text = ''
-       OR ($8 = 'unread'      AND (p.status IS NULL OR p.status = 'unread'))
-       OR ($8 = 'in_progress' AND p.status = 'in_progress')
-       OR ($8 = 'read'        AND p.status = 'read'))
+  AND ($9::text = ''
+       OR ($9 = 'unread'      AND (p.status IS NULL OR p.status = 'unread'))
+       OR ($9 = 'in_progress' AND p.status = 'in_progress')
+       OR ($9 = 'read'        AND p.status = 'read'))
   -- Curseur, dans l'ordre du tri demandé.
   AND (
-    CASE $9::text
+    CASE $10::text
       WHEN 'title' THEN
-        $10::text IS NULL
-        OR (c.title, c.id) > ($10::text, $11::uuid)
+        $11::text IS NULL
+        OR (c.title, c.id) > ($11::text, $12::uuid)
       WHEN 'released' THEN
-        $12::date IS NULL
-        OR (c.released_at, c.id) < ($12::date, $11::uuid)
+        $13::date IS NULL
+        OR (c.released_at, c.id) < ($13::date, $12::uuid)
       ELSE
-        $13::timestamptz IS NULL
-        OR (c.created_at, c.id) < ($13::timestamptz, $11::uuid)
+        $14::timestamptz IS NULL
+        OR (c.created_at, c.id) < ($14::timestamptz, $12::uuid)
     END
   )
 ORDER BY
-  CASE WHEN $9 = 'title'    THEN c.title END ASC,
-  CASE WHEN $9 = 'released' THEN c.released_at END DESC NULLS LAST,
-  CASE WHEN $9 NOT IN ('title', 'released') THEN c.created_at END DESC,
+  CASE WHEN $10 = 'title'    THEN c.title END ASC,
+  CASE WHEN $10 = 'released' THEN c.released_at END DESC NULLS LAST,
+  CASE WHEN $10 NOT IN ('title', 'released') THEN c.created_at END DESC,
   c.id DESC
-LIMIT $14
+LIMIT $15
 `
 
 type ListComicsPageParams struct {
 	UserID          uuid.UUID
 	LibraryIds      []uuid.UUID
+	LockedPaths     []string
 	SeriesID        uuid.NullUUID
 	State           string
 	Folder          *string
@@ -232,6 +250,7 @@ func (q *Queries) ListComicsPage(ctx context.Context, arg ListComicsPageParams) 
 	rows, err := q.db.Query(ctx, listComicsPage,
 		arg.UserID,
 		arg.LibraryIds,
+		arg.LockedPaths,
 		arg.SeriesID,
 		arg.State,
 		arg.Folder,
@@ -304,25 +323,32 @@ WHERE c.library_id = ANY($1::uuid[])
   AND c.deleted_at IS NULL
   AND c.excluded_at IS NULL
   AND c.state = 'ready'
+  -- Dossiers masqués par un code non saisi. La comparaison couvre les
+  -- sous-dossiers : masquer « Privé » masque tout ce qu'il contient.
+  AND NOT EXISTS (
+      SELECT 1 FROM unnest($2::text[]) AS locked(p)
+      WHERE c.folder_path = locked.p OR c.folder_path LIKE locked.p || '/%'
+  )
   -- Album non commencé…
   AND NOT EXISTS (
       SELECT 1 FROM reading_progress p
-      WHERE p.comic_id = c.id AND p.user_id = $2 AND p.status <> 'unread'
+      WHERE p.comic_id = c.id AND p.user_id = $3 AND p.status <> 'unread'
   )
   -- …dans une série dont au moins un album a été lu.
   AND EXISTS (
       SELECT 1 FROM reading_progress p
       JOIN comics c2 ON c2.id = p.comic_id
-      WHERE c2.series_id = c.series_id AND p.user_id = $2 AND p.status = 'read'
+      WHERE c2.series_id = c.series_id AND p.user_id = $3 AND p.status = 'read'
   )
 ORDER BY c.series_id, c.number_sort NULLS LAST, c.title
-LIMIT $3
+LIMIT $4
 `
 
 type ListNextInSeriesParams struct {
-	LibraryIds []uuid.UUID
-	UserID     uuid.UUID
-	PageSize   int32
+	LibraryIds  []uuid.UUID
+	LockedPaths []string
+	UserID      uuid.UUID
+	PageSize    int32
 }
 
 type ListNextInSeriesRow struct {
@@ -333,7 +359,12 @@ type ListNextInSeriesRow struct {
 // Étagère « Suite de la série » : le premier album non lu de chaque série déjà
 // entamée. C'est la suggestion la plus utile d'une page d'accueil de lecteur.
 func (q *Queries) ListNextInSeries(ctx context.Context, arg ListNextInSeriesParams) ([]ListNextInSeriesRow, error) {
-	rows, err := q.db.Query(ctx, listNextInSeries, arg.LibraryIds, arg.UserID, arg.PageSize)
+	rows, err := q.db.Query(ctx, listNextInSeries,
+		arg.LibraryIds,
+		arg.LockedPaths,
+		arg.UserID,
+		arg.PageSize,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -393,15 +424,22 @@ WHERE c.library_id = ANY($1::uuid[])
   AND c.deleted_at IS NULL
   AND c.excluded_at IS NULL
   AND c.state = 'ready'
-  AND ($2::smallint IS NULL
+  -- Dossiers masqués par un code non saisi. La comparaison couvre les
+  -- sous-dossiers : masquer « Privé » masque tout ce qu'il contient.
+  AND NOT EXISTS (
+      SELECT 1 FROM unnest($2::text[]) AS locked(p)
+      WHERE c.folder_path = locked.p OR c.folder_path LIKE locked.p || '/%'
+  )
+  AND ($3::smallint IS NULL
        OR c.age_rating IS NULL
-       OR c.age_rating <= $2::smallint)
+       OR c.age_rating <= $3::smallint)
 ORDER BY c.created_at DESC
-LIMIT $3
+LIMIT $4
 `
 
 type ListRecentComicsParams struct {
 	LibraryIds   []uuid.UUID
+	LockedPaths  []string
 	MaxAgeRating *int16
 	PageSize     int32
 }
@@ -413,7 +451,12 @@ type ListRecentComicsRow struct {
 
 // Étagère d'accueil : les derniers albums ajoutés.
 func (q *Queries) ListRecentComics(ctx context.Context, arg ListRecentComicsParams) ([]ListRecentComicsRow, error) {
-	rows, err := q.db.Query(ctx, listRecentComics, arg.LibraryIds, arg.MaxAgeRating, arg.PageSize)
+	rows, err := q.db.Query(ctx, listRecentComics,
+		arg.LibraryIds,
+		arg.LockedPaths,
+		arg.MaxAgeRating,
+		arg.PageSize,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -525,18 +568,25 @@ LEFT JOIN series s ON s.id = c.series_id
 WHERE c.library_id = ANY($2::uuid[])
   AND c.deleted_at IS NULL
   AND c.excluded_at IS NULL
-  AND ($3::smallint IS NULL
+  -- Dossiers masqués par un code non saisi. La comparaison couvre les
+  -- sous-dossiers : masquer « Privé » masque tout ce qu'il contient.
+  AND NOT EXISTS (
+      SELECT 1 FROM unnest($3::text[]) AS locked(p)
+      WHERE c.folder_path = locked.p OR c.folder_path LIKE locked.p || '/%'
+  )
+  AND ($4::smallint IS NULL
        OR c.age_rating IS NULL
-       OR c.age_rating <= $3::smallint)
+       OR c.age_rating <= $4::smallint)
   AND (c.search_vector @@ websearch_to_tsquery('simple', immutable_unaccent($1))
        OR immutable_unaccent($1) <% immutable_unaccent(c.title))
 ORDER BY rank DESC, c.title
-LIMIT $4
+LIMIT $5
 `
 
 type SearchComicsParams struct {
 	Query        string
 	LibraryIds   []uuid.UUID
+	LockedPaths  []string
 	MaxAgeRating *int16
 	PageSize     int32
 }
@@ -567,6 +617,7 @@ func (q *Queries) SearchComics(ctx context.Context, arg SearchComicsParams) ([]S
 	rows, err := q.db.Query(ctx, searchComics,
 		arg.Query,
 		arg.LibraryIds,
+		arg.LockedPaths,
 		arg.MaxAgeRating,
 		arg.PageSize,
 	)

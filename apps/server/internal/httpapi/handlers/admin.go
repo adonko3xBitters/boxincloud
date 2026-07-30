@@ -10,6 +10,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/adonko3xBitters/boxincloud/server/internal/catalog"
+	"github.com/adonko3xBitters/boxincloud/server/internal/folders"
 	"github.com/adonko3xBitters/boxincloud/server/internal/httpapi/problem"
 	"github.com/adonko3xBitters/boxincloud/server/internal/ingest"
 	"github.com/adonko3xBitters/boxincloud/server/internal/library"
@@ -418,6 +419,16 @@ func writeIngestError(w http.ResponseWriter, r *http.Request, err error) {
 		})
 	case errors.Is(err, storage.ErrReadOnly):
 		problem.Write(w, r, problem.Forbidden("this library is read-only"))
+
+	// Le verrou vient du paquet folders : l'ingestion le reçoit à travers son
+	// garde d'écriture, sans le connaître.
+	case errors.Is(err, folders.ErrReadOnly):
+		problem.Write(w, r, problem.Problem{
+			Status: http.StatusConflict,
+			Type:   "https://boxincloud.dev/problems/folder-read-only",
+			Title:  "Folder Read Only",
+			Detail: "this folder, or one of its parents, is protected against changes",
+		})
 	case errors.Is(err, library.ErrLibraryNotFound):
 		problem.Write(w, r, problem.NotFound("library not found"))
 	default:

@@ -74,6 +74,7 @@ func (r *PostgresRepository) ListComics(ctx context.Context, p ListComicsParams)
 		Sort:          string(p.Sort),
 		MaxAgeRating:  p.MaxAgeRating,
 		PageSize:      p.Limit,
+		LockedPaths:   p.LockedPaths,
 	}
 	if p.SeriesID != nil {
 		params.SeriesID = uuid.NullUUID{UUID: *p.SeriesID, Valid: true}
@@ -113,6 +114,7 @@ func (r *PostgresRepository) SearchComics(ctx context.Context, p SearchParams) (
 		Query:        p.Query,
 		MaxAgeRating: p.MaxAgeRating,
 		PageSize:     p.Limit,
+		LockedPaths:  p.LockedPaths,
 	})
 	if err != nil {
 		return nil, err
@@ -137,8 +139,13 @@ func (r *PostgresRepository) GetComic(ctx context.Context, id uuid.UUID) (Comic,
 	return comicWithSeries(row.Comic, row.SeriesName), nil
 }
 
-func (r *PostgresRepository) ListComicsBySeries(ctx context.Context, seriesID uuid.UUID) ([]Comic, error) {
-	rows, err := r.q.ListComicsBySeries(ctx, uuid.NullUUID{UUID: seriesID, Valid: true})
+func (r *PostgresRepository) ListComicsBySeries(
+	ctx context.Context, seriesID uuid.UUID, lockedPaths []string,
+) ([]Comic, error) {
+	rows, err := r.q.ListComicsBySeries(ctx, sqlc.ListComicsBySeriesParams{
+		SeriesID:    uuid.NullUUID{UUID: seriesID, Valid: true},
+		LockedPaths: lockedPaths,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -155,6 +162,7 @@ func (r *PostgresRepository) ListRecent(ctx context.Context, p ListComicsParams)
 		LibraryIds:   p.LibraryIDs,
 		MaxAgeRating: p.MaxAgeRating,
 		PageSize:     p.Limit,
+		LockedPaths:  p.LockedPaths,
 	})
 	if err != nil {
 		return nil, err
@@ -167,11 +175,14 @@ func (r *PostgresRepository) ListRecent(ctx context.Context, p ListComicsParams)
 	return out, nil
 }
 
-func (r *PostgresRepository) ListNextInSeries(ctx context.Context, v Viewer, libraryIDs []uuid.UUID, limit int32) ([]Comic, error) {
+func (r *PostgresRepository) ListNextInSeries(
+	ctx context.Context, v Viewer, libraryIDs []uuid.UUID, limit int32, lockedPaths []string,
+) ([]Comic, error) {
 	rows, err := r.q.ListNextInSeries(ctx, sqlc.ListNextInSeriesParams{
-		LibraryIds: libraryIDs,
-		UserID:     v.UserID,
-		PageSize:   limit,
+		LibraryIds:  libraryIDs,
+		UserID:      v.UserID,
+		PageSize:    limit,
+		LockedPaths: lockedPaths,
 	})
 	if err != nil {
 		return nil, err

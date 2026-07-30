@@ -61,6 +61,12 @@ type Scanner interface {
 // du stockage, comme celui-ci, et l'importer créerait un cycle.
 type FolderRegistrar func(ctx context.Context, libraryID uuid.UUID, path string) error
 
+// WriteGuard refuse une écriture dans un dossier protégé en lecture seule.
+//
+// Injecté pour la même raison que le registrar : le paquet folders dépend des
+// bibliothèques et du stockage, comme celui-ci.
+type WriteGuard func(ctx context.Context, libraryID uuid.UUID, path string) error
+
 // Service reçoit les fichiers, les fait entrer au catalogue, et les gère
 // ensuite : suppression, déplacement.
 type Service struct {
@@ -69,6 +75,7 @@ type Service struct {
 	manage    ManageRepository
 	scanner   Scanner
 	registrar FolderRegistrar
+	guard     WriteGuard
 	log       *slog.Logger
 
 	// maxSize borne un envoi. Zéro signifie « sans limite ».
@@ -166,6 +173,12 @@ func (s *Service) Upload(ctx context.Context, p UploadParams) (Result, error) {
 
 	provider, err := s.libraries.ProviderForLibrary(ctx, lib)
 	if err != nil {
+		return Result{}, err
+	}
+
+	// La destination peut être protégée : le vérifier AVANT d'écrire évite de
+	// déposer un objet qu'il faudrait ensuite retirer.
+	if err := s.ensureWritable(ctx, lib.ID, p.Folder); err != nil {
 		return Result{}, err
 	}
 
@@ -451,4 +464,15 @@ func (s *Service) registerFolder(ctx context.Context, libraryID uuid.UUID, path 
 		s.log.Warn("dossier non inscrit dans l'arborescence",
 			slog.String("path", path), slog.Any("err", err))
 	}
+}
+
+// SetWriteGuard câble le contrôle de lecture seule.
+func (s *Service) SetWriteGuard(guard WriteGuard) { s.guard = guard }
+
+// ensureWritable délègue au garde, s'il est câblé.
+func (s *Service) ensureWritable(ctx context.Context, libraryID uuid.UUID, path string) error {
+	if s.guard == nil {
+		return nil
+	}
+	return s.guard(ctx, libraryID, path)
 }

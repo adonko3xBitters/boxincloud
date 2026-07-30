@@ -214,3 +214,57 @@ WHERE library_id = $1
   AND deleted_at IS NULL
   AND (folder_path = @path::text OR folder_path LIKE @path::text || '/%')
 ORDER BY object_key;
+
+-- ─── Verrous de dossiers ─────────────────────────────────────────────────────
+
+-- name: SetFolderReadOnly :one
+UPDATE folders SET read_only = $3 WHERE library_id = $1 AND path = $2 RETURNING *;
+
+-- name: SetFolderAccessCode :one
+UPDATE folders SET access_code_hash = $3 WHERE library_id = $1 AND path = $2 RETURNING *;
+
+-- Dossiers masqués d'une bibliothèque, avec l'échéance du déverrouillage
+-- éventuel accordé à ce compte.
+--
+-- Une seule requête plutôt que deux : la liste des dossiers à code et celle des
+-- déverrouillages sont toujours consultées ensemble, et les séparer laisserait
+-- une fenêtre où l'une aurait changé sans l'autre.
+-- name: ListLockedFolders :many
+SELECT f.id, f.library_id, f.path, u.expires_at
+FROM folders f
+LEFT JOIN folder_unlocks u
+       ON u.folder_id = f.id AND u.user_id = @user_id AND u.expires_at > now()
+WHERE f.library_id = ANY(@library_ids::uuid[])
+  AND f.access_code_hash IS NOT NULL
+ORDER BY f.path;
+
+-- name: GetFolderAccessCode :one
+SELECT id, access_code_hash FROM folders WHERE library_id = $1 AND path = $2;
+
+-- name: UnlockFolder :exec
+INSERT INTO folder_unlocks (user_id, folder_id, expires_at)
+VALUES ($1, $2, $3)
+ON CONFLICT (user_id, folder_id) DO UPDATE SET expires_at = EXCLUDED.expires_at;
+
+-- name: LockFolderAgain :exec
+DELETE FROM folder_unlocks WHERE user_id = $1 AND folder_id = $2;
+
+-- Retire tous les déverrouillages d'un dossier, quel que soit le compte.
+--
+-- Appelé quand le code change ou disparaît : un déverrouillage obtenu avec
+-- l'ancien code ne doit pas survivre au nouveau.
+-- name: RevokeFolderUnlocks :exec
+DELETE FROM folder_unlocks WHERE folder_id = $1;
+
+-- Le dossier lui-même ou l'un de ses ancêtres est-il en lecture seule ?
+--
+-- La protection est héritée : verrouiller « BD » protège tout ce qu'il contient,
+-- ce qu'on attend de ce geste. La vérifier ancêtre par ancêtre côté service
+-- coûterait une requête par niveau.
+-- name: IsFolderTreeReadOnly :one
+SELECT EXISTS (
+    SELECT 1 FROM folders
+    WHERE library_id = $1
+      AND read_only = true
+      AND (@path::text = path OR @path::text LIKE path || '/%')
+) AS locked;

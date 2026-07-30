@@ -70,6 +70,15 @@ type Folder struct {
 	Depth     int
 	Explicit  bool
 
+	// ReadOnly protège d'une écriture. N'affecte pas la visibilité.
+	ReadOnly bool
+
+	// HasCode signale un dossier masqué par un code d'accès.
+	HasCode bool
+
+	// Unlocked est vrai quand le code a été saisi et n'a pas expiré.
+	Unlocked bool
+
 	// ComicCount cumule les albums du dossier ET de ses descendants : c'est ce
 	// qu'attend quelqu'un qui replie un nœud.
 	ComicCount int
@@ -111,6 +120,7 @@ type Service struct {
 	libraries *library.Service
 	log       *slog.Logger
 	remove    ComicRemover
+	locks     LockRepository
 }
 
 func NewService(repo Repository, libraries *library.Service, log *slog.Logger) *Service {
@@ -127,14 +137,43 @@ un enfant est toujours rencontré après son parent, et il suffit de remonter la
 chaîne des ancêtres. Recompter par requête pour chaque nœud coûterait une
 requête par dossier.
 */
-func (s *Service) Tree(ctx context.Context, libraryIDs []uuid.UUID) ([]Folder, error) {
+func (s *Service) Tree(ctx context.Context, userID uuid.UUID, libraryIDs []uuid.UUID) ([]Folder, error) {
 	if len(libraryIDs) == 0 {
 		return []Folder{}, nil
 	}
 
-	list, err := s.repo.List(ctx, libraryIDs)
+	all, err := s.repo.List(ctx, libraryIDs)
 	if err != nil {
 		return nil, err
+	}
+
+	unlocked, err := s.unlockedPaths(ctx, userID, libraryIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	hidden, err := s.LockedPaths(ctx, userID, libraryIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	/*
+		Les branches masquées sont retirées AVANT le cumul des compteurs.
+
+		Sans cela, la racine annoncerait un total incluant ce qu'elle cache, et
+		la simple soustraction révélerait l'existence — et le volume — d'un
+		dossier qu'un code est censé dissimuler. Un compteur qui ne colle pas
+		avec la somme de ses enfants est un aveu.
+	*/
+	list := make([]Folder, 0, len(all))
+	for _, folder := range all {
+		if hiddenUnder(folder.Path, hidden) {
+			continue
+		}
+		if folder.HasCode {
+			folder.Unlocked = unlocked[folder.Path]
+		}
+		list = append(list, folder)
 	}
 
 	counts, err := s.repo.CountsByExactFolder(ctx, libraryIDs)
@@ -148,6 +187,9 @@ func (s *Service) Tree(ctx context.Context, libraryIDs []uuid.UUID) ([]Folder, e
 			list[i].ComicCount = byPath[list[i].Path]
 		}
 	}
+
+	// Les albums d'un dossier masqué ne remontent nulle part : leur dossier
+	// n'est plus dans la liste, donc leur compte exact n'est jamais lu.
 
 	// Puis cumul vers les ancêtres.
 	index := make(map[uuid.UUID]map[string]int, len(libraryIDs))
@@ -179,6 +221,11 @@ func (s *Service) Tree(ctx context.Context, libraryIDs []uuid.UUID) ([]Folder, e
 	return list, nil
 }
 
+// Get retourne un dossier par son chemin.
+func (s *Service) Get(ctx context.Context, libraryID uuid.UUID, path string) (Folder, error) {
+	return s.repo.Get(ctx, libraryID, NormalizePath(path))
+}
+
 // ─── Création ────────────────────────────────────────────────────────────────
 
 /*
@@ -195,6 +242,9 @@ func (s *Service) Create(ctx context.Context, libraryID uuid.UUID, path string) 
 	}
 
 	if _, err := s.libraries.GetLibrary(ctx, libraryID); err != nil {
+		return Folder{}, err
+	}
+	if err := s.EnsureWritable(ctx, libraryID, clean); err != nil {
 		return Folder{}, err
 	}
 
@@ -257,6 +307,16 @@ func (s *Service) Relocate(ctx context.Context, libraryID uuid.UUID, oldPath, ne
 	}
 
 	if _, err := s.repo.Get(ctx, libraryID, source); err != nil {
+		return Folder{}, err
+	}
+
+	// La protection porte sur la source ET sur la destination : déplacer une
+	// branche hors d'un dossier protégé le viderait, y déplacer une branche le
+	// modifierait tout autant.
+	if err := s.EnsureWritable(ctx, libraryID, source); err != nil {
+		return Folder{}, err
+	}
+	if err := s.EnsureWritable(ctx, libraryID, target); err != nil {
 		return Folder{}, err
 	}
 	if _, err := s.repo.Get(ctx, libraryID, target); err == nil {
@@ -372,6 +432,9 @@ func (s *Service) Delete(ctx context.Context, p DeleteParams) (int, error) {
 	}
 
 	if _, err := s.repo.Get(ctx, p.LibraryID, path); err != nil {
+		return 0, err
+	}
+	if err := s.EnsureWritable(ctx, p.LibraryID, path); err != nil {
 		return 0, err
 	}
 
@@ -579,4 +642,24 @@ func folderOfKey(objectKey, prefix string) string {
 		return ""
 	}
 	return rest[:index]
+}
+
+// unlockedPaths indexe les dossiers dont le code a été saisi et n'a pas expiré.
+func (s *Service) unlockedPaths(
+	ctx context.Context, userID uuid.UUID, libraryIDs []uuid.UUID,
+) (map[string]bool, error) {
+	if s.locks == nil {
+		return map[string]bool{}, nil
+	}
+
+	list, err := s.locks.LockedFolders(ctx, userID, libraryIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make(map[string]bool, len(list))
+	for _, folder := range list {
+		out[folder.Path] = folder.UnlockedUntil != nil
+	}
+	return out, nil
 }

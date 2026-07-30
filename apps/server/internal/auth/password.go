@@ -58,7 +58,21 @@ func HashPassword(password string) (string, error) {
 	if len(password) < MinPasswordLength {
 		return "", ErrPasswordTooShort
 	}
-	return hashWithParams(password, defaultParams)
+	return HashSecret(password)
+}
+
+/*
+HashSecret hache un secret court sans imposer la politique des mots de passe.
+
+Même primitive, même coût, mais sans le minimum de dix caractères : celui-ci
+protège l'accès au SERVEUR, alors qu'un code de dossier ne masque qu'une branche
+à quelqu'un déjà authentifié. Exiger la même longueur pousserait à le noter à
+côté, ce qui protège moins qu'un code court réellement retenu.
+
+L'appelant reste responsable de sa propre longueur minimale.
+*/
+func HashSecret(secret string) (string, error) {
+	return hashWithParams(secret, defaultParams)
 }
 
 func hashWithParams(password string, p argonParams) (string, error) {

@@ -21,7 +21,9 @@ import * as api from "@/lib/api/endpoints";
 export type FolderDialog =
   | { kind: "create"; libraryId: string; parent: string }
   | { kind: "rename"; libraryId: string; path: string; name: string }
-  | { kind: "delete"; libraryId: string; path: string; comicCount: number };
+  | { kind: "delete"; libraryId: string; path: string; comicCount: number }
+  | { kind: "lock"; libraryId: string; path: string; readOnly: boolean; hasCode: boolean }
+  | { kind: "unlock"; libraryId: string; path: string };
 
 export function FolderDialogs({
   dialog,
@@ -45,14 +47,28 @@ export function FolderDialogs({
       />
     );
   }
-  return (
-    <DeleteFolder
-      libraryId={dialog.libraryId}
-      path={dialog.path}
-      comicCount={dialog.comicCount}
-      onClose={onClose}
-    />
-  );
+  if (dialog.kind === "delete") {
+    return (
+      <DeleteFolder
+        libraryId={dialog.libraryId}
+        path={dialog.path}
+        comicCount={dialog.comicCount}
+        onClose={onClose}
+      />
+    );
+  }
+  if (dialog.kind === "lock") {
+    return (
+      <LockFolder
+        libraryId={dialog.libraryId}
+        path={dialog.path}
+        readOnly={dialog.readOnly}
+        hasCode={dialog.hasCode}
+        onClose={onClose}
+      />
+    );
+  }
+  return <UnlockFolder libraryId={dialog.libraryId} path={dialog.path} onClose={onClose} />;
 }
 
 // ─── Création ────────────────────────────────────────────────────────────────
@@ -398,4 +414,211 @@ function describe(error: unknown): string {
     return error.problem?.detail ?? error.problem?.title ?? error.message;
   }
   return error instanceof Error ? error.message : "erreur inconnue";
+}
+
+// ─── Verrouillage ────────────────────────────────────────────────────────────
+
+/**
+ * Réglage des deux verrous.
+ *
+ * Ils sont présentés côte à côte parce qu'ils se confondent facilement : l'un
+ * protège sans cacher, l'autre cache sans protéger. Les décrire l'un à côté de
+ * l'autre est la seule façon de rendre la différence évidente.
+ */
+export function LockFolder({
+  libraryId,
+  path,
+  readOnly,
+  hasCode,
+  onClose,
+}: {
+  libraryId: string;
+  path: string;
+  readOnly: boolean;
+  hasCode: boolean;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [protectedMode, setProtected] = useState(readOnly);
+  const [code, setCode] = useState("");
+  const [removeCode, setRemoveCode] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEscape(onClose);
+
+  async function run(event: React.FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      const lock: { readOnly?: boolean; code?: string } = {};
+      if (protectedMode !== readOnly) lock.readOnly = protectedMode;
+      if (removeCode) lock.code = "";
+      else if (code) lock.code = code;
+
+      if (Object.keys(lock).length > 0) {
+        await api.setFolderLock(libraryId, path, lock);
+      }
+      await refreshFolders(queryClient);
+      onClose();
+    } catch (err) {
+      setError(describe(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Shell title="Verrouiller le dossier" onClose={onClose}>
+      <form onSubmit={run} className="flex flex-col gap-4">
+        <p className="text-meta text-muted">
+          <code className="text-fg">{path}</code>
+        </p>
+
+        <label className="flex items-start gap-2.5 rounded-md border border-border p-3">
+          <input
+            type="checkbox"
+            checked={protectedMode}
+            onChange={(e) => setProtected(e.target.checked)}
+            className="mt-0.5 size-4 accent-[var(--accent)]"
+          />
+          <span>
+            <span className="block text-ui font-medium text-fg">Lecture seule</span>
+            <span className="block text-meta leading-relaxed text-muted">
+              Le dossier reste visible de tous, mais ne peut plus être renommé,
+              déplacé, ni recevoir ou perdre un album. La protection s&apos;étend
+              aux sous-dossiers.
+            </span>
+          </span>
+        </label>
+
+        <div className="rounded-md border border-border p-3">
+          <p className="text-ui font-medium text-fg">Code d&apos;accès</p>
+          <p className="mt-0.5 text-meta leading-relaxed text-muted">
+            Masque le dossier et son contenu — listes, recherche, accès direct —
+            tant que le code n&apos;a pas été saisi. Utile sur un serveur partagé.
+          </p>
+
+          {hasCode && (
+            <label className="mt-2.5 flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={removeCode}
+                onChange={(e) => {
+                  setRemoveCode(e.target.checked);
+                  if (e.target.checked) setCode("");
+                }}
+                className="size-4 accent-[var(--accent)]"
+              />
+              <span className="text-meta text-muted">Retirer le code existant</span>
+            </label>
+          )}
+
+          {!removeCode && (
+            <label className="mt-2.5 flex flex-col gap-1">
+              <span className="text-micro uppercase tracking-wide text-subtle">
+                {hasCode ? "Nouveau code" : "Code"}
+              </span>
+              <input
+                type="password"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                placeholder={hasCode ? "Laisser vide pour ne pas changer" : "Quatre caractères minimum"}
+                autoComplete="new-password"
+                className="h-9 rounded-md border border-border bg-surface px-2.5 text-ui text-fg placeholder:text-subtle"
+              />
+            </label>
+          )}
+
+          {hasCode && (
+            <p className="mt-2 text-meta leading-relaxed text-subtle">
+              Changer ou retirer le code referme le dossier partout : un accès
+              obtenu avec l&apos;ancien ne survit pas au nouveau.
+            </p>
+          )}
+        </div>
+
+        {error && <ErrorNote>{error}</ErrorNote>}
+
+        <div className="flex justify-end gap-2">
+          <button type="button" onClick={onClose} className={buttonClass("secondary", "sm")}>
+            Annuler
+          </button>
+          <button type="submit" disabled={busy} className={buttonClass("primary", "sm")}>
+            {busy ? "Enregistrement…" : "Enregistrer"}
+          </button>
+        </div>
+      </form>
+    </Shell>
+  );
+}
+
+/** Saisie du code pour ouvrir un dossier masqué. */
+export function UnlockFolder({
+  libraryId,
+  path,
+  onClose,
+}: {
+  libraryId: string;
+  path: string;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [code, setCode] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEscape(onClose);
+
+  async function run(event: React.FormEvent) {
+    event.preventDefault();
+    setBusy(true);
+    setError(null);
+    try {
+      await api.unlockFolder(libraryId, path, code);
+      await refreshFolders(queryClient);
+      onClose();
+    } catch (err) {
+      setError(describe(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Shell title="Dossier verrouillé" onClose={onClose}>
+      <form onSubmit={run} className="flex flex-col gap-3">
+        <p className="text-meta text-muted">
+          <code className="text-fg">{path}</code>
+        </p>
+
+        <label className="flex flex-col gap-1">
+          <span className="text-micro uppercase tracking-wide text-subtle">Code d&apos;accès</span>
+          <input
+            type="password"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            autoFocus
+            autoComplete="off"
+            className="h-9 rounded-md border border-border bg-surface px-2.5 text-ui text-fg"
+          />
+          <span className="text-meta text-subtle">
+            Le dossier reste ouvert deux heures, puis se referme de lui-même.
+          </span>
+        </label>
+
+        {error && <ErrorNote>{error}</ErrorNote>}
+
+        <div className="flex justify-end gap-2">
+          <button type="button" onClick={onClose} className={buttonClass("secondary", "sm")}>
+            Annuler
+          </button>
+          <button type="submit" disabled={busy} className={buttonClass("primary", "sm")}>
+            {busy ? "Vérification…" : "Ouvrir"}
+          </button>
+        </div>
+      </form>
+    </Shell>
+  );
 }

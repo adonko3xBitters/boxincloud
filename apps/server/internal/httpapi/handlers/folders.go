@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -38,6 +39,9 @@ type folderNodeDTO struct {
 	Depth      int    `json:"depth"`
 	ComicCount int    `json:"comicCount"`
 	Explicit   bool   `json:"explicit"`
+	ReadOnly   bool   `json:"readOnly"`
+	HasCode    bool   `json:"hasCode"`
+	Unlocked   bool   `json:"unlocked"`
 }
 
 func toFolderDTO(f folders.Folder) folderNodeDTO {
@@ -49,6 +53,9 @@ func toFolderDTO(f folders.Folder) folderNodeDTO {
 		Depth:      f.Depth,
 		ComicCount: f.ComicCount,
 		Explicit:   f.Explicit,
+		ReadOnly:   f.ReadOnly,
+		HasCode:    f.HasCode,
+		Unlocked:   f.Unlocked,
 	}
 }
 
@@ -71,7 +78,7 @@ func (h *Folders) List(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tree, err := h.svc.Tree(r.Context(), libraryIDs)
+	tree, err := h.svc.Tree(r.Context(), v.UserID, libraryIDs)
 	if err != nil {
 		writeInternal(w, r, err)
 		return
@@ -286,6 +293,27 @@ func writeFolderError(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, folders.ErrInvalidName):
 		problem.Write(w, r, problem.Validation(map[string]string{"path": "unusable folder name"}))
 
+	case errors.Is(err, folders.ErrReadOnly):
+		problem.Write(w, r, problem.Problem{
+			Status: http.StatusConflict,
+			Type:   "https://boxincloud.dev/problems/folder-read-only",
+			Title:  "Folder Read Only",
+			Detail: "this folder, or one of its parents, is protected against changes",
+		})
+
+	case errors.Is(err, folders.ErrWrongCode):
+		problem.Write(w, r, problem.Validation(map[string]string{"code": "incorrect access code"}))
+
+	case errors.Is(err, folders.ErrNotLocked):
+		problem.Write(w, r, problem.Validation(map[string]string{
+			"path": "this folder has no access code",
+		}))
+
+	case errors.Is(err, folders.ErrCodeTooShort):
+		problem.Write(w, r, problem.Validation(map[string]string{
+			"code": "at least 4 characters",
+		}))
+
 	case errors.Is(err, folders.ErrTooManyComics):
 		problem.Write(w, r, problem.Validation(map[string]string{
 			"path": "too many comics in this branch; move them in smaller batches",
@@ -294,4 +322,134 @@ func writeFolderError(w http.ResponseWriter, r *http.Request, err error) {
 	default:
 		writeInternal(w, r, err)
 	}
+}
+
+// ─── Verrous ─────────────────────────────────────────────────────────────────
+
+type lockRequest struct {
+	LibraryID string  `json:"libraryId"`
+	Path      string  `json:"path"`
+	ReadOnly  *bool   `json:"readOnly"`
+	Code      *string `json:"code"`
+}
+
+/*
+SetLock règle les deux verrous d'un dossier.
+
+Ils sont indépendants et se cumulent : la lecture seule protège d'une fausse
+manœuvre sans rien masquer, le code masque sans rien protéger. Un même appel peut
+en régler un ou les deux.
+
+Un code vide le retire. Dans les deux cas, les déverrouillages en cours tombent :
+un accès obtenu avec l'ancien code ne survit pas au nouveau.
+*/
+func (h *Folders) SetLock(w http.ResponseWriter, r *http.Request) {
+	v, ok := viewerFrom(w, r)
+	if !ok {
+		return
+	}
+
+	var req lockRequest
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+
+	libraryID, err := uuid.Parse(req.LibraryID)
+	if err != nil {
+		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "must be a UUID"}))
+		return
+	}
+
+	// Poser un verrou est une décision d'administration : un compte qui peut
+	// seulement lire ne doit pas pouvoir masquer un dossier aux autres.
+	if !v.IsAdmin {
+		problem.Write(w, r, problem.Forbidden("administrator role required"))
+		return
+	}
+
+	ctx := r.Context()
+	folder, err := h.svc.Get(ctx, libraryID, req.Path)
+	if err != nil {
+		writeFolderError(w, r, err)
+		return
+	}
+
+	if req.ReadOnly != nil {
+		folder, err = h.svc.SetReadOnly(ctx, libraryID, req.Path, *req.ReadOnly)
+		if err != nil {
+			writeFolderError(w, r, err)
+			return
+		}
+	}
+
+	if req.Code != nil {
+		folder, err = h.svc.SetAccessCode(ctx, libraryID, req.Path, *req.Code)
+		if err != nil {
+			writeFolderError(w, r, err)
+			return
+		}
+	}
+
+	writeJSON(w, http.StatusOK, toFolderDTO(folder))
+}
+
+type unlockRequest struct {
+	LibraryID string `json:"libraryId"`
+	Path      string `json:"path"`
+	Code      string `json:"code"`
+}
+
+// Unlock ouvre un dossier masqué pour ce compte, jusqu'à échéance.
+func (h *Folders) Unlock(w http.ResponseWriter, r *http.Request) {
+	v, ok := viewerFrom(w, r)
+	if !ok {
+		return
+	}
+
+	var req unlockRequest
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+
+	libraryID, err := uuid.Parse(req.LibraryID)
+	if err != nil {
+		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "must be a UUID"}))
+		return
+	}
+
+	// L'accès à la bibliothèque reste requis : un code ne contourne pas les
+	// droits, il s'ajoute à eux.
+	if !h.mayWrite(w, r, v, libraryID) {
+		return
+	}
+
+	until, err := h.svc.Unlock(r.Context(), v.UserID, libraryID, req.Path, req.Code)
+	if err != nil {
+		writeFolderError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"unlockedUntil": until.UTC().Format(time.RFC3339),
+	})
+}
+
+// Relock referme un dossier avant l'échéance.
+func (h *Folders) Relock(w http.ResponseWriter, r *http.Request) {
+	v, ok := viewerFrom(w, r)
+	if !ok {
+		return
+	}
+
+	libraryID, err := uuid.Parse(chi.URLParam(r, "libraryID"))
+	if err != nil {
+		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "must be a UUID"}))
+		return
+	}
+
+	if err := h.svc.Relock(r.Context(), v.UserID, libraryID, r.URL.Query().Get("path")); err != nil {
+		writeFolderError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }

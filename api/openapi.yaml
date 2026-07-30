@@ -946,6 +946,11 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          description: Le dossier de destination est en lecture seule
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
         "413":
           description: Fichier au-delà de la limite configurée
           content:
@@ -1020,8 +1025,126 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          description: Le dossier, ou l'un de ses parents, est en lecture seule
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
         "422":
           $ref: "#/components/responses/ValidationFailed"
+
+  /folders/lock:
+    put:
+      operationId: setFolderLock
+      summary: Verrouiller un dossier
+      description: |
+        Deux verrous indépendants, qui répondent à deux besoins distincts et se
+        cumulent librement.
+
+        **Lecture seule** protège d'une fausse manœuvre : le dossier reste
+        parfaitement visible, mais ne peut plus être renommé, déplacé, ni recevoir
+        ou perdre un album. La protection s'hérite — verrouiller « BD » protège
+        tout ce qu'il contient.
+
+        **Code d'accès** masque : le dossier et son contenu disparaissent des
+        listages, de la recherche et de l'accès direct tant que le code n'a pas
+        été saisi. Un code vide le retire.
+
+        Dans les deux cas de changement de code, les déverrouillages en cours
+        sont révoqués : un accès obtenu avec l'ancien code ne survit pas au
+        nouveau.
+      tags: [catalog]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [libraryId, path]
+              properties:
+                libraryId: { type: string, format: uuid }
+                path: { type: string }
+                readOnly: { type: boolean }
+                code:
+                  type: string
+                  description: |
+                    Quatre caractères minimum. Ce n'est pas un mot de passe de
+                    compte : il ne protège pas l'accès au serveur mais la
+                    visibilité d'un dossier pour quelqu'un déjà connecté. Vide
+                    pour retirer le code.
+      responses:
+        "200":
+          description: Dossier après verrouillage
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Folder" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /folders/unlock:
+    post:
+      operationId: unlockFolder
+      summary: Saisir le code d'accès d'un dossier
+      description: |
+        Ouvre le dossier pour ce compte, jusqu'à échéance. Le déverrouillage
+        n'est pas porté par le jeton d'accès — celui-ci est autoporteur, donc ni
+        révocable ni modifiable une fois émis — mais enregistré côté serveur.
+
+        Un code ne contourne pas les droits, il s'y ajoute : l'accès à la
+        bibliothèque reste requis.
+      tags: [catalog]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [libraryId, path, code]
+              properties:
+                libraryId: { type: string, format: uuid }
+                path: { type: string }
+                code: { type: string }
+      responses:
+        "200":
+          description: Dossier déverrouillé
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [unlockedUntil]
+                properties:
+                  unlockedUntil: { type: string, format: date-time }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /libraries/{libraryId}/folders/unlock:
+    delete:
+      operationId: relockFolder
+      summary: Refermer un dossier avant échéance
+      tags: [catalog]
+      parameters:
+        - $ref: "#/components/parameters/LibraryIdPath"
+        - name: path
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "204":
+          description: Dossier refermé
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
 
   /folders/path:
     put:
@@ -1066,6 +1189,11 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          description: Le dossier, ou l'un de ses parents, est en lecture seule
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
         "422":
           $ref: "#/components/responses/ValidationFailed"
 
@@ -1110,7 +1238,9 @@ paths:
         "404":
           $ref: "#/components/responses/NotFound"
         "409":
-          description: Le dossier contient encore des albums
+          description: |
+            Le dossier contient encore des albums, ou il est en lecture seule.
+            Le champ `type` distingue les deux cas.
           content:
             application/problem+json:
               schema: { $ref: "#/components/schemas/Problem" }
@@ -1376,6 +1506,12 @@ paths:
           $ref: "#/components/responses/Forbidden"
         "404":
           $ref: "#/components/responses/NotFound"
+        "409":
+          description: Le dossier, ou l'un de ses parents, est en lecture seule
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+
 
     patch:
       operationId: editComic
@@ -1997,7 +2133,7 @@ components:
 
     Folder:
       type: object
-      required: [id, libraryId, path, name, depth, comicCount, explicit]
+      required: [id, libraryId, path, name, depth, comicCount, explicit, readOnly, hasCode, unlocked]
       properties:
         id: { type: string, format: uuid }
         libraryId: { type: string, format: uuid }
@@ -2017,6 +2153,19 @@ components:
             Vrai pour un dossier créé à la main, qui survit au fait d'être vide.
             Faux pour un dossier constaté par le parcours, élagué dès qu'il ne
             contient plus rien.
+        readOnly:
+          type: boolean
+          description: Protégé contre les modifications. Ne masque rien.
+        hasCode:
+          type: boolean
+          description: |
+            Masqué par un code d'accès. Un dossier masqué non déverrouillé
+            n'apparaît pas du tout dans cette liste — ce drapeau ne peut donc
+            être vrai que sur un dossier déverrouillé, ou pour un administrateur
+            qui vient de poser le code.
+        unlocked:
+          type: boolean
+          description: Le code a été saisi et n'a pas expiré.
 
     ComicPage:
       type: object
