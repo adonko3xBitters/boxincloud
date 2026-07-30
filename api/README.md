@@ -29,6 +29,23 @@ mécaniquement à un contrat qui décrit le serveur au lieu de le contraindre �
 Ces répertoires sont versionnés mais **jamais édités à la main**. La CI vérifie
 qu'ils correspondent au contrat.
 
+## Le contrat ne peut pas dériver
+
+`apps/server/internal/httpapi/contract_test.go` exerce le serveur réel — vraie
+base, vrai MinIO, vrais handlers — et **valide chaque réponse contre ce
+fichier**. Une divergence fait échouer la CI.
+
+C'est indispensable : les clients TypeScript et Dart sont générés depuis le
+contrat, pas depuis le code. Sans ce test, une incohérence ne se verrait qu'à
+l'exécution, chez l'utilisateur.
+
+Le test couvre aussi les réponses d'erreur — c'est sur elles que les clients
+branchent leur comportement — et les réponses binaires, dont il vérifie le type
+de contenu, les en-têtes de cache et le comportement conditionnel.
+
+Ajouter un endpoint sans le déclarer ici fait échouer le test avec un message
+explicite. C'est voulu.
+
 ## Règles de compatibilité
 
 `/api/v1` ne change qu'en cas de rupture. Sont considérés **rétrocompatibles** et

@@ -78,6 +78,11 @@ jobs:
     # testcontainers. Un mock de S3 ne reproduit ni le comportement des
     # requêtes Range, ni les codes d'erreur, ni la sémantique des ETag —
     # c'est-à-dire précisément ce qui nous intéresse.
+    #
+    # Ils incluent le test de contrat, qui valide chaque réponse du serveur réel
+    # contre api/openapi.yaml. Une divergence entre le contrat publié et
+    # l'implémentation fait échouer la CI — avant que les clients TypeScript et
+    # Dart, générés depuis le fichier, ne partent avec de mauvais types.
     steps:
       - uses: actions/checkout@v4
 

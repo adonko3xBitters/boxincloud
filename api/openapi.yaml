@@ -1,10 +1,11 @@
-openapi: 3.1.0
+openapi: 3.0.3
 
 info:
   title: boxincloud API
   version: 0.1.0-dev
-  summary: Bibliothèque de BD, comics et mangas sur stockage objet
   description: |
+    Bibliothèque de BD, comics et mangas sur stockage objet.
+
     Contrat de l'API boxincloud.
 
     **Ce fichier est la source de vérité.** Le serveur Go, le client TypeScript
@@ -12,17 +13,31 @@ info:
     (`make generate`). Toute évolution de l'API commence ici — jamais par le
     code, sinon les clients divergent.
 
+    Un test de contrat (`internal/httpapi/contract_test.go`) valide chaque
+    réponse du serveur réel contre ce schéma : une divergence entre le contrat
+    et l'implémentation fait échouer la CI.
+
     ## Erreurs
 
     Les erreurs suivent la [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457)
     (`application/problem+json`). Le champ `type` est stable : les clients
-    peuvent s'appuyer dessus pour brancher leur comportement.
+    peuvent s'appuyer dessus pour brancher leur comportement. Deux valeurs
+    méritent un traitement particulier :
+
+    - `.../token-expired` — le jeton d'accès a expiré, rafraîchir puis rejouer ;
+    - `.../session-revoked` — la session est révoquée, redemander une connexion
+      complète (une réutilisation de refresh token a été détectée).
+
+    ## Pagination
+
+    Pagination par curseur. Le client renvoie `nextCursor` tel quel dans le
+    paramètre `cursor` ; il ne doit jamais le construire ni l'interpréter.
+    L'absence de `nextCursor` signifie « dernière page ».
 
     ## Versionnement
 
     Le préfixe `/api/v1` change uniquement en cas de rupture. Les ajouts
-    rétrocompatibles (nouveau champ optionnel, nouvel endpoint) se font dans la
-    même version.
+    rétrocompatibles se font dans la même version. Voir `api/README.md`.
   license:
     name: AGPL-3.0-only
     url: https://www.gnu.org/licenses/agpl-3.0.html
@@ -34,8 +49,21 @@ servers:
 tags:
   - name: system
     description: Santé, version et diagnostic
+  - name: auth
+    description: Installation, connexion, sessions et appareils
+  - name: catalog
+    description: Bibliothèques, séries et albums
+  - name: reader
+    description: Lecture — manifeste, pages et couvertures
+  - name: progress
+    description: Progression de lecture et synchronisation
+
+security:
+  - bearerAuth: []
 
 paths:
+  # ─── Système ────────────────────────────────────────────────────────────────
+
   /version:
     get:
       operationId: getVersion
@@ -50,8 +78,710 @@ paths:
           description: Informations de build
           content:
             application/json:
+              schema: { $ref: "#/components/schemas/BuildInfo" }
+
+  # ─── Authentification ───────────────────────────────────────────────────────
+
+  /auth/status:
+    get:
+      operationId: getAuthStatus
+      summary: État de l'instance
+      description: |
+        Indique si l'instance n'a encore aucun compte. L'application web s'en
+        sert pour décider entre l'assistant de première installation et l'écran
+        de connexion.
+      tags: [auth]
+      security: []
+      responses:
+        "200":
+          description: État de l'instance
+          content:
+            application/json:
               schema:
-                $ref: "#/components/schemas/BuildInfo"
+                type: object
+                required: [needsSetup]
+                properties:
+                  needsSetup:
+                    type: boolean
+                    description: Vrai tant qu'aucun compte n'existe.
+
+  /auth/setup:
+    post:
+      operationId: setup
+      summary: Créer le premier administrateur
+      description: |
+        Ouvert sans authentification tant qu'aucun compte n'existe — c'est le
+        seul moyen d'amorcer une instance neuve. Répond 403 dès qu'un compte a
+        été créé.
+      tags: [auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username:
+                  type: string
+                  minLength: 3
+                  maxLength: 32
+                  description: Lettres, chiffres, tiret, point et souligné.
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 10
+                  format: password
+      responses:
+        "201":
+          description: Administrateur créé
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /auth/login:
+    post:
+      operationId: login
+      summary: Ouvrir une session
+      description: |
+        Retourne un jeton d'accès de courte durée et un refresh token.
+
+        `deviceId` est facultatif au premier appel : le serveur en crée un et le
+        retourne. Le client le conserve pour que ses reconnexions soient
+        rattachées au même appareil.
+      tags: [auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string }
+                password: { type: string, format: password }
+                deviceId:
+                  type: string
+                  format: uuid
+                  description: Appareil existant. Omis, un nouvel appareil est créé.
+                deviceName:
+                  type: string
+                  description: Nom lisible, affiché dans la liste des appareils.
+                platform:
+                  $ref: "#/components/schemas/DevicePlatform"
+                appVersion: { type: string }
+      responses:
+        "200":
+          description: Session ouverte
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Tokens" }
+        "401":
+          description: |
+            Identifiants invalides. La réponse est identique que le compte
+            n'existe pas ou que le mot de passe soit erroné — distinguer les
+            deux permettrait d'énumérer les comptes.
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+
+  /auth/refresh:
+    post:
+      operationId: refreshTokens
+      summary: Renouveler les jetons
+      description: |
+        Échange un refresh token contre un nouveau couple. Le jeton présenté est
+        révoqué — rotation systématique.
+
+        Si un jeton déjà tourné est présenté, c'est qu'il a été volé : toute la
+        chaîne de rotation est révoquée et la réponse porte le type
+        `.../session-revoked`. Le client doit alors redemander une connexion
+        complète.
+      tags: [auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+      responses:
+        "200":
+          description: Nouveaux jetons
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Tokens" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /auth/logout:
+    post:
+      operationId: logout
+      summary: Fermer une session
+      description: |
+        Idempotent : un jeton inconnu, déjà révoqué ou expiré n'est pas une
+        erreur. Un client hors ligne au moment de la déconnexion peut rejouer sa
+        requête plus tard.
+      tags: [auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refreshToken]
+              properties:
+                refreshToken: { type: string }
+      responses:
+        "204":
+          description: Session fermée
+
+  /me:
+    get:
+      operationId: getCurrentUser
+      summary: Compte courant
+      tags: [auth]
+      responses:
+        "200":
+          description: Compte courant
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/User" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /me/devices:
+    get:
+      operationId: listDevices
+      summary: Appareils connectés
+      tags: [auth]
+      responses:
+        "200":
+          description: Liste des appareils
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [devices]
+                properties:
+                  devices:
+                    type: array
+                    items: { $ref: "#/components/schemas/Device" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /me/logout-all:
+    post:
+      operationId: logoutAllDevices
+      summary: Révoquer toutes les sessions
+      tags: [auth]
+      responses:
+        "200":
+          description: Sessions révoquées
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [revokedSessions]
+                properties:
+                  revokedSessions: { type: integer, format: int64 }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  # ─── Catalogue ──────────────────────────────────────────────────────────────
+
+  /home:
+    get:
+      operationId: getHome
+      summary: Étagères d'accueil
+      description: |
+        Regroupe les étagères de la page d'accueil. « Reprendre la lecture » est
+        servi séparément par `/continue-reading` : il relève de la progression,
+        dont le catalogue ne dépend pas.
+      tags: [catalog]
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Étagères
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [recent, nextInSeries]
+                properties:
+                  recent:
+                    type: array
+                    items: { $ref: "#/components/schemas/Comic" }
+                  nextInSeries:
+                    description: Premier album non lu de chaque série entamée.
+                    type: array
+                    items: { $ref: "#/components/schemas/Comic" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /search:
+    get:
+      operationId: search
+      summary: Rechercher dans la bibliothèque
+      description: |
+        Recherche plein texte combinée à une similarité trigramme, insensible
+        aux accents : « asterix » trouve « Astérix », « asterics » aussi.
+
+        Une requête de moins de deux caractères retourne des listes vides.
+      tags: [catalog]
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string }
+          description: Termes recherchés.
+        - $ref: "#/components/parameters/LibraryId"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Résultats
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [comics, series]
+                properties:
+                  comics:
+                    type: array
+                    items: { $ref: "#/components/schemas/Comic" }
+                  series:
+                    type: array
+                    items: { $ref: "#/components/schemas/Series" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /libraries:
+    get:
+      operationId: listLibraries
+      summary: Bibliothèques visibles
+      description: |
+        Seules les bibliothèques auxquelles le compte a accès sont retournées.
+        Une bibliothèque sans restriction est visible de tous.
+      tags: [catalog]
+      responses:
+        "200":
+          description: Bibliothèques
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [libraries]
+                properties:
+                  libraries:
+                    type: array
+                    items: { $ref: "#/components/schemas/Library" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /series:
+    get:
+      operationId: listSeries
+      summary: Lister les séries
+      tags: [catalog]
+      parameters:
+        - $ref: "#/components/parameters/LibraryId"
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Page de séries
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SeriesPage" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /series/{seriesId}:
+    get:
+      operationId: getSeries
+      summary: Détail d'une série
+      tags: [catalog]
+      parameters:
+        - name: seriesId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Série et ses albums, dans l'ordre de lecture
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [series, comics]
+                properties:
+                  series: { $ref: "#/components/schemas/Series" }
+                  comics:
+                    type: array
+                    items: { $ref: "#/components/schemas/Comic" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /comics:
+    get:
+      operationId: listComics
+      summary: Lister les albums
+      tags: [catalog]
+      parameters:
+        - $ref: "#/components/parameters/LibraryId"
+        - name: seriesId
+          in: query
+          schema: { type: string, format: uuid }
+        - name: state
+          in: query
+          schema: { $ref: "#/components/schemas/ComicState" }
+        - $ref: "#/components/parameters/Cursor"
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Page d'albums
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ComicPage" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /comics/{comicId}:
+    get:
+      operationId: getComic
+      summary: Détail d'un album
+      description: |
+        Un album d'une bibliothèque inaccessible répond 404, pas 403 : un 403
+        confirmerait son existence à quelqu'un qui n'y a pas droit.
+      tags: [catalog]
+      parameters:
+        - $ref: "#/components/parameters/ComicId"
+      responses:
+        "200":
+          description: Album
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Comic" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ─── Lecture ────────────────────────────────────────────────────────────────
+
+  /comics/{comicId}/manifest:
+    get:
+      operationId: getManifest
+      summary: Manifeste de lecture
+      description: |
+        Décrit toutes les pages en une requête. Le client obtient les dimensions
+        avant la première image et peut réserver la mise en page — ce qui
+        supprime le décalage visuel pendant la lecture.
+      tags: [reader]
+      parameters:
+        - $ref: "#/components/parameters/ComicId"
+      responses:
+        "200":
+          description: Manifeste
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Manifest" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/NotIndexed"
+
+  /comics/{comicId}/pages/{index}:
+    get:
+      operationId: getPage
+      summary: Servir une page
+      description: |
+        Sans `width`, la page d'origine est servie en flux, telle qu'elle est
+        stockée dans l'archive. Avec `width`, une variante redimensionnée est
+        produite puis mise en cache.
+
+        Une variante est immuable : même album, même page, même largeur donnent
+        toujours les mêmes octets. La réponse porte donc un `ETag` et un
+        `Cache-Control: immutable`, et une requête conditionnelle
+        (`If-None-Match`) répond 304 sans transférer un octet.
+
+        Les balises `<img>` ne pouvant pas porter d'en-tête `Authorization`, le
+        jeton d'accès est également accepté dans le paramètre `token`.
+      tags: [reader]
+      parameters:
+        - $ref: "#/components/parameters/ComicId"
+        - name: index
+          in: path
+          required: true
+          schema: { type: integer, minimum: 0 }
+          description: Numéro de page, 0-based.
+        - name: width
+          in: query
+          schema: { type: integer, minimum: 1 }
+          description: Largeur cible. Omise, la page d'origine est servie.
+        - $ref: "#/components/parameters/TokenQuery"
+      responses:
+        "200":
+          description: Image de la page
+          headers:
+            ETag: { schema: { type: string } }
+            Cache-Control: { schema: { type: string } }
+          content:
+            image/jpeg:
+              schema: { type: string, format: binary }
+            image/png:
+              schema: { type: string, format: binary }
+            image/webp:
+              schema: { type: string, format: binary }
+        "304":
+          description: Inchangée depuis la version détenue par le client
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/NotIndexed"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /comics/{comicId}/cover:
+    get:
+      operationId: getCover
+      summary: Vignette de couverture
+      description: |
+        La largeur demandée est ramenée à l'une des trois tailles générées
+        (160, 320, 640) : sans cela, une grille au zoom continu créerait une
+        entrée de cache par pixel de largeur.
+      tags: [reader]
+      parameters:
+        - $ref: "#/components/parameters/ComicId"
+        - name: width
+          in: query
+          schema: { type: integer, minimum: 1 }
+        - $ref: "#/components/parameters/TokenQuery"
+      responses:
+        "200":
+          description: Vignette
+          headers:
+            ETag: { schema: { type: string } }
+            Cache-Control: { schema: { type: string } }
+          content:
+            image/jpeg:
+              schema: { type: string, format: binary }
+        "304":
+          description: Inchangée
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  # ─── Progression ────────────────────────────────────────────────────────────
+
+  /comics/{comicId}/progress:
+    get:
+      operationId: getProgress
+      summary: Progression sur un album
+      description: |
+        Un album jamais ouvert retourne une progression vide plutôt qu'un 404 :
+        le client affiche « non lu » sans avoir à traiter un cas d'erreur.
+      tags: [progress]
+      parameters:
+        - $ref: "#/components/parameters/ComicId"
+      responses:
+        "200":
+          description: Progression
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Progress" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      operationId: updateProgress
+      summary: Enregistrer une progression
+      description: |
+        **Règle de résolution de conflit : la page la plus avancée gagne**, sauf
+        remise à zéro explicite (`status: unread`).
+
+        C'est ce qu'attend un lecteur : on ne perd jamais sa progression, et
+        lire sur tablette puis reprendre sur téléphone reprend au bon endroit.
+        Une règle « dernière écriture gagne » ferait régresser la position dès
+        que les horloges des appareils divergent.
+
+        `status` est facultatif : omis, il est déduit de la position.
+      tags: [progress]
+      parameters:
+        - $ref: "#/components/parameters/ComicId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ProgressUpdate" }
+      responses:
+        "200":
+          description: Progression après résolution
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Progress" }
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      operationId: deleteProgress
+      summary: Effacer la progression
+      tags: [progress]
+      parameters:
+        - $ref: "#/components/parameters/ComicId"
+      responses:
+        "204":
+          description: Progression effacée
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /continue-reading:
+    get:
+      operationId: continueReading
+      summary: Albums en cours de lecture
+      tags: [progress]
+      parameters:
+        - $ref: "#/components/parameters/Limit"
+      responses:
+        "200":
+          description: Albums commencés mais non terminés
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/Progress" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /sync:
+    get:
+      operationId: syncPull
+      summary: Récupérer les changements serveur
+      description: |
+        Synchronisation delta. Le client renvoie le `cursor` de l'appel
+        précédent ; à la première synchronisation il l'omet et reçoit tout.
+
+        `hasMore` indique qu'une page est disponible immédiatement : un client
+        qui rattrape une longue absence doit boucler sans attendre.
+      tags: [progress]
+      parameters:
+        - name: since
+          in: query
+          schema: { type: string, format: date-time }
+          description: Curseur retourné par un appel précédent. Omis, tout est retourné.
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 1000 }
+      responses:
+        "200":
+          description: Changements
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [changes, cursor, hasMore]
+                properties:
+                  changes:
+                    type: array
+                    items: { $ref: "#/components/schemas/Progress" }
+                  cursor:
+                    type: string
+                    description: À renvoyer au prochain appel.
+                  hasMore: { type: boolean }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+    post:
+      operationId: syncPush
+      summary: Envoyer les progressions accumulées hors ligne
+      description: |
+        Chaque écriture passe par la même règle de résolution que les écritures
+        en ligne. Rejouer un lot — ce qui arrive quand la réponse se perd — ne
+        peut donc pas faire régresser la position ni compter une lecture deux
+        fois.
+
+        Au plus 500 mises à jour par requête : un client revenant d'une longue
+        absence découpe son rattrapage.
+      tags: [progress]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [updates]
+              properties:
+                updates:
+                  type: array
+                  maxItems: 500
+                  items: { $ref: "#/components/schemas/SyncUpdate" }
+      responses:
+        "200":
+          description: Progressions appliquées
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [applied, cursor]
+                properties:
+                  applied:
+                    type: array
+                    items: { $ref: "#/components/schemas/Progress" }
+                  cursor:
+                    type: string
+                    description: |
+                      Permet d'enchaîner sur un pull sans recevoir ce que l'on
+                      vient soi-même d'envoyer.
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+# ─────────────────────────────────────────────────────────────────────────────
 
 components:
   securitySchemes:
@@ -63,6 +793,41 @@ components:
         Jeton d'accès obtenu via `POST /auth/login`. Durée de vie courte
         (15 min par défaut) ; à renouveler avec le refresh token.
 
+  parameters:
+    ComicId:
+      name: comicId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
+    LibraryId:
+      name: libraryId
+      in: query
+      schema: { type: string, format: uuid }
+      description: Restreint à une bibliothèque. Omis, toutes les bibliothèques visibles.
+
+    Cursor:
+      name: cursor
+      in: query
+      schema: { type: string }
+      description: |
+        Valeur `nextCursor` de la page précédente. Opaque : à renvoyer telle
+        quelle, jamais à construire.
+
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 200 }
+      description: Nombre d'éléments. Défaut 50, plafond 200.
+
+    TokenQuery:
+      name: token
+      in: query
+      schema: { type: string }
+      description: |
+        Jeton d'accès, accepté en repli pour les requêtes qui ne peuvent pas
+        porter d'en-tête `Authorization` — une balise `<img>`, par exemple.
+
   schemas:
     BuildInfo:
       type: object
@@ -71,35 +836,236 @@ components:
         version:
           type: string
           description: Version sémantique, ou "dev" hors release.
-          examples: ["0.1.0", "dev"]
         commit:
           type: string
           description: Commit git abrégé.
-          examples: ["a1b2c3d"]
-        goVersion:
+        goVersion: { type: string }
+
+    User:
+      type: object
+      required: [id, username, role, restricted]
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        email: { type: string }
+        displayName: { type: string }
+        role:
           type: string
-          examples: ["go1.26.5"]
+          enum: [admin, user]
+        restricted:
+          type: boolean
+          description: Profil à contenu filtré par classification d'âge.
+
+    DevicePlatform:
+      type: string
+      enum: [web, android, ios, desktop, unknown]
+
+    Device:
+      type: object
+      required: [id, name, platform, lastSeenAt, current]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        platform: { $ref: "#/components/schemas/DevicePlatform" }
+        appVersion: { type: string }
+        lastSeenAt: { type: string, format: date-time }
+        current:
+          type: boolean
+          description: Vrai pour l'appareil ayant émis la requête.
+
+    Tokens:
+      type: object
+      required: [accessToken, refreshToken, expiresAt, deviceId, user]
+      properties:
+        accessToken: { type: string }
+        refreshToken: { type: string }
+        expiresAt:
+          type: string
+          format: date-time
+          description: Expiration du jeton d'accès, pas du refresh token.
+        deviceId:
+          type: string
+          format: uuid
+          description: À conserver et à renvoyer aux connexions suivantes.
+        user: { $ref: "#/components/schemas/User" }
+
+    Library:
+      type: object
+      required: [id, name, kind, comicCount]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        kind:
+          type: string
+          enum: [comic, manga, book, mixed]
+        comicCount: { type: integer, format: int32 }
+
+    ComicState:
+      type: string
+      enum: [pending, indexing, ready, hydrating, error]
+      description: |
+        Seuls les albums `ready` sont lisibles. `error` porte une explication
+        dans l'interface d'administration.
+
+    Comic:
+      type: object
+      required: [id, libraryId, title, format, pageCount, state, fileSize, createdAt, coverPath]
+      properties:
+        id: { type: string, format: uuid }
+        libraryId: { type: string, format: uuid }
+        seriesId: { type: string, format: uuid }
+        seriesName: { type: string }
+        title: { type: string }
+        number:
+          type: string
+          description: |
+            Texte, car les numéros réels sont sales — « 3 », « 3.5 », « HS ».
+        volume: { type: integer, format: int32 }
+        summary: { type: string }
+        format:
+          type: string
+          enum: [cbz, cbr, cb7, pdf, epub]
+        pageCount: { type: integer, format: int32 }
+        state: { $ref: "#/components/schemas/ComicState" }
+        ageRating: { type: integer, format: int32 }
+        language: { type: string, description: Code BCP-47. }
+        fileSize: { type: integer, format: int64 }
+        releasedAt: { type: string, format: date }
+        createdAt: { type: string, format: date-time }
+        coverPath:
+          type: string
+          description: |
+            Chemin de la couverture. Le client y ajoute `?width=` plutôt que de
+            composer l'URL lui-même.
+
+    Series:
+      type: object
+      required: [id, libraryId, name, comicCount]
+      properties:
+        id: { type: string, format: uuid }
+        libraryId: { type: string, format: uuid }
+        name: { type: string }
+        description: { type: string }
+        publisher: { type: string }
+        comicCount: { type: integer, format: int32 }
+        coverComicId: { type: string, format: uuid }
+        coverPath: { type: string }
+
+    ComicPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Comic" }
+        nextCursor:
+          type: string
+          description: Absent sur la dernière page.
+
+    SeriesPage:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/Series" }
+        nextCursor: { type: string }
+
+    Manifest:
+      type: object
+      required: [comicId, pageCount, pages]
+      properties:
+        comicId: { type: string, format: uuid }
+        pageCount: { type: integer, format: int32 }
+        pages:
+          type: array
+          items: { $ref: "#/components/schemas/ManifestPage" }
+
+    ManifestPage:
+      type: object
+      required: [index, isDouble]
+      properties:
+        index: { type: integer, format: int32 }
+        width:
+          type: integer
+          format: int32
+          description: Absente si l'image n'a pas pu être analysée.
+        height: { type: integer, format: int32 }
+        isDouble:
+          type: boolean
+          description: |
+            Double planche détectée au ratio. Le lecteur l'affiche seule en mode
+            double page, sans l'apparier avec une voisine.
+
+    ReadStatus:
+      type: string
+      enum: [unread, in_progress, read]
+
+    Progress:
+      type: object
+      required: [comicId, page, pageCount, percent, status, readCount, version, updatedAt]
+      properties:
+        comicId: { type: string, format: uuid }
+        page:
+          type: integer
+          format: int32
+          description: Dernière page lue, 0-based.
+        pageCount:
+          type: integer
+          format: int32
+          description: |
+            Copie du nombre de pages au moment de la lecture. Reste cohérente
+            même si l'album est remplacé par une version au découpage différent.
+        percent: { type: number, format: double }
+        status: { $ref: "#/components/schemas/ReadStatus" }
+        readCount:
+          type: integer
+          format: int32
+          description: Nombre de lectures complètes.
+        version:
+          type: integer
+          format: int64
+          description: Incrémenté à chaque écriture.
+        deviceId: { type: string, format: uuid }
+        startedAt: { type: string, format: date-time }
+        finishedAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    ProgressUpdate:
+      type: object
+      required: [page, pageCount]
+      properties:
+        page: { type: integer, format: int32, minimum: 0 }
+        pageCount: { type: integer, format: int32, minimum: 0 }
+        status:
+          allOf:
+            - $ref: "#/components/schemas/ReadStatus"
+          description: Facultatif — déduit de la position s'il est omis.
+        deviceId:
+          type: string
+          format: uuid
+          description: Facultatif — le jeton porte déjà l'appareil.
+
+    SyncUpdate:
+      allOf:
+        - type: object
+          required: [comicId]
+          properties:
+            comicId: { type: string, format: uuid }
+        - $ref: "#/components/schemas/ProgressUpdate"
 
     Problem:
       type: object
       description: |
-        Erreur au format RFC 9457. Servie avec le type MIME
+        Erreur au format RFC 9457, servie avec le type MIME
         `application/problem+json`.
       required: [type, title, status]
       properties:
         type:
           type: string
-          format: uri
           description: Identifiant stable de la catégorie d'erreur.
-          examples: ["https://boxincloud.dev/problems/not-found"]
-        title:
-          type: string
-          description: Résumé lisible par un développeur.
-          examples: ["Not Found"]
-        status:
-          type: integer
-          description: Code HTTP.
-          examples: [404]
+        title: { type: string }
+        status: { type: integer }
         detail:
           type: string
           description: Explication de ce cas précis, affichable à l'utilisateur.
@@ -110,8 +1076,7 @@ components:
             retrouver la trace côté serveur.
         errors:
           type: object
-          additionalProperties:
-            type: string
+          additionalProperties: { type: string }
           description: Champs invalides, pour les erreurs de validation.
 
   responses:
@@ -119,43 +1084,35 @@ components:
       description: Requête malformée
       content:
         application/problem+json:
-          schema:
-            $ref: "#/components/schemas/Problem"
+          schema: { $ref: "#/components/schemas/Problem" }
 
     Unauthorized:
       description: Jeton absent, expiré ou invalide
       content:
         application/problem+json:
-          schema:
-            $ref: "#/components/schemas/Problem"
+          schema: { $ref: "#/components/schemas/Problem" }
 
     Forbidden:
       description: Droits insuffisants
       content:
         application/problem+json:
-          schema:
-            $ref: "#/components/schemas/Problem"
+          schema: { $ref: "#/components/schemas/Problem" }
 
     NotFound:
       description: Ressource introuvable
       content:
         application/problem+json:
-          schema:
-            $ref: "#/components/schemas/Problem"
+          schema: { $ref: "#/components/schemas/Problem" }
 
     ValidationFailed:
       description: Validation échouée
       content:
         application/problem+json:
-          schema:
-            $ref: "#/components/schemas/Problem"
+          schema: { $ref: "#/components/schemas/Problem" }
 
-    ServiceUnavailable:
-      description: Dépendance indisponible
+    NotIndexed:
+      description: L'album n'a pas fini d'être indexé
       content:
         application/problem+json:
-          schema:
-            $ref: "#/components/schemas/Problem"
+          schema: { $ref: "#/components/schemas/Problem" }
 
-security:
-  - bearerAuth: []

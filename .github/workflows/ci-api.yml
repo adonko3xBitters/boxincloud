@@ -3,9 +3,9 @@ name: CI · contrat API
 on:
   push:
     branches: [main]
-    paths: ["api/**"]
+    paths: ["api/**", "apps/server/internal/httpapi/**"]
   pull_request:
-    paths: ["api/**"]
+    paths: ["api/**", "apps/server/internal/httpapi/**"]
 
 concurrency:
   group: ci-api-${{ github.ref }}
@@ -23,7 +23,7 @@ jobs:
           node-version: "22"
 
       - name: Valider le schéma OpenAPI
-        run: npx --yes @redocly/cli@latest lint api/openapi.yaml
+        run: npx --yes @redocly/cli@latest lint --config api/redocly.yaml api/openapi.yaml
 
   breaking-changes:
     name: Détecter les ruptures

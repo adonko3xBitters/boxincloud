@@ -1,0 +1,28 @@
+# Configuration du linter OpenAPI.
+#
+# Le jeu de règles « recommended » de Redocly sert de base. Les écarts sont
+# listés ici avec leur justification : un `--generate-ignore-file` masquerait
+# les problèmes sans dire pourquoi.
+
+extends:
+  - recommended
+
+rules:
+  # Redocly exige au moins une réponse 4XX par opération. La règle est bonne en
+  # général, mais trois endpoints n'en ont légitimement aucune :
+  #
+  #   GET  /version      — public, sans paramètre, ne peut pas échouer côté client
+  #   GET  /auth/status  — idem
+  #   POST /auth/logout  — volontairement idempotent : un jeton inconnu, déjà
+  #                        révoqué ou expiré répond 204, pour qu'un client hors
+  #                        ligne puisse rejouer sa requête
+  #
+  # Déclarer une 4XX inatteignable pour satisfaire le linter tromperait les
+  # clients générés, qui coderaient un cas d'erreur qui ne survient jamais.
+  operation-4xx-response: off
+
+  # Le contrat est documenté en français, pour les mêmes raisons que le reste du
+  # projet. Ces règles vérifient des conventions de casse anglophones.
+  no-ambiguous-paths: error
+  operation-operationId: error
+  operation-summary: error
