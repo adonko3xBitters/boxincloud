@@ -38,6 +38,18 @@
 
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
+
+  /* Tailles de rôle plutôt que d'échelle : `text-ui` dit à quoi sert le texte,
+     pas combien il mesure. Agrandir toute l'application se fait alors dans le
+     fichier de tokens, pas dans cent utilitaires arbitraires disséminés. */
+  --text-micro: var(--font-size-micro);
+  --text-meta: var(--font-size-meta);
+  --text-ui: var(--font-size-ui);
+  --text-title: var(--font-size-title);
+
+  --ease-standard: var(--motion-easing-standard);
+  --ease-emphasized: var(--motion-easing-emphasized);
+  --ease-spring: var(--motion-easing-spring);
 }
 
 @layer base {
@@ -133,5 +145,82 @@
   }
   .no-scrollbar::-webkit-scrollbar {
     display: none;
+  }
+
+  /*
+   * Entrées animées.
+   *
+   * Une grille qui apparaît d'un bloc paraît brutale ; la même grille dont les
+   * vignettes montent en cascade se lit comme un remplissage. Le décalage est
+   * plafonné pour que la dernière vignette d'une longue page n'attende pas :
+   * au-delà d'une poignée d'éléments, l'effet est déjà perçu.
+   */
+  .rise-in {
+    animation: rise-in var(--motion-duration-slow) var(--motion-easing-emphasized) backwards;
+  }
+
+  @keyframes rise-in {
+    from {
+      opacity: 0;
+      transform: translateY(10px) scale(0.97);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  .fade-in {
+    animation: fade-in var(--motion-duration-normal) var(--motion-easing-decelerate) backwards;
+  }
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+
+  /* Panneau latéral : glisse depuis son bord plutôt que d'apparaître. */
+  .slide-in-right {
+    animation: slide-in-right var(--motion-duration-slow) var(--motion-easing-emphasized) backwards;
+  }
+
+  @keyframes slide-in-right {
+    from {
+      opacity: 0;
+      transform: translateX(14px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /*
+   * Retour au clic.
+   *
+   * Un bouton qui ne bouge pas sous le doigt laisse douter que le clic a porté.
+   * L'enfoncement est bref et léger : perceptible, jamais spectaculaire.
+   */
+  .pressable {
+    transition:
+      transform var(--motion-duration-fast) var(--motion-easing-emphasized),
+      background-color var(--motion-duration-fast) var(--motion-easing-standard),
+      color var(--motion-duration-fast) var(--motion-easing-standard),
+      border-color var(--motion-duration-fast) var(--motion-easing-standard),
+      opacity var(--motion-duration-fast) var(--motion-easing-standard);
+  }
+  .pressable:active:not(:disabled) {
+    transform: scale(0.94);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .rise-in,
+    .fade-in,
+    .slide-in-right {
+      animation: none;
+    }
+    .pressable:active:not(:disabled) {
+      transform: none;
+    }
   }
 }

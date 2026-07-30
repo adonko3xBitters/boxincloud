@@ -16,7 +16,13 @@ import * as api from "./api/endpoints";
 import type { ComicQuery } from "./api/endpoints";
 import type { Comic } from "./api/client";
 
-export type ViewMode = "grid" | "list" | "detail";
+/**
+ * Modes d'affichage.
+ *
+ * `coverflow` n'est pas une troisième liste : c'est le carrousel posé au-dessus
+ * du tableau, les deux partageant la même sélection.
+ */
+export type ViewMode = "grid" | "list" | "coverflow";
 export type ReadStatus = "" | "unread" | "in_progress" | "read";
 export type SortOrder = "recent" | "title" | "released";
 

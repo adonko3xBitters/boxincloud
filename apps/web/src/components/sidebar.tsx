@@ -55,7 +55,7 @@ export function Sidebar() {
       </Section>
 
       <Section title="Séries" count={series.data?.items.length}>
-        <div className="max-h-64 overflow-y-auto">
+        <div className="max-h-72 overflow-y-auto">
           {series.data?.items.map((item) => (
             <Row
               key={item.id}
@@ -136,7 +136,7 @@ function FolderTree({
     folders.some((other) => other.path.startsWith(folder.path === "" ? "" : folder.path + "/") && other.path !== folder.path);
 
   if (folders.length === 0) {
-    return <p className="px-3 py-1.5 text-xs text-subtle">Aucun dossier</p>;
+    return <p className="px-3 py-2 text-meta text-subtle">Aucun dossier</p>;
   }
 
   return (
@@ -159,26 +159,32 @@ function FolderTree({
                   })
                 }
                 aria-label={isCollapsed ? "Déplier" : "Replier"}
-                className="grid size-5 shrink-0 place-items-center text-subtle hover:text-fg"
-                style={{ marginLeft: folder.depth * 10 }}
+                className="grid size-6 shrink-0 place-items-center rounded text-subtle transition-colors hover:bg-surface-hover hover:text-fg"
+                style={{ marginLeft: folder.depth * 12 }}
               >
-                <ChevronIcon className={cx("size-3 transition-transform", !isCollapsed && "rotate-90")} />
+                <ChevronIcon
+                  className={cx(
+                    "size-3.5 transition-transform duration-[--motion-duration-normal] ease-[--ease-spring]",
+                    !isCollapsed && "rotate-90",
+                  )}
+                />
               </button>
             ) : (
-              <span className="size-5 shrink-0" style={{ marginLeft: folder.depth * 10 }} />
+              <span className="size-6 shrink-0" style={{ marginLeft: folder.depth * 12 }} />
             )}
 
             <button
               onClick={() => onSelect({ kind: "folder", path: folder.path, libraryId })}
               className={cx(
-                "flex min-w-0 flex-1 items-center gap-1.5 rounded px-1.5 py-1 text-left text-[13px]",
-                "transition-colors",
-                active ? "bg-accent text-inverted" : "text-muted hover:bg-surface-hover hover:text-fg",
+                "pressable fade-in flex min-w-0 flex-1 items-center gap-2 rounded-md px-2 py-1.5 text-left text-ui",
+                active
+                  ? "bg-accent text-inverted shadow-sm"
+                  : "text-muted hover:bg-surface-hover hover:text-fg",
               )}
             >
-              <FolderIcon className="size-3.5 shrink-0 opacity-70" />
+              <FolderIcon className="size-4 shrink-0 opacity-70" />
               <span className="truncate">{folder.path === "" ? "Racine" : folder.name}</span>
-              <span className={cx("ml-auto shrink-0 text-[11px] tabular-nums", active ? "opacity-80" : "text-subtle")}>
+              <span className={cx("ml-auto shrink-0 text-meta tabular-nums", active ? "opacity-80" : "text-subtle")}>
                 {folder.comicCount}
               </span>
             </button>
@@ -201,11 +207,11 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <div className="border-b border-border py-2 last:border-b-0">
-      <div className="flex items-center justify-between px-3 pb-1">
-        <h2 className="text-[10px] font-semibold uppercase tracking-wider text-subtle">{title}</h2>
+    <div className="border-b border-border py-2.5 last:border-b-0">
+      <div className="flex items-center justify-between px-3 pb-1.5">
+        <h2 className="text-micro font-semibold uppercase tracking-wider text-subtle">{title}</h2>
         {count !== undefined && (
-          <span className="text-[10px] tabular-nums text-subtle">{count}</span>
+          <span className="text-micro tabular-nums text-subtle">{count}</span>
         )}
       </div>
       <div className="px-1.5">{children}</div>
@@ -230,15 +236,16 @@ function Row({
     <button
       onClick={onClick}
       className={cx(
-        "flex w-full items-center gap-2 rounded px-2 py-1.5 text-left text-[13px]",
-        "transition-colors",
-        active ? "bg-accent text-inverted" : "text-muted hover:bg-surface-hover hover:text-fg",
+        "pressable flex w-full items-center gap-2.5 rounded-md px-2.5 py-2 text-left text-ui",
+        active
+          ? "bg-accent text-inverted shadow-sm"
+          : "text-muted hover:bg-surface-hover hover:text-fg",
       )}
     >
-      <span className="grid size-4 shrink-0 place-items-center">{icon}</span>
+      <span className="grid size-5 shrink-0 place-items-center">{icon}</span>
       <span className="truncate">{label}</span>
       {badge !== undefined && (
-        <span className={cx("ml-auto shrink-0 text-[11px] tabular-nums", active ? "opacity-80" : "text-subtle")}>
+        <span className={cx("ml-auto shrink-0 text-meta tabular-nums", active ? "opacity-80" : "text-subtle")}>
           {badge}
         </span>
       )}
@@ -250,7 +257,7 @@ function Row({
 
 function StackIcon() {
   return (
-    <svg viewBox="0 0 16 16" fill="none" className="size-3.5" aria-hidden="true">
+    <svg viewBox="0 0 16 16" fill="none" className="size-4" aria-hidden="true">
       <path d="M2 5.5 8 3l6 2.5L8 8 2 5.5Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
       <path d="m2 8.5 6 2.5 6-2.5M2 11.5 8 14l6-2.5" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
     </svg>
@@ -259,7 +266,7 @@ function StackIcon() {
 
 function BoxIcon() {
   return (
-    <svg viewBox="0 0 16 16" fill="none" className="size-3.5" aria-hidden="true">
+    <svg viewBox="0 0 16 16" fill="none" className="size-4" aria-hidden="true">
       <path d="M2 5 8 2.5 14 5v6L8 13.5 2 11V5Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
       <path d="m2 5 6 2.5L14 5M8 7.5v6" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
     </svg>
@@ -276,7 +283,7 @@ function FolderIcon({ className }: { className?: string }) {
 
 function SeriesIcon() {
   return (
-    <svg viewBox="0 0 16 16" fill="none" className="size-3.5" aria-hidden="true">
+    <svg viewBox="0 0 16 16" fill="none" className="size-4" aria-hidden="true">
       <rect x="2.5" y="2.5" width="4" height="11" rx="0.8" stroke="currentColor" strokeWidth="1.3" />
       <rect x="8" y="2.5" width="4" height="11" rx="0.8" stroke="currentColor" strokeWidth="1.3" />
     </svg>
@@ -285,7 +292,7 @@ function SeriesIcon() {
 
 function HeartIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 16 16" fill="currentColor" className={cx("size-3.5", className)} aria-hidden="true">
+    <svg viewBox="0 0 16 16" fill="currentColor" className={cx("size-4", className)} aria-hidden="true">
       <path d="M8 14S2 10.4 2 6.5A3.5 3.5 0 0 1 8 4a3.5 3.5 0 0 1 6 2.5C14 10.4 8 14 8 14Z" />
     </svg>
   );
@@ -293,7 +300,7 @@ function HeartIcon({ className }: { className?: string }) {
 
 function BookmarkIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 16 16" fill="currentColor" className={cx("size-3.5", className)} aria-hidden="true">
+    <svg viewBox="0 0 16 16" fill="currentColor" className={cx("size-4", className)} aria-hidden="true">
       <path d="M4 2.5h8v11l-4-2.8-4 2.8v-11Z" />
     </svg>
   );
@@ -301,7 +308,7 @@ function BookmarkIcon({ className }: { className?: string }) {
 
 function DotIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 16 16" fill="currentColor" className={cx("size-2.5", className)} aria-hidden="true">
+    <svg viewBox="0 0 16 16" fill="currentColor" className={cx("size-3", className)} aria-hidden="true">
       <circle cx="8" cy="8" r="4" />
     </svg>
   );

@@ -61,6 +61,10 @@
     /* Typographie */
     --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
     --font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+    --font-size-micro: 0.75rem;
+    --font-size-meta: 0.8125rem;
+    --font-size-ui: 0.9375rem;
+    --font-size-title: 1.0625rem;
     --font-size-xs: 0.75rem;
     --font-size-sm: 0.875rem;
     --font-size-base: 1rem;
@@ -93,9 +97,12 @@
     --motion-duration-fast: 140ms;
     --motion-duration-normal: 200ms;
     --motion-duration-slow: 320ms;
+    --motion-duration-deliberate: 460ms;
     --motion-easing-standard: cubic-bezier(0.2, 0, 0, 1);
     --motion-easing-decelerate: cubic-bezier(0, 0, 0, 1);
     --motion-easing-accelerate: cubic-bezier(0.3, 0, 1, 1);
+    --motion-easing-emphasized: cubic-bezier(0.2, 0.9, 0.25, 1.1);
+    --motion-easing-spring: cubic-bezier(0.34, 1.4, 0.5, 1);
 
     /* Mise en page */
     --layout-cover-width-sm: 120px;
@@ -202,6 +209,7 @@
       --motion-duration-fast: 0ms;
       --motion-duration-normal: 0ms;
       --motion-duration-slow: 0ms;
+      --motion-duration-deliberate: 0ms;
     }
   }
 }

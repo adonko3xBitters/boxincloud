@@ -4,8 +4,12 @@
 *.exe
 
 # Le web compilé est embarqué dans le binaire ; seul le placeholder est versionné.
+# Le web compilé est un artefact : il se régénère par `make build-web` et son
+# index.html référence des fichiers au nom haché qui, eux, ne sont pas versionnés
+# — le committer livrerait une coquille pointant sur des ressources absentes.
+# Seul le répertoire est conservé, pour que `//go:embed` compile sans build web.
 apps/server/web/dist/*
-!apps/server/web/dist/index.html
+!apps/server/web/dist/.gitkeep
 
 # Env
 .env

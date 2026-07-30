@@ -107,18 +107,15 @@ function buildCSS() {
   lines.push("  }", "");
 
   // Accessibilité : une animation est un confort, jamais une nécessité.
-  lines.push(
-    "  @media (prefers-reduced-motion: reduce) {",
-    "    :root {",
-    "      --motion-duration-instant: 0ms;",
-    "      --motion-duration-fast: 0ms;",
-    "      --motion-duration-normal: 0ms;",
-    "      --motion-duration-slow: 0ms;",
-    "    }",
-    "  }",
-    "}",
-    "",
-  );
+  //
+  // La liste est dérivée des tokens, pas recopiée : une durée ajoutée au
+  // fichier source échapperait sinon à l'annulation sans que rien ne le
+  // signale, et l'animation continuerait de tourner chez qui l'a désactivée.
+  lines.push("  @media (prefers-reduced-motion: reduce) {", "    :root {");
+  for (const [name] of flatten(tokens.motion.duration, ["motion", "duration"])) {
+    lines.push(`      --${name}: 0ms;`);
+  }
+  lines.push("    }", "  }", "}", "");
 
   return lines.join("\n");
 }

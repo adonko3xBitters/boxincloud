@@ -49,7 +49,7 @@ export function Toolbar({ visibleIds }: { visibleIds: string[] }) {
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border bg-surface px-3 py-1.5">
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border bg-surface px-3 py-2">
       {/* Actions sur la sélection */}
       <div className="flex items-center gap-0.5">
         <Tool
@@ -71,13 +71,13 @@ export function Toolbar({ visibleIds }: { visibleIds: string[] }) {
         />
       </div>
 
-      <div className="flex items-center gap-2 text-[12px] text-muted">
+      <div className="flex items-center gap-2 text-meta text-muted">
         {has ? (
           <>
             <span className="tabular-nums">
               {count} sélectionné{count > 1 ? "s" : ""}
             </span>
-            <button onClick={clearSelection} className="text-accent-text hover:underline">
+            <button onClick={clearSelection} className="text-accent-text transition-colors hover:underline">
               annuler
             </button>
           </>
@@ -118,7 +118,7 @@ export function Toolbar({ visibleIds }: { visibleIds: string[] }) {
         />
 
         <div className="flex items-center gap-0.5 rounded-md border border-border p-0.5">
-          {(["grid", "list", "detail"] as ViewMode[]).map((mode) => (
+          {(["grid", "list", "coverflow"] as ViewMode[]).map((mode) => (
             <button
               key={mode}
               onClick={() => setView(mode)}
@@ -126,11 +126,13 @@ export function Toolbar({ visibleIds }: { visibleIds: string[] }) {
               aria-label={VIEW_LABELS[mode]}
               title={VIEW_LABELS[mode]}
               className={cx(
-                "grid size-6 place-items-center rounded transition-colors",
-                view === mode ? "bg-accent text-inverted" : "text-subtle hover:bg-surface-hover hover:text-fg",
+                "pressable grid size-7 place-items-center rounded",
+                view === mode
+                  ? "bg-accent text-inverted shadow-sm"
+                  : "text-subtle hover:bg-surface-hover hover:text-fg",
               )}
             >
-              {mode === "grid" ? <GridIcon /> : mode === "list" ? <ListIcon /> : <DetailIcon />}
+              {mode === "grid" ? <GridIcon /> : mode === "list" ? <ListIcon /> : <CoverflowIcon />}
             </button>
           ))}
         </div>
@@ -142,7 +144,7 @@ export function Toolbar({ visibleIds }: { visibleIds: string[] }) {
 const VIEW_LABELS: Record<ViewMode, string> = {
   grid: "Grille",
   list: "Liste",
-  detail: "Détail",
+  coverflow: "Carrousel",
 };
 
 // ─── Éléments ────────────────────────────────────────────────────────────────
@@ -167,7 +169,7 @@ function Tool({
       title={label}
       aria-label={label}
       className={cx(
-        "grid size-7 place-items-center rounded transition-colors",
+        "pressable grid size-8 place-items-center rounded-md",
         "disabled:opacity-30 disabled:cursor-not-allowed",
         active ? "text-danger" : "text-muted",
         !disabled && "hover:bg-surface-hover hover:text-fg",
@@ -195,7 +197,7 @@ function SegmentedControl({
 }) {
   return (
     <div className="flex items-center gap-1.5">
-      <span className="text-[10px] uppercase tracking-wider text-subtle">{label}</span>
+      <span className="text-micro uppercase tracking-wider text-subtle">{label}</span>
       <div className="flex items-center gap-0.5 rounded-md border border-border p-0.5" role="group" aria-label={label}>
         {options.map((option) => (
           <button
@@ -203,9 +205,9 @@ function SegmentedControl({
             onClick={() => onChange(option.value)}
             aria-pressed={value === option.value}
             className={cx(
-              "rounded px-2 py-0.5 text-[12px] font-medium transition-colors",
+              "pressable rounded px-2.5 py-1 text-meta font-medium",
               value === option.value
-                ? "bg-accent text-inverted"
+                ? "bg-accent text-inverted shadow-sm"
                 : "text-muted hover:bg-surface-hover hover:text-fg",
             )}
           >
@@ -221,7 +223,7 @@ function SegmentedControl({
 
 function PlayIcon() {
   return (
-    <svg viewBox="0 0 16 16" fill="currentColor" className="size-3.5" aria-hidden="true">
+    <svg viewBox="0 0 16 16" fill="currentColor" className="size-4" aria-hidden="true">
       <path d="M5 3.5v9l7-4.5-7-4.5Z" />
     </svg>
   );
@@ -259,7 +261,7 @@ function HeartIcon({ filled }: { filled?: boolean }) {
 
 function GridIcon() {
   return (
-    <svg viewBox="0 0 16 16" fill="currentColor" className="size-3.5" aria-hidden="true">
+    <svg viewBox="0 0 16 16" fill="currentColor" className="size-4" aria-hidden="true">
       <rect x="2" y="2" width="5" height="5" rx="1" />
       <rect x="9" y="2" width="5" height="5" rx="1" />
       <rect x="2" y="9" width="5" height="5" rx="1" />
@@ -270,7 +272,7 @@ function GridIcon() {
 
 function ListIcon() {
   return (
-    <svg viewBox="0 0 16 16" fill="currentColor" className="size-3.5" aria-hidden="true">
+    <svg viewBox="0 0 16 16" fill="currentColor" className="size-4" aria-hidden="true">
       <rect x="2" y="3" width="12" height="1.6" rx="0.8" />
       <rect x="2" y="7.2" width="12" height="1.6" rx="0.8" />
       <rect x="2" y="11.4" width="12" height="1.6" rx="0.8" />
@@ -278,13 +280,13 @@ function ListIcon() {
   );
 }
 
-function DetailIcon() {
+/** Trois couvertures en perspective : celle du centre de face, les voisines de biais. */
+function CoverflowIcon() {
   return (
-    <svg viewBox="0 0 16 16" fill="none" className="size-3.5" aria-hidden="true">
-      <rect x="2" y="2.5" width="5" height="11" rx="1" fill="currentColor" />
-      <rect x="8.5" y="3" width="5.5" height="1.4" rx="0.7" fill="currentColor" />
-      <rect x="8.5" y="6" width="5.5" height="1.4" rx="0.7" fill="currentColor" />
-      <rect x="8.5" y="9" width="4" height="1.4" rx="0.7" fill="currentColor" />
+    <svg viewBox="0 0 16 16" fill="currentColor" className="size-4" aria-hidden="true">
+      <path d="M1.5 5.5 3.5 4v8l-2-1.5v-5Z" opacity="0.45" />
+      <path d="M14.5 5.5 12.5 4v8l2-1.5v-5Z" opacity="0.45" />
+      <rect x="5" y="2.5" width="6" height="11" rx="1" />
     </svg>
   );
 }

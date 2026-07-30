@@ -123,12 +123,12 @@ export function SearchOverlay() {
     <>
       <button
         onClick={() => setOpen(true)}
-        className="flex h-8 items-center gap-2 rounded-md border border-border bg-surface px-2.5 text-[13px] text-subtle transition-colors hover:border-border-strong hover:text-muted"
+        className="pressable flex h-9 items-center gap-2 rounded-md border border-border bg-surface px-3 text-ui text-subtle hover:border-border-strong hover:text-muted"
         aria-label="Ouvrir la recherche"
       >
         <SearchIcon />
         <span className="hidden sm:inline">Rechercher</span>
-        <kbd className="ml-2 hidden rounded border border-border px-1 font-mono text-[10px] lg:inline">/</kbd>
+        <kbd className="ml-2 hidden rounded border border-border px-1.5 py-0.5 font-mono text-micro lg:inline">/</kbd>
       </button>
 
       {/* Voile : ferme au clic, et assombrit sans masquer complètement — on
@@ -147,8 +147,8 @@ export function SearchOverlay() {
         aria-modal="true"
         aria-label="Centre de recherche"
         className={cx(
-          "fixed inset-y-0 right-0 z-50 flex w-full max-w-[440px] flex-col border-l border-border bg-surface shadow-2xl",
-          "transition-transform duration-[--motion-duration-normal] ease-[cubic-bezier(0.2,0,0,1)]",
+          "fixed inset-y-0 right-0 z-50 flex w-full max-w-[480px] flex-col border-l border-border bg-surface shadow-2xl",
+          "transition-transform duration-[--motion-duration-slow] ease-[--ease-emphasized]",
           open ? "translate-x-0" : "translate-x-full",
         )}
       >
@@ -162,14 +162,14 @@ export function SearchOverlay() {
             onKeyDown={onInputKeyDown}
             placeholder="Titre, série, numéro…"
             aria-label="Rechercher"
-            className="min-w-0 flex-1 bg-transparent text-sm text-fg outline-none placeholder:text-subtle"
+            className="min-w-0 flex-1 bg-transparent text-title text-fg outline-none placeholder:text-subtle"
           />
           <button
             onClick={() => setOpen(false)}
             aria-label="Fermer"
-            className="grid size-7 shrink-0 place-items-center rounded text-subtle hover:bg-surface-hover hover:text-fg"
+            className="pressable grid size-8 shrink-0 place-items-center rounded text-subtle hover:bg-surface-hover hover:text-fg"
           >
-            <kbd className="font-mono text-[10px]">esc</kbd>
+            <kbd className="font-mono text-micro">esc</kbd>
           </button>
         </div>
 
@@ -177,7 +177,7 @@ export function SearchOverlay() {
           {query.length < MIN_QUERY ? (
             <Hint />
           ) : total === 0 && !results.isLoading ? (
-            <p className="px-4 py-8 text-center text-sm text-muted">
+            <p className="px-4 py-8 text-center text-ui text-muted">
               Aucun résultat pour « {query} »
             </p>
           ) : (
@@ -190,19 +190,20 @@ export function SearchOverlay() {
                       onClick={() => openResult(index)}
                       onMouseEnter={() => setCursor(index)}
                       className={cx(
-                        "flex w-full items-center gap-3 px-3 py-2 text-left",
-                        cursor === index ? "bg-accent/15" : "hover:bg-surface-hover",
+                        "flex w-full items-center gap-3 px-3 py-2.5 text-left",
+                        "transition-colors duration-[--motion-duration-fast]",
+                        cursor === index ? "bg-accent/15 shadow-[inset_3px_0_0_var(--accent)]" : "hover:bg-surface-hover",
                       )}
                     >
                       {item.coverPath ? (
                         <img src={imageURL(item.coverPath, { width: 160 })} alt="" loading="lazy"
-                             className="h-11 w-8 shrink-0 rounded-[2px] object-cover" />
+                             className="h-14 w-10 shrink-0 rounded-[3px] object-cover shadow-sm" />
                       ) : (
-                        <span className="h-11 w-8 shrink-0 rounded-[2px] bg-surface-sunken" />
+                        <span className="h-14 w-10 shrink-0 rounded-[3px] bg-surface-sunken" />
                       )}
                       <span className="min-w-0">
-                        <span className="block truncate text-sm font-medium text-fg">{item.name}</span>
-                        <span className="block text-xs text-muted">{item.comicCount} albums</span>
+                        <span className="block truncate text-ui font-medium text-fg">{item.name}</span>
+                        <span className="block text-meta text-muted">{item.comicCount} albums</span>
                       </span>
                     </button>
                   ))}
@@ -219,15 +220,16 @@ export function SearchOverlay() {
                         onClick={() => openResult(index)}
                         onMouseEnter={() => setCursor(index)}
                         className={cx(
-                          "flex w-full items-center gap-3 px-3 py-2 text-left",
-                          cursor === index ? "bg-accent/15" : "hover:bg-surface-hover",
+                          "flex w-full items-center gap-3 px-3 py-2.5 text-left",
+                          "transition-colors duration-[--motion-duration-fast]",
+                          cursor === index ? "bg-accent/15 shadow-[inset_3px_0_0_var(--accent)]" : "hover:bg-surface-hover",
                         )}
                       >
                         <img src={imageURL(comic.coverPath, { width: 160 })} alt="" loading="lazy"
-                             className="h-11 w-8 shrink-0 rounded-[2px] object-cover" />
+                             className="h-14 w-10 shrink-0 rounded-[3px] object-cover shadow-sm" />
                         <span className="min-w-0">
-                          <span className="block truncate text-sm font-medium text-fg">{comic.title}</span>
-                          <span className="block truncate text-xs text-muted">
+                          <span className="block truncate text-ui font-medium text-fg">{comic.title}</span>
+                          <span className="block truncate text-meta text-muted">
                             {comic.seriesName ? `${comic.seriesName} · ` : ""}{comic.pageCount} pages
                           </span>
                         </span>
@@ -240,7 +242,7 @@ export function SearchOverlay() {
           )}
         </div>
 
-        <div className="border-t border-border px-3 py-2 text-[11px] text-subtle">
+        <div className="border-t border-border px-3 py-2.5 text-meta text-subtle">
           <kbd className="rounded border border-border px-1 font-mono">↑↓</kbd> parcourir ·{" "}
           <kbd className="rounded border border-border px-1 font-mono">⏎</kbd> ouvrir ·{" "}
           <kbd className="rounded border border-border px-1 font-mono">esc</kbd> fermer
@@ -253,7 +255,7 @@ export function SearchOverlay() {
 function Group({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div>
-      <p className="sticky top-0 bg-surface px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-subtle">
+      <p className="sticky top-0 z-10 bg-surface px-3 py-2 text-micro font-semibold uppercase tracking-wider text-subtle">
         {label}
       </p>
       {children}
@@ -264,8 +266,8 @@ function Group({ label, children }: { label: string; children: React.ReactNode }
 function Hint() {
   return (
     <div className="px-4 py-8 text-center">
-      <p className="text-sm text-muted">Cherchez dans toute la bibliothèque</p>
-      <p className="mt-1 text-xs text-subtle">
+      <p className="text-ui text-muted">Cherchez dans toute la bibliothèque</p>
+      <p className="mt-1.5 text-meta text-subtle">
         Les accents et les fautes de frappe sont tolérés — « asterics » trouve « Astérix ».
       </p>
     </div>
@@ -274,7 +276,7 @@ function Hint() {
 
 function SearchIcon({ className }: { className?: string }) {
   return (
-    <svg viewBox="0 0 20 20" fill="none" className={cx("size-3.5", className)} aria-hidden="true">
+    <svg viewBox="0 0 20 20" fill="none" className={cx("size-4", className)} aria-hidden="true">
       <circle cx="9" cy="9" r="5.5" stroke="currentColor" strokeWidth="1.6" />
       <path d="m13.5 13.5 3 3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
     </svg>

@@ -39,8 +39,8 @@ export function DetailPanel() {
 
   if (!focused) {
     return (
-      <aside className="hidden w-[300px] shrink-0 border-l border-border bg-surface-sunken p-4 xl:block">
-        <p className="text-center text-xs text-subtle">
+      <aside className="hidden w-[340px] shrink-0 border-l border-border bg-surface-sunken p-4 xl:block">
+        <p className="text-center text-meta text-subtle">
           Sélectionnez un album pour voir son détail
         </p>
       </aside>
@@ -49,7 +49,7 @@ export function DetailPanel() {
 
   if (!comic.data) {
     return (
-      <aside className="hidden w-[300px] shrink-0 border-l border-border bg-surface-sunken p-4 xl:block">
+      <aside className="hidden w-[340px] shrink-0 border-l border-border bg-surface-sunken p-4 xl:block">
         <div className="skeleton rounded-cover" style={{ aspectRatio: 0.7 }} />
       </aside>
     );
@@ -66,7 +66,10 @@ export function DetailPanel() {
   }
 
   return (
-    <aside className="hidden w-[300px] shrink-0 flex-col overflow-y-auto border-l border-border bg-surface-sunken xl:flex">
+    <aside
+      key={item.id}
+      className="slide-in-right hidden w-[340px] shrink-0 flex-col overflow-y-auto border-l border-border bg-surface-sunken xl:flex"
+    >
       <img
         src={imageURL(item.coverPath, { width: 640 })}
         alt=""
@@ -77,11 +80,11 @@ export function DetailPanel() {
       <div className="flex flex-col gap-3 p-3">
         <div>
           {item.seriesName && (
-            <p className="truncate text-[11px] uppercase tracking-wide text-accent-text">
+            <p className="truncate text-micro uppercase tracking-wide text-accent-text">
               {item.seriesName}
             </p>
           )}
-          <h2 className="text-[15px] font-semibold leading-snug text-fg">{item.title}</h2>
+          <h2 className="text-title font-semibold leading-snug text-fg">{item.title}</h2>
         </div>
 
         <div className="flex items-center gap-1.5">
@@ -97,7 +100,7 @@ export function DetailPanel() {
             title={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
             aria-pressed={isFavorite}
             className={cx(
-              "grid size-8 shrink-0 place-items-center rounded-md border border-border transition-colors",
+              "pressable grid size-9 shrink-0 place-items-center rounded-md border border-border",
               isFavorite ? "text-danger" : "text-subtle hover:text-fg hover:bg-surface-hover",
             )}
           >
@@ -112,7 +115,7 @@ export function DetailPanel() {
             title="Modifier les métadonnées"
             aria-pressed={editing}
             className={cx(
-              "grid size-8 shrink-0 place-items-center rounded-md border border-border transition-colors",
+              "pressable grid size-9 shrink-0 place-items-center rounded-md border border-border",
               editing ? "bg-accent text-inverted" : "text-subtle hover:text-fg hover:bg-surface-hover",
             )}
           >
@@ -124,12 +127,15 @@ export function DetailPanel() {
 
         {started && (
           <div>
-            <div className="mb-1 flex justify-between text-[11px] text-muted">
+            <div className="mb-1 flex justify-between text-meta text-muted">
               <span>Page {progress.data!.page + 1} / {progress.data!.pageCount || item.pageCount}</span>
               <span>{Math.round(progress.data!.percent)} %</span>
             </div>
             <div className="h-1 overflow-hidden rounded-full bg-border">
-              <div className="h-full bg-accent" style={{ width: `${Math.min(100, progress.data!.percent)}%` }} />
+              <div
+                className="h-full bg-accent transition-[width] duration-[--motion-duration-slow] ease-[--ease-standard]"
+                style={{ width: `${Math.min(100, progress.data!.percent)}%` }}
+              />
             </div>
           </div>
         )}
@@ -148,10 +154,10 @@ export function DetailPanel() {
         ) : (
           <>
             {item.summary && (
-              <p className="text-[12px] leading-relaxed text-muted">{item.summary}</p>
+              <p className="text-ui leading-relaxed text-muted">{item.summary}</p>
             )}
 
-            <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-[11px]">
+            <dl className="grid grid-cols-2 gap-x-3 gap-y-2.5 text-meta">
               <Field label="Numéro" value={item.number || "—"} />
               <Field label="Pages" value={String(item.pageCount)} />
               <Field label="Format" value={item.format.toUpperCase()} />
@@ -161,10 +167,10 @@ export function DetailPanel() {
             </dl>
 
             <div className="border-t border-border pt-2">
-              <p className="mb-0.5 text-[10px] uppercase tracking-wide text-subtle">Fichier</p>
-              <p className="break-all text-[11px] text-muted">{item.fileName}</p>
+              <p className="mb-1 text-micro uppercase tracking-wide text-subtle">Fichier</p>
+              <p className="break-all text-meta text-muted">{item.fileName}</p>
               {item.folderPath && (
-                <p className="mt-1 break-all text-[11px] text-subtle">{item.folderPath}/</p>
+                <p className="mt-1 break-all text-meta text-subtle">{item.folderPath}/</p>
               )}
             </div>
           </>
@@ -190,7 +196,7 @@ function RatingRow({
 
   return (
     <div className="flex items-center gap-2">
-      <span className="text-[10px] uppercase tracking-wide text-subtle">Note</span>
+      <span className="text-micro uppercase tracking-wide text-subtle">Note</span>
       <div className="flex gap-1">
         {[1, 2, 3, 4, 5].map((step) => (
           <button
@@ -198,14 +204,14 @@ function RatingRow({
             onClick={() => void set(step)}
             aria-label={`Noter ${step} sur 5`}
             className={cx(
-              "size-3 rounded-full transition-colors",
+              "pressable size-3.5 rounded-full",
               step <= value ? "bg-warning" : "bg-border hover:bg-border-strong",
             )}
           />
         ))}
       </div>
       {value > 0 && (
-        <button onClick={() => void set(0)} className="text-[11px] text-subtle hover:text-fg">
+        <button onClick={() => void set(0)} className="text-meta text-subtle transition-colors hover:text-fg">
           effacer
         </button>
       )}
@@ -253,16 +259,16 @@ function EditForm({
       <SmallField label="Numéro" value={number} onChange={setNumber} />
 
       <label className="flex flex-col gap-1">
-        <span className="text-[10px] uppercase tracking-wide text-subtle">Résumé</span>
+        <span className="text-micro uppercase tracking-wide text-subtle">Résumé</span>
         <textarea
           value={summary}
           onChange={(e) => setSummary(e.target.value)}
           rows={4}
-          className="rounded border border-border bg-surface px-2 py-1 text-[12px] text-fg focus:border-accent"
+          className="rounded-md border border-border bg-surface px-2.5 py-1.5 text-ui text-fg transition-colors focus:border-accent"
         />
       </label>
 
-      <p className="text-[10px] leading-relaxed text-subtle">
+      <p className="text-micro leading-relaxed text-subtle">
         Les champs modifiés sont verrouillés : un nouveau scan ne les écrasera pas.
       </p>
 
@@ -289,11 +295,11 @@ function SmallField({
 }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-[10px] uppercase tracking-wide text-subtle">{label}</span>
+      <span className="text-micro uppercase tracking-wide text-subtle">{label}</span>
       <input
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-7 rounded border border-border bg-surface px-2 text-[12px] text-fg focus:border-accent"
+        className="h-9 rounded-md border border-border bg-surface px-2.5 text-ui text-fg transition-colors focus:border-accent"
       />
     </label>
   );
@@ -302,7 +308,7 @@ function SmallField({
 function Field({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-[10px] uppercase tracking-wide text-subtle">{label}</dt>
+      <dt className="text-micro uppercase tracking-wide text-subtle">{label}</dt>
       <dd className="truncate text-fg">{value}</dd>
     </div>
   );

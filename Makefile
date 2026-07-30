@@ -177,6 +177,8 @@ build-web: ## Compile l'application web dans le répertoire embarqué du serveur
 	cd $(WEB_DIR) && npm ci && npm run generate:api && npm run build
 	rm -rf $(SERVER_DIR)/web/dist
 	cp -r $(WEB_DIR)/out $(SERVER_DIR)/web/dist
+	@# Le répertoire doit rester versionné même vide : `//go:embed` échoue sinon.
+	@touch $(SERVER_DIR)/web/dist/.gitkeep
 
 .PHONY: build-all
 build-all: build-web build ## Compile le web puis le binaire complet
