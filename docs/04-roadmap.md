@@ -181,7 +181,7 @@ Environ **quatre mois** à temps partiel soutenu.
 Par ordre de valeur décroissante pour l'adoption :
 
 1. **OPDS** — ouvre l'accès à tous les lecteurs tiers existants ; effort faible, gain immédiat en visibilité.
-2. **Métadonnées enrichies** — ComicVine, Metron, MangaUpdates, avec écran de rapprochement manuel.
+2. **Découvrir : recherche fédérée** — voir la section dédiée ci-dessous.
 3. **Import et téléversement** — déposer un fichier depuis le web ou le mobile vers un backend.
 4. **OIDC** — Authelia, Authentik, Keycloak. Très demandé par le public self-hosted.
 5. **Notifications push** — nouveautés dans une série suivie.
@@ -189,6 +189,82 @@ Par ordre de valeur décroissante pour l'adoption :
 7. **Recommandations** — d'abord par similarité de métadonnées, sans IA.
 8. **Plugins et extensions** — n'ouvrir une API d'extension qu'une fois les frontières internes stabilisées par l'usage.
 9. **IA : organisation, recherche sémantique, OCR, traduction** — puissant, mais coûteux et clivant sur ce public. À traiter en module optionnel, désactivé par défaut, jamais dans le chemin critique.
+
+---
+
+## « Découvrir » — recherche fédérée *(post-v0.1.0, ~5,5 semaines)*
+
+Un champ de recherche unique qui interroge en parallèle plusieurs catalogues
+externes, agrège les résultats et permet d'importer directement dans une
+bibliothèque.
+
+### Périmètre des sources
+
+Le registre des sources est une **liste fermée, en dur dans le code**. Ce n'est
+pas une configuration libre : une source non listée ne peut pas être ajoutée
+par un fichier de configuration. Cette contrainte est délibérée — elle empêche
+que la fonctionnalité soit détournée en agrégateur de sites de contrefaçon, ce
+qui ferait sortir le projet d'awesome-selfhosted et de F-Droid, l'exposerait à
+des retraits DMCA et découragerait les contributeurs.
+
+**Critère d'admission d'une source :** la diffusion des œuvres doit être
+autorisée — domaine public, licence libre, autorisation de l'auteur, ou accès
+fourni par l'utilisateur lui-même avec ses propres identifiants.
+
+**Domaine public** — téléchargement direct et import
+
+| Source | Contenu |
+|---|---|
+| Digital Comic Museum | Comics Golden Age, domaine public, déjà en CBZ |
+| Comic Book Plus | Comics, pulps, journaux illustrés du domaine public |
+| Internet Archive | Collections vérifiées domaine public |
+| Project Gutenberg | Livres, pour les bibliothèques `kind = book` |
+| Standard Ebooks | Livres du domaine public, EPUB soignés |
+
+**Métadonnées** — enrichir la collection existante
+
+| Source | Couverture |
+|---|---|
+| Bedetheque / BDGest | BD franco-belge — la référence pour le public francophone |
+| Grand Comics Database | International, données ouvertes |
+| ComicVine · Metron | Comics US |
+| MangaUpdates · AniList | Mangas |
+| Open Library | Livres |
+
+**Fédération OPDS** — catalogues auxquels l'utilisateur a déjà accès : une autre
+instance boxincloud, un Komga ou Kavita tiers, une bibliothèque publique
+numérique. La légitimité vient des identifiants que l'utilisateur fournit.
+
+### Architecture
+
+Même patron que `storage.Provider`, qui a fait ses preuves en M1 :
+
+```go
+// internal/discovery
+type Source interface {
+    ID() string
+    Kind() SourceKind        // public_domain | metadata | opds
+    Search(ctx context.Context, q Query) ([]Result, error)
+    Fetch(ctx context.Context, r Result) (io.ReadCloser, error) // nil si métadonnées seules
+}
+```
+
+Recherche en éventail sur les sources activées, agrégation et déduplication,
+affichage progressif au fil des réponses. Chaque source est un fichier,
+activable ou désactivable depuis l'administration.
+
+### Découpage
+
+| Étape | Contenu | Durée |
+|---|---|---|
+| **D1** | Registre `discovery.Source`, recherche fédérée, interface web | 1 sem |
+| **D2** | Sources domaine public + import vers un backend de stockage | 1,5 sem |
+| **D3** | Métadonnées + écran de rapprochement manuel | 2 sem |
+| **D4** | Fédération OPDS entrante (réutilise le client OPDS) | 1 sem |
+
+D3 a une valeur immédiate même isolé : il corrige rétroactivement les
+métadonnées de toute la collection déjà indexée, là où M1 ne sait que déduire
+série et numéro d'un nom de fichier.
 
 ---
 
