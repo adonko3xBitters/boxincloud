@@ -318,6 +318,18 @@ function FolderMenu({
               <MenuItem
                 onClick={() =>
                   onAction({
+                    kind: "share",
+                    libraryId: folder.libraryId,
+                    path: folder.path,
+                    hasCode: folder.hasCode,
+                  })
+                }
+              >
+                Partager…
+              </MenuItem>
+              <MenuItem
+                onClick={() =>
+                  onAction({
                     kind: "rename",
                     libraryId: folder.libraryId,
                     path: folder.path,

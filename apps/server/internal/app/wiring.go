@@ -97,11 +97,12 @@ func BuildCore(ctx context.Context, cfg *config.Config, pool *db.Pool, log *slog
 	folderRepo := folders.NewPostgresRepository(queries)
 	folderService := folders.NewService(folderRepo, libraries, log)
 	folderService.SetLockRepository(folderRepo)
+	folderService.SetShareRepository(folderRepo)
 
 	// Le catalogue masque ce que les codes d'accès cachent. Le résolveur est
 	// injecté plutôt qu'importé : le catalogue est délibérément mince, et
 	// dépendre du paquet folders créerait un cycle.
-	catalogService.SetLockResolver(folderService.LockedPaths)
+	catalogService.SetLockResolver(folderService.HiddenPaths)
 
 	jobClient, err := jobs.New(pool, cfg.Jobs, log, func(w *river.Workers) {
 		indexer.Register(w, indexer.Deps{

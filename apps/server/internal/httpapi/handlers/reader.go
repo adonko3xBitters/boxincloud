@@ -49,7 +49,18 @@ func (h *Reader) Manifest(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	h.ServeManifest(w, r, comicID)
+}
 
+/*
+ServeManifest, ServePage et ServeCover servent un album DÉJÀ autorisé.
+
+Extraites pour que le partage public les réutilise : il autorise autrement — par
+un jeton de lien plutôt que par un compte — mais sert exactement les mêmes
+octets, avec les mêmes en-têtes de cache et les mêmes requêtes conditionnelles.
+Les dupliquer aurait garanti qu'une des deux copies finisse par diverger.
+*/
+func (h *Reader) ServeManifest(w http.ResponseWriter, r *http.Request, comicID uuid.UUID) {
 	manifest, err := h.svc.Manifest(r.Context(), comicID)
 	if err != nil {
 		writeReaderError(w, r, err)
@@ -78,7 +89,11 @@ func (h *Reader) Page(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	h.ServePage(w, r, comicID)
+}
 
+// ServePage sert une page d'un album déjà autorisé.
+func (h *Reader) ServePage(w http.ResponseWriter, r *http.Request, comicID uuid.UUID) {
 	index, err := strconv.ParseInt(chi.URLParam(r, "index"), 10, 32)
 	if err != nil {
 		problem.Write(w, r, problem.BadRequest("invalid page index"))
@@ -107,7 +122,11 @@ func (h *Reader) Cover(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		return
 	}
+	h.ServeCover(w, r, comicID)
+}
 
+// ServeCover sert la couverture d'un album déjà autorisé.
+func (h *Reader) ServeCover(w http.ResponseWriter, r *http.Request, comicID uuid.UUID) {
 	content, err := h.svc.GetCover(r.Context(), comicID, int(intParam(r, "width", 0)))
 	if err != nil {
 		writeReaderError(w, r, err)

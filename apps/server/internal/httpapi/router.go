@@ -194,6 +194,17 @@ func NewRouter(d Deps) http.Handler {
 			r.Put("/folders/lock", foldersHandler.SetLock)
 			r.Post("/folders/unlock", foldersHandler.Unlock)
 			r.Delete("/libraries/{libraryID}/folders/unlock", foldersHandler.Relock)
+
+			// ── Partage ─────────────────────────────────────────────
+			sharingHandler := handlers.NewSharing(d.Folders, d.Catalog, readerHandler)
+
+			r.Get("/libraries/{libraryID}/folders/access", sharingHandler.ListFolderGrants)
+			r.Post("/folders/access", sharingHandler.GrantFolder)
+			r.Delete("/libraries/{libraryID}/folders/access/{userID}", sharingHandler.RevokeFolderGrant)
+
+			r.Get("/share-links", sharingHandler.ListShares)
+			r.Post("/share-links", sharingHandler.CreateShare)
+			r.Delete("/share-links/{shareID}", sharingHandler.RevokeShare)
 			r.Get("/me/marks", toolsHandler.UserMarks)
 			r.Post("/comics/bulk", toolsHandler.Bulk)
 			r.Put("/comics/{comicID}/favorite", toolsHandler.SetFavorite)
@@ -265,6 +276,33 @@ func NewRouter(d Deps) http.Handler {
 
 			adminHandler := handlers.NewAdmin(d.Libraries, d.Catalog, d.Ingest)
 			r.Post("/libraries/{libraryID}/upload", adminHandler.Upload)
+		})
+
+		/*
+			── Accès public par lien de partage ────────────────────────────
+
+			Les SEULES routes du serveur qui ne demandent aucun compte.
+
+			Elles sont volontairement regroupées et nommées : la surface non
+			authentifiée doit se lire d'un seul tenant plutôt que se découvrir
+			en parcourant le routeur.
+
+			Leur portée est celle du lien, revérifiée à chaque requête. Aucune
+			ne prend d'identifiant de bibliothèque, aucune ne liste autre chose
+			que ce que le lien désigne, et toutes sont en lecture seule.
+		*/
+		r.Group(func(r chi.Router) {
+			r.Use(chimw.Timeout(requestTimeout))
+
+			readerHandler := handlers.NewReader(d.Reader, d.Catalog)
+			sharingHandler := handlers.NewSharing(d.Folders, d.Catalog, readerHandler)
+
+			r.Route("/share/{token}", func(r chi.Router) {
+				r.Get("/", sharingHandler.GetShared)
+				r.Get("/comics/{comicID}/manifest", sharingHandler.SharedManifest)
+				r.Get("/comics/{comicID}/pages/{index}", sharingHandler.SharedPage)
+				r.Get("/comics/{comicID}/cover", sharingHandler.SharedCover)
+			})
 		})
 
 		// ── Routes acceptant le jeton en paramètre d'URL ────────────────
@@ -356,12 +394,20 @@ func serveWeb(d Deps, w http.ResponseWriter, r *http.Request) {
 	serveHTML(d.WebFS, "index.html", w, r)
 }
 
-// exists indique si un chemin désigne un fichier du bundle embarqué.
-//
-// fs.ValidPath est vérifié explicitement : embed.FS rejetterait déjà un chemin
-// contenant « .. » ou une barre de tête, mais s'en remettre à ce comportement
-// laisserait la garantie implicite. Ici le contrat est écrit — seul un chemin
-// relatif propre peut atteindre le système de fichiers.
+/*
+exists indique si un chemin désigne un FICHIER du bundle embarqué.
+
+Les répertoires sont exclus délibérément. L'export statique de Next produit à la
+fois `partage.html` et un répertoire `partage/` ; laisser passer le second ferait
+rediriger `/partage` vers `/partage/` par le serveur de fichiers, alors que le
+document attendu est le premier. La redirection fonctionnait, mais elle salissait
+une adresse faite pour être copiée et transmise.
+
+fs.ValidPath est vérifié explicitement : embed.FS rejetterait déjà un chemin
+contenant « .. » ou une barre de tête, mais s'en remettre à ce comportement
+laisserait la garantie implicite. Ici le contrat est écrit — seul un chemin
+relatif propre peut atteindre le système de fichiers.
+*/
 func exists(fsys fs.FS, name string) bool {
 	if !fs.ValidPath(name) {
 		return false
@@ -370,8 +416,10 @@ func exists(fsys fs.FS, name string) bool {
 	if err != nil {
 		return false
 	}
-	_ = f.Close()
-	return true
+	defer func() { _ = f.Close() }()
+
+	info, err := f.Stat()
+	return err == nil && !info.IsDir()
 }
 
 // serveHTML sert un document, sans cache.

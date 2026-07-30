@@ -256,3 +256,195 @@ func (r *PostgresRepository) TreeReadOnly(
 		Path:      path,
 	})
 }
+
+// ─── Partage ─────────────────────────────────────────────────────────────────
+
+var _ ShareRepository = (*PostgresRepository)(nil)
+
+func (r *PostgresRepository) GrantFolder(ctx context.Context, folderID, userID uuid.UUID, canWrite bool) error {
+	return r.q.GrantFolderAccess(ctx, sqlc.GrantFolderAccessParams{
+		FolderID: folderID,
+		UserID:   userID,
+		CanWrite: canWrite,
+	})
+}
+
+func (r *PostgresRepository) RevokeFolder(ctx context.Context, folderID, userID uuid.UUID) error {
+	return r.q.RevokeFolderAccess(ctx, sqlc.RevokeFolderAccessParams{
+		FolderID: folderID,
+		UserID:   userID,
+	})
+}
+
+func (r *PostgresRepository) FolderGrants(ctx context.Context, folderID uuid.UUID) ([]FolderGrant, error) {
+	rows, err := r.q.ListFolderAccess(ctx, folderID)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]FolderGrant, 0, len(rows))
+	for _, row := range rows {
+		grant := FolderGrant{
+			FolderID: row.FolderID,
+			UserID:   row.UserID,
+			Username: row.Username,
+			CanWrite: row.CanWrite,
+		}
+		if row.DisplayName != nil {
+			grant.DisplayName = *row.DisplayName
+		}
+		out = append(out, grant)
+	}
+	return out, nil
+}
+
+func (r *PostgresRepository) RestrictedFolders(
+	ctx context.Context, userID uuid.UUID, libraryIDs []uuid.UUID,
+) ([]string, error) {
+	return r.q.ListRestrictedFolders(ctx, sqlc.ListRestrictedFoldersParams{
+		LibraryIds: libraryIDs,
+		UserID:     userID,
+	})
+}
+
+func (r *PostgresRepository) CanWriteFolder(
+	ctx context.Context, userID, libraryID uuid.UUID, path string,
+) (bool, error) {
+	return r.q.CanWriteFolder(ctx, sqlc.CanWriteFolderParams{
+		LibraryID: libraryID,
+		UserID:    userID,
+		Path:      path,
+	})
+}
+
+func (r *PostgresRepository) CreateShare(
+	ctx context.Context, link ShareLink, tokenHash []byte,
+) (ShareLink, error) {
+	var comicID uuid.NullUUID
+	if link.ComicID != nil {
+		comicID = uuid.NullUUID{UUID: *link.ComicID, Valid: true}
+	}
+
+	row, err := r.q.CreateShareLink(ctx, sqlc.CreateShareLinkParams{
+		ID:         link.ID,
+		TokenHash:  tokenHash,
+		LibraryID:  link.LibraryID,
+		FolderPath: link.FolderPath,
+		ComicID:    comicID,
+		Label:      link.Label,
+		CreatedBy:  link.CreatedBy,
+		ExpiresAt:  pgtype.Timestamptz{Time: link.ExpiresAt, Valid: true},
+	})
+	if err != nil {
+		return ShareLink{}, err
+	}
+	return shareFromRow(row), nil
+}
+
+func (r *PostgresRepository) ShareByHash(ctx context.Context, tokenHash []byte) (ShareLink, error) {
+	row, err := r.q.GetShareLinkByHash(ctx, tokenHash)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return ShareLink{}, ErrShareNotFound
+	}
+	if err != nil {
+		return ShareLink{}, err
+	}
+	return shareFromRow(row), nil
+}
+
+func (r *PostgresRepository) ListShares(ctx context.Context, libraryIDs []uuid.UUID) ([]ShareLink, error) {
+	rows, err := r.q.ListShareLinks(ctx, libraryIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]ShareLink, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, shareFromRow(row))
+	}
+	return out, nil
+}
+
+func (r *PostgresRepository) RevokeShare(ctx context.Context, id uuid.UUID) (int64, error) {
+	return r.q.RevokeShareLink(ctx, id)
+}
+
+func (r *PostgresRepository) TouchShare(ctx context.Context, id uuid.UUID) error {
+	return r.q.TouchShareLink(ctx, id)
+}
+
+func (r *PostgresRepository) TreeHasAccessCode(
+	ctx context.Context, libraryID uuid.UUID, path string,
+) (bool, error) {
+	return r.q.TreeHasAccessCode(ctx, sqlc.TreeHasAccessCodeParams{
+		LibraryID: libraryID,
+		Path:      path,
+	})
+}
+
+func (r *PostgresRepository) ComicFolder(
+	ctx context.Context, comicID uuid.UUID,
+) (uuid.UUID, string, error) {
+	row, err := r.q.GetComic(ctx, comicID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return uuid.Nil, "", ErrNotFound
+	}
+	if err != nil {
+		return uuid.Nil, "", err
+	}
+	return row.LibraryID, row.FolderPath, nil
+}
+
+func (r *PostgresRepository) ComicInScope(
+	ctx context.Context, comicID, libraryID uuid.UUID, path string,
+) (bool, error) {
+	return r.q.ComicInSharedFolder(ctx, sqlc.ComicInSharedFolderParams{
+		ID:        comicID,
+		LibraryID: libraryID,
+		Path:      path,
+	})
+}
+
+func (r *PostgresRepository) ComicsInScope(
+	ctx context.Context, libraryID uuid.UUID, path string,
+) ([]uuid.UUID, error) {
+	rows, err := r.q.ListSharedComics(ctx, sqlc.ListSharedComicsParams{
+		LibraryID: libraryID,
+		Path:      path,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]uuid.UUID, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, row.Comic.ID)
+	}
+	return out, nil
+}
+
+func shareFromRow(row sqlc.ShareLink) ShareLink {
+	link := ShareLink{
+		ID:        row.ID,
+		LibraryID: row.LibraryID,
+		Label:     row.Label,
+		CreatedBy: row.CreatedBy,
+		UseCount:  row.UseCount,
+	}
+	link.FolderPath = row.FolderPath
+	if row.ComicID.Valid {
+		id := row.ComicID.UUID
+		link.ComicID = &id
+	}
+	if row.ExpiresAt.Valid {
+		link.ExpiresAt = row.ExpiresAt.Time
+	}
+	if row.CreatedAt.Valid {
+		link.CreatedAt = row.CreatedAt.Time
+	}
+	if row.LastUsedAt.Valid {
+		t := row.LastUsedAt.Time
+		link.LastUsedAt = &t
+	}
+	return link
+}

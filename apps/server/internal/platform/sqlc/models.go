@@ -474,6 +474,12 @@ type Folder struct {
 	AccessCodeHash *string
 }
 
+type FolderAccess struct {
+	FolderID uuid.UUID
+	UserID   uuid.UUID
+	CanWrite bool
+}
+
 type FolderUnlock struct {
 	UserID    uuid.UUID
 	FolderID  uuid.UUID
@@ -565,6 +571,22 @@ type Setting struct {
 	Key       string
 	Value     []byte
 	UpdatedAt pgtype.Timestamptz
+}
+
+type ShareLink struct {
+	ID uuid.UUID
+	// SHA-256 du jeton. Le jeton en clair n'est montré qu'une fois, à la création.
+	TokenHash  []byte
+	LibraryID  uuid.UUID
+	FolderPath *string
+	ComicID    uuid.NullUUID
+	Label      string
+	CreatedBy  uuid.UUID
+	ExpiresAt  pgtype.Timestamptz
+	RevokedAt  pgtype.Timestamptz
+	LastUsedAt pgtype.Timestamptz
+	UseCount   int64
+	CreatedAt  pgtype.Timestamptz
 }
 
 type StorageBackend struct {

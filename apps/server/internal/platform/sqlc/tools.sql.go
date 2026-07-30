@@ -102,6 +102,31 @@ func (q *Queries) BulkUnsetFavorite(ctx context.Context, arg BulkUnsetFavoritePa
 	return result.RowsAffected(), nil
 }
 
+const canWriteFolder = `-- name: CanWriteFolder :one
+SELECT EXISTS (
+    SELECT 1 FROM folders f
+    JOIN folder_access a ON a.folder_id = f.id
+    WHERE f.library_id = $1
+      AND a.user_id = $2
+      AND a.can_write = true
+      AND ($3::text = f.path OR $3::text LIKE f.path || '/%')
+) AS allowed
+`
+
+type CanWriteFolderParams struct {
+	LibraryID uuid.UUID
+	UserID    uuid.UUID
+	Path      string
+}
+
+// Le dossier ou l'un de ses ancêtres autorise-t-il ce compte à écrire ?
+func (q *Queries) CanWriteFolder(ctx context.Context, arg CanWriteFolderParams) (bool, error) {
+	row := q.db.QueryRow(ctx, canWriteFolder, arg.LibraryID, arg.UserID, arg.Path)
+	var allowed bool
+	err := row.Scan(&allowed)
+	return allowed, err
+}
+
 const clearRating = `-- name: ClearRating :exec
 DELETE FROM comic_ratings WHERE user_id = $1 AND comic_id = $2
 `
@@ -114,6 +139,31 @@ type ClearRatingParams struct {
 func (q *Queries) ClearRating(ctx context.Context, arg ClearRatingParams) error {
 	_, err := q.db.Exec(ctx, clearRating, arg.UserID, arg.ComicID)
 	return err
+}
+
+const comicInSharedFolder = `-- name: ComicInSharedFolder :one
+SELECT EXISTS (
+    SELECT 1 FROM comics c
+    WHERE c.id = $1
+      AND c.library_id = $2
+      AND c.deleted_at IS NULL
+      AND c.excluded_at IS NULL
+      AND ($3::text = '' OR c.folder_path = $3::text OR c.folder_path LIKE $3::text || '/%')
+) AS included
+`
+
+type ComicInSharedFolderParams struct {
+	ID        uuid.UUID
+	LibraryID uuid.UUID
+	Path      string
+}
+
+// Un album donné entre-t-il dans la portée d'un lien de dossier ?
+func (q *Queries) ComicInSharedFolder(ctx context.Context, arg ComicInSharedFolderParams) (bool, error) {
+	row := q.db.QueryRow(ctx, comicInSharedFolder, arg.ID, arg.LibraryID, arg.Path)
+	var included bool
+	err := row.Scan(&included)
+	return included, err
 }
 
 const countComicsByExactFolder = `-- name: CountComicsByExactFolder :many
@@ -151,6 +201,56 @@ func (q *Queries) CountComicsByExactFolder(ctx context.Context, libraryIds []uui
 		return nil, err
 	}
 	return items, nil
+}
+
+const createShareLink = `-- name: CreateShareLink :one
+
+INSERT INTO share_links (
+    id, token_hash, library_id, folder_path, comic_id, label, created_by, expires_at
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING id, token_hash, library_id, folder_path, comic_id, label, created_by, expires_at, revoked_at, last_used_at, use_count, created_at
+`
+
+type CreateShareLinkParams struct {
+	ID         uuid.UUID
+	TokenHash  []byte
+	LibraryID  uuid.UUID
+	FolderPath *string
+	ComicID    uuid.NullUUID
+	Label      string
+	CreatedBy  uuid.UUID
+	ExpiresAt  pgtype.Timestamptz
+}
+
+// ─── Liens publics ───────────────────────────────────────────────────────────
+func (q *Queries) CreateShareLink(ctx context.Context, arg CreateShareLinkParams) (ShareLink, error) {
+	row := q.db.QueryRow(ctx, createShareLink,
+		arg.ID,
+		arg.TokenHash,
+		arg.LibraryID,
+		arg.FolderPath,
+		arg.ComicID,
+		arg.Label,
+		arg.CreatedBy,
+		arg.ExpiresAt,
+	)
+	var i ShareLink
+	err := row.Scan(
+		&i.ID,
+		&i.TokenHash,
+		&i.LibraryID,
+		&i.FolderPath,
+		&i.ComicID,
+		&i.Label,
+		&i.CreatedBy,
+		&i.ExpiresAt,
+		&i.RevokedAt,
+		&i.LastUsedAt,
+		&i.UseCount,
+		&i.CreatedAt,
+	)
+	return i, err
 }
 
 const deleteFolderTree = `-- name: DeleteFolderTree :execrows
@@ -339,6 +439,56 @@ func (q *Queries) GetFolderByID(ctx context.Context, id uuid.UUID) (Folder, erro
 	return i, err
 }
 
+const getShareLinkByHash = `-- name: GetShareLinkByHash :one
+SELECT id, token_hash, library_id, folder_path, comic_id, label, created_by, expires_at, revoked_at, last_used_at, use_count, created_at FROM share_links
+WHERE token_hash = $1
+  AND revoked_at IS NULL
+  AND expires_at > now()
+`
+
+// Résolution d'un lien à partir du hachage de son jeton.
+//
+// Les liens révoqués ou expirés ne sortent pas : le filtre est dans la requête
+// plutôt qu'après, pour qu'aucun appelant ne puisse l'oublier.
+func (q *Queries) GetShareLinkByHash(ctx context.Context, tokenHash []byte) (ShareLink, error) {
+	row := q.db.QueryRow(ctx, getShareLinkByHash, tokenHash)
+	var i ShareLink
+	err := row.Scan(
+		&i.ID,
+		&i.TokenHash,
+		&i.LibraryID,
+		&i.FolderPath,
+		&i.ComicID,
+		&i.Label,
+		&i.CreatedBy,
+		&i.ExpiresAt,
+		&i.RevokedAt,
+		&i.LastUsedAt,
+		&i.UseCount,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
+const grantFolderAccess = `-- name: GrantFolderAccess :exec
+
+INSERT INTO folder_access (folder_id, user_id, can_write)
+VALUES ($1, $2, $3)
+ON CONFLICT (folder_id, user_id) DO UPDATE SET can_write = EXCLUDED.can_write
+`
+
+type GrantFolderAccessParams struct {
+	FolderID uuid.UUID
+	UserID   uuid.UUID
+	CanWrite bool
+}
+
+// ─── Partage entre comptes ───────────────────────────────────────────────────
+func (q *Queries) GrantFolderAccess(ctx context.Context, arg GrantFolderAccessParams) error {
+	_, err := q.db.Exec(ctx, grantFolderAccess, arg.FolderID, arg.UserID, arg.CanWrite)
+	return err
+}
+
 const isFolderTreeReadOnly = `-- name: IsFolderTreeReadOnly :one
 SELECT EXISTS (
     SELECT 1 FROM folders
@@ -478,6 +628,48 @@ func (q *Queries) ListFavoriteIDs(ctx context.Context, userID uuid.UUID) ([]uuid
 			return nil, err
 		}
 		items = append(items, comic_id)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listFolderAccess = `-- name: ListFolderAccess :many
+SELECT a.folder_id, a.user_id, a.can_write, u.username, u.display_name
+FROM folder_access a
+JOIN users u ON u.id = a.user_id
+WHERE a.folder_id = $1
+ORDER BY u.username
+`
+
+type ListFolderAccessRow struct {
+	FolderID    uuid.UUID
+	UserID      uuid.UUID
+	CanWrite    bool
+	Username    string
+	DisplayName *string
+}
+
+func (q *Queries) ListFolderAccess(ctx context.Context, folderID uuid.UUID) ([]ListFolderAccessRow, error) {
+	rows, err := q.db.Query(ctx, listFolderAccess, folderID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListFolderAccessRow{}
+	for rows.Next() {
+		var i ListFolderAccessRow
+		if err := rows.Scan(
+			&i.FolderID,
+			&i.UserID,
+			&i.CanWrite,
+			&i.Username,
+			&i.DisplayName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -647,6 +839,164 @@ func (q *Queries) ListRatings(ctx context.Context, userID uuid.UUID) ([]ListRati
 	return items, nil
 }
 
+const listRestrictedFolders = `-- name: ListRestrictedFolders :many
+SELECT f.path
+FROM folders f
+WHERE f.library_id = ANY($1::uuid[])
+  AND EXISTS (SELECT 1 FROM folder_access a WHERE a.folder_id = f.id)
+  AND NOT EXISTS (
+      SELECT 1 FROM folder_access a
+      WHERE a.folder_id = f.id AND a.user_id = $2
+  )
+ORDER BY f.path
+`
+
+type ListRestrictedFoldersParams struct {
+	LibraryIds []uuid.UUID
+	UserID     uuid.UUID
+}
+
+// Dossiers restreints qui ne sont PAS ouverts à ce compte.
+//
+// Même forme que la liste des dossiers masqués par un code : les deux produisent
+// des chemins à retirer de la vue, et le catalogue les traite ensemble sans
+// avoir à savoir lequel des deux mécanismes les a produits.
+func (q *Queries) ListRestrictedFolders(ctx context.Context, arg ListRestrictedFoldersParams) ([]string, error) {
+	rows, err := q.db.Query(ctx, listRestrictedFolders, arg.LibraryIds, arg.UserID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []string{}
+	for rows.Next() {
+		var path string
+		if err := rows.Scan(&path); err != nil {
+			return nil, err
+		}
+		items = append(items, path)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listShareLinks = `-- name: ListShareLinks :many
+SELECT id, token_hash, library_id, folder_path, comic_id, label, created_by, expires_at, revoked_at, last_used_at, use_count, created_at FROM share_links
+WHERE library_id = ANY($1::uuid[])
+  AND revoked_at IS NULL
+ORDER BY created_at DESC
+`
+
+func (q *Queries) ListShareLinks(ctx context.Context, libraryIds []uuid.UUID) ([]ShareLink, error) {
+	rows, err := q.db.Query(ctx, listShareLinks, libraryIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ShareLink{}
+	for rows.Next() {
+		var i ShareLink
+		if err := rows.Scan(
+			&i.ID,
+			&i.TokenHash,
+			&i.LibraryID,
+			&i.FolderPath,
+			&i.ComicID,
+			&i.Label,
+			&i.CreatedBy,
+			&i.ExpiresAt,
+			&i.RevokedAt,
+			&i.LastUsedAt,
+			&i.UseCount,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSharedComics = `-- name: ListSharedComics :many
+SELECT c.id, c.library_id, c.series_id, c.object_key, c.file_size, c.file_etag, c.content_hash, c.format, c.title, c.number, c.number_sort, c.volume, c.summary, c.released_at, c.age_rating, c.language, c.page_count, c.cover_page, c.state, c.state_detail, c.hydrated_at, c.indexed_at, c.metadata, c.locked_fields, c.created_at, c.updated_at, c.deleted_at, c.search_vector, c.cover_placeholder, c.folder_path, c.excluded_at, COALESCE(s.name, '')::text AS series_name
+FROM comics c
+LEFT JOIN series s ON s.id = c.series_id
+WHERE c.library_id = $1
+  AND c.deleted_at IS NULL
+  AND c.excluded_at IS NULL
+  AND c.state = 'ready'
+  AND ($2::text = '' OR c.folder_path = $2::text OR c.folder_path LIKE $2::text || '/%')
+ORDER BY c.folder_path, c.number_sort NULLS LAST, c.title
+`
+
+type ListSharedComicsParams struct {
+	LibraryID uuid.UUID
+	Path      string
+}
+
+type ListSharedComicsRow struct {
+	Comic      Comic
+	SeriesName string
+}
+
+// Albums accessibles par un lien de dossier.
+func (q *Queries) ListSharedComics(ctx context.Context, arg ListSharedComicsParams) ([]ListSharedComicsRow, error) {
+	rows, err := q.db.Query(ctx, listSharedComics, arg.LibraryID, arg.Path)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListSharedComicsRow{}
+	for rows.Next() {
+		var i ListSharedComicsRow
+		if err := rows.Scan(
+			&i.Comic.ID,
+			&i.Comic.LibraryID,
+			&i.Comic.SeriesID,
+			&i.Comic.ObjectKey,
+			&i.Comic.FileSize,
+			&i.Comic.FileEtag,
+			&i.Comic.ContentHash,
+			&i.Comic.Format,
+			&i.Comic.Title,
+			&i.Comic.Number,
+			&i.Comic.NumberSort,
+			&i.Comic.Volume,
+			&i.Comic.Summary,
+			&i.Comic.ReleasedAt,
+			&i.Comic.AgeRating,
+			&i.Comic.Language,
+			&i.Comic.PageCount,
+			&i.Comic.CoverPage,
+			&i.Comic.State,
+			&i.Comic.StateDetail,
+			&i.Comic.HydratedAt,
+			&i.Comic.IndexedAt,
+			&i.Comic.Metadata,
+			&i.Comic.LockedFields,
+			&i.Comic.CreatedAt,
+			&i.Comic.UpdatedAt,
+			&i.Comic.DeletedAt,
+			&i.Comic.SearchVector,
+			&i.Comic.CoverPlaceholder,
+			&i.Comic.FolderPath,
+			&i.Comic.ExcludedAt,
+			&i.SeriesName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const lockFolderAgain = `-- name: LockFolderAgain :exec
 DELETE FROM folder_unlocks WHERE user_id = $1 AND folder_id = $2
 `
@@ -777,6 +1127,20 @@ func (q *Queries) RestoreComic(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+const revokeFolderAccess = `-- name: RevokeFolderAccess :exec
+DELETE FROM folder_access WHERE folder_id = $1 AND user_id = $2
+`
+
+type RevokeFolderAccessParams struct {
+	FolderID uuid.UUID
+	UserID   uuid.UUID
+}
+
+func (q *Queries) RevokeFolderAccess(ctx context.Context, arg RevokeFolderAccessParams) error {
+	_, err := q.db.Exec(ctx, revokeFolderAccess, arg.FolderID, arg.UserID)
+	return err
+}
+
 const revokeFolderUnlocks = `-- name: RevokeFolderUnlocks :exec
 DELETE FROM folder_unlocks WHERE folder_id = $1
 `
@@ -788,6 +1152,19 @@ DELETE FROM folder_unlocks WHERE folder_id = $1
 func (q *Queries) RevokeFolderUnlocks(ctx context.Context, folderID uuid.UUID) error {
 	_, err := q.db.Exec(ctx, revokeFolderUnlocks, folderID)
 	return err
+}
+
+const revokeShareLink = `-- name: RevokeShareLink :execrows
+UPDATE share_links SET revoked_at = now()
+WHERE id = $1 AND revoked_at IS NULL
+`
+
+func (q *Queries) RevokeShareLink(ctx context.Context, id uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, revokeShareLink, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const setComicFolder = `-- name: SetComicFolder :exec
@@ -899,6 +1276,43 @@ type SetRatingParams struct {
 func (q *Queries) SetRating(ctx context.Context, arg SetRatingParams) error {
 	_, err := q.db.Exec(ctx, setRating, arg.UserID, arg.ComicID, arg.Rating)
 	return err
+}
+
+const touchShareLink = `-- name: TouchShareLink :exec
+UPDATE share_links
+SET last_used_at = now(), use_count = use_count + 1
+WHERE id = $1
+`
+
+func (q *Queries) TouchShareLink(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, touchShareLink, id)
+	return err
+}
+
+const treeHasAccessCode = `-- name: TreeHasAccessCode :one
+SELECT EXISTS (
+    SELECT 1 FROM folders
+    WHERE library_id = $1
+      AND access_code_hash IS NOT NULL
+      AND ($2::text = path OR $2::text LIKE path || '/%')
+) AS locked
+`
+
+type TreeHasAccessCodeParams struct {
+	LibraryID uuid.UUID
+	Path      string
+}
+
+// Un dossier porte-t-il un code d'accès, lui ou l'un de ses ancêtres ?
+//
+// Sert à refuser un lien public sur une branche masquée : les deux intentions se
+// contredisent, et laisser les deux coexister reviendrait à publier ce qu'on
+// vient de cacher.
+func (q *Queries) TreeHasAccessCode(ctx context.Context, arg TreeHasAccessCodeParams) (bool, error) {
+	row := q.db.QueryRow(ctx, treeHasAccessCode, arg.LibraryID, arg.Path)
+	var locked bool
+	err := row.Scan(&locked)
+	return locked, err
 }
 
 const unlockFolder = `-- name: UnlockFolder :exec

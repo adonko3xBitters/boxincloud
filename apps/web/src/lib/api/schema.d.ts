@@ -565,6 +565,204 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/folders/access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Partager un dossier avec un compte
+         * @description **Attention au modèle**, identique à celui des bibliothèques : un dossier
+         *     SANS aucune autorisation explicite est visible de tous ceux qui voient la
+         *     bibliothèque. Le premier accès accordé le referme donc pour tous les
+         *     autres comptes — le geste restreint autant qu'il ouvre.
+         */
+        post: operations["grantFolderAccess"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/libraries/{libraryId}/folders/access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Comptes autorisés sur un dossier */
+        get: operations["listFolderAccess"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/libraries/{libraryId}/folders/access/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Retirer l'accès d'un compte à un dossier */
+        delete: operations["revokeFolderAccess"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/share-links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Liens publics actifs
+         * @description Les jetons ne sont pas retournés : seul leur hachage est conservé. Un
+         *     lien perdu se remplace, il ne se relit pas.
+         */
+        get: operations["listShareLinks"];
+        put?: never;
+        /**
+         * Créer un lien public
+         * @description Un lien public ouvre un accès **sans compte** : qui a l'URL voit le
+         *     contenu. C'est la seule porte de boxincloud qui ne demande rien, d'où
+         *     quatre garde-fous.
+         *
+         *     La portée est exactement un dossier OU un album, jamais une bibliothèque
+         *     entière. L'échéance est obligatoire et plafonnée à un an — un lien sans
+         *     fin finit par circuler plus loin que prévu, et personne ne se souvient de
+         *     le fermer. Le lien est révocable à tout moment. Enfin, un lien sur un
+         *     dossier masqué par un code d'accès est refusé : publier ce qu'on vient de
+         *     cacher n'a aucun sens.
+         *
+         *     Le jeton n'est retourné **qu'ici**. Seul son hachage est conservé, comme
+         *     un mot de passe.
+         */
+        post: operations["createShareLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/share-links/{shareId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Révoquer un lien public */
+        delete: operations["revokeShareLink"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/share/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Contenu d'un lien public
+         * @description **Route publique — aucun compte requis.**
+         *
+         *     Retourne exactement ce que le lien désigne, rien d'autre. Un lien
+         *     révoqué, expiré ou inexistant donne 404 dans les trois cas : distinguer
+         *     confirmerait à un inconnu qu'un lien a existé.
+         */
+        get: operations["getSharedContent"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/share/{token}/comics/{comicId}/manifest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Manifeste d'un album partagé
+         * @description **Route publique.** L'appartenance de l'album à la portée du lien est
+         *     revérifiée à chaque requête : un lien de dossier donne accès à ce que le
+         *     dossier contient MAINTENANT, si bien qu'un album qui en sort cesse
+         *     d'être accessible sans qu'il faille penser à révoquer.
+         */
+        get: operations["getSharedManifest"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/share/{token}/comics/{comicId}/pages/{index}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Page d'un album partagé
+         * @description **Route publique.**
+         */
+        get: operations["getSharedPage"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/share/{token}/comics/{comicId}/cover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Couverture d'un album partagé
+         * @description **Route publique.**
+         */
+        get: operations["getSharedCover"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/folders/lock": {
         parameters: {
             query?: never;
@@ -1190,6 +1388,53 @@ export interface components {
         LibraryGrants: {
             grants: components["schemas"]["LibraryGrant"][];
         };
+        FolderGrant: {
+            /** Format: uuid */
+            userId: string;
+            username?: string;
+            displayName?: string;
+            canWrite: boolean;
+        };
+        ShareLink: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            libraryId: string;
+            folderPath?: string;
+            /** Format: uuid */
+            comicId?: string;
+            label?: string;
+            /** Format: date-time */
+            expiresAt: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            lastUsedAt?: string;
+            /** Format: int64 */
+            useCount: number;
+            /**
+             * @description Renseigné UNIQUEMENT à la création. Seul son hachage est conservé :
+             *     il ne peut plus être relu ensuite.
+             */
+            token?: string;
+        };
+        SharedContent: {
+            /** @enum {string} */
+            scope: "folder" | "comic";
+            label?: string;
+            /** Format: date-time */
+            expiresAt: string;
+            comics: {
+                /** Format: uuid */
+                id: string;
+                title: string;
+                seriesName?: string;
+                number?: string;
+                /** Format: int32 */
+                pageCount: number;
+                coverPath: string;
+            }[];
+        };
         StorageBackend: {
             /** Format: uuid */
             id: string;
@@ -1424,6 +1669,8 @@ export interface components {
     };
     parameters: {
         ComicId: string;
+        /** @description Jeton du lien public, tel que reçu à sa création. */
+        ShareToken: string;
         UserIdPath: string;
         LibraryIdPath: string;
         /** @description Restreint à une bibliothèque. Omis, toutes les bibliothèques visibles. */
@@ -2419,6 +2666,289 @@ export interface operations {
                 };
             };
             422: components["responses"]["ValidationFailed"];
+        };
+    };
+    grantFolderAccess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    libraryId: string;
+                    path: string;
+                    /** Format: uuid */
+                    userId: string;
+                    canWrite?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Accès accordé */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FolderGrant"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    listFolderAccess: {
+        parameters: {
+            query: {
+                path: string;
+            };
+            header?: never;
+            path: {
+                libraryId: components["parameters"]["LibraryIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        grants: components["schemas"]["FolderGrant"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    revokeFolderAccess: {
+        parameters: {
+            query: {
+                path: string;
+            };
+            header?: never;
+            path: {
+                libraryId: components["parameters"]["LibraryIdPath"];
+                userId: components["parameters"]["UserIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accès retiré */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    listShareLinks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Liens */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        links: components["schemas"]["ShareLink"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createShareLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    libraryId: string;
+                    /** @description Portée dossier. Exclusif avec `comicId`. */
+                    folderPath?: string;
+                    /**
+                     * Format: uuid
+                     * @description Portée album. Exclusif avec `folderPath`.
+                     */
+                    comicId?: string;
+                    /** @description Aide-mémoire, visible de vous seul. */
+                    label?: string;
+                    /** Format: date-time */
+                    expiresAt: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Lien créé, jeton inclus */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ShareLink"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    revokeShareLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                shareId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Lien révoqué */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getSharedContent: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Jeton du lien public, tel que reçu à sa création. */
+                token: components["parameters"]["ShareToken"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Contenu partagé */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SharedContent"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getSharedManifest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Jeton du lien public, tel que reçu à sa création. */
+                token: components["parameters"]["ShareToken"];
+                comicId: components["parameters"]["ComicId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Manifeste */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Manifest"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getSharedPage: {
+        parameters: {
+            query?: {
+                width?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Jeton du lien public, tel que reçu à sa création. */
+                token: components["parameters"]["ShareToken"];
+                comicId: components["parameters"]["ComicId"];
+                index: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Image de la page */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                };
+            };
+            404: components["responses"]["NotFound"];
+        };
+    };
+    getSharedCover: {
+        parameters: {
+            query?: {
+                width?: number;
+            };
+            header?: never;
+            path: {
+                /** @description Jeton du lien public, tel que reçu à sa création. */
+                token: components["parameters"]["ShareToken"];
+                comicId: components["parameters"]["ComicId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Image de couverture */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "image/jpeg": string;
+                };
+            };
+            404: components["responses"]["NotFound"];
         };
     };
     setFolderLock: {

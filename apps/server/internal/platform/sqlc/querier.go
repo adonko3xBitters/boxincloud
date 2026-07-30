@@ -28,10 +28,14 @@ type Querier interface {
 	BulkSetFavorite(ctx context.Context, arg BulkSetFavoriteParams) (int64, error)
 	BulkUnsetFavorite(ctx context.Context, arg BulkUnsetFavoriteParams) (int64, error)
 	CanAccessLibrary(ctx context.Context, arg CanAccessLibraryParams) (*bool, error)
+	// Le dossier ou l'un de ses ancêtres autorise-t-il ce compte à écrire ?
+	CanWriteFolder(ctx context.Context, arg CanWriteFolderParams) (bool, error)
 	// Un seul backend par défaut : on retire le drapeau aux autres avant de le
 	// poser, l'index unique partiel refuserait sinon la mise à jour.
 	ClearDefaultStorageBackend(ctx context.Context, id uuid.UUID) error
 	ClearRating(ctx context.Context, arg ClearRatingParams) error
+	// Un album donné entre-t-il dans la portée d'un lien de dossier ?
+	ComicInSharedFolder(ctx context.Context, arg ComicInSharedFolderParams) (bool, error)
 	// Compte les administrateurs encore actifs.
 	//
 	// Sert à empêcher la suppression ou la rétrogradation du dernier d'entre eux :
@@ -49,6 +53,8 @@ type Querier interface {
 	CreateLibrary(ctx context.Context, arg CreateLibraryParams) (Library, error)
 	// ─── Sessions ────────────────────────────────────────────────────────────────
 	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
+	// ─── Liens publics ───────────────────────────────────────────────────────────
+	CreateShareLink(ctx context.Context, arg CreateShareLinkParams) (ShareLink, error)
 	CreateStorageBackend(ctx context.Context, arg CreateStorageBackendParams) (StorageBackend, error)
 	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	DeleteCacheEntry(ctx context.Context, key string) error
@@ -105,10 +111,17 @@ type Querier interface {
 	// Première requête du projet : elle valide la chaîne sqlc de bout en bout.
 	// Le schéma métier arrive avec M1.
 	GetSetting(ctx context.Context, key string) (Setting, error)
+	// Résolution d'un lien à partir du hachage de son jeton.
+	//
+	// Les liens révoqués ou expirés ne sortent pas : le filtre est dans la requête
+	// plutôt qu'après, pour qu'aucun appelant ne puisse l'oublier.
+	GetShareLinkByHash(ctx context.Context, tokenHash []byte) (ShareLink, error)
 	GetStorageBackend(ctx context.Context, id uuid.UUID) (StorageBackend, error)
 	GetStorageBackendByName(ctx context.Context, name string) (StorageBackend, error)
 	GetUser(ctx context.Context, id uuid.UUID) (User, error)
 	GetUserByUsername(ctx context.Context, username string) (User, error)
+	// ─── Partage entre comptes ───────────────────────────────────────────────────
+	GrantFolderAccess(ctx context.Context, arg GrantFolderAccessParams) error
 	GrantLibraryAccess(ctx context.Context, arg GrantLibraryAccessParams) error
 	InsertComicPage(ctx context.Context, arg InsertComicPageParams) error
 	// Le dossier lui-même ou l'un de ses ancêtres est-il en lecture seule ?
@@ -144,6 +157,7 @@ type Querier interface {
 	ListExcludedComics(ctx context.Context, libraryID uuid.UUID) ([]Comic, error)
 	ListFavoriteIDs(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error)
 	ListFavorites(ctx context.Context, arg ListFavoritesParams) ([]ListFavoritesRow, error)
+	ListFolderAccess(ctx context.Context, folderID uuid.UUID) ([]ListFolderAccessRow, error)
 	// Outils de gestion : dossiers, favoris, notes, actions en lot.
 	// Arborescence des dossiers d'une bibliothèque.
 	//
@@ -174,10 +188,19 @@ type Querier interface {
 	ListReadingProgressSince(ctx context.Context, arg ListReadingProgressSinceParams) ([]ReadingProgress, error)
 	// Étagère d'accueil : les derniers albums ajoutés.
 	ListRecentComics(ctx context.Context, arg ListRecentComicsParams) ([]ListRecentComicsRow, error)
+	// Dossiers restreints qui ne sont PAS ouverts à ce compte.
+	//
+	// Même forme que la liste des dossiers masqués par un code : les deux produisent
+	// des chemins à retirer de la vue, et le catalogue les traite ensemble sans
+	// avoir à savoir lequel des deux mécanismes les a produits.
+	ListRestrictedFolders(ctx context.Context, arg ListRestrictedFoldersParams) ([]string, error)
 	ListScanRuns(ctx context.Context, arg ListScanRunsParams) ([]ScanRun, error)
 	ListSeriesByLibrary(ctx context.Context, libraryID uuid.UUID) ([]Series, error)
 	ListSeriesPage(ctx context.Context, arg ListSeriesPageParams) ([]Series, error)
 	ListSettings(ctx context.Context) ([]Setting, error)
+	ListShareLinks(ctx context.Context, libraryIds []uuid.UUID) ([]ShareLink, error)
+	// Albums accessibles par un lien de dossier.
+	ListSharedComics(ctx context.Context, arg ListSharedComicsParams) ([]ListSharedComicsRow, error)
 	ListStorageBackends(ctx context.Context) ([]StorageBackend, error)
 	ListUsers(ctx context.Context) ([]User, error)
 	// ─── Accès aux bibliothèques ─────────────────────────────────────────────────
@@ -212,6 +235,7 @@ type Querier interface {
 	RenameFolderTree(ctx context.Context, arg RenameFolderTreeParams) (int64, error)
 	RestoreComic(ctx context.Context, id uuid.UUID) error
 	RevokeAllUserSessions(ctx context.Context, userID uuid.UUID) (int64, error)
+	RevokeFolderAccess(ctx context.Context, arg RevokeFolderAccessParams) error
 	// Retire tous les déverrouillages d'un dossier, quel que soit le compte.
 	//
 	// Appelé quand le code change ou disparaît : un déverrouillage obtenu avec
@@ -223,6 +247,7 @@ type Querier interface {
 	// qu'il a été volé. On révoque alors toute la chaîne de rotation, pas
 	// seulement le jeton présenté.
 	RevokeSessionChain(ctx context.Context, id uuid.UUID) (int64, error)
+	RevokeShareLink(ctx context.Context, id uuid.UUID) (int64, error)
 	// Recherche plein texte, avec repli sur la similarité trigramme.
 	//
 	// Les deux sont combinés parce qu'ils échouent différemment :
@@ -266,7 +291,14 @@ type Querier interface {
 	TotalCacheSize(ctx context.Context) (int64, error)
 	TouchCacheEntry(ctx context.Context, key string) (int64, error)
 	TouchDevice(ctx context.Context, id uuid.UUID) error
+	TouchShareLink(ctx context.Context, id uuid.UUID) error
 	TouchUserLogin(ctx context.Context, id uuid.UUID) error
+	// Un dossier porte-t-il un code d'accès, lui ou l'un de ses ancêtres ?
+	//
+	// Sert à refuser un lien public sur une branche masquée : les deux intentions se
+	// contredisent, et laisser les deux coexister reviendrait à publier ce qu'on
+	// vient de cacher.
+	TreeHasAccessCode(ctx context.Context, arg TreeHasAccessCodeParams) (bool, error)
 	UnlockFolder(ctx context.Context, arg UnlockFolderParams) error
 	UnsetFavorite(ctx context.Context, arg UnsetFavoriteParams) error
 	UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (User, error)

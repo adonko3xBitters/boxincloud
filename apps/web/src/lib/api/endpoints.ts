@@ -431,3 +431,78 @@ export const relockFolder = (libraryId: string, path: string) =>
     method: "DELETE",
     query: { path },
   });
+
+// ─── Partage ─────────────────────────────────────────────────────────────────
+
+export type FolderGrant = {
+  userId: string;
+  username?: string;
+  displayName?: string;
+  canWrite: boolean;
+};
+
+export const listFolderGrants = (libraryId: string, path: string) =>
+  request<{ grants: FolderGrant[] }>(`/libraries/${libraryId}/folders/access`, {
+    query: { path },
+  });
+
+export const grantFolderAccess = (
+  libraryId: string,
+  path: string,
+  userId: string,
+  canWrite: boolean,
+) => request<FolderGrant>("/folders/access", {
+  method: "POST",
+  body: { libraryId, path, userId, canWrite },
+});
+
+export const revokeFolderAccess = (libraryId: string, path: string, userId: string) =>
+  request<void>(`/libraries/${libraryId}/folders/access/${userId}`, {
+    method: "DELETE",
+    query: { path },
+  });
+
+export type ShareLink = {
+  id: string;
+  libraryId: string;
+  folderPath?: string;
+  comicId?: string;
+  label?: string;
+  expiresAt: string;
+  createdAt: string;
+  lastUsedAt?: string;
+  useCount: number;
+  /** Présent uniquement à la création : le jeton n'est pas relisible ensuite. */
+  token?: string;
+};
+
+export const listShareLinks = () => request<{ links: ShareLink[] }>("/share-links");
+
+export const createShareLink = (input: {
+  libraryId: string;
+  folderPath?: string;
+  comicId?: string;
+  label?: string;
+  expiresAt: string;
+}) => request<ShareLink>("/share-links", { method: "POST", body: input });
+
+export const revokeShareLink = (shareId: string) =>
+  request<void>(`/share-links/${shareId}`, { method: "DELETE" });
+
+export type SharedContent = {
+  scope: "folder" | "comic";
+  label?: string;
+  expiresAt: string;
+  comics: Array<{
+    id: string;
+    title: string;
+    seriesName?: string;
+    number?: string;
+    pageCount: number;
+    coverPath: string;
+  }>;
+};
+
+/** Consultation publique : aucun jeton d'authentification n'est envoyé. */
+export const getSharedContent = (token: string) =>
+  request<SharedContent>(`/share/${token}`, { anonymous: true });

@@ -1033,6 +1033,287 @@ paths:
         "422":
           $ref: "#/components/responses/ValidationFailed"
 
+  /folders/access:
+    post:
+      operationId: grantFolderAccess
+      summary: Partager un dossier avec un compte
+      description: |
+        **Attention au modèle**, identique à celui des bibliothèques : un dossier
+        SANS aucune autorisation explicite est visible de tous ceux qui voient la
+        bibliothèque. Le premier accès accordé le referme donc pour tous les
+        autres comptes — le geste restreint autant qu'il ouvre.
+      tags: [sharing]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [libraryId, path, userId]
+              properties:
+                libraryId: { type: string, format: uuid }
+                path: { type: string }
+                userId: { type: string, format: uuid }
+                canWrite: { type: boolean }
+      responses:
+        "200":
+          description: Accès accordé
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/FolderGrant" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /libraries/{libraryId}/folders/access:
+    get:
+      operationId: listFolderAccess
+      summary: Comptes autorisés sur un dossier
+      tags: [sharing]
+      parameters:
+        - $ref: "#/components/parameters/LibraryIdPath"
+        - name: path
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Accès
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [grants]
+                properties:
+                  grants:
+                    type: array
+                    items: { $ref: "#/components/schemas/FolderGrant" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /libraries/{libraryId}/folders/access/{userId}:
+    delete:
+      operationId: revokeFolderAccess
+      summary: Retirer l'accès d'un compte à un dossier
+      tags: [sharing]
+      parameters:
+        - $ref: "#/components/parameters/LibraryIdPath"
+        - $ref: "#/components/parameters/UserIdPath"
+        - name: path
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        "204":
+          description: Accès retiré
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /share-links:
+    get:
+      operationId: listShareLinks
+      summary: Liens publics actifs
+      description: |
+        Les jetons ne sont pas retournés : seul leur hachage est conservé. Un
+        lien perdu se remplace, il ne se relit pas.
+      tags: [sharing]
+      responses:
+        "200":
+          description: Liens
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [links]
+                properties:
+                  links:
+                    type: array
+                    items: { $ref: "#/components/schemas/ShareLink" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+    post:
+      operationId: createShareLink
+      summary: Créer un lien public
+      description: |
+        Un lien public ouvre un accès **sans compte** : qui a l'URL voit le
+        contenu. C'est la seule porte de boxincloud qui ne demande rien, d'où
+        quatre garde-fous.
+
+        La portée est exactement un dossier OU un album, jamais une bibliothèque
+        entière. L'échéance est obligatoire et plafonnée à un an — un lien sans
+        fin finit par circuler plus loin que prévu, et personne ne se souvient de
+        le fermer. Le lien est révocable à tout moment. Enfin, un lien sur un
+        dossier masqué par un code d'accès est refusé : publier ce qu'on vient de
+        cacher n'a aucun sens.
+
+        Le jeton n'est retourné **qu'ici**. Seul son hachage est conservé, comme
+        un mot de passe.
+      tags: [sharing]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [libraryId, expiresAt]
+              properties:
+                libraryId: { type: string, format: uuid }
+                folderPath:
+                  type: string
+                  description: Portée dossier. Exclusif avec `comicId`.
+                comicId:
+                  type: string
+                  format: uuid
+                  description: Portée album. Exclusif avec `folderPath`.
+                label:
+                  type: string
+                  description: Aide-mémoire, visible de vous seul.
+                expiresAt: { type: string, format: date-time }
+      responses:
+        "201":
+          description: Lien créé, jeton inclus
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ShareLink" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /share-links/{shareId}:
+    delete:
+      operationId: revokeShareLink
+      summary: Révoquer un lien public
+      tags: [sharing]
+      parameters:
+        - name: shareId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "204":
+          description: Lien révoqué
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /share/{token}:
+    get:
+      operationId: getSharedContent
+      summary: Contenu d'un lien public
+      description: |
+        **Route publique — aucun compte requis.**
+
+        Retourne exactement ce que le lien désigne, rien d'autre. Un lien
+        révoqué, expiré ou inexistant donne 404 dans les trois cas : distinguer
+        confirmerait à un inconnu qu'un lien a existé.
+      tags: [sharing]
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/ShareToken"
+      responses:
+        "200":
+          description: Contenu partagé
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/SharedContent" }
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /share/{token}/comics/{comicId}/manifest:
+    get:
+      operationId: getSharedManifest
+      summary: Manifeste d'un album partagé
+      description: |
+        **Route publique.** L'appartenance de l'album à la portée du lien est
+        revérifiée à chaque requête : un lien de dossier donne accès à ce que le
+        dossier contient MAINTENANT, si bien qu'un album qui en sort cesse
+        d'être accessible sans qu'il faille penser à révoquer.
+      tags: [sharing]
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/ShareToken"
+        - $ref: "#/components/parameters/ComicId"
+      responses:
+        "200":
+          description: Manifeste
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Manifest" }
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /share/{token}/comics/{comicId}/pages/{index}:
+    get:
+      operationId: getSharedPage
+      summary: Page d'un album partagé
+      description: "**Route publique.**"
+      tags: [sharing]
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/ShareToken"
+        - $ref: "#/components/parameters/ComicId"
+        - name: index
+          in: path
+          required: true
+          schema: { type: integer, minimum: 0 }
+        - name: width
+          in: query
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Image de la page
+          content:
+            image/jpeg:
+              schema: { type: string, format: binary }
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /share/{token}/comics/{comicId}/cover:
+    get:
+      operationId: getSharedCover
+      summary: Couverture d'un album partagé
+      description: "**Route publique.**"
+      tags: [sharing]
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/ShareToken"
+        - $ref: "#/components/parameters/ComicId"
+        - name: width
+          in: query
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Image de couverture
+          content:
+            image/jpeg:
+              schema: { type: string, format: binary }
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /folders/lock:
     put:
       operationId: setFolderLock
@@ -1875,6 +2156,13 @@ components:
       required: true
       schema: { type: string, format: uuid }
 
+    ShareToken:
+      name: token
+      in: path
+      required: true
+      schema: { type: string }
+      description: Jeton du lien public, tel que reçu à sa création.
+
     UserIdPath:
       name: userId
       in: path
@@ -2091,6 +2379,54 @@ components:
         grants:
           type: array
           items: { $ref: "#/components/schemas/LibraryGrant" }
+
+    FolderGrant:
+      type: object
+      required: [userId, canWrite]
+      properties:
+        userId: { type: string, format: uuid }
+        username: { type: string }
+        displayName: { type: string }
+        canWrite: { type: boolean }
+
+    ShareLink:
+      type: object
+      required: [id, libraryId, expiresAt, createdAt, useCount]
+      properties:
+        id: { type: string, format: uuid }
+        libraryId: { type: string, format: uuid }
+        folderPath: { type: string }
+        comicId: { type: string, format: uuid }
+        label: { type: string }
+        expiresAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+        lastUsedAt: { type: string, format: date-time }
+        useCount: { type: integer, format: int64 }
+        token:
+          type: string
+          description: |
+            Renseigné UNIQUEMENT à la création. Seul son hachage est conservé :
+            il ne peut plus être relu ensuite.
+
+    SharedContent:
+      type: object
+      required: [scope, expiresAt, comics]
+      properties:
+        scope: { type: string, enum: [folder, comic] }
+        label: { type: string }
+        expiresAt: { type: string, format: date-time }
+        comics:
+          type: array
+          items:
+            type: object
+            required: [id, title, pageCount, coverPath]
+            properties:
+              id: { type: string, format: uuid }
+              title: { type: string }
+              seriesName: { type: string }
+              number: { type: string }
+              pageCount: { type: integer, format: int32 }
+              coverPath: { type: string }
 
     StorageBackend:
       type: object

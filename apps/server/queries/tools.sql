@@ -268,3 +268,117 @@ SELECT EXISTS (
       AND read_only = true
       AND (@path::text = path OR @path::text LIKE path || '/%')
 ) AS locked;
+
+-- ─── Partage entre comptes ───────────────────────────────────────────────────
+
+-- name: GrantFolderAccess :exec
+INSERT INTO folder_access (folder_id, user_id, can_write)
+VALUES ($1, $2, $3)
+ON CONFLICT (folder_id, user_id) DO UPDATE SET can_write = EXCLUDED.can_write;
+
+-- name: RevokeFolderAccess :exec
+DELETE FROM folder_access WHERE folder_id = $1 AND user_id = $2;
+
+-- name: ListFolderAccess :many
+SELECT a.folder_id, a.user_id, a.can_write, u.username, u.display_name
+FROM folder_access a
+JOIN users u ON u.id = a.user_id
+WHERE a.folder_id = $1
+ORDER BY u.username;
+
+-- Dossiers restreints qui ne sont PAS ouverts à ce compte.
+--
+-- Même forme que la liste des dossiers masqués par un code : les deux produisent
+-- des chemins à retirer de la vue, et le catalogue les traite ensemble sans
+-- avoir à savoir lequel des deux mécanismes les a produits.
+-- name: ListRestrictedFolders :many
+SELECT f.path
+FROM folders f
+WHERE f.library_id = ANY(@library_ids::uuid[])
+  AND EXISTS (SELECT 1 FROM folder_access a WHERE a.folder_id = f.id)
+  AND NOT EXISTS (
+      SELECT 1 FROM folder_access a
+      WHERE a.folder_id = f.id AND a.user_id = @user_id
+  )
+ORDER BY f.path;
+
+-- Le dossier ou l'un de ses ancêtres autorise-t-il ce compte à écrire ?
+-- name: CanWriteFolder :one
+SELECT EXISTS (
+    SELECT 1 FROM folders f
+    JOIN folder_access a ON a.folder_id = f.id
+    WHERE f.library_id = $1
+      AND a.user_id = @user_id
+      AND a.can_write = true
+      AND (@path::text = f.path OR @path::text LIKE f.path || '/%')
+) AS allowed;
+
+-- ─── Liens publics ───────────────────────────────────────────────────────────
+
+-- name: CreateShareLink :one
+INSERT INTO share_links (
+    id, token_hash, library_id, folder_path, comic_id, label, created_by, expires_at
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING *;
+
+-- Résolution d'un lien à partir du hachage de son jeton.
+--
+-- Les liens révoqués ou expirés ne sortent pas : le filtre est dans la requête
+-- plutôt qu'après, pour qu'aucun appelant ne puisse l'oublier.
+-- name: GetShareLinkByHash :one
+SELECT * FROM share_links
+WHERE token_hash = $1
+  AND revoked_at IS NULL
+  AND expires_at > now();
+
+-- name: ListShareLinks :many
+SELECT * FROM share_links
+WHERE library_id = ANY(@library_ids::uuid[])
+  AND revoked_at IS NULL
+ORDER BY created_at DESC;
+
+-- name: RevokeShareLink :execrows
+UPDATE share_links SET revoked_at = now()
+WHERE id = $1 AND revoked_at IS NULL;
+
+-- name: TouchShareLink :exec
+UPDATE share_links
+SET last_used_at = now(), use_count = use_count + 1
+WHERE id = $1;
+
+-- Albums accessibles par un lien de dossier.
+-- name: ListSharedComics :many
+SELECT sqlc.embed(c), COALESCE(s.name, '')::text AS series_name
+FROM comics c
+LEFT JOIN series s ON s.id = c.series_id
+WHERE c.library_id = $1
+  AND c.deleted_at IS NULL
+  AND c.excluded_at IS NULL
+  AND c.state = 'ready'
+  AND (@path::text = '' OR c.folder_path = @path::text OR c.folder_path LIKE @path::text || '/%')
+ORDER BY c.folder_path, c.number_sort NULLS LAST, c.title;
+
+-- Un album donné entre-t-il dans la portée d'un lien de dossier ?
+-- name: ComicInSharedFolder :one
+SELECT EXISTS (
+    SELECT 1 FROM comics c
+    WHERE c.id = $1
+      AND c.library_id = $2
+      AND c.deleted_at IS NULL
+      AND c.excluded_at IS NULL
+      AND (@path::text = '' OR c.folder_path = @path::text OR c.folder_path LIKE @path::text || '/%')
+) AS included;
+
+-- Un dossier porte-t-il un code d'accès, lui ou l'un de ses ancêtres ?
+--
+-- Sert à refuser un lien public sur une branche masquée : les deux intentions se
+-- contredisent, et laisser les deux coexister reviendrait à publier ce qu'on
+-- vient de cacher.
+-- name: TreeHasAccessCode :one
+SELECT EXISTS (
+    SELECT 1 FROM folders
+    WHERE library_id = $1
+      AND access_code_hash IS NOT NULL
+      AND (@path::text = path OR @path::text LIKE path || '/%')
+) AS locked;

@@ -121,6 +121,7 @@ type Service struct {
 	log       *slog.Logger
 	remove    ComicRemover
 	locks     LockRepository
+	shares    ShareRepository
 }
 
 func NewService(repo Repository, libraries *library.Service, log *slog.Logger) *Service {
@@ -152,7 +153,7 @@ func (s *Service) Tree(ctx context.Context, userID uuid.UUID, libraryIDs []uuid.
 		return nil, err
 	}
 
-	hidden, err := s.LockedPaths(ctx, userID, libraryIDs)
+	hidden, err := s.HiddenPaths(ctx, userID, libraryIDs)
 	if err != nil {
 		return nil, err
 	}

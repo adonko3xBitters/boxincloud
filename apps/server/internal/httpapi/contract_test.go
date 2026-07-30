@@ -50,6 +50,9 @@ type contractHarness struct {
 	seriesID    uuid.UUID
 	libraryID   uuid.UUID
 
+	// adminID est le compte créé à l'installation.
+	adminID uuid.UUID
+
 	// loneComicID désigne un album sans série — le cas que toute jointure sur
 	// la table des séries doit supporter.
 	loneComicID uuid.UUID
@@ -131,9 +134,11 @@ func (h *contractHarness) seed(t *testing.T, core *app.Core, minio miniotest.Env
 	t.Helper()
 	ctx := context.Background()
 
-	if _, err := core.Auth.Setup(ctx, "contract", "contract@example.test", "un mot de passe solide"); err != nil {
+	admin, err := core.Auth.Setup(ctx, "contract", "contract@example.test", "un mot de passe solide")
+	if err != nil {
 		t.Fatalf("création du compte : %v", err)
 	}
+	h.adminID = admin.ID
 
 	tokens, err := core.Auth.Login(ctx, auth.LoginParams{
 		Username:   "contract",
