@@ -15,6 +15,7 @@ import (
 	"github.com/adonko3xBitters/boxincloud/server/internal/config"
 	"github.com/adonko3xBitters/boxincloud/server/internal/imaging"
 	"github.com/adonko3xBitters/boxincloud/server/internal/indexer"
+	"github.com/adonko3xBitters/boxincloud/server/internal/ingest"
 	"github.com/adonko3xBitters/boxincloud/server/internal/library"
 	"github.com/adonko3xBitters/boxincloud/server/internal/platform/crypto"
 	"github.com/adonko3xBitters/boxincloud/server/internal/platform/db"
@@ -40,6 +41,7 @@ type Core struct {
 	Cache     *cache.Cache
 	Imaging   imaging.Processor
 	Indexer   indexer.Repository
+	Ingest    *ingest.Service
 	Jobs      *jobs.Client
 }
 
@@ -114,8 +116,22 @@ func BuildCore(ctx context.Context, cfg *config.Config, pool *db.Pool, log *slog
 		Cache:     derived,
 		Imaging:   processor,
 		Indexer:   indexerRepo,
-		Jobs:      jobClient,
+		Ingest: ingest.NewService(
+			libraries, indexerRepo, &jobScanner{client: jobClient}, cfg.Upload.MaxSize, log),
+		Jobs: jobClient,
 	}, nil
+}
+
+// jobScanner enfile un scan de bibliothèque.
+//
+// Le service d'ingestion ne connaît que cette opération de la file de jobs :
+// lui passer le client entier lui donnerait le pouvoir d'enfiler n'importe quoi.
+type jobScanner struct {
+	client *jobs.Client
+}
+
+func (s *jobScanner) EnqueueScanLibrary(ctx context.Context, libraryID uuid.UUID) error {
+	return s.client.Insert(ctx, indexer.ScanLibraryArgs{LibraryID: libraryID})
 }
 
 // ScanLibrary enfile un scan de bibliothèque.

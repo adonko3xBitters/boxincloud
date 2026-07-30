@@ -65,16 +65,18 @@ func Build(ctx context.Context, cfg *config.Config, log *slog.Logger, build hand
 	}
 
 	router := httpapi.NewRouter(httpapi.Deps{
-		Config:   cfg,
-		Log:      log,
-		DB:       pool,
-		Build:    build,
-		Auth:     core.Auth,
-		Catalog:  core.Catalog,
-		Reader:   core.Reader,
-		Progress: core.Progress,
-		Tools:    core.Tools,
-		WebFS:    webFS,
+		Config:    cfg,
+		Log:       log,
+		DB:        pool,
+		Build:     build,
+		Auth:      core.Auth,
+		Catalog:   core.Catalog,
+		Libraries: core.Libraries,
+		Ingest:    core.Ingest,
+		Reader:    core.Reader,
+		Progress:  core.Progress,
+		Tools:     core.Tools,
+		WebFS:     webFS,
 	})
 
 	srv := &http.Server{

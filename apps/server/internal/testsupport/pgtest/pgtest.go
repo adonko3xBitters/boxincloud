@@ -25,6 +25,8 @@ import (
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
 
+	"github.com/adonko3xBitters/boxincloud/server/internal/platform/jobs"
+
 	"github.com/adonko3xBitters/boxincloud/server/internal/platform/db"
 )
 
@@ -76,6 +78,14 @@ func Start(t *testing.T) *pgxpool.Pool {
 	log := slog.New(slog.NewTextHandler(io.Discard, nil))
 	if err := db.Migrate(ctx, pool, log); err != nil {
 		t.Fatalf("pgtest : migrations : %v", err)
+	}
+
+	// River tient son propre schéma, appliqué séparément au démarrage du
+	// serveur. Sans lui, tout code qui enfile un job échoue en test alors qu'il
+	// fonctionne en production — un écart qui fait douter du code plutôt que du
+	// banc d'essai.
+	if err := jobs.Migrate(ctx, pool, log); err != nil {
+		t.Fatalf("pgtest : migrations River : %v", err)
 	}
 
 	return pool

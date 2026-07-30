@@ -121,14 +121,15 @@ export function SearchOverlay() {
 
   return (
     <>
+      {/* Une icône seule : le raccourci « / » se retient à l'usage, et le champ
+          factice occupait la place d'une barre d'outils sans rien apporter. */}
       <button
         onClick={() => setOpen(true)}
-        className="pressable flex h-9 items-center gap-2 rounded-md border border-border bg-surface px-3 text-ui text-subtle hover:border-border-strong hover:text-muted"
-        aria-label="Ouvrir la recherche"
+        aria-label="Rechercher"
+        title="Rechercher (/)"
+        className="pressable grid size-8 place-items-center rounded text-subtle hover:bg-surface-hover hover:text-fg"
       >
-        <SearchIcon />
-        <span className="hidden sm:inline">Rechercher</span>
-        <kbd className="ml-2 hidden rounded border border-border px-1.5 py-0.5 font-mono text-micro lg:inline">/</kbd>
+        <SearchIcon className="size-[18px]" />
       </button>
 
       {/* Voile : ferme au clic, et assombrit sans masquer complètement — on

@@ -45,6 +45,7 @@ type Config struct {
 	Jobs     Jobs
 	Auth     Auth
 	Cache    Cache
+	Upload   Upload
 
 	// SecretKey chiffre les identifiants des backends de stockage en base.
 	SecretKey []byte
@@ -71,6 +72,16 @@ type Auth struct {
 type Cache struct {
 	Dir     string
 	MaxSize int64 // octets
+}
+
+// Upload borne ce qu'un client peut envoyer.
+type Upload struct {
+	// MaxSize est la taille maximale d'un fichier téléversé, en octets.
+	//
+	// Une intégrale numérisée dépasse couramment les 500 Mo ; le défaut est
+	// donc large. Zéro lève la limite, ce qui n'est raisonnable que sur un
+	// serveur dont on maîtrise tous les comptes.
+	MaxSize int64
 }
 
 // Load lit la configuration depuis l'environnement et la valide.
@@ -156,6 +167,13 @@ func Load() (*Config, error) {
 		// Dérivée de la clé maître : une variable de moins à configurer.
 		cfg.Auth.JWTSecret = cfg.SecretKey
 	}
+
+	// ── Téléversement ────────────────────────────────────────────────────
+	uploadSize, err := parseByteSize(envString("BOXINCLOUD_UPLOAD_MAX_SIZE", "2GB"))
+	if err != nil {
+		fail("BOXINCLOUD_UPLOAD_MAX_SIZE : %w", err)
+	}
+	cfg.Upload = Upload{MaxSize: uploadSize}
 
 	// ── Cache dérivé ─────────────────────────────────────────────────────
 	size, err := parseByteSize(envString("BOXINCLOUD_CACHE_MAX_SIZE", "10GB"))

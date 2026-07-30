@@ -24,6 +24,8 @@ import (
 	"github.com/adonko3xBitters/boxincloud/server/internal/httpapi/handlers"
 	"github.com/adonko3xBitters/boxincloud/server/internal/httpapi/middleware"
 	"github.com/adonko3xBitters/boxincloud/server/internal/httpapi/problem"
+	"github.com/adonko3xBitters/boxincloud/server/internal/ingest"
+	"github.com/adonko3xBitters/boxincloud/server/internal/library"
 	"github.com/adonko3xBitters/boxincloud/server/internal/progress"
 	"github.com/adonko3xBitters/boxincloud/server/internal/reader"
 )
@@ -33,17 +35,32 @@ import (
 // Le câblage se fait dans cmd/ : le routeur ne construit rien lui-même, ce qui
 // le rend testable avec des doublures.
 type Deps struct {
-	Config   *config.Config
-	Log      *slog.Logger
-	DB       handlers.Pinger
-	Build    handlers.BuildInfo
-	Auth     *auth.Service
-	Catalog  *catalog.Service
-	Reader   *reader.Service
-	Progress *progress.Service
-	Tools    *catalog.Tools
-	WebFS    fs.FS // application web embarquée ; nil pour ne rien servir
+	Config    *config.Config
+	Log       *slog.Logger
+	DB        handlers.Pinger
+	Build     handlers.BuildInfo
+	Auth      *auth.Service
+	Catalog   *catalog.Service
+	Libraries *library.Service
+	Ingest    *ingest.Service
+	Reader    *reader.Service
+	Progress  *progress.Service
+	Tools     *catalog.Tools
+	WebFS     fs.FS // application web embarquée ; nil pour ne rien servir
 }
+
+// requestTimeout borne une requête d'API ordinaire.
+//
+// Une lecture de page peut être longue sur un backend distant, mais aucune
+// requête ne doit rester pendante indéfiniment.
+const requestTimeout = 30 * time.Second
+
+// uploadTimeout borne un téléversement.
+//
+// Deux heures : de quoi laisser passer plusieurs giga-octets sur une liaison
+// domestique modeste, sans pour autant qu'une connexion oubliée occupe un
+// descripteur jusqu'au redémarrage.
+const uploadTimeout = 2 * time.Hour
 
 // NewRouter assemble le routeur complet.
 //
@@ -52,14 +69,16 @@ type Deps struct {
 // routes concernées, et rien ne dit lequel manque.
 func NewRouter(d Deps) http.Handler {
 	for name, wired := range map[string]bool{
-		"Config":   d.Config != nil,
-		"Log":      d.Log != nil,
-		"DB":       d.DB != nil,
-		"Auth":     d.Auth != nil,
-		"Catalog":  d.Catalog != nil,
-		"Tools":    d.Tools != nil,
-		"Reader":   d.Reader != nil,
-		"Progress": d.Progress != nil,
+		"Config":    d.Config != nil,
+		"Log":       d.Log != nil,
+		"DB":        d.DB != nil,
+		"Auth":      d.Auth != nil,
+		"Catalog":   d.Catalog != nil,
+		"Libraries": d.Libraries != nil,
+		"Ingest":    d.Ingest != nil,
+		"Tools":     d.Tools != nil,
+		"Reader":    d.Reader != nil,
+		"Progress":  d.Progress != nil,
 	} {
 		if !wired {
 			panic("httpapi : dépendance " + name + " non câblée dans NewRouter")
@@ -103,14 +122,12 @@ func NewRouter(d Deps) http.Handler {
 	authHandler := handlers.NewAuth(d.Auth)
 
 	r.Route("/api/v1", func(r chi.Router) {
-		// Une lecture de page peut être longue sur un backend distant, mais
-		// une requête d'API ne doit jamais rester pendante indéfiniment.
-		r.Use(chimw.Timeout(30 * time.Second))
-
 		r.Get("/version", health.Version)
 
 		// ── Routes publiques ────────────────────────────────────────────
 		r.Route("/auth", func(r chi.Router) {
+			r.Use(chimw.Timeout(requestTimeout))
+
 			r.Get("/status", authHandler.Status)
 			r.Post("/setup", authHandler.Setup)
 			r.Post("/login", authHandler.Login)
@@ -120,6 +137,7 @@ func NewRouter(d Deps) http.Handler {
 
 		// ── Routes authentifiées ────────────────────────────────────────
 		r.Group(func(r chi.Router) {
+			r.Use(chimw.Timeout(requestTimeout))
 			r.Use(middleware.Authenticate(d.Auth))
 
 			r.Get("/me", authHandler.Me)
@@ -162,6 +180,39 @@ func NewRouter(d Deps) http.Handler {
 			r.Put("/comics/{comicID}/favorite", toolsHandler.SetFavorite)
 			r.Put("/comics/{comicID}/rating", toolsHandler.SetRating)
 			r.Patch("/comics/{comicID}", toolsHandler.EditComic)
+
+			// ── Administration et ingestion ─────────────────────────
+			//
+			// Ce qui n'existait qu'en ligne de commande : déclarer un
+			// backend, créer une bibliothèque, y déposer un fichier,
+			// relancer un parcours. Sans ces routes, remplir boxincloud
+			// demandait un accès shell au serveur.
+			adminHandler := handlers.NewAdmin(d.Libraries, d.Catalog, d.Ingest)
+
+			r.Get("/storage-backends", adminHandler.ListBackends)
+			r.Post("/storage-backends", adminHandler.CreateBackend)
+			r.Post("/storage-backends/{backendID}/test", adminHandler.TestBackend)
+
+			r.Post("/libraries", adminHandler.CreateLibrary)
+			r.Post("/libraries/{libraryID}/scan", adminHandler.Scan)
+		})
+
+		// ── Téléversement ───────────────────────────────────────────────
+		//
+		// Isolé parce qu'il ne peut pas partager le délai des autres routes :
+		// une intégrale de plusieurs centaines de méga-octets sur une liaison
+		// domestique dépasse largement trente secondes, et la couper à
+		// mi-parcours laisserait un objet tronqué dans le bucket.
+		//
+		// L'absence de délai n'est pas une absence de garde-fou : la taille est
+		// bornée à la lecture, et une connexion muette est fermée par
+		// IdleTimeout côté serveur.
+		r.Group(func(r chi.Router) {
+			r.Use(chimw.Timeout(uploadTimeout))
+			r.Use(middleware.Authenticate(d.Auth))
+
+			adminHandler := handlers.NewAdmin(d.Libraries, d.Catalog, d.Ingest)
+			r.Post("/libraries/{libraryID}/upload", adminHandler.Upload)
 		})
 
 		// ── Routes acceptant le jeton en paramètre d'URL ────────────────
@@ -174,6 +225,7 @@ func NewRouter(d Deps) http.Handler {
 		// Referer, les journaux de proxy et l'historique du navigateur. On
 		// l'accepte là où il n'y a pas d'alternative, nulle part ailleurs.
 		r.Group(func(r chi.Router) {
+			r.Use(chimw.Timeout(requestTimeout))
 			r.Use(middleware.AuthenticateAllowingQueryToken(d.Auth))
 
 			readerHandler := handlers.NewReader(d.Reader, d.Catalog)

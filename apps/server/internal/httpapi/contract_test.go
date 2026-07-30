@@ -85,15 +85,17 @@ func newContractHarness(t *testing.T) *contractHarness {
 	}
 
 	router := httpapi.NewRouter(httpapi.Deps{
-		Config:   cfg,
-		Log:      log,
-		DB:       pool,
-		Build:    handlers.BuildInfo{Version: "test", Commit: "test", GoVersion: "test"},
-		Auth:     core.Auth,
-		Catalog:  core.Catalog,
-		Tools:    core.Tools,
-		Reader:   core.Reader,
-		Progress: core.Progress,
+		Config:    cfg,
+		Log:       log,
+		DB:        pool,
+		Build:     handlers.BuildInfo{Version: "test", Commit: "test", GoVersion: "test"},
+		Auth:      core.Auth,
+		Catalog:   core.Catalog,
+		Libraries: core.Libraries,
+		Ingest:    core.Ingest,
+		Tools:     core.Tools,
+		Reader:    core.Reader,
+		Progress:  core.Progress,
 	})
 
 	spec, err := gen.GetSpec()

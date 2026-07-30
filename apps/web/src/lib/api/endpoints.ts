@@ -5,7 +5,7 @@
  * types, sans logique. Les hooks de `lib/queries` s'en servent.
  */
 
-import { request } from "./client";
+import { API_BASE, ApiError, refreshToken, request } from "./client";
 import type {
   Comic,
   ComicPage,
@@ -18,7 +18,11 @@ import type {
   Tokens,
   User,
 } from "./client";
-import { getDeviceId, guessDeviceName } from "./tokens";
+import type { Problem } from "./client";
+import { getDeviceId, getTokens, guessDeviceName } from "./tokens";
+
+/** Jeton courant, ou null. Utilisé par le téléversement, hors de `request`. */
+const getAccessToken = () => getTokens()?.accessToken ?? null;
 
 // ─── Authentification ────────────────────────────────────────────────────────
 
@@ -156,3 +160,135 @@ export const bulk = (action: BulkAction, ids: string[]) =>
     method: "POST",
     body: { action, ids },
   });
+
+// ─── Administration et ingestion ─────────────────────────────────────────────
+
+export type StorageBackend = {
+  id: string;
+  name: string;
+  kind: "s3" | "local";
+  config: Record<string, string>;
+  isDefault: boolean;
+  readOnly: boolean;
+  status: string;
+};
+
+export const listBackends = () =>
+  request<{ backends: StorageBackend[] }>("/storage-backends");
+
+export const createBackend = (input: {
+  name: string;
+  kind: "s3" | "local";
+  config?: Record<string, string>;
+  secrets?: Record<string, string>;
+  isDefault?: boolean;
+  readOnly?: boolean;
+}) => request<StorageBackend>("/storage-backends", { method: "POST", body: input });
+
+export const testBackend = (backendId: string) =>
+  request<{ ok: boolean; detail?: string }>(`/storage-backends/${backendId}/test`, {
+    method: "POST",
+  });
+
+export type LibraryDetail = {
+  id: string;
+  backendId: string;
+  name: string;
+  kind: string;
+  rootPrefix: string;
+  comicCount: number;
+};
+
+export const createLibrary = (input: {
+  name: string;
+  backendId: string;
+  kind?: string;
+  rootPrefix?: string;
+}) => request<LibraryDetail>("/libraries", { method: "POST", body: input });
+
+export const scanLibrary = (libraryId: string) =>
+  request<{ queued: boolean }>(`/libraries/${libraryId}/scan`, { method: "POST" });
+
+export type UploadedComic = {
+  comicId: string;
+  objectKey: string;
+  title: string;
+  format: string;
+  fileSize: number;
+};
+
+/**
+ * Téléverse un album.
+ *
+ * XMLHttpRequest plutôt que fetch : seul le premier expose la progression de
+ * l'envoi. Sur une intégrale de plusieurs centaines de méga-octets, une barre
+ * qui avance est la différence entre « ça travaille » et « c'est planté ».
+ *
+ * Le champ `folder` précède le fichier, comme l'exige le contrat : le serveur
+ * consomme les parties dans l'ordre, sans mise en tampon.
+ */
+export function uploadComic(
+  libraryId: string,
+  file: File,
+  options: {
+    folder?: string;
+    onProgress?: (fraction: number) => void;
+    signal?: AbortSignal;
+  } = {},
+): Promise<UploadedComic> {
+  const send = (token: string | null, retryOn401: boolean): Promise<UploadedComic> =>
+    new Promise((resolve, reject) => {
+      const form = new FormData();
+      form.append("folder", options.folder ?? "");
+      form.append("file", file, file.name);
+
+      const xhr = new XMLHttpRequest();
+      xhr.open("POST", `${API_BASE}/libraries/${libraryId}/upload`);
+      if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+
+      xhr.upload.onprogress = (event) => {
+        if (event.lengthComputable) {
+          options.onProgress?.(event.loaded / event.total);
+        }
+      };
+
+      xhr.onload = () => {
+        if (xhr.status === 401 && retryOn401) {
+          // Un envoi long peut survivre à l'expiration du jeton présenté au
+          // départ. On rafraîchit et on rejoue — une fois.
+          refreshToken()
+            .then((fresh) => (fresh ? send(fresh, false) : Promise.reject(readError(xhr))))
+            .then(resolve, reject);
+          return;
+        }
+
+        if (xhr.status >= 200 && xhr.status < 300) {
+          try {
+            resolve(JSON.parse(xhr.responseText) as UploadedComic);
+          } catch {
+            reject(new ApiError(xhr.status, null, "réponse illisible"));
+          }
+          return;
+        }
+        reject(readError(xhr));
+      };
+
+      xhr.onerror = () => reject(new ApiError(0, null, "envoi interrompu"));
+      xhr.onabort = () => reject(new ApiError(0, null, "envoi annulé"));
+
+      options.signal?.addEventListener("abort", () => xhr.abort(), { once: true });
+
+      xhr.send(form);
+    });
+
+  return send(getAccessToken(), true);
+}
+
+function readError(xhr: XMLHttpRequest): ApiError {
+  try {
+    const problem = JSON.parse(xhr.responseText) as Problem;
+    return new ApiError(xhr.status, problem, problem.title ?? "envoi refusé");
+  } catch {
+    return new ApiError(xhr.status, null, "envoi refusé");
+  }
+}

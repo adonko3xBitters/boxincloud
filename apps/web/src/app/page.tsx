@@ -7,6 +7,7 @@ import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { BrandLockup } from "@/components/brand";
 import { ComicTable } from "@/components/comic-table";
 import { Coverflow } from "@/components/coverflow";
+import { AddContentButton, GlobalDropZone, IngestProvider } from "@/components/ingest";
 import { DetailPanel } from "@/components/detail-panel";
 import { SearchOverlay } from "@/components/search-overlay";
 import { Sidebar } from "@/components/sidebar";
@@ -38,7 +39,11 @@ export default function Page() {
 
   return (
     <WorkspaceProvider>
-      <Workspace />
+      <IngestProvider>
+        <GlobalDropZone>
+          <Workspace />
+        </GlobalDropZone>
+      </IngestProvider>
     </WorkspaceProvider>
   );
 }
@@ -65,6 +70,7 @@ function TopBar() {
       <BrandLockup />
 
       <div className="ml-auto flex items-center gap-2">
+        <AddContentButton />
         <SearchOverlay />
         <ThemeToggle />
 

@@ -251,7 +251,8 @@ export interface paths {
          */
         get: operations["listLibraries"];
         put?: never;
-        post?: never;
+        /** Créer une bibliothèque sur un backend existant */
+        post: operations["createLibrary"];
         delete?: never;
         options?: never;
         head?: never;
@@ -303,6 +304,113 @@ export interface paths {
         get: operations["listComics"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/storage-backends": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Backends de stockage déclarés
+         * @description Les identifiants ne sont jamais retournés : ils sont chiffrés en base et
+         *     ne ressortent pas du service.
+         */
+        get: operations["listStorageBackends"];
+        put?: never;
+        /**
+         * Déclarer un backend de stockage
+         * @description Le backend est joint avant d'être enregistré. Un backend injoignable
+         *     n'entre pas en base, où il produirait des scans en échec dont la cause
+         *     serait à chercher ailleurs.
+         */
+        post: operations["createStorageBackend"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/storage-backends/{backendId}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Vérifier qu'un backend répond
+         * @description Un backend injoignable donne 200 avec `ok: false`. L'échec du test n'est
+         *     pas un échec de la requête : le client a demandé un test, il en reçoit
+         *     le résultat.
+         */
+        post: operations["testStorageBackend"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/libraries/{libraryId}/scan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Relancer un parcours de la bibliothèque
+         * @description Utile quand des fichiers sont arrivés par un autre chemin que
+         *     l'envoi — un montage réseau, un rsync, un bucket alimenté par ailleurs.
+         *
+         *     La réponse est 202 : le parcours est enfilé, pas exécuté. Lister des
+         *     dizaines de milliers d'objets prend des minutes.
+         */
+        post: operations["scanLibrary"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/libraries/{libraryId}/upload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Déposer un album dans la bibliothèque
+         * @description Le corps est lu en flux jusqu'au backend : une archive de plusieurs
+         *     centaines de méga-octets ne transite ni par la mémoire du serveur ni par
+         *     un fichier temporaire.
+         *
+         *     **L'ordre des champs compte** : `folder` doit précéder `file`. Le corps
+         *     est consommé partie par partie, sans mise en tampon, si bien qu'un champ
+         *     arrivant après le fichier serait lu trop tard pour peser sur sa
+         *     destination.
+         *
+         *     Le contenu est vérifié contre son extension avant écriture : renommer un
+         *     exécutable en `.cbz` ne suffit pas à le déposer dans le bucket.
+         *
+         *     Un fichier de même nom déjà présent est refusé plutôt qu'écrasé — la
+         *     progression de lecture est attachée à l'objet, et la remplacer par une
+         *     autre édition la rendrait fausse sans prévenir.
+         */
+        post: operations["uploadComic"];
         delete?: never;
         options?: never;
         head?: never;
@@ -732,6 +840,42 @@ export interface components {
             coverComicId?: string;
             coverPath?: string;
         };
+        StorageBackend: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            /** @enum {string} */
+            kind: "s3" | "local";
+            config: {
+                [key: string]: string;
+            };
+            isDefault: boolean;
+            readOnly: boolean;
+            /** @description ok, error, ou vide si jamais testé. */
+            status: string;
+        };
+        LibraryDetail: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            backendId: string;
+            name: string;
+            kind: string;
+            rootPrefix: string;
+            /** Format: int32 */
+            comicCount: number;
+        };
+        UploadedComic: {
+            /** Format: uuid */
+            comicId: string;
+            /** @description Clé de l'objet dans le backend. */
+            objectKey: string;
+            title: string;
+            /** @enum {string} */
+            format: "cbz" | "cbr" | "pdf";
+            /** Format: int64 */
+            fileSize: number;
+        };
         Folder: {
             /** @description Chemin complet, relatif au préfixe. Vide pour la racine. */
             path: string;
@@ -909,6 +1053,7 @@ export interface components {
     };
     parameters: {
         ComicId: string;
+        LibraryIdPath: string;
         /** @description Restreint à une bibliothèque. Omis, toutes les bibliothèques visibles. */
         LibraryId: string;
         /**
@@ -1258,6 +1403,44 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
         };
     };
+    createLibrary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: string;
+                    /** Format: uuid */
+                    backendId: string;
+                    /** @description Défaut : comics. */
+                    kind?: string;
+                    /**
+                     * @description Préfixe sous lequel la bibliothèque vit dans le backend.
+                     *     Vide pour la racine.
+                     */
+                    rootPrefix?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Bibliothèque créée */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryDetail"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
     listSeries: {
         parameters: {
             query?: {
@@ -1371,6 +1554,181 @@ export interface operations {
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    listStorageBackends: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Backends */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        backends: components["schemas"]["StorageBackend"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createStorageBackend: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: string;
+                    /** @enum {string} */
+                    kind: "s3" | "local";
+                    /**
+                     * @description S3 : `endpoint`, `bucket`, `region`, `use_ssl`,
+                     *     `path_style`. Local : `root`.
+                     */
+                    config?: {
+                        [key: string]: string;
+                    };
+                    /**
+                     * @description S3 : `access_key`, `secret_key`. Chiffrés en base, jamais
+                     *     relus par l'API.
+                     */
+                    secrets?: {
+                        [key: string]: string;
+                    };
+                    isDefault?: boolean;
+                    readOnly?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Backend créé */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StorageBackend"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    testStorageBackend: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                backendId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Résultat du test */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ok: boolean;
+                        detail?: string;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    scanLibrary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                libraryId: components["parameters"]["LibraryIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Parcours enfilé */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        queued: boolean;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    uploadComic: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                libraryId: components["parameters"]["LibraryIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "multipart/form-data": {
+                    /**
+                     * @description Dossier de destination, relatif au préfixe de la
+                     *     bibliothèque. Vide pour la racine. À envoyer AVANT `file`.
+                     */
+                    folder?: string;
+                    /**
+                     * Format: binary
+                     * @description Archive `.cbz`, `.zip`, `.cbr`, `.rar` ou `.pdf`.
+                     */
+                    file: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Album déposé et mis en file d'indexation */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UploadedComic"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Fichier au-delà de la limite configurée */
+            413: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
             422: components["responses"]["ValidationFailed"];
         };
     };

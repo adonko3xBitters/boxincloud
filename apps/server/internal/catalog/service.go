@@ -167,6 +167,15 @@ func (s *Service) ListLibraries(ctx context.Context, v Viewer) ([]Library, error
 	return s.repo.ListVisibleLibraries(ctx, v)
 }
 
+// CanAccessLibrary indique si le viewer peut consulter une bibliothèque.
+//
+// Exposée pour que l'ingestion applique la MÊME règle de visibilité que la
+// consultation, sans la réimplémenter : deux formulations d'une même règle
+// finissent toujours par diverger.
+func (s *Service) CanAccessLibrary(ctx context.Context, v Viewer, libraryID uuid.UUID) (bool, error) {
+	return s.repo.CanAccessLibrary(ctx, v, libraryID)
+}
+
 // visibleLibraryIDs résout l'ensemble des bibliothèques que le viewer peut
 // consulter, éventuellement restreint à une seule.
 //

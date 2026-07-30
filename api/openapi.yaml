@@ -371,6 +371,41 @@ paths:
           $ref: "#/components/responses/Unauthorized"
 
   /libraries:
+    post:
+      operationId: createLibrary
+      summary: Créer une bibliothèque sur un backend existant
+      tags: [admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, backendId]
+              properties:
+                name: { type: string }
+                backendId: { type: string, format: uuid }
+                kind:
+                  type: string
+                  description: "Défaut : comics."
+                rootPrefix:
+                  type: string
+                  description: |
+                    Préfixe sous lequel la bibliothèque vit dans le backend.
+                    Vide pour la racine.
+      responses:
+        "201":
+          description: Bibliothèque créée
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LibraryDetail" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
     get:
       operationId: listLibraries
       summary: Bibliothèques visibles
@@ -497,6 +532,201 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /storage-backends:
+    get:
+      operationId: listStorageBackends
+      summary: Backends de stockage déclarés
+      description: |
+        Les identifiants ne sont jamais retournés : ils sont chiffrés en base et
+        ne ressortent pas du service.
+      tags: [admin]
+      responses:
+        "200":
+          description: Backends
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [backends]
+                properties:
+                  backends:
+                    type: array
+                    items: { $ref: "#/components/schemas/StorageBackend" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+    post:
+      operationId: createStorageBackend
+      summary: Déclarer un backend de stockage
+      description: |
+        Le backend est joint avant d'être enregistré. Un backend injoignable
+        n'entre pas en base, où il produirait des scans en échec dont la cause
+        serait à chercher ailleurs.
+      tags: [admin]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, kind]
+              properties:
+                name: { type: string }
+                kind:
+                  type: string
+                  enum: [s3, local]
+                config:
+                  type: object
+                  additionalProperties: { type: string }
+                  description: |
+                    S3 : `endpoint`, `bucket`, `region`, `use_ssl`,
+                    `path_style`. Local : `root`.
+                secrets:
+                  type: object
+                  additionalProperties: { type: string }
+                  description: |
+                    S3 : `access_key`, `secret_key`. Chiffrés en base, jamais
+                    relus par l'API.
+                isDefault: { type: boolean }
+                readOnly: { type: boolean }
+      responses:
+        "201":
+          description: Backend créé
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StorageBackend" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /storage-backends/{backendId}/test:
+    post:
+      operationId: testStorageBackend
+      summary: Vérifier qu'un backend répond
+      description: |
+        Un backend injoignable donne 200 avec `ok: false`. L'échec du test n'est
+        pas un échec de la requête : le client a demandé un test, il en reçoit
+        le résultat.
+      tags: [admin]
+      parameters:
+        - name: backendId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Résultat du test
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { type: boolean }
+                  detail: { type: string }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /libraries/{libraryId}/scan:
+    post:
+      operationId: scanLibrary
+      summary: Relancer un parcours de la bibliothèque
+      description: |
+        Utile quand des fichiers sont arrivés par un autre chemin que
+        l'envoi — un montage réseau, un rsync, un bucket alimenté par ailleurs.
+
+        La réponse est 202 : le parcours est enfilé, pas exécuté. Lister des
+        dizaines de milliers d'objets prend des minutes.
+      tags: [admin]
+      parameters:
+        - $ref: "#/components/parameters/LibraryIdPath"
+      responses:
+        "202":
+          description: Parcours enfilé
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [queued]
+                properties:
+                  queued: { type: boolean }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /libraries/{libraryId}/upload:
+    post:
+      operationId: uploadComic
+      summary: Déposer un album dans la bibliothèque
+      description: |
+        Le corps est lu en flux jusqu'au backend : une archive de plusieurs
+        centaines de méga-octets ne transite ni par la mémoire du serveur ni par
+        un fichier temporaire.
+
+        **L'ordre des champs compte** : `folder` doit précéder `file`. Le corps
+        est consommé partie par partie, sans mise en tampon, si bien qu'un champ
+        arrivant après le fichier serait lu trop tard pour peser sur sa
+        destination.
+
+        Le contenu est vérifié contre son extension avant écriture : renommer un
+        exécutable en `.cbz` ne suffit pas à le déposer dans le bucket.
+
+        Un fichier de même nom déjà présent est refusé plutôt qu'écrasé — la
+        progression de lecture est attachée à l'objet, et la remplacer par une
+        autre édition la rendrait fausse sans prévenir.
+      tags: [admin]
+      parameters:
+        - $ref: "#/components/parameters/LibraryIdPath"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                folder:
+                  type: string
+                  description: |
+                    Dossier de destination, relatif au préfixe de la
+                    bibliothèque. Vide pour la racine. À envoyer AVANT `file`.
+                file:
+                  type: string
+                  format: binary
+                  description: Archive `.cbz`, `.zip`, `.cbr`, `.rar` ou `.pdf`.
+            encoding:
+              file:
+                contentType: application/octet-stream
+      responses:
+        "201":
+          description: Album déposé et mis en file d'indexation
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/UploadedComic" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "413":
+          description: Fichier au-delà de la limite configurée
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
         "422":
           $ref: "#/components/responses/ValidationFailed"
 
@@ -1023,6 +1253,12 @@ components:
       required: true
       schema: { type: string, format: uuid }
 
+    LibraryIdPath:
+      name: libraryId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
     LibraryId:
       name: libraryId
       in: query
@@ -1191,6 +1427,45 @@ components:
         comicCount: { type: integer, format: int32 }
         coverComicId: { type: string, format: uuid }
         coverPath: { type: string }
+
+    StorageBackend:
+      type: object
+      required: [id, name, kind, config, isDefault, readOnly, status]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        kind: { type: string, enum: [s3, local] }
+        config:
+          type: object
+          additionalProperties: { type: string }
+        isDefault: { type: boolean }
+        readOnly: { type: boolean }
+        status:
+          type: string
+          description: "ok, error, ou vide si jamais testé."
+
+    LibraryDetail:
+      type: object
+      required: [id, backendId, name, kind, rootPrefix, comicCount]
+      properties:
+        id: { type: string, format: uuid }
+        backendId: { type: string, format: uuid }
+        name: { type: string }
+        kind: { type: string }
+        rootPrefix: { type: string }
+        comicCount: { type: integer, format: int32 }
+
+    UploadedComic:
+      type: object
+      required: [comicId, objectKey, title, format, fileSize]
+      properties:
+        comicId: { type: string, format: uuid }
+        objectKey:
+          type: string
+          description: Clé de l'objet dans le backend.
+        title: { type: string }
+        format: { type: string, enum: [cbz, cbr, pdf] }
+        fileSize: { type: integer, format: int64 }
 
     Folder:
       type: object

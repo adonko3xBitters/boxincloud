@@ -140,6 +140,17 @@ async function refreshAccessToken(): Promise<string | null> {
   return refreshInFlight;
 }
 
+/**
+ * Rafraîchit le jeton d'accès et retourne le nouveau, ou null.
+ *
+ * Exposé pour le téléversement, qui passe par XMLHttpRequest et ne peut donc
+ * pas emprunter `request` : il lui faut néanmoins la même gestion du jeton
+ * expiré, sans dupliquer la garde contre les rafraîchissements concurrents.
+ */
+export function refreshToken(): Promise<string | null> {
+  return refreshAccessToken();
+}
+
 /** Exécute une requête, en rafraîchissant les jetons au besoin. */
 export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { method = "GET", body, query, anonymous = false, signal } = options;
