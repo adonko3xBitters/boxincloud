@@ -13,17 +13,24 @@ import (
 )
 
 const getComicDetail = `-- name: GetComicDetail :one
-SELECT comics.id, comics.library_id, comics.series_id, comics.object_key, comics.file_size, comics.file_etag, comics.content_hash, comics.format, comics.title, comics.number, comics.number_sort, comics.volume, comics.summary, comics.released_at, comics.age_rating, comics.language, comics.page_count, comics.cover_page, comics.state, comics.state_detail, comics.hydrated_at, comics.indexed_at, comics.metadata, comics.locked_fields, comics.created_at, comics.updated_at, comics.deleted_at, comics.search_vector, comics.cover_placeholder, comics.folder_path, series.id, series.library_id, series.name, series.sort_name, series.description, series.publisher, series.status, series.age_rating, series.year_started, series.cover_comic_id, series.comic_count, series.metadata, series.locked_fields, series.created_at, series.updated_at
+SELECT comics.id, comics.library_id, comics.series_id, comics.object_key, comics.file_size, comics.file_etag, comics.content_hash, comics.format, comics.title, comics.number, comics.number_sort, comics.volume, comics.summary, comics.released_at, comics.age_rating, comics.language, comics.page_count, comics.cover_page, comics.state, comics.state_detail, comics.hydrated_at, comics.indexed_at, comics.metadata, comics.locked_fields, comics.created_at, comics.updated_at, comics.deleted_at, comics.search_vector, comics.cover_placeholder, comics.folder_path, COALESCE(series.name, '')::text AS series_name
 FROM comics
 LEFT JOIN series ON series.id = comics.series_id
 WHERE comics.id = $1 AND comics.deleted_at IS NULL
 `
 
 type GetComicDetailRow struct {
-	Comic  Comic
-	Series Series
+	Comic      Comic
+	SeriesName string
 }
 
+// Détail d'un album, avec le nom de sa série quand il en a une.
+//
+// La série est en LEFT JOIN : beaucoup d'albums sont des one-shots. On ne peut
+// donc pas l'embarquer entière — sqlc en ferait une structure aux champs non
+// nullables, et le scan échouerait sur le premier album sans série. Seul le nom
+// est retenu, ramené à la chaîne vide, qui est déjà la façon dont le reste du
+// code représente l'absence de série.
 func (q *Queries) GetComicDetail(ctx context.Context, id uuid.UUID) (GetComicDetailRow, error) {
 	row := q.db.QueryRow(ctx, getComicDetail, id)
 	var i GetComicDetailRow
@@ -58,71 +65,65 @@ func (q *Queries) GetComicDetail(ctx context.Context, id uuid.UUID) (GetComicDet
 		&i.Comic.SearchVector,
 		&i.Comic.CoverPlaceholder,
 		&i.Comic.FolderPath,
-		&i.Series.ID,
-		&i.Series.LibraryID,
-		&i.Series.Name,
-		&i.Series.SortName,
-		&i.Series.Description,
-		&i.Series.Publisher,
-		&i.Series.Status,
-		&i.Series.AgeRating,
-		&i.Series.YearStarted,
-		&i.Series.CoverComicID,
-		&i.Series.ComicCount,
-		&i.Series.Metadata,
-		&i.Series.LockedFields,
-		&i.Series.CreatedAt,
-		&i.Series.UpdatedAt,
+		&i.SeriesName,
 	)
 	return i, err
 }
 
 const listComicsBySeries = `-- name: ListComicsBySeries :many
-SELECT id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector, cover_placeholder, folder_path FROM comics
-WHERE series_id = $1 AND deleted_at IS NULL
-ORDER BY number_sort NULLS LAST, title
+SELECT c.id, c.library_id, c.series_id, c.object_key, c.file_size, c.file_etag, c.content_hash, c.format, c.title, c.number, c.number_sort, c.volume, c.summary, c.released_at, c.age_rating, c.language, c.page_count, c.cover_page, c.state, c.state_detail, c.hydrated_at, c.indexed_at, c.metadata, c.locked_fields, c.created_at, c.updated_at, c.deleted_at, c.search_vector, c.cover_placeholder, c.folder_path, COALESCE(s.name, '')::text AS series_name
+FROM comics c
+LEFT JOIN series s ON s.id = c.series_id
+WHERE c.series_id = $1 AND c.deleted_at IS NULL
+ORDER BY c.number_sort NULLS LAST, c.title
 `
 
-func (q *Queries) ListComicsBySeries(ctx context.Context, seriesID uuid.NullUUID) ([]Comic, error) {
+type ListComicsBySeriesRow struct {
+	Comic      Comic
+	SeriesName string
+}
+
+func (q *Queries) ListComicsBySeries(ctx context.Context, seriesID uuid.NullUUID) ([]ListComicsBySeriesRow, error) {
 	rows, err := q.db.Query(ctx, listComicsBySeries, seriesID)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Comic{}
+	items := []ListComicsBySeriesRow{}
 	for rows.Next() {
-		var i Comic
+		var i ListComicsBySeriesRow
 		if err := rows.Scan(
-			&i.ID,
-			&i.LibraryID,
-			&i.SeriesID,
-			&i.ObjectKey,
-			&i.FileSize,
-			&i.FileEtag,
-			&i.ContentHash,
-			&i.Format,
-			&i.Title,
-			&i.Number,
-			&i.NumberSort,
-			&i.Volume,
-			&i.Summary,
-			&i.ReleasedAt,
-			&i.AgeRating,
-			&i.Language,
-			&i.PageCount,
-			&i.CoverPage,
-			&i.State,
-			&i.StateDetail,
-			&i.HydratedAt,
-			&i.IndexedAt,
-			&i.Metadata,
-			&i.LockedFields,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.DeletedAt,
-			&i.SearchVector,
-			&i.CoverPlaceholder,
-			&i.FolderPath,
+			&i.Comic.ID,
+			&i.Comic.LibraryID,
+			&i.Comic.SeriesID,
+			&i.Comic.ObjectKey,
+			&i.Comic.FileSize,
+			&i.Comic.FileEtag,
+			&i.Comic.ContentHash,
+			&i.Comic.Format,
+			&i.Comic.Title,
+			&i.Comic.Number,
+			&i.Comic.NumberSort,
+			&i.Comic.Volume,
+			&i.Comic.Summary,
+			&i.Comic.ReleasedAt,
+			&i.Comic.AgeRating,
+			&i.Comic.Language,
+			&i.Comic.PageCount,
+			&i.Comic.CoverPage,
+			&i.Comic.State,
+			&i.Comic.StateDetail,
+			&i.Comic.HydratedAt,
+			&i.Comic.IndexedAt,
+			&i.Comic.Metadata,
+			&i.Comic.LockedFields,
+			&i.Comic.CreatedAt,
+			&i.Comic.UpdatedAt,
+			&i.Comic.DeletedAt,
+			&i.Comic.SearchVector,
+			&i.Comic.CoverPlaceholder,
+			&i.Comic.FolderPath,
+			&i.SeriesName,
 		); err != nil {
 			return nil, err
 		}
@@ -136,7 +137,9 @@ func (q *Queries) ListComicsBySeries(ctx context.Context, seriesID uuid.NullUUID
 
 const listComicsPage = `-- name: ListComicsPage :many
 
-SELECT c.id, c.library_id, c.series_id, c.object_key, c.file_size, c.file_etag, c.content_hash, c.format, c.title, c.number, c.number_sort, c.volume, c.summary, c.released_at, c.age_rating, c.language, c.page_count, c.cover_page, c.state, c.state_detail, c.hydrated_at, c.indexed_at, c.metadata, c.locked_fields, c.created_at, c.updated_at, c.deleted_at, c.search_vector, c.cover_placeholder, c.folder_path FROM comics c
+SELECT c.id, c.library_id, c.series_id, c.object_key, c.file_size, c.file_etag, c.content_hash, c.format, c.title, c.number, c.number_sort, c.volume, c.summary, c.released_at, c.age_rating, c.language, c.page_count, c.cover_page, c.state, c.state_detail, c.hydrated_at, c.indexed_at, c.metadata, c.locked_fields, c.created_at, c.updated_at, c.deleted_at, c.search_vector, c.cover_placeholder, c.folder_path, COALESCE(s.name, '')::text AS series_name
+FROM comics c
+LEFT JOIN series s ON s.id = c.series_id
 LEFT JOIN reading_progress p
        ON p.comic_id = c.id AND p.user_id = $1
 WHERE c.library_id = ANY($2::uuid[])
@@ -200,6 +203,11 @@ type ListComicsPageParams struct {
 	PageSize        int32
 }
 
+type ListComicsPageRow struct {
+	Comic      Comic
+	SeriesName string
+}
+
 // Requêtes de consultation du catalogue.
 //
 // Pagination par curseur plutôt que par OFFSET : sur une bibliothèque de
@@ -216,7 +224,7 @@ type ListComicsPageParams struct {
 // Le curseur suit l'ordre choisi : (created_at, id) pour le tri par ajout,
 // (title, id) pour le tri alphabétique. Un seul curseur composite ne
 // conviendrait pas aux deux.
-func (q *Queries) ListComicsPage(ctx context.Context, arg ListComicsPageParams) ([]Comic, error) {
+func (q *Queries) ListComicsPage(ctx context.Context, arg ListComicsPageParams) ([]ListComicsPageRow, error) {
 	rows, err := q.db.Query(ctx, listComicsPage,
 		arg.UserID,
 		arg.LibraryIds,
@@ -237,40 +245,41 @@ func (q *Queries) ListComicsPage(ctx context.Context, arg ListComicsPageParams) 
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Comic{}
+	items := []ListComicsPageRow{}
 	for rows.Next() {
-		var i Comic
+		var i ListComicsPageRow
 		if err := rows.Scan(
-			&i.ID,
-			&i.LibraryID,
-			&i.SeriesID,
-			&i.ObjectKey,
-			&i.FileSize,
-			&i.FileEtag,
-			&i.ContentHash,
-			&i.Format,
-			&i.Title,
-			&i.Number,
-			&i.NumberSort,
-			&i.Volume,
-			&i.Summary,
-			&i.ReleasedAt,
-			&i.AgeRating,
-			&i.Language,
-			&i.PageCount,
-			&i.CoverPage,
-			&i.State,
-			&i.StateDetail,
-			&i.HydratedAt,
-			&i.IndexedAt,
-			&i.Metadata,
-			&i.LockedFields,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.DeletedAt,
-			&i.SearchVector,
-			&i.CoverPlaceholder,
-			&i.FolderPath,
+			&i.Comic.ID,
+			&i.Comic.LibraryID,
+			&i.Comic.SeriesID,
+			&i.Comic.ObjectKey,
+			&i.Comic.FileSize,
+			&i.Comic.FileEtag,
+			&i.Comic.ContentHash,
+			&i.Comic.Format,
+			&i.Comic.Title,
+			&i.Comic.Number,
+			&i.Comic.NumberSort,
+			&i.Comic.Volume,
+			&i.Comic.Summary,
+			&i.Comic.ReleasedAt,
+			&i.Comic.AgeRating,
+			&i.Comic.Language,
+			&i.Comic.PageCount,
+			&i.Comic.CoverPage,
+			&i.Comic.State,
+			&i.Comic.StateDetail,
+			&i.Comic.HydratedAt,
+			&i.Comic.IndexedAt,
+			&i.Comic.Metadata,
+			&i.Comic.LockedFields,
+			&i.Comic.CreatedAt,
+			&i.Comic.UpdatedAt,
+			&i.Comic.DeletedAt,
+			&i.Comic.SearchVector,
+			&i.Comic.CoverPlaceholder,
+			&i.Comic.FolderPath,
+			&i.SeriesName,
 		); err != nil {
 			return nil, err
 		}
@@ -283,7 +292,7 @@ func (q *Queries) ListComicsPage(ctx context.Context, arg ListComicsPageParams) 
 }
 
 const listNextInSeries = `-- name: ListNextInSeries :many
-SELECT DISTINCT ON (c.series_id) c.id, c.library_id, c.series_id, c.object_key, c.file_size, c.file_etag, c.content_hash, c.format, c.title, c.number, c.number_sort, c.volume, c.summary, c.released_at, c.age_rating, c.language, c.page_count, c.cover_page, c.state, c.state_detail, c.hydrated_at, c.indexed_at, c.metadata, c.locked_fields, c.created_at, c.updated_at, c.deleted_at, c.search_vector, c.cover_placeholder, c.folder_path
+SELECT DISTINCT ON (c.series_id) c.id, c.library_id, c.series_id, c.object_key, c.file_size, c.file_etag, c.content_hash, c.format, c.title, c.number, c.number_sort, c.volume, c.summary, c.released_at, c.age_rating, c.language, c.page_count, c.cover_page, c.state, c.state_detail, c.hydrated_at, c.indexed_at, c.metadata, c.locked_fields, c.created_at, c.updated_at, c.deleted_at, c.search_vector, c.cover_placeholder, c.folder_path, s.name AS series_name
 FROM comics c
 JOIN series s ON s.id = c.series_id
 WHERE c.library_id = ANY($1::uuid[])
@@ -310,48 +319,54 @@ type ListNextInSeriesParams struct {
 	PageSize   int32
 }
 
+type ListNextInSeriesRow struct {
+	Comic      Comic
+	SeriesName string
+}
+
 // Étagère « Suite de la série » : le premier album non lu de chaque série déjà
 // entamée. C'est la suggestion la plus utile d'une page d'accueil de lecteur.
-func (q *Queries) ListNextInSeries(ctx context.Context, arg ListNextInSeriesParams) ([]Comic, error) {
+func (q *Queries) ListNextInSeries(ctx context.Context, arg ListNextInSeriesParams) ([]ListNextInSeriesRow, error) {
 	rows, err := q.db.Query(ctx, listNextInSeries, arg.LibraryIds, arg.UserID, arg.PageSize)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Comic{}
+	items := []ListNextInSeriesRow{}
 	for rows.Next() {
-		var i Comic
+		var i ListNextInSeriesRow
 		if err := rows.Scan(
-			&i.ID,
-			&i.LibraryID,
-			&i.SeriesID,
-			&i.ObjectKey,
-			&i.FileSize,
-			&i.FileEtag,
-			&i.ContentHash,
-			&i.Format,
-			&i.Title,
-			&i.Number,
-			&i.NumberSort,
-			&i.Volume,
-			&i.Summary,
-			&i.ReleasedAt,
-			&i.AgeRating,
-			&i.Language,
-			&i.PageCount,
-			&i.CoverPage,
-			&i.State,
-			&i.StateDetail,
-			&i.HydratedAt,
-			&i.IndexedAt,
-			&i.Metadata,
-			&i.LockedFields,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.DeletedAt,
-			&i.SearchVector,
-			&i.CoverPlaceholder,
-			&i.FolderPath,
+			&i.Comic.ID,
+			&i.Comic.LibraryID,
+			&i.Comic.SeriesID,
+			&i.Comic.ObjectKey,
+			&i.Comic.FileSize,
+			&i.Comic.FileEtag,
+			&i.Comic.ContentHash,
+			&i.Comic.Format,
+			&i.Comic.Title,
+			&i.Comic.Number,
+			&i.Comic.NumberSort,
+			&i.Comic.Volume,
+			&i.Comic.Summary,
+			&i.Comic.ReleasedAt,
+			&i.Comic.AgeRating,
+			&i.Comic.Language,
+			&i.Comic.PageCount,
+			&i.Comic.CoverPage,
+			&i.Comic.State,
+			&i.Comic.StateDetail,
+			&i.Comic.HydratedAt,
+			&i.Comic.IndexedAt,
+			&i.Comic.Metadata,
+			&i.Comic.LockedFields,
+			&i.Comic.CreatedAt,
+			&i.Comic.UpdatedAt,
+			&i.Comic.DeletedAt,
+			&i.Comic.SearchVector,
+			&i.Comic.CoverPlaceholder,
+			&i.Comic.FolderPath,
+			&i.SeriesName,
 		); err != nil {
 			return nil, err
 		}
@@ -364,14 +379,16 @@ func (q *Queries) ListNextInSeries(ctx context.Context, arg ListNextInSeriesPara
 }
 
 const listRecentComics = `-- name: ListRecentComics :many
-SELECT id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector, cover_placeholder, folder_path FROM comics
-WHERE library_id = ANY($1::uuid[])
-  AND deleted_at IS NULL
-  AND state = 'ready'
+SELECT c.id, c.library_id, c.series_id, c.object_key, c.file_size, c.file_etag, c.content_hash, c.format, c.title, c.number, c.number_sort, c.volume, c.summary, c.released_at, c.age_rating, c.language, c.page_count, c.cover_page, c.state, c.state_detail, c.hydrated_at, c.indexed_at, c.metadata, c.locked_fields, c.created_at, c.updated_at, c.deleted_at, c.search_vector, c.cover_placeholder, c.folder_path, COALESCE(s.name, '')::text AS series_name
+FROM comics c
+LEFT JOIN series s ON s.id = c.series_id
+WHERE c.library_id = ANY($1::uuid[])
+  AND c.deleted_at IS NULL
+  AND c.state = 'ready'
   AND ($2::smallint IS NULL
-       OR age_rating IS NULL
-       OR age_rating <= $2::smallint)
-ORDER BY created_at DESC
+       OR c.age_rating IS NULL
+       OR c.age_rating <= $2::smallint)
+ORDER BY c.created_at DESC
 LIMIT $3
 `
 
@@ -381,47 +398,53 @@ type ListRecentComicsParams struct {
 	PageSize     int32
 }
 
+type ListRecentComicsRow struct {
+	Comic      Comic
+	SeriesName string
+}
+
 // Étagère d'accueil : les derniers albums ajoutés.
-func (q *Queries) ListRecentComics(ctx context.Context, arg ListRecentComicsParams) ([]Comic, error) {
+func (q *Queries) ListRecentComics(ctx context.Context, arg ListRecentComicsParams) ([]ListRecentComicsRow, error) {
 	rows, err := q.db.Query(ctx, listRecentComics, arg.LibraryIds, arg.MaxAgeRating, arg.PageSize)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	items := []Comic{}
+	items := []ListRecentComicsRow{}
 	for rows.Next() {
-		var i Comic
+		var i ListRecentComicsRow
 		if err := rows.Scan(
-			&i.ID,
-			&i.LibraryID,
-			&i.SeriesID,
-			&i.ObjectKey,
-			&i.FileSize,
-			&i.FileEtag,
-			&i.ContentHash,
-			&i.Format,
-			&i.Title,
-			&i.Number,
-			&i.NumberSort,
-			&i.Volume,
-			&i.Summary,
-			&i.ReleasedAt,
-			&i.AgeRating,
-			&i.Language,
-			&i.PageCount,
-			&i.CoverPage,
-			&i.State,
-			&i.StateDetail,
-			&i.HydratedAt,
-			&i.IndexedAt,
-			&i.Metadata,
-			&i.LockedFields,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.DeletedAt,
-			&i.SearchVector,
-			&i.CoverPlaceholder,
-			&i.FolderPath,
+			&i.Comic.ID,
+			&i.Comic.LibraryID,
+			&i.Comic.SeriesID,
+			&i.Comic.ObjectKey,
+			&i.Comic.FileSize,
+			&i.Comic.FileEtag,
+			&i.Comic.ContentHash,
+			&i.Comic.Format,
+			&i.Comic.Title,
+			&i.Comic.Number,
+			&i.Comic.NumberSort,
+			&i.Comic.Volume,
+			&i.Comic.Summary,
+			&i.Comic.ReleasedAt,
+			&i.Comic.AgeRating,
+			&i.Comic.Language,
+			&i.Comic.PageCount,
+			&i.Comic.CoverPage,
+			&i.Comic.State,
+			&i.Comic.StateDetail,
+			&i.Comic.HydratedAt,
+			&i.Comic.IndexedAt,
+			&i.Comic.Metadata,
+			&i.Comic.LockedFields,
+			&i.Comic.CreatedAt,
+			&i.Comic.UpdatedAt,
+			&i.Comic.DeletedAt,
+			&i.Comic.SearchVector,
+			&i.Comic.CoverPlaceholder,
+			&i.Comic.FolderPath,
+			&i.SeriesName,
 		); err != nil {
 			return nil, err
 		}
@@ -484,19 +507,20 @@ func (q *Queries) ListSeriesPage(ctx context.Context, arg ListSeriesPageParams) 
 }
 
 const searchComics = `-- name: SearchComics :many
-SELECT id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector, cover_placeholder, folder_path, (
-    ts_rank(search_vector, websearch_to_tsquery('simple', immutable_unaccent($1)))
-    + word_similarity(immutable_unaccent($1), immutable_unaccent(title))
+SELECT c.id, c.library_id, c.series_id, c.object_key, c.file_size, c.file_etag, c.content_hash, c.format, c.title, c.number, c.number_sort, c.volume, c.summary, c.released_at, c.age_rating, c.language, c.page_count, c.cover_page, c.state, c.state_detail, c.hydrated_at, c.indexed_at, c.metadata, c.locked_fields, c.created_at, c.updated_at, c.deleted_at, c.search_vector, c.cover_placeholder, c.folder_path, COALESCE(s.name, '')::text AS series_name, (
+    ts_rank(c.search_vector, websearch_to_tsquery('simple', immutable_unaccent($1)))
+    + word_similarity(immutable_unaccent($1), immutable_unaccent(c.title))
 )::real AS rank
-FROM comics
-WHERE library_id = ANY($2::uuid[])
-  AND deleted_at IS NULL
+FROM comics c
+LEFT JOIN series s ON s.id = c.series_id
+WHERE c.library_id = ANY($2::uuid[])
+  AND c.deleted_at IS NULL
   AND ($3::smallint IS NULL
-       OR age_rating IS NULL
-       OR age_rating <= $3::smallint)
-  AND (search_vector @@ websearch_to_tsquery('simple', immutable_unaccent($1))
-       OR immutable_unaccent($1) <% immutable_unaccent(title))
-ORDER BY rank DESC, title
+       OR c.age_rating IS NULL
+       OR c.age_rating <= $3::smallint)
+  AND (c.search_vector @@ websearch_to_tsquery('simple', immutable_unaccent($1))
+       OR immutable_unaccent($1) <% immutable_unaccent(c.title))
+ORDER BY rank DESC, c.title
 LIMIT $4
 `
 
@@ -508,37 +532,9 @@ type SearchComicsParams struct {
 }
 
 type SearchComicsRow struct {
-	ID               uuid.UUID
-	LibraryID        uuid.UUID
-	SeriesID         uuid.NullUUID
-	ObjectKey        string
-	FileSize         int64
-	FileEtag         *string
-	ContentHash      []byte
-	Format           ComicFormat
-	Title            string
-	Number           *string
-	NumberSort       pgtype.Numeric
-	Volume           *int16
-	Summary          *string
-	ReleasedAt       pgtype.Date
-	AgeRating        *int16
-	Language         *string
-	PageCount        int32
-	CoverPage        int32
-	State            ComicState
-	StateDetail      *string
-	HydratedAt       pgtype.Timestamptz
-	IndexedAt        pgtype.Timestamptz
-	Metadata         []byte
-	LockedFields     []string
-	CreatedAt        pgtype.Timestamptz
-	UpdatedAt        pgtype.Timestamptz
-	DeletedAt        pgtype.Timestamptz
-	SearchVector     interface{}
-	CoverPlaceholder *string
-	FolderPath       string
-	Rank             float32
+	Comic      Comic
+	SeriesName string
+	Rank       float32
 }
 
 // Recherche plein texte, avec repli sur la similarité trigramme.
@@ -572,36 +568,37 @@ func (q *Queries) SearchComics(ctx context.Context, arg SearchComicsParams) ([]S
 	for rows.Next() {
 		var i SearchComicsRow
 		if err := rows.Scan(
-			&i.ID,
-			&i.LibraryID,
-			&i.SeriesID,
-			&i.ObjectKey,
-			&i.FileSize,
-			&i.FileEtag,
-			&i.ContentHash,
-			&i.Format,
-			&i.Title,
-			&i.Number,
-			&i.NumberSort,
-			&i.Volume,
-			&i.Summary,
-			&i.ReleasedAt,
-			&i.AgeRating,
-			&i.Language,
-			&i.PageCount,
-			&i.CoverPage,
-			&i.State,
-			&i.StateDetail,
-			&i.HydratedAt,
-			&i.IndexedAt,
-			&i.Metadata,
-			&i.LockedFields,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-			&i.DeletedAt,
-			&i.SearchVector,
-			&i.CoverPlaceholder,
-			&i.FolderPath,
+			&i.Comic.ID,
+			&i.Comic.LibraryID,
+			&i.Comic.SeriesID,
+			&i.Comic.ObjectKey,
+			&i.Comic.FileSize,
+			&i.Comic.FileEtag,
+			&i.Comic.ContentHash,
+			&i.Comic.Format,
+			&i.Comic.Title,
+			&i.Comic.Number,
+			&i.Comic.NumberSort,
+			&i.Comic.Volume,
+			&i.Comic.Summary,
+			&i.Comic.ReleasedAt,
+			&i.Comic.AgeRating,
+			&i.Comic.Language,
+			&i.Comic.PageCount,
+			&i.Comic.CoverPage,
+			&i.Comic.State,
+			&i.Comic.StateDetail,
+			&i.Comic.HydratedAt,
+			&i.Comic.IndexedAt,
+			&i.Comic.Metadata,
+			&i.Comic.LockedFields,
+			&i.Comic.CreatedAt,
+			&i.Comic.UpdatedAt,
+			&i.Comic.DeletedAt,
+			&i.Comic.SearchVector,
+			&i.Comic.CoverPlaceholder,
+			&i.Comic.FolderPath,
+			&i.SeriesName,
 			&i.Rank,
 		); err != nil {
 			return nil, err

@@ -49,6 +49,10 @@ type contractHarness struct {
 	comicID     uuid.UUID
 	seriesID    uuid.UUID
 	libraryID   uuid.UUID
+
+	// loneComicID désigne un album sans série — le cas que toute jointure sur
+	// la table des séries doit supporter.
+	loneComicID uuid.UUID
 }
 
 func newContractHarness(t *testing.T) *contractHarness {
@@ -167,6 +171,20 @@ func (h *contractHarness) seed(t *testing.T, core *app.Core, minio miniotest.Env
 	// Indexation en direct : le contrat porte sur l'API, pas sur
 	// l'ordonnancement de la file de jobs.
 	runner := newDirectRunner(core)
+
+	// Un second album SANS série, et sans ComicInfo.xml pour lui en inventer une.
+	//
+	// Les one-shots sont un cas courant — Persepolis, Maus, une intégrale — et
+	// pourtant un cas limite pour toute requête qui joint la table des séries.
+	// Sans un exemplaire dans le jeu de test, une jointure mal formée passerait
+	// toute la suite au vert et ne casserait que chez l'utilisateur.
+	standalone := comicfixture.BuildCBZ(t, comicfixture.Options{Pages: 4})
+	loneKey := "bd/Persepolis.cbz"
+	if err := provider.Write(ctx, loneKey, bytes.NewReader(standalone.Data),
+		int64(len(standalone.Data)), ""); err != nil {
+		t.Fatalf("téléversement du one-shot : %v", err)
+	}
+
 	if _, err := runner(ctx, lib.ID); err != nil {
 		t.Fatalf("indexation : %v", err)
 	}
@@ -175,9 +193,21 @@ func (h *contractHarness) seed(t *testing.T, core *app.Core, minio miniotest.Env
 	if err != nil || len(comics) == 0 {
 		t.Fatalf("aucun album indexé : %v", err)
 	}
-	h.comicID = comics[0].ID
-	if comics[0].SeriesID.Valid {
-		h.seriesID = comics[0].SeriesID.UUID
+
+	for _, c := range comics {
+		if c.SeriesID.Valid {
+			h.comicID = c.ID
+			h.seriesID = c.SeriesID.UUID
+		} else {
+			h.loneComicID = c.ID
+		}
+	}
+
+	if h.comicID == uuid.Nil {
+		t.Fatal("aucun album rattaché à une série")
+	}
+	if h.loneComicID == uuid.Nil {
+		t.Fatal("aucun album sans série : le cas limite ne serait pas couvert")
 	}
 }
 
@@ -357,6 +387,87 @@ func TestIntegrationContract(t *testing.T) {
 	t.Run("progressDelete", func(t *testing.T) {
 		h.expect(t, http.MethodDelete, "/api/v1/comics/"+h.comicID.String()+"/progress",
 			nil, http.StatusNoContent)
+	})
+}
+
+// TestIntegrationContractStandalone couvre l'album sans série de bout en bout.
+//
+// Le détail, le manifeste, une page et la couverture : tout ce qu'il faut pour
+// ouvrir un one-shot dans le lecteur. Une jointure sur la table des séries qui
+// ne tolère pas l'absence de série casse ici, et nulle part ailleurs.
+func TestIntegrationContractStandalone(t *testing.T) {
+	h := newContractHarness(t)
+	lone := "/api/v1/comics/" + h.loneComicID.String()
+
+	t.Run("detail", func(t *testing.T) {
+		rec := h.expect(t, http.MethodGet, lone, nil, http.StatusOK)
+
+		var payload struct {
+			SeriesName string `json:"seriesName"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+			t.Fatal(err)
+		}
+		if payload.SeriesName != "" {
+			t.Errorf("seriesName = %q, attendu vide pour un album sans série", payload.SeriesName)
+		}
+	})
+
+	t.Run("manifest", func(t *testing.T) {
+		h.expect(t, http.MethodGet, lone+"/manifest", nil, http.StatusOK)
+	})
+
+	t.Run("page", func(t *testing.T) {
+		h.expect(t, http.MethodGet, lone+"/pages/0", nil, http.StatusOK)
+	})
+
+	t.Run("cover", func(t *testing.T) {
+		h.expect(t, http.MethodGet, lone+"/cover", nil, http.StatusOK)
+	})
+
+	// La liste et la recherche joignent elles aussi la table des séries : un
+	// one-shot ne doit pas les faire échouer, ni disparaître du résultat.
+	t.Run("listIncludesStandalone", func(t *testing.T) {
+		rec := h.expect(t, http.MethodGet, "/api/v1/comics?limit=50", nil, http.StatusOK)
+
+		var payload struct {
+			Items []struct {
+				ID string `json:"id"`
+			} `json:"items"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+			t.Fatal(err)
+		}
+
+		found := false
+		for _, item := range payload.Items {
+			if item.ID == h.loneComicID.String() {
+				found = true
+			}
+		}
+		if !found {
+			t.Error("l'album sans série est absent de la liste")
+		}
+	})
+
+	t.Run("search", func(t *testing.T) {
+		h.expect(t, http.MethodGet, "/api/v1/search?q=persepolis", nil, http.StatusOK)
+	})
+
+	// L'album à série doit continuer de rapporter son nom : la jointure ne doit
+	// pas avoir été neutralisée en réglant le cas du one-shot.
+	t.Run("seriesNameStillReported", func(t *testing.T) {
+		rec := h.expect(t, http.MethodGet, "/api/v1/comics/"+h.comicID.String(), nil, http.StatusOK)
+
+		var payload struct {
+			SeriesName string `json:"seriesName"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+			t.Fatal(err)
+		}
+		if payload.SeriesName == "" {
+			t.Error("seriesName vide alors que l'album appartient à une série")
+		}
 	})
 }
 

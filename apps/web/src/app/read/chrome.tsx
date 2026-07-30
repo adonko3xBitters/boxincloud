@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { cx } from "@/components/ui";
+import type { ManifestPage } from "@/lib/reader/pages";
+import { Filmstrip } from "./filmstrip";
 import {
   FIT_LABELS,
   MODE_LABELS,
@@ -26,6 +28,8 @@ export function ReaderChrome({
   title,
   page,
   pageCount,
+  comicId,
+  pages,
   onClose,
   onSeek,
   children,
@@ -33,24 +37,30 @@ export function ReaderChrome({
   title: string;
   page: number;
   pageCount: number;
+  comicId: string;
+  pages: ManifestPage[];
   onClose: () => void;
   onSeek: (page: number) => void;
   children: React.ReactNode;
 }) {
   const [visible, setVisible] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [stripOpen, setStripOpen] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Un panneau ouvert retient l'interface : rien de plus agaçant qu'une barre
+  // qui s'efface pendant qu'on la manipule, ou une bande de vignettes qui
+  // s'escamote au moment de choisir.
+  const pinned = settingsOpen || stripOpen;
 
   const show = useCallback(() => {
     setVisible(true);
     if (timer.current) clearTimeout(timer.current);
 
-    // Le panneau de réglages ouvert bloque l'effacement : rien de plus agaçant
-    // qu'une interface qui disparaît pendant qu'on la manipule.
-    if (!settingsOpen) {
+    if (!pinned) {
       timer.current = setTimeout(() => setVisible(false), HIDE_AFTER_MS);
     }
-  }, [settingsOpen]);
+  }, [pinned]);
 
   useEffect(() => {
     show();
@@ -65,6 +75,29 @@ export function ReaderChrome({
     window.addEventListener("mousemove", show);
     return () => window.removeEventListener("mousemove", show);
   }, [show]);
+
+  // « t » ouvre et ferme la bande, comme les autres raccourcis du lecteur.
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      if (target?.tagName === "INPUT" || target?.isContentEditable) return;
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+
+      if (event.key === "t" || event.key === "T") {
+        event.preventDefault();
+        setStripOpen((open) => !open);
+        show();
+      } else if (event.key === "Escape" && stripOpen) {
+        // La bande capte Échap avant le lecteur : fermer un panneau ouvert est
+        // toujours ce qu'on attend d'abord.
+        event.stopPropagation();
+        setStripOpen(false);
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, [show, stripOpen]);
 
   return (
     <div className="relative h-dvh w-full overflow-hidden bg-black">
@@ -81,10 +114,20 @@ export function ReaderChrome({
       <TopBar title={title} visible={visible} onClose={onClose} onToggleSettings={() => setSettingsOpen((v) => !v)} />
 
       <BottomBar
-        visible={visible}
+        visible={visible && !stripOpen}
         page={page}
         pageCount={pageCount}
         onSeek={onSeek}
+        onToggleStrip={() => setStripOpen((open) => !open)}
+      />
+
+      <Filmstrip
+        open={stripOpen}
+        comicId={comicId}
+        pages={pages}
+        current={page}
+        onSelect={onSeek}
+        onClose={() => setStripOpen(false)}
       />
 
       {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
@@ -118,7 +161,7 @@ function TopBar({
         </svg>
       </IconButton>
 
-      <p className="min-w-0 flex-1 truncate text-sm font-medium text-white/90">{title}</p>
+      <p className="min-w-0 flex-1 truncate text-ui font-medium text-white/90">{title}</p>
 
       <IconButton onClick={onToggleSettings} label="Réglages de lecture">
         <svg viewBox="0 0 20 20" fill="none" className="size-5" aria-hidden="true">
@@ -134,11 +177,13 @@ function BottomBar({
   page,
   pageCount,
   onSeek,
+  onToggleStrip,
 }: {
   visible: boolean;
   page: number;
   pageCount: number;
   onSeek: (page: number) => void;
+  onToggleStrip: () => void;
 }) {
   return (
     <div
@@ -150,7 +195,7 @@ function BottomBar({
       )}
     >
       <div className="mx-auto flex max-w-3xl items-center gap-3">
-        <span className="w-16 shrink-0 text-right font-mono text-xs tabular-nums text-white/70">
+        <span className="w-20 shrink-0 text-right font-mono text-meta tabular-nums text-white/70">
           {page + 1} / {pageCount}
         </span>
 
@@ -169,6 +214,14 @@ function BottomBar({
           aria-label="Position dans l'album"
           className="h-1 flex-1 cursor-pointer appearance-none rounded-full bg-white/25 accent-[var(--accent)]"
         />
+
+        <IconButton onClick={onToggleStrip} label="Pages de l'album (t)">
+          <svg viewBox="0 0 20 20" fill="none" className="size-5" aria-hidden="true">
+            <rect x="2.5" y="5" width="4" height="10" rx="1" stroke="currentColor" strokeWidth="1.5" />
+            <rect x="8" y="5" width="4" height="10" rx="1" stroke="currentColor" strokeWidth="1.5" />
+            <rect x="13.5" y="5" width="4" height="10" rx="1" stroke="currentColor" strokeWidth="1.5" />
+          </svg>
+        </IconButton>
       </div>
     </div>
   );
@@ -243,9 +296,11 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
         </Option>
       </Setting>
 
-      <p className="mt-3 border-t border-white/10 pt-3 text-[11px] leading-relaxed text-white/40">
+      <p className="mt-3 border-t border-white/10 pt-3 text-micro leading-relaxed text-white/40">
         Flèches ou espace pour tourner · Début et Fin pour les extrémités ·
-        Échap pour sortir
+        <span className="text-white/55"> t </span> pour les vignettes ·
+        <span className="text-white/55"> + − 0 </span> pour le zoom ·
+        double-clic ou pincement pour agrandir · Échap pour sortir
       </p>
     </div>
   );
@@ -254,7 +309,7 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
 function Setting({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="mb-3 last:mb-0">
-      <p className="mb-1.5 text-[11px] uppercase tracking-wide text-white/40">{label}</p>
+      <p className="mb-1.5 text-micro uppercase tracking-wide text-white/40">{label}</p>
       <div className="flex flex-wrap gap-1">{children}</div>
     </div>
   );
@@ -274,7 +329,7 @@ function Option({
       onClick={onClick}
       aria-pressed={active}
       className={cx(
-        "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+        "pressable rounded-md px-2.5 py-1 text-meta font-medium",
         active ? "bg-accent text-white" : "bg-white/10 text-white/70 hover:bg-white/20",
       )}
     >
@@ -297,7 +352,7 @@ function IconButton({
       onClick={onClick}
       aria-label={label}
       title={label}
-      className="grid size-9 shrink-0 place-items-center rounded-md text-white/80 transition-colors hover:bg-white/10 hover:text-white"
+      className="pressable grid size-9 shrink-0 place-items-center rounded-md text-white/80 hover:bg-white/10 hover:text-white"
     >
       {children}
     </button>

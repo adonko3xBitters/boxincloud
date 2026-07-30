@@ -99,7 +99,12 @@ func (r *PostgresRepository) ListComics(ctx context.Context, p ListComicsParams)
 	if err != nil {
 		return nil, err
 	}
-	return comicsFromRows(rows), nil
+
+	out := make([]Comic, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, comicWithSeries(row.Comic, row.SeriesName))
+	}
+	return out, nil
 }
 
 func (r *PostgresRepository) SearchComics(ctx context.Context, p SearchParams) ([]Comic, error) {
@@ -115,14 +120,7 @@ func (r *PostgresRepository) SearchComics(ctx context.Context, p SearchParams) (
 
 	out := make([]Comic, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, comicFromRow(sqlc.Comic{
-			ID: row.ID, LibraryID: row.LibraryID, SeriesID: row.SeriesID,
-			Title: row.Title, Number: row.Number, Volume: row.Volume,
-			Summary: row.Summary, Format: row.Format, PageCount: row.PageCount,
-			State: row.State, AgeRating: row.AgeRating, Language: row.Language,
-			FileSize: row.FileSize, ReleasedAt: row.ReleasedAt, CreatedAt: row.CreatedAt,
-			CoverPlaceholder: row.CoverPlaceholder,
-		}))
+		out = append(out, comicWithSeries(row.Comic, row.SeriesName))
 	}
 	return out, nil
 }
@@ -136,12 +134,7 @@ func (r *PostgresRepository) GetComic(ctx context.Context, id uuid.UUID) (Comic,
 		return Comic{}, err
 	}
 
-	c := comicFromRow(row.Comic)
-	// La série est en LEFT JOIN : un album peut ne pas en avoir.
-	if row.Series.ID != uuid.Nil {
-		c.SeriesName = row.Series.Name
-	}
-	return c, nil
+	return comicWithSeries(row.Comic, row.SeriesName), nil
 }
 
 func (r *PostgresRepository) ListComicsBySeries(ctx context.Context, seriesID uuid.UUID) ([]Comic, error) {
@@ -149,7 +142,12 @@ func (r *PostgresRepository) ListComicsBySeries(ctx context.Context, seriesID uu
 	if err != nil {
 		return nil, err
 	}
-	return comicsFromRows(rows), nil
+
+	out := make([]Comic, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, comicWithSeries(row.Comic, row.SeriesName))
+	}
+	return out, nil
 }
 
 func (r *PostgresRepository) ListRecent(ctx context.Context, p ListComicsParams) ([]Comic, error) {
@@ -161,7 +159,12 @@ func (r *PostgresRepository) ListRecent(ctx context.Context, p ListComicsParams)
 	if err != nil {
 		return nil, err
 	}
-	return comicsFromRows(rows), nil
+
+	out := make([]Comic, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, comicWithSeries(row.Comic, row.SeriesName))
+	}
+	return out, nil
 }
 
 func (r *PostgresRepository) ListNextInSeries(ctx context.Context, v Viewer, libraryIDs []uuid.UUID, limit int32) ([]Comic, error) {
@@ -173,7 +176,12 @@ func (r *PostgresRepository) ListNextInSeries(ctx context.Context, v Viewer, lib
 	if err != nil {
 		return nil, err
 	}
-	return comicsFromRows(rows), nil
+
+	out := make([]Comic, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, comicWithSeries(row.Comic, row.SeriesName))
+	}
+	return out, nil
 }
 
 // ─── Séries ──────────────────────────────────────────────────────────────────
@@ -228,12 +236,14 @@ func (r *PostgresRepository) GetSeries(ctx context.Context, id uuid.UUID) (Serie
 
 // ─── Conversions ─────────────────────────────────────────────────────────────
 
-func comicsFromRows(rows []sqlc.Comic) []Comic {
-	out := make([]Comic, 0, len(rows))
-	for _, row := range rows {
-		out = append(out, comicFromRow(row))
-	}
-	return out
+// comicWithSeries assemble un album et le nom de sa série.
+//
+// Le nom arrive d'un LEFT JOIN ramené à la chaîne vide : un album sans série
+// n'est pas une anomalie mais le cas courant des one-shots.
+func comicWithSeries(row sqlc.Comic, seriesName string) Comic {
+	c := comicFromRow(row)
+	c.SeriesName = seriesName
+	return c
 }
 
 func comicFromRow(row sqlc.Comic) Comic {

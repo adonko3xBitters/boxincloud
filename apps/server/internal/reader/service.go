@@ -355,7 +355,12 @@ func (s *Service) GetCover(ctx context.Context, comicID uuid.UUID, width int) (P
 // Elles couvrent les tailles d'écran usuelles, en tenant compte des écrans à
 // forte densité : 800 pour un téléphone, 1600 pour un portable, 2400 pour un
 // grand écran en double page.
-var PageWidths = []int{800, 1200, 1600, 2000, 2400}
+//
+// 320 sert un usage distinct : la bande de vignettes du lecteur, qui affiche
+// des cases de moins de cent pixels. Sans ce palier, ouvrir la bande d'un album
+// de deux cents planches téléchargerait deux cents images de 800 pixels — une
+// dizaine de méga-octets pour des images affichées vingt fois plus petites.
+var PageWidths = []int{320, 800, 1200, 1600, 2000, 2400}
 
 // nearestPageWidth ramène une largeur au palier immédiatement supérieur.
 //

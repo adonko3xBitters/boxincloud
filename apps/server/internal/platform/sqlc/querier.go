@@ -62,6 +62,13 @@ type Querier interface {
 	FinishScanRun(ctx context.Context, arg FinishScanRunParams) error
 	GetComic(ctx context.Context, id uuid.UUID) (Comic, error)
 	GetComicByObjectKey(ctx context.Context, arg GetComicByObjectKeyParams) (Comic, error)
+	// Détail d'un album, avec le nom de sa série quand il en a une.
+	//
+	// La série est en LEFT JOIN : beaucoup d'albums sont des one-shots. On ne peut
+	// donc pas l'embarquer entière — sqlc en ferait une structure aux champs non
+	// nullables, et le scan échouerait sur le premier album sans série. Seul le nom
+	// est retenu, ramené à la chaîne vide, qui est déjà la façon dont le reste du
+	// code représente l'absence de série.
 	GetComicDetail(ctx context.Context, id uuid.UUID) (GetComicDetailRow, error)
 	// ★ La requête du chemin chaud : servir une page.
 	// Un seul aller-retour en base, puis un seul ReadRange sur le backend.
@@ -88,7 +95,7 @@ type Querier interface {
 	ListCacheEntriesForEviction(ctx context.Context, limit int32) ([]ListCacheEntriesForEvictionRow, error)
 	ListComicPages(ctx context.Context, comicID uuid.UUID) ([]ComicPage, error)
 	ListComicsByLibrary(ctx context.Context, arg ListComicsByLibraryParams) ([]Comic, error)
-	ListComicsBySeries(ctx context.Context, seriesID uuid.NullUUID) ([]Comic, error)
+	ListComicsBySeries(ctx context.Context, seriesID uuid.NullUUID) ([]ListComicsBySeriesRow, error)
 	// Requêtes de consultation du catalogue.
 	//
 	// Pagination par curseur plutôt que par OFFSET : sur une bibliothèque de
@@ -105,7 +112,7 @@ type Querier interface {
 	// Le curseur suit l'ordre choisi : (created_at, id) pour le tri par ajout,
 	// (title, id) pour le tri alphabétique. Un seul curseur composite ne
 	// conviendrait pas aux deux.
-	ListComicsPage(ctx context.Context, arg ListComicsPageParams) ([]Comic, error)
+	ListComicsPage(ctx context.Context, arg ListComicsPageParams) ([]ListComicsPageRow, error)
 	ListDevicesByUser(ctx context.Context, userID uuid.UUID) ([]Device, error)
 	ListFavoriteIDs(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error)
 	ListFavorites(ctx context.Context, arg ListFavoritesParams) ([]ListFavoritesRow, error)
@@ -123,13 +130,13 @@ type Querier interface {
 	ListLibraryAccess(ctx context.Context, libraryID uuid.UUID) ([]LibraryAccess, error)
 	// Étagère « Suite de la série » : le premier album non lu de chaque série déjà
 	// entamée. C'est la suggestion la plus utile d'une page d'accueil de lecteur.
-	ListNextInSeries(ctx context.Context, arg ListNextInSeriesParams) ([]Comic, error)
+	ListNextInSeries(ctx context.Context, arg ListNextInSeriesParams) ([]ListNextInSeriesRow, error)
 	ListRatings(ctx context.Context, userID uuid.UUID) ([]ListRatingsRow, error)
 	ListReadingProgressByComics(ctx context.Context, arg ListReadingProgressByComicsParams) ([]ReadingProgress, error)
 	// Synchronisation delta : tout ce qui a changé depuis le curseur du client.
 	ListReadingProgressSince(ctx context.Context, arg ListReadingProgressSinceParams) ([]ReadingProgress, error)
 	// Étagère d'accueil : les derniers albums ajoutés.
-	ListRecentComics(ctx context.Context, arg ListRecentComicsParams) ([]Comic, error)
+	ListRecentComics(ctx context.Context, arg ListRecentComicsParams) ([]ListRecentComicsRow, error)
 	ListScanRuns(ctx context.Context, arg ListScanRunsParams) ([]ScanRun, error)
 	ListSeriesByLibrary(ctx context.Context, libraryID uuid.UUID) ([]Series, error)
 	ListSeriesPage(ctx context.Context, arg ListSeriesPageParams) ([]Series, error)

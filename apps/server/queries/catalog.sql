@@ -16,7 +16,9 @@
 -- (title, id) pour le tri alphabétique. Un seul curseur composite ne
 -- conviendrait pas aux deux.
 -- name: ListComicsPage :many
-SELECT c.* FROM comics c
+SELECT sqlc.embed(c), COALESCE(s.name, '')::text AS series_name
+FROM comics c
+LEFT JOIN series s ON s.id = c.series_id
 LEFT JOIN reading_progress p
        ON p.comic_id = c.id AND p.user_id = @user_id
 WHERE c.library_id = ANY(@library_ids::uuid[])
@@ -63,9 +65,11 @@ ORDER BY
 LIMIT @page_size;
 
 -- name: ListComicsBySeries :many
-SELECT * FROM comics
-WHERE series_id = $1 AND deleted_at IS NULL
-ORDER BY number_sort NULLS LAST, title;
+SELECT sqlc.embed(c), COALESCE(s.name, '')::text AS series_name
+FROM comics c
+LEFT JOIN series s ON s.id = c.series_id
+WHERE c.series_id = $1 AND c.deleted_at IS NULL
+ORDER BY c.number_sort NULLS LAST, c.title;
 
 -- Recherche plein texte, avec repli sur la similarité trigramme.
 --
@@ -84,23 +88,31 @@ ORDER BY number_sort NULLS LAST, title;
 -- Tout est désaccentué de part et d'autre : personne ne saisit les accents
 -- dans un champ de recherche, et c'est rédhibitoire sur de la BD franco-belge.
 -- name: SearchComics :many
-SELECT *, (
-    ts_rank(search_vector, websearch_to_tsquery('simple', immutable_unaccent(@query)))
-    + word_similarity(immutable_unaccent(@query), immutable_unaccent(title))
+SELECT sqlc.embed(c), COALESCE(s.name, '')::text AS series_name, (
+    ts_rank(c.search_vector, websearch_to_tsquery('simple', immutable_unaccent(@query)))
+    + word_similarity(immutable_unaccent(@query), immutable_unaccent(c.title))
 )::real AS rank
-FROM comics
-WHERE library_id = ANY(@library_ids::uuid[])
-  AND deleted_at IS NULL
+FROM comics c
+LEFT JOIN series s ON s.id = c.series_id
+WHERE c.library_id = ANY(@library_ids::uuid[])
+  AND c.deleted_at IS NULL
   AND (sqlc.narg('max_age_rating')::smallint IS NULL
-       OR age_rating IS NULL
-       OR age_rating <= sqlc.narg('max_age_rating')::smallint)
-  AND (search_vector @@ websearch_to_tsquery('simple', immutable_unaccent(@query))
-       OR immutable_unaccent(@query) <% immutable_unaccent(title))
-ORDER BY rank DESC, title
+       OR c.age_rating IS NULL
+       OR c.age_rating <= sqlc.narg('max_age_rating')::smallint)
+  AND (c.search_vector @@ websearch_to_tsquery('simple', immutable_unaccent(@query))
+       OR immutable_unaccent(@query) <% immutable_unaccent(c.title))
+ORDER BY rank DESC, c.title
 LIMIT @page_size;
 
+-- Détail d'un album, avec le nom de sa série quand il en a une.
+--
+-- La série est en LEFT JOIN : beaucoup d'albums sont des one-shots. On ne peut
+-- donc pas l'embarquer entière — sqlc en ferait une structure aux champs non
+-- nullables, et le scan échouerait sur le premier album sans série. Seul le nom
+-- est retenu, ramené à la chaîne vide, qui est déjà la façon dont le reste du
+-- code représente l'absence de série.
 -- name: GetComicDetail :one
-SELECT sqlc.embed(comics), sqlc.embed(series)
+SELECT sqlc.embed(comics), COALESCE(series.name, '')::text AS series_name
 FROM comics
 LEFT JOIN series ON series.id = comics.series_id
 WHERE comics.id = $1 AND comics.deleted_at IS NULL;
@@ -122,20 +134,22 @@ LIMIT @page_size;
 
 -- Étagère d'accueil : les derniers albums ajoutés.
 -- name: ListRecentComics :many
-SELECT * FROM comics
-WHERE library_id = ANY(@library_ids::uuid[])
-  AND deleted_at IS NULL
-  AND state = 'ready'
+SELECT sqlc.embed(c), COALESCE(s.name, '')::text AS series_name
+FROM comics c
+LEFT JOIN series s ON s.id = c.series_id
+WHERE c.library_id = ANY(@library_ids::uuid[])
+  AND c.deleted_at IS NULL
+  AND c.state = 'ready'
   AND (sqlc.narg('max_age_rating')::smallint IS NULL
-       OR age_rating IS NULL
-       OR age_rating <= sqlc.narg('max_age_rating')::smallint)
-ORDER BY created_at DESC
+       OR c.age_rating IS NULL
+       OR c.age_rating <= sqlc.narg('max_age_rating')::smallint)
+ORDER BY c.created_at DESC
 LIMIT @page_size;
 
 -- Étagère « Suite de la série » : le premier album non lu de chaque série déjà
 -- entamée. C'est la suggestion la plus utile d'une page d'accueil de lecteur.
 -- name: ListNextInSeries :many
-SELECT DISTINCT ON (c.series_id) c.*
+SELECT DISTINCT ON (c.series_id) sqlc.embed(c), s.name AS series_name
 FROM comics c
 JOIN series s ON s.id = c.series_id
 WHERE c.library_id = ANY(@library_ids::uuid[])

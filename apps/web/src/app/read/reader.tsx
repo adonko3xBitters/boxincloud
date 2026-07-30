@@ -15,7 +15,8 @@ import {
 } from "@/lib/reader/pages";
 import { useProgressSaver } from "@/lib/reader/progress";
 import { useReaderSettings } from "@/lib/reader/store";
-import { ErrorState, Spinner } from "@/components/ui";
+import { useZoom } from "@/lib/reader/zoom";
+import { ErrorState, Spinner, cx } from "@/components/ui";
 import { ReaderChrome } from "./chrome";
 import { ScrollReader } from "./scroll";
 
@@ -127,9 +128,11 @@ export function ReaderView() {
   const forward = settings.direction === "rtl" ? previous : next;
   const backward = settings.direction === "rtl" ? next : previous;
 
+  // Le lecteur revient à l'espace de travail : c'est le seul écran qui existe
+  // désormais, l'ancienne page d'album ayant disparu avec la refonte.
   const close = useCallback(() => {
-    router.push(`/comic?id=${comicId}`);
-  }, [router, comicId]);
+    router.push("/");
+  }, [router]);
 
   useKeyboard({ forward, backward, next, previous, close, goTo, last: spreads.length - 1 });
 
@@ -164,6 +167,8 @@ export function ReaderView() {
       title={title}
       page={currentPage}
       pageCount={pageCount}
+      comicId={comicId}
+      pages={pages}
       onClose={close}
       onSeek={(page) => goTo(spreadIndexOfPage(spreads, page))}
     >
@@ -209,6 +214,11 @@ function SpreadReader({
   onForward: () => void;
   onBackward: () => void;
 }) {
+  const key = spread?.pages.join("-") ?? "";
+  const zoom = useZoom(key);
+
+  useZoomKeyboard(zoom);
+
   if (!spread) return null;
 
   // En lecture manga, les deux pages d'un feuillet s'inversent : la première
@@ -220,17 +230,33 @@ function SpreadReader({
     : fit === "height" ? "h-full w-auto"
     : "max-h-full max-w-full";
 
+  // Agrandir une image déjà servie à sa taille d'affichage ne révèle que des
+  // pixels. On redemande donc la planche à une définition supérieure — arrondie
+  // aux paliers du serveur, sinon chaque niveau de zoom créerait sa variante de
+  // cache.
+  const sharpWidth = zoom.settledScale > 1.2 ? pageWidthFor(width * zoom.settledScale) : width;
+
   return (
-    <div className="relative flex h-dvh w-full items-center justify-center overflow-hidden">
-      <div className="flex h-full items-center justify-center gap-0.5">
+    <div
+      ref={zoom.viewportRef}
+      className={cx(
+        "relative flex h-dvh w-full items-center justify-center overflow-hidden",
+        zoom.zoomed && "cursor-grab active:cursor-grabbing",
+      )}
+      style={{ touchAction: "none" }}
+    >
+      <div
+        ref={zoom.contentRef}
+        className="flex h-full items-center justify-center gap-0.5 will-change-transform"
+      >
         {ordered.map((page) => (
-          <img
+          <PageImage
             key={page}
-            src={imageURL(`/comics/${comicId}/pages/${page}`, { width })}
-            alt={`Page ${page + 1}`}
-            decoding="async"
-            className={`${fitClass} select-none object-contain`}
-            draggable={false}
+            comicId={comicId}
+            page={page}
+            width={width}
+            sharpWidth={sharpWidth}
+            fitClass={fitClass}
           />
         ))}
       </div>
@@ -241,19 +267,129 @@ function SpreadReader({
         c'est le geste d'un livre. Les zones sont larges (30 %) pour rester
         atteignables au pouce sur tablette, et laissent le tiers central libre
         pour révéler l'interface.
+
+        Elles s'effacent dès que la planche est agrandie : le même glissement
+        sert alors à se déplacer dans l'image, et tourner la page en tentant de
+        cadrer une case serait la pire des surprises.
       */}
-      <button
-        onClick={onBackward}
-        aria-label="Page précédente"
-        className="absolute inset-y-0 left-0 w-[30%] cursor-w-resize focus-visible:bg-white/5"
-      />
-      <button
-        onClick={onForward}
-        aria-label="Page suivante"
-        className="absolute inset-y-0 right-0 w-[30%] cursor-e-resize focus-visible:bg-white/5"
-      />
+      {!zoom.zoomed && (
+        <>
+          <button
+            onClick={onBackward}
+            aria-label="Page précédente"
+            className="absolute inset-y-0 left-0 w-[30%] cursor-w-resize focus-visible:bg-white/5"
+          />
+          <button
+            onClick={onForward}
+            aria-label="Page suivante"
+            className="absolute inset-y-0 right-0 w-[30%] cursor-e-resize focus-visible:bg-white/5"
+          />
+        </>
+      )}
+
+      {zoom.zoomed && <ZoomBadge scale={zoom.settledScale} onReset={zoom.reset} />}
     </div>
   );
+}
+
+/**
+ * Une planche, éventuellement doublée d'une version nette.
+ *
+ * La version haute définition est superposée et ne devient visible qu'une fois
+ * chargée. Remplacer la source de l'image d'origine viderait le cadre le temps
+ * du téléchargement — un clignotement noir en plein zoom, exactement au moment
+ * où l'on regarde de près.
+ */
+function PageImage({
+  comicId,
+  page,
+  width,
+  sharpWidth,
+  fitClass,
+}: {
+  comicId: string;
+  page: number;
+  width: number;
+  sharpWidth: number;
+  fitClass: string;
+}) {
+  const [sharpReady, setSharpReady] = useState(false);
+
+  useEffect(() => setSharpReady(false), [sharpWidth]);
+
+  return (
+    <span className="relative inline-flex h-full items-center">
+      <img
+        src={imageURL(`/comics/${comicId}/pages/${page}`, { width })}
+        alt={`Page ${page + 1}`}
+        decoding="async"
+        className={`${fitClass} select-none object-contain`}
+        draggable={false}
+      />
+
+      {sharpWidth > width && (
+        <img
+          src={imageURL(`/comics/${comicId}/pages/${page}`, { width: sharpWidth })}
+          alt=""
+          aria-hidden="true"
+          decoding="async"
+          onLoad={() => setSharpReady(true)}
+          draggable={false}
+          className={cx(
+            "absolute inset-0 size-full select-none object-contain",
+            "transition-opacity duration-(--motion-duration-normal)",
+            sharpReady ? "opacity-100" : "opacity-0",
+          )}
+        />
+      )}
+    </span>
+  );
+}
+
+/** Niveau de zoom courant, avec un retour à la taille normale d'un clic. */
+function ZoomBadge({ scale, onReset }: { scale: number; onReset: () => void }) {
+  return (
+    <button
+      onClick={onReset}
+      className={cx(
+        "pressable absolute bottom-20 left-1/2 z-20 -translate-x-1/2 rounded-full",
+        "border border-white/15 bg-black/70 px-3 py-1.5 font-mono text-meta tabular-nums",
+        "text-white/80 backdrop-blur hover:bg-black/85 hover:text-white",
+      )}
+    >
+      {scale.toFixed(1)}× · réinitialiser
+    </button>
+  );
+}
+
+/**
+ * Raccourcis de zoom.
+ *
+ * Les mêmes que partout ailleurs : `+`, `-`, et `0` pour revenir à la taille
+ * normale. Les réinventer n'apporterait rien.
+ */
+function useZoomKeyboard(zoom: ReturnType<typeof useZoom>) {
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      const target = event.target as HTMLElement | null;
+      if (target?.tagName === "INPUT" || target?.isContentEditable) return;
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+
+      if (event.key === "+" || event.key === "=") {
+        event.preventDefault();
+        zoom.zoomBy(1.25);
+      } else if (event.key === "-") {
+        event.preventDefault();
+        zoom.zoomBy(1 / 1.25);
+      } else if (event.key === "0") {
+        event.preventDefault();
+        zoom.reset();
+      }
+    }
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [zoom]);
 }
 
 // ─── Clavier ─────────────────────────────────────────────────────────────────
