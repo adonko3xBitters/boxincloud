@@ -35,6 +35,11 @@ build/
 *.swp
 .DS_Store
 
-# Local data
+# Local data — cache d'images et fichiers de travail, tous régénérables.
+# Deux emplacements parce que le répertoire de cache est relatif au dossier de
+# lancement : à la racine en usage normal, sous apps/server quand on lance le
+# serveur depuis son propre module. Les chemins sont énumérés plutôt qu'une
+# règle « data/ » globale, qui avalerait un jour la couche data de l'app Flutter.
 /data/
+/apps/server/data/
 /tmp/
