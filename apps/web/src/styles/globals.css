@@ -1,0 +1,137 @@
+@import "tailwindcss";
+@import "./tokens.css";
+
+/*
+ * Les tokens deviennent des utilitaires Tailwind : `bg-surface`, `text-muted`,
+ * `rounded-cover` s'écrivent comme n'importe quel utilitaire, mais pointent sur
+ * les variables générées depuis packages/design-tokens/tokens.json.
+ *
+ * Un composant n'écrit jamais `bg-slate-900` : il demande un rôle. Changer un
+ * thème ne touche alors que le fichier de tokens.
+ */
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-raised: var(--surface-raised);
+  --color-surface-sunken: var(--surface-sunken);
+  --color-surface-hover: var(--surface-hover);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  --color-fg: var(--text);
+  --color-muted: var(--text-muted);
+  --color-subtle: var(--text-subtle);
+  --color-inverted: var(--text-inverted);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-subtle: var(--accent-subtle);
+  --color-accent-text: var(--accent-text);
+
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-danger: var(--danger);
+
+  --radius-cover: var(--radius-md);
+  --shadow-cover: var(--shadow-cover);
+  --shadow-cover-hover: var(--shadow-cover-hover);
+
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    /* Le thème sombre est le défaut assumé : on lit des BD le soir, et une
+       planche ressort mieux sur fond sombre. La préférence système et le
+       sélecteur de thème surchargent ceci. */
+    color-scheme: light dark;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background: var(--background);
+    color: var(--text);
+    font-family: var(--font-sans);
+    line-height: var(--font-leading-normal);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1, h2, h3 {
+    letter-spacing: var(--font-tracking-tight);
+    line-height: var(--font-leading-tight);
+  }
+
+  /* Anneau de focus visible au clavier uniquement. Un anneau permanent
+     alourdirait une grille dense, mais le retirer rendrait l'application
+     inutilisable au clavier. */
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+    border-radius: var(--radius-sm);
+  }
+  :focus:not(:focus-visible) {
+    outline: none;
+  }
+
+  /* Barres de défilement discrètes : dans une grille de couvertures, une barre
+     système large capte l'œil sans raison. */
+  @supports (scrollbar-width: thin) {
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--border-strong) transparent;
+    }
+  }
+
+  ::selection {
+    background: var(--accent);
+    color: var(--text-inverted);
+  }
+}
+
+@layer components {
+  /*
+   * Squelette de chargement.
+   *
+   * Une couverture met un instant à arriver : sans placeholder, la grille
+   * sautille au fur et à mesure des chargements. Le squelette réserve la place
+   * exacte, ce qui rend le remplissage invisible.
+   */
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--surface-sunken) 0%,
+      var(--surface-hover) 50%,
+      var(--surface-sunken) 100%
+    );
+    background-size: 200% 100%;
+    animation: skeleton-sweep 1.4s ease-in-out infinite;
+  }
+
+  @keyframes skeleton-sweep {
+    0%   { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton {
+      animation: none;
+      background: var(--surface-sunken);
+    }
+  }
+
+  /* Masque les barres de défilement d'une étagère horizontale, sans empêcher
+     le défilement lui-même. */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+}

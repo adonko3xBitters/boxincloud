@@ -89,11 +89,15 @@ dev: dev-deps ## Démarre les dépendances puis l'API
 # ─── Génération ──────────────────────────────────────────────────────────────
 
 .PHONY: generate
-generate: generate-api generate-sql ## Régénère tout le code généré
+generate: generate-api generate-sql generate-tokens ## Régénère tout le code généré
 
 .PHONY: generate-api
 generate-api: ## OpenAPI → serveur Go + clients TypeScript et Dart
 	./tools/generate-api.sh
+
+.PHONY: generate-tokens
+generate-tokens: ## tokens.json → variables CSS (web) + constantes Dart (mobile)
+	node packages/design-tokens/build.mjs
 
 .PHONY: generate-sql
 generate-sql: ## queries/*.sql → Go typé (sqlc)
@@ -170,7 +174,7 @@ build: ## Compile le binaire du serveur
 
 .PHONY: build-web
 build-web: ## Compile l'application web dans le répertoire embarqué du serveur
-	cd $(WEB_DIR) && npm ci && npm run build
+	cd $(WEB_DIR) && npm ci && npm run generate:api && npm run build
 	rm -rf $(SERVER_DIR)/web/dist
 	cp -r $(WEB_DIR)/out $(SERVER_DIR)/web/dist
 

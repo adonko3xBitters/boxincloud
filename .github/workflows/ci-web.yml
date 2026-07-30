@@ -1,0 +1,59 @@
+name: CI · web
+
+on:
+  push:
+    branches: [main]
+    paths: ["apps/web/**", "packages/design-tokens/**", "api/**", ".github/workflows/ci-web.yml"]
+  pull_request:
+    paths: ["apps/web/**", "packages/design-tokens/**", "api/**", ".github/workflows/ci-web.yml"]
+
+concurrency:
+  group: ci-web-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Typecheck et build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Installer
+        working-directory: apps/web
+        run: npm ci
+
+      # Le client d'API et les tokens sont générés, jamais écrits à la main :
+      # on les régénère ici pour détecter une divergence avec leurs sources.
+      - name: Régénérer les sources dérivées
+        working-directory: apps/web
+        run: |
+          npm run generate:api
+          npm run generate:tokens
+
+      - name: Vérifier que le généré est à jour
+        run: |
+          if ! git diff --exit-code; then
+            echo "::error::Sources dérivées obsolètes. Lancez 'make generate' et committez."
+            exit 1
+          fi
+
+      - name: Typecheck
+        working-directory: apps/web
+        run: npm run typecheck
+
+      - name: Build (export statique)
+        working-directory: apps/web
+        run: npm run build
+
+      - name: Vérifier la sortie
+        working-directory: apps/web
+        run: |
+          test -f out/index.html || { echo "::error::index.html manquant"; exit 1; }
+          test -d out/_next || { echo "::error::assets manquants"; exit 1; }
+          echo "→ $(du -sh out | cut -f1) exportés"

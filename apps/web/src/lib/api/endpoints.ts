@@ -1,0 +1,99 @@
+/**
+ * Fonctions d'appel, une par opération du contrat.
+ *
+ * Couche mince au-dessus de `request` : elle nomme les endpoints et fixe leurs
+ * types, sans logique. Les hooks de `lib/queries` s'en servent.
+ */
+
+import { request } from "./client";
+import type {
+  Comic,
+  ComicPage,
+  Device,
+  Library,
+  Manifest,
+  Progress,
+  Series,
+  SeriesPage,
+  Tokens,
+  User,
+} from "./client";
+import { getDeviceId, guessDeviceName } from "./tokens";
+
+// ─── Authentification ────────────────────────────────────────────────────────
+
+export const getAuthStatus = () =>
+  request<{ needsSetup: boolean }>("/auth/status", { anonymous: true });
+
+export const setup = (input: { username: string; email?: string; password: string }) =>
+  request<User>("/auth/setup", { method: "POST", body: input, anonymous: true });
+
+export const login = (input: { username: string; password: string }) =>
+  request<Tokens>("/auth/login", {
+    method: "POST",
+    anonymous: true,
+    body: {
+      ...input,
+      // L'appareil est repris s'il existe : le serveur reconnaît alors le
+      // navigateur au lieu d'accumuler une entrée par connexion.
+      deviceId: getDeviceId(),
+      deviceName: guessDeviceName(),
+      platform: "web",
+    },
+  });
+
+export const logout = (refreshToken: string) =>
+  request<void>("/auth/logout", { method: "POST", body: { refreshToken }, anonymous: true });
+
+export const getCurrentUser = () => request<User>("/me");
+
+export const listDevices = () => request<{ devices: Device[] }>("/me/devices");
+
+export const logoutAllDevices = () =>
+  request<{ revokedSessions: number }>("/me/logout-all", { method: "POST" });
+
+// ─── Catalogue ───────────────────────────────────────────────────────────────
+
+export const listLibraries = () => request<{ libraries: Library[] }>("/libraries");
+
+export const getHome = (limit = 20) =>
+  request<{ recent: Comic[]; nextInSeries: Comic[] }>("/home", { query: { limit } });
+
+export const listComics = (params: {
+  libraryId?: string;
+  seriesId?: string;
+  cursor?: string;
+  limit?: number;
+}) => request<ComicPage>("/comics", { query: params });
+
+export const getComic = (comicId: string) => request<Comic>(`/comics/${comicId}`);
+
+export const listSeries = (params: { libraryId?: string; cursor?: string; limit?: number }) =>
+  request<SeriesPage>("/series", { query: params });
+
+export const getSeries = (seriesId: string) =>
+  request<{ series: Series; comics: Comic[] }>(`/series/${seriesId}`);
+
+export const search = (params: { q: string; libraryId?: string; limit?: number }, signal?: AbortSignal) =>
+  request<{ comics: Comic[]; series: Series[] }>("/search", { query: params, signal });
+
+// ─── Lecture ─────────────────────────────────────────────────────────────────
+
+export const getManifest = (comicId: string) =>
+  request<Manifest>(`/comics/${comicId}/manifest`);
+
+// ─── Progression ─────────────────────────────────────────────────────────────
+
+export const getProgress = (comicId: string) =>
+  request<Progress>(`/comics/${comicId}/progress`);
+
+export const updateProgress = (
+  comicId: string,
+  input: { page: number; pageCount: number; status?: Progress["status"] },
+) => request<Progress>(`/comics/${comicId}/progress`, { method: "PUT", body: input });
+
+export const deleteProgress = (comicId: string) =>
+  request<void>(`/comics/${comicId}/progress`, { method: "DELETE" });
+
+export const continueReading = (limit = 20) =>
+  request<{ items: Progress[] }>("/continue-reading", { query: { limit } });

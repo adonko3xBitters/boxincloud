@@ -164,8 +164,13 @@ func NewRouter(d Deps) http.Handler {
 
 // serveWeb sert l'application web embarquée.
 //
-// Repli sur index.html pour toute route inconnue : le web est une SPA, c'est
-// son routeur client qui décide quoi afficher.
+// Trois résolutions successives, dans cet ordre :
+//
+//  1. le fichier tel quel — les assets `_next/…` ;
+//  2. le fichier suffixé de `.html` — l'export statique de Next produit
+//     `library.html` pour la route `/library`, et sans cette étape un
+//     rafraîchissement sur une route interne servirait le mauvais document ;
+//  3. index.html — le routeur client décide alors quoi afficher.
 func serveWeb(d Deps, w http.ResponseWriter, r *http.Request) {
 	if d.WebFS == nil {
 		problem.Write(w, r, problem.NotFound(
@@ -174,29 +179,77 @@ func serveWeb(d Deps, w http.ResponseWriter, r *http.Request) {
 	}
 
 	path := strings.TrimPrefix(r.URL.Path, "/")
-	if path == "" {
-		path = "index.html"
+	if path == "" || path == "index.html" {
+		serveHTML(d.WebFS, "index.html", w, r)
+		return
 	}
 
-	if f, err := d.WebFS.Open(path); err == nil {
-		_ = f.Close()
+	if exists(d.WebFS, path) {
 		// Les assets buildés portent un hash dans leur nom : immuables.
-		if strings.HasPrefix(path, "_next/") || strings.HasPrefix(path, "assets/") {
+		if strings.HasPrefix(path, "_next/") {
 			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 		}
 		http.FileServer(http.FS(d.WebFS)).ServeHTTP(w, r)
 		return
 	}
 
-	// Route inconnue → index.html, sans cache pour que les mises à jour du
-	// shell applicatif soient prises en compte immédiatement.
-	index, err := fs.ReadFile(d.WebFS, "index.html")
-	if err != nil {
-		problem.Write(w, r, problem.NotFound("resource not found"))
+	if candidate := path + ".html"; exists(d.WebFS, candidate) {
+		serveHTML(d.WebFS, candidate, w, r)
 		return
 	}
+
+	serveHTML(d.WebFS, "index.html", w, r)
+}
+
+// exists indique si un chemin désigne un fichier du bundle embarqué.
+//
+// fs.ValidPath est vérifié explicitement : embed.FS rejetterait déjà un chemin
+// contenant « .. » ou une barre de tête, mais s'en remettre à ce comportement
+// laisserait la garantie implicite. Ici le contrat est écrit — seul un chemin
+// relatif propre peut atteindre le système de fichiers.
+func exists(fsys fs.FS, name string) bool {
+	if !fs.ValidPath(name) {
+		return false
+	}
+	f, err := fsys.Open(name)
+	if err != nil {
+		return false
+	}
+	_ = f.Close()
+	return true
+}
+
+// serveHTML sert un document, sans cache.
+//
+// Le HTML référence des assets dont le nom change à chaque build : le mettre
+// en cache ferait charger d'anciens scripts après une mise à jour du serveur.
+func serveHTML(fsys fs.FS, name string, w http.ResponseWriter, r *http.Request) {
+	// Le nom vient du chemin de l'URL : on ne lit que ce qui est effectivement
+	// embarqué dans le binaire. Un chemin absent, ou sortant du bundle, ne peut
+	// donc pas atteindre le disque — le contenu servi est celui que nous avons
+	// nous-mêmes compilé, jamais une donnée fournie par le client.
+	if !exists(fsys, name) {
+		problem.Write(w, r, problem.NotFound(
+			"the web application is not embedded in this build (run 'make build-web')"))
+		return
+	}
+
+	body, err := fs.ReadFile(fsys, name)
+	if err != nil {
+		problem.Write(w, r, problem.NotFound(
+			"the web application is not embedded in this build (run 'make build-web')"))
+		return
+	}
+
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
 	w.WriteHeader(http.StatusOK)
-	_, _ = w.Write(index)
+
+	// #nosec G705 -- l'analyse de flux voit un chemin issu de l'URL et conclut
+	// à une injection. Elle ne peut pas suivre la garantie : `body` provient
+	// d'un embed.FS compilé dans le binaire, et `exists` a déjà écarté tout
+	// chemin invalide. Les octets servis sont ceux que nous avons produits au
+	// build, jamais une donnée fournie par le client.
+	_, _ = w.Write(body)
 }
