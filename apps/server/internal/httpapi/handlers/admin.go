@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -592,4 +593,227 @@ func (h *Admin) BulkManage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{"affected": affected})
+}
+
+// ─── Modification et suppression ─────────────────────────────────────────────
+
+type updateBackendRequest struct {
+	Name     *string           `json:"name"`
+	Config   map[string]string `json:"config"`
+	Secrets  map[string]string `json:"secrets"`
+	ReadOnly *bool             `json:"readOnly"`
+}
+
+/*
+UpdateBackend modifie un stockage.
+
+Les secrets absents sont conservés : un administrateur qui corrige un endpoint ne
+doit pas avoir à retaper ses clés, et ne le pourrait pas — elles ne ressortent
+jamais de la base.
+
+La configuration résultante est jointe avant d'être enregistrée : valider celle
+qui a été envoyée seule reviendrait à valider une configuration qui n'existera
+jamais.
+*/
+func (h *Admin) UpdateBackend(w http.ResponseWriter, r *http.Request) {
+	if !requireAdmin(w, r) {
+		return
+	}
+
+	id, err := uuid.Parse(chi.URLParam(r, "backendID"))
+	if err != nil {
+		problem.Write(w, r, problem.Validation(map[string]string{"backendId": "must be a UUID"}))
+		return
+	}
+
+	var req updateBackendRequest
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+
+	backend, err := h.libraries.UpdateBackend(r.Context(), id, library.UpdateBackendParams{
+		Name:     req.Name,
+		Config:   req.Config,
+		Secrets:  req.Secrets,
+		ReadOnly: req.ReadOnly,
+	})
+	if err != nil {
+		writeLibraryError(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, toBackendDTO(backend))
+}
+
+// DeleteBackend supprime un stockage, refusé tant qu'il porte des bibliothèques.
+func (h *Admin) DeleteBackend(w http.ResponseWriter, r *http.Request) {
+	if !requireAdmin(w, r) {
+		return
+	}
+
+	id, err := uuid.Parse(chi.URLParam(r, "backendID"))
+	if err != nil {
+		problem.Write(w, r, problem.Validation(map[string]string{"backendId": "must be a UUID"}))
+		return
+	}
+
+	if err := h.libraries.DeleteBackend(r.Context(), id); err != nil {
+		if errors.Is(err, library.ErrBackendInUse) {
+			problem.Write(w, r, problem.Problem{
+				Status: http.StatusConflict,
+				Type:   "https://boxincloud.dev/problems/backend-in-use",
+				Title:  "Storage In Use",
+				Detail: "libraries still rely on this storage; delete them first",
+			})
+			return
+		}
+		writeLibraryError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// SetDefaultBackend désigne le stockage proposé par défaut.
+func (h *Admin) SetDefaultBackend(w http.ResponseWriter, r *http.Request) {
+	if !requireAdmin(w, r) {
+		return
+	}
+
+	id, err := uuid.Parse(chi.URLParam(r, "backendID"))
+	if err != nil {
+		problem.Write(w, r, problem.Validation(map[string]string{"backendId": "must be a UUID"}))
+		return
+	}
+
+	if err := h.libraries.SetDefaultBackend(r.Context(), id); err != nil {
+		writeLibraryError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+type updateLibraryRequest struct {
+	Name       *string `json:"name"`
+	RootPrefix *string `json:"rootPrefix"`
+}
+
+/*
+UpdateLibrary modifie une bibliothèque.
+
+Changer le préfixe racine ne DÉPLACE rien : les albums déjà indexés pointent des
+clés construites avec l'ancien. Le changement décrit où chercher désormais, et un
+nouveau parcours reconstruit le catalogue.
+*/
+func (h *Admin) UpdateLibrary(w http.ResponseWriter, r *http.Request) {
+	if !requireAdmin(w, r) {
+		return
+	}
+
+	id, err := uuid.Parse(chi.URLParam(r, "libraryID"))
+	if err != nil {
+		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "must be a UUID"}))
+		return
+	}
+
+	var req updateLibraryRequest
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+
+	lib, err := h.libraries.UpdateLibrary(r.Context(), id, req.Name, req.RootPrefix)
+	if err != nil {
+		writeLibraryError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, libraryAdminDTO{
+		ID:         lib.ID.String(),
+		BackendID:  lib.BackendID.String(),
+		Name:       lib.Name,
+		Kind:       lib.Kind,
+		RootPrefix: lib.RootPrefix,
+		ComicCount: lib.ComicCount,
+	})
+}
+
+// DeleteLibrary supprime une bibliothèque et tout ce qui s'y rattache.
+//
+// Les fichiers du stockage restent intacts. L'historique de lecture, lui, ne
+// revient pas : l'interface doit le dire avant, pas après.
+func (h *Admin) DeleteLibrary(w http.ResponseWriter, r *http.Request) {
+	if !requireAdmin(w, r) {
+		return
+	}
+
+	id, err := uuid.Parse(chi.URLParam(r, "libraryID"))
+	if err != nil {
+		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "must be a UUID"}))
+		return
+	}
+
+	if err := h.libraries.DeleteLibrary(r.Context(), id); err != nil {
+		writeLibraryError(w, r, err)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// ─── Diagnostic ──────────────────────────────────────────────────────────────
+
+type scanRunDTO struct {
+	ID          string  `json:"id"`
+	Status      string  `json:"status"`
+	StartedAt   string  `json:"startedAt"`
+	FinishedAt  *string `json:"finishedAt,omitempty"`
+	ObjectsSeen int     `json:"objectsSeen"`
+	Added       int     `json:"added"`
+	Updated     int     `json:"updated"`
+	Removed     int     `json:"removed"`
+	Errors      int     `json:"errors"`
+	Detail      string  `json:"detail,omitempty"`
+}
+
+/*
+ScanRuns retourne l'historique des parcours.
+
+C'est le seul endroit où l'on voit POURQUOI un parcours a échoué. Sans lui, un
+scan en erreur ne se manifeste que par une bibliothèque qui ne se remplit pas,
+sans le moindre indice.
+*/
+func (h *Admin) ScanRuns(w http.ResponseWriter, r *http.Request) {
+	if !requireAdmin(w, r) {
+		return
+	}
+
+	id, err := uuid.Parse(chi.URLParam(r, "libraryID"))
+	if err != nil {
+		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "must be a UUID"}))
+		return
+	}
+
+	runs, err := h.libraries.ScanRuns(r.Context(), id, 10)
+	if err != nil {
+		writeLibraryError(w, r, err)
+		return
+	}
+
+	out := make([]scanRunDTO, 0, len(runs))
+	for _, run := range runs {
+		dto := scanRunDTO{
+			ID:          run.ID.String(),
+			Status:      run.Status,
+			StartedAt:   run.StartedAt.UTC().Format(time.RFC3339),
+			ObjectsSeen: run.ObjectsSeen,
+			Added:       run.Added,
+			Updated:     run.Updated,
+			Removed:     run.Removed,
+			Errors:      run.Errors,
+			Detail:      run.Detail,
+		}
+		if run.FinishedAt != nil {
+			finished := run.FinishedAt.UTC().Format(time.RFC3339)
+			dto.FinishedAt = &finished
+		}
+		out = append(out, dto)
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"runs": out})
 }

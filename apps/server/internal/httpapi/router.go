@@ -222,9 +222,15 @@ func NewRouter(d Deps) http.Handler {
 			r.Get("/storage-backends", adminHandler.ListBackends)
 			r.Post("/storage-backends", adminHandler.CreateBackend)
 			r.Post("/storage-backends/{backendID}/test", adminHandler.TestBackend)
+			r.Patch("/storage-backends/{backendID}", adminHandler.UpdateBackend)
+			r.Delete("/storage-backends/{backendID}", adminHandler.DeleteBackend)
+			r.Put("/storage-backends/{backendID}/default", adminHandler.SetDefaultBackend)
 
 			r.Post("/libraries", adminHandler.CreateLibrary)
 			r.Post("/libraries/{libraryID}/scan", adminHandler.Scan)
+			r.Get("/libraries/{libraryID}/scans", adminHandler.ScanRuns)
+			r.Patch("/libraries/{libraryID}", adminHandler.UpdateLibrary)
+			r.Delete("/libraries/{libraryID}", adminHandler.DeleteLibrary)
 
 			r.Delete("/comics/{comicID}", adminHandler.DeleteComic)
 			r.Delete("/libraries/{libraryID}/folders", foldersHandler.Delete)

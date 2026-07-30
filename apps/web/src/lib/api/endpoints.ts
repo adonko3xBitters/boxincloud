@@ -506,3 +506,46 @@ export type SharedContent = {
 /** Consultation publique : aucun jeton d'authentification n'est envoyé. */
 export const getSharedContent = (token: string) =>
   request<SharedContent>(`/share/${token}`, { anonymous: true });
+
+// ─── Administration du stockage ──────────────────────────────────────────────
+
+export const updateBackend = (
+  backendId: string,
+  input: {
+    name?: string;
+    config?: Record<string, string>;
+    /** Omis, les identifiants existants sont conservés. */
+    secrets?: Record<string, string>;
+    readOnly?: boolean;
+  },
+) => request<StorageBackend>(`/storage-backends/${backendId}`, { method: "PATCH", body: input });
+
+export const deleteBackend = (backendId: string) =>
+  request<void>(`/storage-backends/${backendId}`, { method: "DELETE" });
+
+export const setDefaultBackend = (backendId: string) =>
+  request<void>(`/storage-backends/${backendId}/default`, { method: "PUT" });
+
+export const updateLibrary = (
+  libraryId: string,
+  input: { name?: string; rootPrefix?: string },
+) => request<LibraryDetail>(`/libraries/${libraryId}`, { method: "PATCH", body: input });
+
+export const deleteLibrary = (libraryId: string) =>
+  request<void>(`/libraries/${libraryId}`, { method: "DELETE" });
+
+export type ScanRun = {
+  id: string;
+  status: string;
+  startedAt: string;
+  finishedAt?: string;
+  objectsSeen: number;
+  added: number;
+  updated: number;
+  removed: number;
+  errors: number;
+  detail?: string;
+};
+
+export const listScanRuns = (libraryId: string) =>
+  request<{ runs: ScanRun[] }>(`/libraries/${libraryId}/scans`);

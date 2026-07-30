@@ -73,6 +73,7 @@ type Repository interface {
 // Service construit et met en cache les providers de stockage.
 type Service struct {
 	repo   Repository
+	admin  AdminRepository
 	sealer *crypto.Sealer
 	log    *slog.Logger
 

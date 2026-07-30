@@ -209,3 +209,49 @@ func (q *Queries) SetStorageBackendStatus(ctx context.Context, arg SetStorageBac
 	_, err := q.db.Exec(ctx, setStorageBackendStatus, arg.ID, arg.Status, arg.StatusDetail)
 	return err
 }
+
+const updateStorageBackend = `-- name: UpdateStorageBackend :one
+UPDATE storage_backends
+SET name      = coalesce($2, name),
+    config    = coalesce($3, config),
+    -- Les secrets ne sont remplacés que s'ils sont fournis : réenregistrer un
+    -- backend sans les retaper ne doit pas les effacer.
+    secrets_enc = coalesce($4, secrets_enc),
+    read_only = coalesce($5, read_only)
+WHERE id = $1
+RETURNING id, name, kind, config, secrets_enc, is_default, read_only, status, status_detail, checked_at, created_at, updated_at
+`
+
+type UpdateStorageBackendParams struct {
+	ID         uuid.UUID
+	Name       *string
+	Config     []byte
+	SecretsEnc []byte
+	ReadOnly   *bool
+}
+
+func (q *Queries) UpdateStorageBackend(ctx context.Context, arg UpdateStorageBackendParams) (StorageBackend, error) {
+	row := q.db.QueryRow(ctx, updateStorageBackend,
+		arg.ID,
+		arg.Name,
+		arg.Config,
+		arg.SecretsEnc,
+		arg.ReadOnly,
+	)
+	var i StorageBackend
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Kind,
+		&i.Config,
+		&i.SecretsEnc,
+		&i.IsDefault,
+		&i.ReadOnly,
+		&i.Status,
+		&i.StatusDetail,
+		&i.CheckedAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}

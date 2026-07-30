@@ -30,3 +30,14 @@ UPDATE storage_backends SET is_default = true WHERE id = $1;
 
 -- name: DeleteStorageBackend :exec
 DELETE FROM storage_backends WHERE id = $1;
+
+-- name: UpdateStorageBackend :one
+UPDATE storage_backends
+SET name      = coalesce(sqlc.narg('name'), name),
+    config    = coalesce(sqlc.narg('config'), config),
+    -- Les secrets ne sont remplacés que s'ils sont fournis : réenregistrer un
+    -- backend sans les retaper ne doit pas les effacer.
+    secrets_enc = coalesce(sqlc.narg('secrets_enc'), secrets_enc),
+    read_only = coalesce(sqlc.narg('read_only'), read_only)
+WHERE id = $1
+RETURNING *;

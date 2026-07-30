@@ -184,3 +184,115 @@ func libraryFromRow(row sqlc.Library) Library {
 		ComicCount: row.ComicCount,
 	}
 }
+
+// ─── Administration ──────────────────────────────────────────────────────────
+
+var _ AdminRepository = (*PostgresRepository)(nil)
+
+func (r *PostgresRepository) UpdateBackend(
+	ctx context.Context, id uuid.UUID, p UpdateBackendParams,
+) (Backend, error) {
+	var config []byte
+	if p.Config != nil {
+		encoded, err := json.Marshal(p.Config)
+		if err != nil {
+			return Backend{}, err
+		}
+		config = encoded
+	}
+
+	row, err := r.q.UpdateStorageBackend(ctx, sqlc.UpdateStorageBackendParams{
+		ID:         id,
+		Name:       p.Name,
+		Config:     config,
+		SecretsEnc: p.SecretsEnc,
+		ReadOnly:   p.ReadOnly,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Backend{}, ErrBackendNotFound
+	}
+	if err != nil {
+		return Backend{}, err
+	}
+
+	backend, err := backendFromRow(row)
+	if err != nil {
+		return Backend{}, err
+	}
+	return backend, nil
+}
+
+func (r *PostgresRepository) DeleteBackend(ctx context.Context, id uuid.UUID) error {
+	return r.q.DeleteStorageBackend(ctx, id)
+}
+
+func (r *PostgresRepository) CountLibrariesUsing(ctx context.Context, backendID uuid.UUID) (int64, error) {
+	return r.q.CountLibrariesUsingBackend(ctx, backendID)
+}
+
+func (r *PostgresRepository) SetDefaultBackend(ctx context.Context, id uuid.UUID) error {
+	// L'ordre compte : l'index unique partiel refuserait deux défauts
+	// simultanés, il faut donc retirer avant de poser.
+	if err := r.q.ClearDefaultStorageBackend(ctx, id); err != nil {
+		return err
+	}
+	return r.q.SetDefaultStorageBackend(ctx, id)
+}
+
+func (r *PostgresRepository) UpdateLibrary(
+	ctx context.Context, id uuid.UUID, name, rootPrefix *string,
+) (Library, error) {
+	row, err := r.q.UpdateLibrary(ctx, sqlc.UpdateLibraryParams{
+		ID:         id,
+		Name:       name,
+		RootPrefix: rootPrefix,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Library{}, ErrLibraryNotFound
+	}
+	if err != nil {
+		return Library{}, err
+	}
+	return libraryFromRow(row), nil
+}
+
+func (r *PostgresRepository) DeleteLibrary(ctx context.Context, id uuid.UUID) error {
+	return r.q.DeleteLibrary(ctx, id)
+}
+
+func (r *PostgresRepository) ScanRuns(
+	ctx context.Context, libraryID uuid.UUID, limit int32,
+) ([]ScanRun, error) {
+	rows, err := r.q.ListScanRuns(ctx, sqlc.ListScanRunsParams{
+		LibraryID: libraryID,
+		Limit:     limit,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]ScanRun, 0, len(rows))
+	for _, row := range rows {
+		run := ScanRun{
+			ID:          row.ID,
+			Status:      row.Status,
+			ObjectsSeen: int(row.ObjectsSeen),
+			Added:       int(row.Added),
+			Updated:     int(row.Updated),
+			Removed:     int(row.Removed),
+			Errors:      int(row.Errors),
+		}
+		if row.StartedAt.Valid {
+			run.StartedAt = row.StartedAt.Time
+		}
+		if row.FinishedAt.Valid {
+			t := row.FinishedAt.Time
+			run.FinishedAt = &t
+		}
+		if len(row.Detail) > 0 {
+			run.Detail = string(row.Detail)
+		}
+		out = append(out, run)
+	}
+	return out, nil
+}

@@ -65,7 +65,9 @@ func BuildCore(ctx context.Context, cfg *config.Config, pool *db.Pool, log *slog
 		log,
 	)
 
-	libraries := library.NewService(library.NewPostgresRepository(queries), sealer, log)
+	libraryRepo := library.NewPostgresRepository(queries)
+	libraries := library.NewService(libraryRepo, sealer, log)
+	libraries.SetAdminRepository(libraryRepo)
 
 	// Le cache dérivé vit sur un provider local. Le placer sur un bucket dédié
 	// — pour le partager entre plusieurs instances — ne demandera que de

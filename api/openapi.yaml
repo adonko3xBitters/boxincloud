@@ -831,6 +831,186 @@ paths:
         "422":
           $ref: "#/components/responses/ValidationFailed"
 
+  /storage-backends/{backendId}:
+    patch:
+      operationId: updateStorageBackend
+      summary: Modifier un stockage
+      description: |
+        Les secrets absents sont **conservés** : corriger un endpoint ne doit pas
+        obliger à retaper ses clés, et ne le pourrait pas — elles ne ressortent
+        jamais de la base.
+
+        La configuration résultante est jointe avant d'être enregistrée. Valider
+        seulement ce qui a été envoyé reviendrait à valider une configuration qui
+        n'existera jamais.
+      tags: [admin]
+      parameters:
+        - $ref: "#/components/parameters/BackendIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                config:
+                  type: object
+                  additionalProperties: { type: string }
+                secrets:
+                  type: object
+                  additionalProperties: { type: string }
+                  description: Omis, les identifiants existants sont conservés.
+                readOnly: { type: boolean }
+      responses:
+        "200":
+          description: Stockage modifié
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StorageBackend" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+    delete:
+      operationId: deleteStorageBackend
+      summary: Supprimer un stockage
+      description: |
+        Refusé en 409 tant qu'une bibliothèque s'y appuie : la cascade
+        emporterait albums, dossiers, progression de lecture et partages. Le
+        refus force à supprimer les bibliothèques d'abord, ce qui rend la perte
+        visible et volontaire.
+
+        Les fichiers du stockage ne sont jamais touchés — boxincloud oublie un
+        stockage, il ne le vide pas.
+      tags: [admin]
+      parameters:
+        - $ref: "#/components/parameters/BackendIdPath"
+      responses:
+        "204":
+          description: Stockage supprimé
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Des bibliothèques s'appuient encore sur ce stockage
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+
+  /storage-backends/{backendId}/default:
+    put:
+      operationId: setDefaultStorageBackend
+      summary: Désigner le stockage par défaut
+      tags: [admin]
+      parameters:
+        - $ref: "#/components/parameters/BackendIdPath"
+      responses:
+        "204":
+          description: Stockage par défaut désigné
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /libraries/{libraryId}:
+    patch:
+      operationId: updateLibrary
+      summary: Modifier une bibliothèque
+      description: |
+        Changer le préfixe racine ne **déplace rien** : les albums déjà indexés
+        pointent des clés construites avec l'ancien. Le changement décrit où
+        chercher désormais, et un nouveau parcours reconstruit le catalogue.
+      tags: [admin]
+      parameters:
+        - $ref: "#/components/parameters/LibraryIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                rootPrefix: { type: string }
+      responses:
+        "200":
+          description: Bibliothèque modifiée
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LibraryDetail" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+    delete:
+      operationId: deleteLibrary
+      summary: Supprimer une bibliothèque
+      description: |
+        Albums, dossiers, progression de lecture, favoris, notes et partages
+        disparaissent par cascade.
+
+        Les **fichiers** du stockage restent intacts : recréer la bibliothèque
+        sur le même préfixe et relancer un parcours les retrouve tous. L'historique
+        de lecture, lui, ne revient pas.
+      tags: [admin]
+      parameters:
+        - $ref: "#/components/parameters/LibraryIdPath"
+      responses:
+        "204":
+          description: Bibliothèque supprimée
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /libraries/{libraryId}/scans:
+    get:
+      operationId: listScanRuns
+      summary: Historique des parcours
+      description: |
+        Le seul endroit où l'on voit POURQUOI un parcours a échoué. Sans lui, un
+        scan en erreur ne se manifeste que par une bibliothèque qui ne se remplit
+        pas, sans le moindre indice.
+      tags: [admin]
+      parameters:
+        - $ref: "#/components/parameters/LibraryIdPath"
+      responses:
+        "200":
+          description: Derniers parcours
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [runs]
+                properties:
+                  runs:
+                    type: array
+                    items: { $ref: "#/components/schemas/ScanRun" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
   /storage-backends/{backendId}/test:
     post:
       operationId: testStorageBackend
@@ -841,10 +1021,7 @@ paths:
         le résultat.
       tags: [admin]
       parameters:
-        - name: backendId
-          in: path
-          required: true
-          schema: { type: string, format: uuid }
+        - $ref: "#/components/parameters/BackendIdPath"
       responses:
         "200":
           description: Résultat du test
@@ -2163,6 +2340,12 @@ components:
       schema: { type: string }
       description: Jeton du lien public, tel que reçu à sa création.
 
+    BackendIdPath:
+      name: backendId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
     UserIdPath:
       name: userId
       in: path
@@ -2443,6 +2626,25 @@ components:
         status:
           type: string
           description: "ok, error, ou vide si jamais testé."
+
+    ScanRun:
+      type: object
+      required: [id, status, startedAt, objectsSeen, added, updated, removed, errors]
+      properties:
+        id: { type: string, format: uuid }
+        status:
+          type: string
+          description: running, success, failed ou cancelled.
+        startedAt: { type: string, format: date-time }
+        finishedAt: { type: string, format: date-time }
+        objectsSeen: { type: integer }
+        added: { type: integer }
+        updated: { type: integer }
+        removed: { type: integer }
+        errors: { type: integer }
+        detail:
+          type: string
+          description: Message d'erreur du parcours, le cas échéant.
 
     LibraryDetail:
       type: object

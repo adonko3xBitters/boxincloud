@@ -60,3 +60,20 @@ SELECT * FROM scan_runs
 WHERE library_id = $1
 ORDER BY started_at DESC
 LIMIT $2;
+
+-- ─── Administration ──────────────────────────────────────────────────────────
+
+-- name: UpdateLibrary :one
+UPDATE libraries
+SET name        = coalesce(sqlc.narg('name'), name),
+    root_prefix = coalesce(sqlc.narg('root_prefix'), root_prefix)
+WHERE id = $1
+RETURNING *;
+
+-- Combien de bibliothèques s'appuient sur ce backend ?
+--
+-- Sert à refuser sa suppression tant qu'il en porte : effacer un backend
+-- emporterait ses bibliothèques par cascade, et avec elles la progression de
+-- lecture de tout le monde.
+-- name: CountLibrariesUsingBackend :one
+SELECT count(*) FROM libraries WHERE storage_backend_id = $1;

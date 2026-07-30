@@ -449,6 +449,112 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/storage-backends/{backendId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Supprimer un stockage
+         * @description Refusé en 409 tant qu'une bibliothèque s'y appuie : la cascade
+         *     emporterait albums, dossiers, progression de lecture et partages. Le
+         *     refus force à supprimer les bibliothèques d'abord, ce qui rend la perte
+         *     visible et volontaire.
+         *
+         *     Les fichiers du stockage ne sont jamais touchés — boxincloud oublie un
+         *     stockage, il ne le vide pas.
+         */
+        delete: operations["deleteStorageBackend"];
+        options?: never;
+        head?: never;
+        /**
+         * Modifier un stockage
+         * @description Les secrets absents sont **conservés** : corriger un endpoint ne doit pas
+         *     obliger à retaper ses clés, et ne le pourrait pas — elles ne ressortent
+         *     jamais de la base.
+         *
+         *     La configuration résultante est jointe avant d'être enregistrée. Valider
+         *     seulement ce qui a été envoyé reviendrait à valider une configuration qui
+         *     n'existera jamais.
+         */
+        patch: operations["updateStorageBackend"];
+        trace?: never;
+    };
+    "/storage-backends/{backendId}/default": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Désigner le stockage par défaut */
+        put: operations["setDefaultStorageBackend"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/libraries/{libraryId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Supprimer une bibliothèque
+         * @description Albums, dossiers, progression de lecture, favoris, notes et partages
+         *     disparaissent par cascade.
+         *
+         *     Les **fichiers** du stockage restent intacts : recréer la bibliothèque
+         *     sur le même préfixe et relancer un parcours les retrouve tous. L'historique
+         *     de lecture, lui, ne revient pas.
+         */
+        delete: operations["deleteLibrary"];
+        options?: never;
+        head?: never;
+        /**
+         * Modifier une bibliothèque
+         * @description Changer le préfixe racine ne **déplace rien** : les albums déjà indexés
+         *     pointent des clés construites avec l'ancien. Le changement décrit où
+         *     chercher désormais, et un nouveau parcours reconstruit le catalogue.
+         */
+        patch: operations["updateLibrary"];
+        trace?: never;
+    };
+    "/libraries/{libraryId}/scans": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Historique des parcours
+         * @description Le seul endroit où l'on voit POURQUOI un parcours a échoué. Sans lui, un
+         *     scan en erreur ne se manifeste que par une bibliothèque qui ne se remplit
+         *     pas, sans le moindre indice.
+         */
+        get: operations["listScanRuns"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/storage-backends/{backendId}/test": {
         parameters: {
             query?: never;
@@ -1449,6 +1555,23 @@ export interface components {
             /** @description ok, error, ou vide si jamais testé. */
             status: string;
         };
+        ScanRun: {
+            /** Format: uuid */
+            id: string;
+            /** @description running, success, failed ou cancelled. */
+            status: string;
+            /** Format: date-time */
+            startedAt: string;
+            /** Format: date-time */
+            finishedAt?: string;
+            objectsSeen: number;
+            added: number;
+            updated: number;
+            removed: number;
+            errors: number;
+            /** @description Message d'erreur du parcours, le cas échéant. */
+            detail?: string;
+        };
         LibraryDetail: {
             /** Format: uuid */
             id: string;
@@ -1671,6 +1794,7 @@ export interface components {
         ComicId: string;
         /** @description Jeton du lien public, tel que reçu à sa création. */
         ShareToken: string;
+        BackendIdPath: string;
         UserIdPath: string;
         LibraryIdPath: string;
         /** @description Restreint à une bibliothèque. Omis, toutes les bibliothèques visibles. */
@@ -2485,12 +2609,190 @@ export interface operations {
             422: components["responses"]["ValidationFailed"];
         };
     };
+    deleteStorageBackend: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                backendId: components["parameters"]["BackendIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Stockage supprimé */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            /** @description Des bibliothèques s'appuient encore sur ce stockage */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+        };
+    };
+    updateStorageBackend: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                backendId: components["parameters"]["BackendIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name?: string;
+                    config?: {
+                        [key: string]: string;
+                    };
+                    /** @description Omis, les identifiants existants sont conservés. */
+                    secrets?: {
+                        [key: string]: string;
+                    };
+                    readOnly?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Stockage modifié */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StorageBackend"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    setDefaultStorageBackend: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                backendId: components["parameters"]["BackendIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Stockage par défaut désigné */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteLibrary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                libraryId: components["parameters"]["LibraryIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Bibliothèque supprimée */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateLibrary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                libraryId: components["parameters"]["LibraryIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name?: string;
+                    rootPrefix?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Bibliothèque modifiée */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryDetail"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    listScanRuns: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                libraryId: components["parameters"]["LibraryIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Derniers parcours */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        runs: components["schemas"]["ScanRun"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
     testStorageBackend: {
         parameters: {
             query?: never;
             header?: never;
             path: {
-                backendId: string;
+                backendId: components["parameters"]["BackendIdPath"];
             };
             cookie?: never;
         };

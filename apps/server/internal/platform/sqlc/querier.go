@@ -47,6 +47,12 @@ type Querier interface {
 	// Le cumul se fait ensuite en une passe côté service.
 	CountComicsByExactFolder(ctx context.Context, libraryIds []uuid.UUID) ([]CountComicsByExactFolderRow, error)
 	CountComicsByLibrary(ctx context.Context, libraryID uuid.UUID) (int64, error)
+	// Combien de bibliothèques s'appuient sur ce backend ?
+	//
+	// Sert à refuser sa suppression tant qu'il en porte : effacer un backend
+	// emporterait ses bibliothèques par cascade, et avec elles la progression de
+	// lecture de tout le monde.
+	CountLibrariesUsingBackend(ctx context.Context, storageBackendID uuid.UUID) (int64, error)
 	// Sert à l'assistant de première installation : tant qu'il n'y a personne,
 	// l'inscription du premier administrateur est ouverte.
 	CountUsers(ctx context.Context) (int64, error)
@@ -301,6 +307,9 @@ type Querier interface {
 	TreeHasAccessCode(ctx context.Context, arg TreeHasAccessCodeParams) (bool, error)
 	UnlockFolder(ctx context.Context, arg UnlockFolderParams) error
 	UnsetFavorite(ctx context.Context, arg UnsetFavoriteParams) error
+	// ─── Administration ──────────────────────────────────────────────────────────
+	UpdateLibrary(ctx context.Context, arg UpdateLibraryParams) (Library, error)
+	UpdateStorageBackend(ctx context.Context, arg UpdateStorageBackendParams) (StorageBackend, error)
 	UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (User, error)
 	// Ingestion idempotente : la clé naturelle (library_id, object_key) permet de
 	// rejouer un scan sans créer de doublon ni perdre les champs verrouillés.

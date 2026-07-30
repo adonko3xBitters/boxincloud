@@ -11,6 +11,22 @@ import (
 	"github.com/google/uuid"
 )
 
+const countLibrariesUsingBackend = `-- name: CountLibrariesUsingBackend :one
+SELECT count(*) FROM libraries WHERE storage_backend_id = $1
+`
+
+// Combien de bibliothèques s'appuient sur ce backend ?
+//
+// Sert à refuser sa suppression tant qu'il en porte : effacer un backend
+// emporterait ses bibliothèques par cascade, et avec elles la progression de
+// lecture de tout le monde.
+func (q *Queries) CountLibrariesUsingBackend(ctx context.Context, storageBackendID uuid.UUID) (int64, error) {
+	row := q.db.QueryRow(ctx, countLibrariesUsingBackend, storageBackendID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const createLibrary = `-- name: CreateLibrary :one
 INSERT INTO libraries (id, storage_backend_id, name, kind, root_prefix, scan_options, scan_cron)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -365,6 +381,42 @@ func (q *Queries) StartScanRun(ctx context.Context, arg StartScanRunParams) (Sca
 		&i.Errors,
 		&i.Cursor,
 		&i.Detail,
+	)
+	return i, err
+}
+
+const updateLibrary = `-- name: UpdateLibrary :one
+
+UPDATE libraries
+SET name        = coalesce($2, name),
+    root_prefix = coalesce($3, root_prefix)
+WHERE id = $1
+RETURNING id, storage_backend_id, name, kind, root_prefix, scan_options, scan_cron, last_scan_at, last_scan_status, comic_count, created_at, updated_at
+`
+
+type UpdateLibraryParams struct {
+	ID         uuid.UUID
+	Name       *string
+	RootPrefix *string
+}
+
+// ─── Administration ──────────────────────────────────────────────────────────
+func (q *Queries) UpdateLibrary(ctx context.Context, arg UpdateLibraryParams) (Library, error) {
+	row := q.db.QueryRow(ctx, updateLibrary, arg.ID, arg.Name, arg.RootPrefix)
+	var i Library
+	err := row.Scan(
+		&i.ID,
+		&i.StorageBackendID,
+		&i.Name,
+		&i.Kind,
+		&i.RootPrefix,
+		&i.ScanOptions,
+		&i.ScanCron,
+		&i.LastScanAt,
+		&i.LastScanStatus,
+		&i.ComicCount,
+		&i.CreatedAt,
+		&i.UpdatedAt,
 	)
 	return i, err
 }

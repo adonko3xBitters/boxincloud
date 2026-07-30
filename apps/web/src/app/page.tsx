@@ -8,6 +8,7 @@ import { BrandLockup } from "@/components/brand";
 import { ComicTable } from "@/components/comic-table";
 import { Coverflow } from "@/components/coverflow";
 import { AccountsPanel } from "@/components/accounts-panel";
+import { StoragePanel } from "@/components/storage-panel";
 import { AddContentButton, GlobalDropZone, IngestProvider } from "@/components/ingest";
 import { DetailPanel } from "@/components/detail-panel";
 import { SearchOverlay } from "@/components/search-overlay";
@@ -66,6 +67,7 @@ function TopBar() {
   const { data: user } = useCurrentUser();
   const logout = useLogout();
   const [accountsOpen, setAccountsOpen] = useState(false);
+  const [storageOpen, setStorageOpen] = useState(false);
 
   return (
     <header className="flex h-13 shrink-0 items-center gap-3 border-b border-border bg-surface px-4">
@@ -89,12 +91,20 @@ function TopBar() {
             </p>
 
             {user?.role === "admin" && (
-              <button
-                onClick={() => setAccountsOpen(true)}
-                className="pressable w-full rounded px-2 py-1.5 text-left text-ui text-muted hover:bg-surface-hover hover:text-fg"
-              >
-                Comptes
-              </button>
+              <>
+                <button
+                  onClick={() => setStorageOpen(true)}
+                  className="pressable w-full rounded px-2 py-1.5 text-left text-ui text-muted hover:bg-surface-hover hover:text-fg"
+                >
+                  Stockage
+                </button>
+                <button
+                  onClick={() => setAccountsOpen(true)}
+                  className="pressable w-full rounded px-2 py-1.5 text-left text-ui text-muted hover:bg-surface-hover hover:text-fg"
+                >
+                  Comptes
+                </button>
+              </>
             )}
 
             <button
@@ -107,6 +117,7 @@ function TopBar() {
         </div>
       </div>
 
+      {storageOpen && <StoragePanel onClose={() => setStorageOpen(false)} />}
       {accountsOpen && <AccountsPanel onClose={() => setAccountsOpen(false)} />}
     </header>
   );
