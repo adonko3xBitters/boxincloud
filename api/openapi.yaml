@@ -965,6 +965,9 @@ paths:
 
         Les compteurs sont cumulatifs : un dossier affiche le total de sa
         branche, ce qu'attend quelqu'un qui replie un nœud.
+
+        Les dossiers existent en base, ils ne sont plus seulement déduits des
+        clés d'objet. Un dossier créé à la main apparaît donc même vide.
       tags: [catalog]
       parameters:
         - $ref: "#/components/parameters/LibraryId"
@@ -982,6 +985,137 @@ paths:
                     items: { $ref: "#/components/schemas/Folder" }
         "401":
           $ref: "#/components/responses/Unauthorized"
+
+    post:
+      operationId: createFolder
+      summary: Créer un dossier
+      description: |
+        Rien n'est écrit dans le stockage : un magasin d'objets n'a pas de
+        répertoires, seulement des clés. Le dossier existe donc d'abord dans
+        boxincloud, et prendra corps au premier fichier déposé.
+
+        Les dossiers intermédiaires manquants sont créés en passant.
+      tags: [catalog]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [libraryId, path]
+              properties:
+                libraryId: { type: string, format: uuid }
+                path:
+                  type: string
+                  description: |
+                    Chemin complet relatif au préfixe de la bibliothèque. Les
+                    remontées « .. » sont neutralisées.
+      responses:
+        "201":
+          description: Dossier créé
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Folder" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /folders/path:
+    put:
+      operationId: relocateFolder
+      summary: Renommer ou déplacer un dossier
+      description: |
+        Renommer et déplacer sont le même geste : le dossier d'un album découle
+        de la clé de son objet, si bien que changer le dossier renomme chacun
+        des objets qu'il contient — par copie côté serveur quand le backend le
+        permet.
+
+        L'opération peut donc durer. Elle est refusée au-delà de deux mille
+        albums dans la branche : au-delà, mieux vaut la découper que la subir.
+
+        Un échec en cours de route laisse la branche à moitié déplacée. C'est
+        volontaire : défaire des déplacements réussis multiplierait les
+        occasions de perdre un fichier, alors qu'un état mixte reste
+        entièrement lisible, chaque album pointant la clé où il se trouve.
+      tags: [catalog]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [libraryId, path, newPath]
+              properties:
+                libraryId: { type: string, format: uuid }
+                path: { type: string }
+                newPath:
+                  type: string
+                  description: |
+                    Nouveau chemin complet. Déplacer un dossier dans sa propre
+                    descendance est refusé.
+      responses:
+        "200":
+          description: Dossier après déplacement
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Folder" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /libraries/{libraryId}/folders:
+    delete:
+      operationId: deleteFolder
+      summary: Supprimer un dossier
+      description: |
+        Trois degrés, du plus sûr au plus définitif. Sans paramètre, un dossier
+        qui contient encore des albums est refusé en 409 : supprimer une branche
+        entière ne doit jamais être un geste distrait.
+
+        `deleteComics` retire les albums du catalogue en laissant les fichiers.
+        `deleteFiles` les efface aussi, et implique le premier.
+      tags: [catalog]
+      parameters:
+        - $ref: "#/components/parameters/LibraryIdPath"
+        - name: path
+          in: query
+          required: true
+          schema: { type: string }
+        - name: deleteComics
+          in: query
+          description: Retirer aussi les albums du catalogue.
+          schema: { type: boolean }
+        - name: deleteFiles
+          in: query
+          description: Effacer aussi les fichiers du stockage. Irréversible.
+          schema: { type: boolean }
+      responses:
+        "200":
+          description: Dossier supprimé
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [removedComics]
+                properties:
+                  removedComics: { type: integer }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          description: Le dossier contient encore des albums
+          content:
+            application/problem+json:
+              schema: { $ref: "#/components/schemas/Problem" }
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
 
   /me/marks:
     get:
@@ -1863,8 +1997,10 @@ components:
 
     Folder:
       type: object
-      required: [path, name, depth, comicCount]
+      required: [id, libraryId, path, name, depth, comicCount, explicit]
       properties:
+        id: { type: string, format: uuid }
+        libraryId: { type: string, format: uuid }
         path:
           type: string
           description: Chemin complet, relatif au préfixe. Vide pour la racine.
@@ -1875,6 +2011,12 @@ components:
         comicCount:
           type: integer
           description: Albums de ce dossier et de ses sous-dossiers.
+        explicit:
+          type: boolean
+          description: |
+            Vrai pour un dossier créé à la main, qui survit au fait d'être vide.
+            Faux pour un dossier constaté par le parcours, élagué dès qu'il ne
+            contient plus rien.
 
     ComicPage:
       type: object

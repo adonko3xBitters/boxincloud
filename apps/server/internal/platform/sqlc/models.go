@@ -458,6 +458,18 @@ type Favorite struct {
 	CreatedAt pgtype.Timestamptz
 }
 
+type Folder struct {
+	ID         uuid.UUID
+	LibraryID  uuid.UUID
+	Path       string
+	Name       string
+	Depth      int32
+	ParentPath *string
+	Explicit   bool
+	CreatedAt  pgtype.Timestamptz
+	UpdatedAt  pgtype.Timestamptz
+}
+
 type Library struct {
 	ID               uuid.UUID
 	StorageBackendID uuid.UUID

@@ -14,6 +14,7 @@ import (
 	"github.com/adonko3xBitters/boxincloud/server/internal/cache"
 	"github.com/adonko3xBitters/boxincloud/server/internal/catalog"
 	"github.com/adonko3xBitters/boxincloud/server/internal/config"
+	"github.com/adonko3xBitters/boxincloud/server/internal/folders"
 	"github.com/adonko3xBitters/boxincloud/server/internal/imaging"
 	"github.com/adonko3xBitters/boxincloud/server/internal/indexer"
 	"github.com/adonko3xBitters/boxincloud/server/internal/ingest"
@@ -37,6 +38,7 @@ type Core struct {
 	Accounts  *accounts.Service
 	Catalog   *catalog.Service
 	Tools     *catalog.Tools
+	Folders   *folders.Service
 	Reader    *reader.Service
 	Progress  *progress.Service
 	Libraries *library.Service
@@ -91,6 +93,7 @@ func BuildCore(ctx context.Context, cfg *config.Config, pool *db.Pool, log *slog
 
 	processor := imaging.NewPureGo()
 	catalogService := catalog.NewService(catalog.NewPostgresRepository(queries))
+	folderService := folders.NewService(folders.NewPostgresRepository(queries), libraries, log)
 
 	jobClient, err := jobs.New(pool, cfg.Jobs, log, func(w *river.Workers) {
 		indexer.Register(w, indexer.Deps{
@@ -99,12 +102,28 @@ func BuildCore(ctx context.Context, cfg *config.Config, pool *db.Pool, log *slog
 			Cache:     derived,
 			Imaging:   processor,
 			Log:       log,
+			Folders:   folderService,
 		})
 	})
 	if err != nil {
 		return nil, err
 	}
 	enqueuer.client = jobClient
+
+	ingestService := ingest.NewService(
+		libraries,
+		indexerRepo,
+		ingest.NewPostgresManage(queries),
+		&jobScanner{client: jobClient},
+		cfg.Upload.MaxSize,
+		log,
+	)
+
+	// Supprimer un dossier peut emporter les albums qu'il contient. La règle de
+	// suppression — exclusion ou effacement, dans le bon ordre — appartient à
+	// l'ingestion : elle est empruntée plutôt que réécrite.
+	folderService.SetComicRemover(ingestService.BulkDelete)
+	ingestService.SetFolderRegistrar(folderService.Ensure)
 
 	return &Core{
 		Queries:  queries,
@@ -119,15 +138,9 @@ func BuildCore(ctx context.Context, cfg *config.Config, pool *db.Pool, log *slog
 		Cache:     derived,
 		Imaging:   processor,
 		Indexer:   indexerRepo,
-		Ingest: ingest.NewService(
-			libraries,
-			indexerRepo,
-			ingest.NewPostgresManage(queries),
-			&jobScanner{client: jobClient},
-			cfg.Upload.MaxSize,
-			log,
-		),
-		Jobs: jobClient,
+		Ingest:    ingestService,
+		Folders:   folderService,
+		Jobs:      jobClient,
 	}, nil
 }
 

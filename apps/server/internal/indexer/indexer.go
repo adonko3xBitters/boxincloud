@@ -39,6 +39,11 @@ type Deps struct {
 	Cache     *cache.Cache
 	Imaging   imaging.Processor
 	Log       *slog.Logger
+
+	// Folders réconcilie l'arborescence après un parcours. Facultatif : le
+	// pipeline d'indexation fonctionne sans, les dossiers étant alors seulement
+	// déduits à l'affichage.
+	Folders FolderObserver
 }
 
 // ─── ScanLibrary ─────────────────────────────────────────────────────────────
@@ -96,6 +101,7 @@ func (w *ScanLibraryWorker) scan(ctx context.Context, libraryID uuid.UUID) (Scan
 
 	stats := ScanStats{}
 	seen := make([]string, 0, 256)
+	folders := make([]string, 0, 32)
 	start := time.Now()
 
 	err = provider.List(ctx, lib.RootPrefix, func(obj storage.ObjectInfo) error {
@@ -112,6 +118,7 @@ func (w *ScanLibraryWorker) scan(ctx context.Context, libraryID uuid.UUID) (Scan
 		}
 		stats.ObjectsSeen++
 		seen = append(seen, obj.Key)
+		folders = append(folders, FolderOf(obj.Key, lib.RootPrefix))
 
 		meta := ParseFilename(obj.Key)
 		title := meta.Title
@@ -171,6 +178,16 @@ func (w *ScanLibraryWorker) scan(ctx context.Context, libraryID uuid.UUID) (Scan
 
 	if err := w.deps.Repo.RefreshSeriesCounts(ctx, lib.ID); err != nil {
 		log.Warn("rafraîchissement des compteurs de séries impossible", slog.Any("err", err))
+	}
+
+	// L'arborescence est réconciliée avec ce que le parcours a trouvé : les
+	// dossiers rencontrés sont inscrits, ceux qui n'existaient que par la
+	// présence de fichiers désormais partis sont élagués. Les dossiers créés à
+	// la main survivent — c'est justement ce qui les distingue.
+	if w.deps.Folders != nil {
+		if err := w.deps.Folders.Observe(ctx, lib.ID, folders); err != nil {
+			log.Warn("réconciliation de l'arborescence impossible", slog.Any("err", err))
+		}
 	}
 	if err := w.deps.Repo.SetLibraryScanResult(ctx, lib.ID, "success"); err != nil {
 		log.Warn("enregistrement du résultat de scan impossible", slog.Any("err", err))

@@ -22,6 +22,7 @@ import (
 	"github.com/adonko3xBitters/boxincloud/server/internal/auth"
 	"github.com/adonko3xBitters/boxincloud/server/internal/catalog"
 	"github.com/adonko3xBitters/boxincloud/server/internal/config"
+	"github.com/adonko3xBitters/boxincloud/server/internal/folders"
 	"github.com/adonko3xBitters/boxincloud/server/internal/httpapi/handlers"
 	"github.com/adonko3xBitters/boxincloud/server/internal/httpapi/middleware"
 	"github.com/adonko3xBitters/boxincloud/server/internal/httpapi/problem"
@@ -43,6 +44,7 @@ type Deps struct {
 	Auth      *auth.Service
 	Accounts  *accounts.Service
 	Catalog   *catalog.Service
+	Folders   *folders.Service
 	Libraries *library.Service
 	Ingest    *ingest.Service
 	Reader    *reader.Service
@@ -56,6 +58,13 @@ type Deps struct {
 // Une lecture de page peut être longue sur un backend distant, mais aucune
 // requête ne doit rester pendante indéfiniment.
 const requestTimeout = 30 * time.Second
+
+// relocateTimeout borne le renommage d'une branche.
+//
+// Dix minutes : de quoi déplacer une branche de plusieurs centaines d'albums sur
+// un backend distant, où chaque objet coûte un aller-retour. Le service refuse
+// de lui-même au-delà de deux mille albums.
+const relocateTimeout = 10 * time.Minute
 
 // uploadTimeout borne un téléversement.
 //
@@ -77,6 +86,7 @@ func NewRouter(d Deps) http.Handler {
 		"Auth":      d.Auth != nil,
 		"Accounts":  d.Accounts != nil,
 		"Catalog":   d.Catalog != nil,
+		"Folders":   d.Folders != nil,
 		"Libraries": d.Libraries != nil,
 		"Ingest":    d.Ingest != nil,
 		"Tools":     d.Tools != nil,
@@ -177,7 +187,10 @@ func NewRouter(d Deps) http.Handler {
 			// ── Outils de gestion ───────────────────────────────────
 			toolsHandler := handlers.NewTools(d.Tools)
 
-			r.Get("/folders", toolsHandler.ListFolders)
+			foldersHandler := handlers.NewFolders(d.Folders, d.Catalog)
+
+			r.Get("/folders", foldersHandler.List)
+			r.Post("/folders", foldersHandler.Create)
 			r.Get("/me/marks", toolsHandler.UserMarks)
 			r.Post("/comics/bulk", toolsHandler.Bulk)
 			r.Put("/comics/{comicID}/favorite", toolsHandler.SetFavorite)
@@ -200,6 +213,7 @@ func NewRouter(d Deps) http.Handler {
 			r.Post("/libraries/{libraryID}/scan", adminHandler.Scan)
 
 			r.Delete("/comics/{comicID}", adminHandler.DeleteComic)
+			r.Delete("/libraries/{libraryID}/folders", foldersHandler.Delete)
 			r.Put("/comics/{comicID}/folder", adminHandler.MoveComic)
 			r.Post("/comics/manage", adminHandler.BulkManage)
 
@@ -217,6 +231,19 @@ func NewRouter(d Deps) http.Handler {
 			r.Get("/libraries/{libraryID}/access", accountsHandler.ListLibraryGrants)
 			r.Post("/libraries/{libraryID}/access", accountsHandler.Grant)
 			r.Delete("/libraries/{libraryID}/access/{userID}", accountsHandler.Revoke)
+		})
+
+		// ── Opérations longues sur l'arborescence ───────────────────────
+		//
+		// Renommer un dossier renomme chacun des objets qu'il contient : sur un
+		// backend distant, une branche de plusieurs centaines d'albums dépasse
+		// largement le délai des requêtes ordinaires.
+		r.Group(func(r chi.Router) {
+			r.Use(chimw.Timeout(relocateTimeout))
+			r.Use(middleware.Authenticate(d.Auth))
+
+			foldersHandler := handlers.NewFolders(d.Folders, d.Catalog)
+			r.Put("/folders/path", foldersHandler.Relocate)
 		})
 
 		// ── Téléversement ───────────────────────────────────────────────

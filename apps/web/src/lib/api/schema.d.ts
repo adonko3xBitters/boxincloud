@@ -544,11 +544,78 @@ export interface paths {
          *
          *     Les compteurs sont cumulatifs : un dossier affiche le total de sa
          *     branche, ce qu'attend quelqu'un qui replie un nœud.
+         *
+         *     Les dossiers existent en base, ils ne sont plus seulement déduits des
+         *     clés d'objet. Un dossier créé à la main apparaît donc même vide.
          */
         get: operations["listFolders"];
         put?: never;
+        /**
+         * Créer un dossier
+         * @description Rien n'est écrit dans le stockage : un magasin d'objets n'a pas de
+         *     répertoires, seulement des clés. Le dossier existe donc d'abord dans
+         *     boxincloud, et prendra corps au premier fichier déposé.
+         *
+         *     Les dossiers intermédiaires manquants sont créés en passant.
+         */
+        post: operations["createFolder"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/folders/path": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Renommer ou déplacer un dossier
+         * @description Renommer et déplacer sont le même geste : le dossier d'un album découle
+         *     de la clé de son objet, si bien que changer le dossier renomme chacun
+         *     des objets qu'il contient — par copie côté serveur quand le backend le
+         *     permet.
+         *
+         *     L'opération peut donc durer. Elle est refusée au-delà de deux mille
+         *     albums dans la branche : au-delà, mieux vaut la découper que la subir.
+         *
+         *     Un échec en cours de route laisse la branche à moitié déplacée. C'est
+         *     volontaire : défaire des déplacements réussis multiplierait les
+         *     occasions de perdre un fichier, alors qu'un état mixte reste
+         *     entièrement lisible, chaque album pointant la clé où il se trouve.
+         */
+        put: operations["relocateFolder"];
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/libraries/{libraryId}/folders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Supprimer un dossier
+         * @description Trois degrés, du plus sûr au plus définitif. Sans paramètre, un dossier
+         *     qui contient encore des albums est refusé en 409 : supprimer une branche
+         *     entière ne doit jamais être un geste distrait.
+         *
+         *     `deleteComics` retire les albums du catalogue en laissant les fichiers.
+         *     `deleteFiles` les efface aussi, et implique le premier.
+         */
+        delete: operations["deleteFolder"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1084,6 +1151,10 @@ export interface components {
             fileSize: number;
         };
         Folder: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            libraryId: string;
             /** @description Chemin complet, relatif au préfixe. Vide pour la racine. */
             path: string;
             /** @description Dernier segment du chemin — ce qui s'affiche dans l'arbre. */
@@ -1092,6 +1163,12 @@ export interface components {
             depth: number;
             /** @description Albums de ce dossier et de ses sous-dossiers. */
             comicCount: number;
+            /**
+             * @description Vrai pour un dossier créé à la main, qui survit au fait d'être vide.
+             *     Faux pour un dossier constaté par le parcours, élagué dès qu'il ne
+             *     contient plus rien.
+             */
+            explicit: boolean;
         };
         ComicPage: {
             items: components["schemas"]["Comic"][];
@@ -2202,6 +2279,119 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+        };
+    };
+    createFolder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    libraryId: string;
+                    /**
+                     * @description Chemin complet relatif au préfixe de la bibliothèque. Les
+                     *     remontées « .. » sont neutralisées.
+                     */
+                    path: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Dossier créé */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Folder"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    relocateFolder: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    libraryId: string;
+                    path: string;
+                    /**
+                     * @description Nouveau chemin complet. Déplacer un dossier dans sa propre
+                     *     descendance est refusé.
+                     */
+                    newPath: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Dossier après déplacement */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Folder"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    deleteFolder: {
+        parameters: {
+            query: {
+                path: string;
+                /** @description Retirer aussi les albums du catalogue. */
+                deleteComics?: boolean;
+                /** @description Effacer aussi les fichiers du stockage. Irréversible. */
+                deleteFiles?: boolean;
+            };
+            header?: never;
+            path: {
+                libraryId: components["parameters"]["LibraryIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Dossier supprimé */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        removedComics: number;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            /** @description Le dossier contient encore des albums */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["Problem"];
+                };
+            };
+            422: components["responses"]["ValidationFailed"];
         };
     };
     getUserMarks: {

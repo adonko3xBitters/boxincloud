@@ -127,3 +127,90 @@ WHERE id = $1;
 SELECT * FROM comics
 WHERE library_id = $1 AND excluded_at IS NOT NULL
 ORDER BY title;
+
+-- ─── Dossiers ────────────────────────────────────────────────────────────────
+
+-- name: ListFoldersByLibraries :many
+SELECT * FROM folders
+WHERE library_id = ANY(@library_ids::uuid[])
+ORDER BY library_id, path;
+
+-- name: GetFolder :one
+SELECT * FROM folders WHERE library_id = $1 AND path = $2;
+
+-- name: GetFolderByID :one
+SELECT * FROM folders WHERE id = $1;
+
+-- name: UpsertFolder :one
+INSERT INTO folders (id, library_id, path, name, depth, parent_path, explicit)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+ON CONFLICT (library_id, path) DO UPDATE
+-- Un dossier constaté par le parcours ne perd pas son caractère explicite :
+-- l'utilisateur l'a voulu, y déposer des fichiers ne défait pas sa décision.
+SET explicit = folders.explicit OR EXCLUDED.explicit
+RETURNING *;
+
+-- name: DeleteFolderTree :execrows
+DELETE FROM folders
+WHERE library_id = $1
+  AND (path = @path::text OR path LIKE @path::text || '/%');
+
+-- Renomme une branche entière en une passe.
+--
+-- Les chemins sont des chaînes : déplacer « Tintin » vers « BD/Tintin » revient
+-- à réécrire le préfixe de tous les descendants. Un parcours récursif
+-- d'identifiants ferait le même travail en n requêtes.
+-- name: RenameFolderTree :execrows
+UPDATE folders
+SET path = @new_path::text || substring(path FROM length(@old_path::text) + 1),
+    name = CASE
+        WHEN path = @old_path::text THEN @new_name::text
+        ELSE name
+    END,
+    depth = depth + @depth_delta::int,
+    parent_path = CASE
+        WHEN path = @old_path::text THEN @new_parent::text
+        ELSE @new_path::text || substring(parent_path FROM length(@old_path::text) + 1)
+    END
+WHERE library_id = $1
+  AND (path = @old_path::text OR path LIKE @old_path::text || '/%');
+
+-- Supprime les dossiers constatés devenus vides.
+--
+-- Seuls les non-explicites : un dossier créé à la main survit au fait d'être
+-- vide, c'est même souvent la raison de l'avoir créé.
+-- name: PruneEmptyFolders :execrows
+DELETE FROM folders f
+WHERE f.library_id = $1
+  AND f.explicit = false
+  AND f.path <> ''
+  AND NOT EXISTS (
+      SELECT 1 FROM comics c
+      WHERE c.library_id = f.library_id
+        AND c.deleted_at IS NULL
+        AND c.excluded_at IS NULL
+        AND (c.folder_path = f.path OR c.folder_path LIKE f.path || '/%')
+  )
+  AND NOT EXISTS (
+      SELECT 1 FROM folders child
+      WHERE child.library_id = f.library_id
+        AND child.explicit = true
+        AND child.path LIKE f.path || '/%'
+  );
+
+-- Comptes d'albums par dossier exact, sans les descendants.
+-- Le cumul se fait ensuite en une passe côté service.
+-- name: CountComicsByExactFolder :many
+SELECT c.library_id, c.folder_path, count(*)::int AS comic_count
+FROM comics c
+WHERE c.library_id = ANY(@library_ids::uuid[])
+  AND c.deleted_at IS NULL
+  AND c.excluded_at IS NULL
+GROUP BY c.library_id, c.folder_path;
+
+-- name: ListComicsInFolderTree :many
+SELECT id, object_key FROM comics
+WHERE library_id = $1
+  AND deleted_at IS NULL
+  AND (folder_path = @path::text OR folder_path LIKE @path::text || '/%')
+ORDER BY object_key;

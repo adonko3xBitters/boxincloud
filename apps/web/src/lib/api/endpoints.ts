@@ -122,10 +122,14 @@ export const continueReading = (limit = 20) =>
 // ─── Outils de gestion ───────────────────────────────────────────────────────
 
 export type Folder = {
+  id: string;
+  libraryId: string;
   path: string;
   name: string;
   depth: number;
   comicCount: number;
+  /** Vrai pour un dossier créé à la main, qui survit au fait d'être vide. */
+  explicit: boolean;
 };
 
 export const listFolders = (libraryId?: string) =>
@@ -383,4 +387,23 @@ export const manageComics = (
   request<{ affected: number }>("/comics/manage", {
     method: "POST",
     body: { action, ids, ...options },
+  });
+
+// ─── Dossiers ────────────────────────────────────────────────────────────────
+
+export const createFolder = (libraryId: string, path: string) =>
+  request<Folder>("/folders", { method: "POST", body: { libraryId, path } });
+
+/** Renommer et déplacer sont le même geste : seul le chemin complet change. */
+export const relocateFolder = (libraryId: string, path: string, newPath: string) =>
+  request<Folder>("/folders/path", { method: "PUT", body: { libraryId, path, newPath } });
+
+export const deleteFolder = (
+  libraryId: string,
+  path: string,
+  options: { deleteComics?: boolean; deleteFiles?: boolean } = {},
+) =>
+  request<{ removedComics: number }>(`/libraries/${libraryId}/folders`, {
+    method: "DELETE",
+    query: { path, ...options },
   });

@@ -55,6 +55,12 @@ type Scanner interface {
 	EnqueueScanLibrary(ctx context.Context, libraryID uuid.UUID) error
 }
 
+// FolderRegistrar inscrit un dossier rencontré dans l'arborescence.
+//
+// Injecté plutôt qu'importé : le paquet folders dépend déjà des bibliothèques et
+// du stockage, comme celui-ci, et l'importer créerait un cycle.
+type FolderRegistrar func(ctx context.Context, libraryID uuid.UUID, path string) error
+
 // Service reçoit les fichiers, les fait entrer au catalogue, et les gère
 // ensuite : suppression, déplacement.
 type Service struct {
@@ -62,6 +68,7 @@ type Service struct {
 	repo      Repository
 	manage    ManageRepository
 	scanner   Scanner
+	registrar FolderRegistrar
 	log       *slog.Logger
 
 	// maxSize borne un envoi. Zéro signifie « sans limite ».
@@ -219,6 +226,10 @@ func (s *Service) Upload(ctx context.Context, p UploadParams) (Result, error) {
 	if err := s.repo.SetFolder(ctx, comic.ID, folder); err != nil {
 		s.log.Debug("dossier non enregistré", slog.String("key", key), slog.Any("err", err))
 	}
+
+	// Le dossier entre dans l'arborescence tout de suite : déposer un album
+	// dans un dossier neuf doit le faire apparaître, pas attendre un parcours.
+	s.registerFolder(ctx, lib.ID, folder)
 
 	if err := s.repo.EnqueueIndexComic(ctx, comic.ID); err != nil {
 		s.log.Warn("indexation non enfilée",
@@ -423,4 +434,21 @@ func (l *limitedReader) Read(p []byte) (int, error) {
 	n, err := l.r.Read(p)
 	l.remaining -= int64(n)
 	return n, err
+}
+
+// SetFolderRegistrar câble l'inscription des dossiers rencontrés.
+func (s *Service) SetFolderRegistrar(register FolderRegistrar) { s.registrar = register }
+
+// registerFolder inscrit un dossier sans faire échouer l'opération en cours.
+//
+// Un album correctement déposé ne doit pas être signalé en échec parce que
+// l'arborescence n'a pas suivi : le prochain parcours la remettra d'aplomb.
+func (s *Service) registerFolder(ctx context.Context, libraryID uuid.UUID, path string) {
+	if s.registrar == nil || path == "" {
+		return
+	}
+	if err := s.registrar(ctx, libraryID, path); err != nil {
+		s.log.Warn("dossier non inscrit dans l'arborescence",
+			slog.String("path", path), slog.Any("err", err))
+	}
 }

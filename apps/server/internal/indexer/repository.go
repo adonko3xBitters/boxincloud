@@ -53,6 +53,14 @@ type UpsertComicParams struct {
 // Déclarée au point d'usage : l'indexeur ne dépend ni du paquet de données
 // généré, ni du client de jobs. C'est ce qui permet de le tester sans
 // PostgreSQL, et de remplacer la mise en file par une exécution directe.
+// FolderObserver réconcilie l'arborescence avec ce qu'un parcours a trouvé.
+//
+// Déclarée ici plutôt qu'importée : le paquet folders dépend déjà des
+// bibliothèques et du stockage, et l'importer créerait un cycle.
+type FolderObserver interface {
+	Observe(ctx context.Context, libraryID uuid.UUID, paths []string) error
+}
+
 type Repository interface {
 	// Comics
 	UpsertComic(ctx context.Context, p UpsertComicParams) (Comic, bool, error)

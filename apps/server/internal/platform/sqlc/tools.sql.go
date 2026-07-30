@@ -115,6 +115,62 @@ func (q *Queries) ClearRating(ctx context.Context, arg ClearRatingParams) error 
 	return err
 }
 
+const countComicsByExactFolder = `-- name: CountComicsByExactFolder :many
+SELECT c.library_id, c.folder_path, count(*)::int AS comic_count
+FROM comics c
+WHERE c.library_id = ANY($1::uuid[])
+  AND c.deleted_at IS NULL
+  AND c.excluded_at IS NULL
+GROUP BY c.library_id, c.folder_path
+`
+
+type CountComicsByExactFolderRow struct {
+	LibraryID  uuid.UUID
+	FolderPath string
+	ComicCount int32
+}
+
+// Comptes d'albums par dossier exact, sans les descendants.
+// Le cumul se fait ensuite en une passe côté service.
+func (q *Queries) CountComicsByExactFolder(ctx context.Context, libraryIds []uuid.UUID) ([]CountComicsByExactFolderRow, error) {
+	rows, err := q.db.Query(ctx, countComicsByExactFolder, libraryIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []CountComicsByExactFolderRow{}
+	for rows.Next() {
+		var i CountComicsByExactFolderRow
+		if err := rows.Scan(&i.LibraryID, &i.FolderPath, &i.ComicCount); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const deleteFolderTree = `-- name: DeleteFolderTree :execrows
+DELETE FROM folders
+WHERE library_id = $1
+  AND (path = $2::text OR path LIKE $2::text || '/%')
+`
+
+type DeleteFolderTreeParams struct {
+	LibraryID uuid.UUID
+	Path      string
+}
+
+func (q *Queries) DeleteFolderTree(ctx context.Context, arg DeleteFolderTreeParams) (int64, error) {
+	result, err := q.db.Exec(ctx, deleteFolderTree, arg.LibraryID, arg.Path)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const editComic = `-- name: EditComic :one
 
 UPDATE comics
@@ -208,6 +264,91 @@ WHERE id = $1
 func (q *Queries) ExcludeComic(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, excludeComic, id)
 	return err
+}
+
+const getFolder = `-- name: GetFolder :one
+SELECT id, library_id, path, name, depth, parent_path, explicit, created_at, updated_at FROM folders WHERE library_id = $1 AND path = $2
+`
+
+type GetFolderParams struct {
+	LibraryID uuid.UUID
+	Path      string
+}
+
+func (q *Queries) GetFolder(ctx context.Context, arg GetFolderParams) (Folder, error) {
+	row := q.db.QueryRow(ctx, getFolder, arg.LibraryID, arg.Path)
+	var i Folder
+	err := row.Scan(
+		&i.ID,
+		&i.LibraryID,
+		&i.Path,
+		&i.Name,
+		&i.Depth,
+		&i.ParentPath,
+		&i.Explicit,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const getFolderByID = `-- name: GetFolderByID :one
+SELECT id, library_id, path, name, depth, parent_path, explicit, created_at, updated_at FROM folders WHERE id = $1
+`
+
+func (q *Queries) GetFolderByID(ctx context.Context, id uuid.UUID) (Folder, error) {
+	row := q.db.QueryRow(ctx, getFolderByID, id)
+	var i Folder
+	err := row.Scan(
+		&i.ID,
+		&i.LibraryID,
+		&i.Path,
+		&i.Name,
+		&i.Depth,
+		&i.ParentPath,
+		&i.Explicit,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
+}
+
+const listComicsInFolderTree = `-- name: ListComicsInFolderTree :many
+SELECT id, object_key FROM comics
+WHERE library_id = $1
+  AND deleted_at IS NULL
+  AND (folder_path = $2::text OR folder_path LIKE $2::text || '/%')
+ORDER BY object_key
+`
+
+type ListComicsInFolderTreeParams struct {
+	LibraryID uuid.UUID
+	Path      string
+}
+
+type ListComicsInFolderTreeRow struct {
+	ID        uuid.UUID
+	ObjectKey string
+}
+
+func (q *Queries) ListComicsInFolderTree(ctx context.Context, arg ListComicsInFolderTreeParams) ([]ListComicsInFolderTreeRow, error) {
+	rows, err := q.db.Query(ctx, listComicsInFolderTree, arg.LibraryID, arg.Path)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []ListComicsInFolderTreeRow{}
+	for rows.Next() {
+		var i ListComicsInFolderTreeRow
+		if err := rows.Scan(&i.ID, &i.ObjectKey); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listExcludedComics = `-- name: ListExcludedComics :many
@@ -332,6 +473,44 @@ func (q *Queries) ListFolders(ctx context.Context, libraryIds []uuid.UUID) ([]Li
 	return items, nil
 }
 
+const listFoldersByLibraries = `-- name: ListFoldersByLibraries :many
+
+SELECT id, library_id, path, name, depth, parent_path, explicit, created_at, updated_at FROM folders
+WHERE library_id = ANY($1::uuid[])
+ORDER BY library_id, path
+`
+
+// ─── Dossiers ────────────────────────────────────────────────────────────────
+func (q *Queries) ListFoldersByLibraries(ctx context.Context, libraryIds []uuid.UUID) ([]Folder, error) {
+	rows, err := q.db.Query(ctx, listFoldersByLibraries, libraryIds)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Folder{}
+	for rows.Next() {
+		var i Folder
+		if err := rows.Scan(
+			&i.ID,
+			&i.LibraryID,
+			&i.Path,
+			&i.Name,
+			&i.Depth,
+			&i.ParentPath,
+			&i.Explicit,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listRatings = `-- name: ListRatings :many
 SELECT comic_id, rating FROM comic_ratings WHERE user_id = $1
 `
@@ -379,6 +558,38 @@ func (q *Queries) MoveComic(ctx context.Context, arg MoveComicParams) error {
 	return err
 }
 
+const pruneEmptyFolders = `-- name: PruneEmptyFolders :execrows
+DELETE FROM folders f
+WHERE f.library_id = $1
+  AND f.explicit = false
+  AND f.path <> ''
+  AND NOT EXISTS (
+      SELECT 1 FROM comics c
+      WHERE c.library_id = f.library_id
+        AND c.deleted_at IS NULL
+        AND c.excluded_at IS NULL
+        AND (c.folder_path = f.path OR c.folder_path LIKE f.path || '/%')
+  )
+  AND NOT EXISTS (
+      SELECT 1 FROM folders child
+      WHERE child.library_id = f.library_id
+        AND child.explicit = true
+        AND child.path LIKE f.path || '/%'
+  )
+`
+
+// Supprime les dossiers constatés devenus vides.
+//
+// Seuls les non-explicites : un dossier créé à la main survit au fait d'être
+// vide, c'est même souvent la raison de l'avoir créé.
+func (q *Queries) PruneEmptyFolders(ctx context.Context, libraryID uuid.UUID) (int64, error) {
+	result, err := q.db.Exec(ctx, pruneEmptyFolders, libraryID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
 const purgeComic = `-- name: PurgeComic :exec
 DELETE FROM comics WHERE id = $1
 `
@@ -387,6 +598,51 @@ DELETE FROM comics WHERE id = $1
 func (q *Queries) PurgeComic(ctx context.Context, id uuid.UUID) error {
 	_, err := q.db.Exec(ctx, purgeComic, id)
 	return err
+}
+
+const renameFolderTree = `-- name: RenameFolderTree :execrows
+UPDATE folders
+SET path = $2::text || substring(path FROM length($3::text) + 1),
+    name = CASE
+        WHEN path = $3::text THEN $4::text
+        ELSE name
+    END,
+    depth = depth + $5::int,
+    parent_path = CASE
+        WHEN path = $3::text THEN $6::text
+        ELSE $2::text || substring(parent_path FROM length($3::text) + 1)
+    END
+WHERE library_id = $1
+  AND (path = $3::text OR path LIKE $3::text || '/%')
+`
+
+type RenameFolderTreeParams struct {
+	LibraryID  uuid.UUID
+	NewPath    string
+	OldPath    string
+	NewName    string
+	DepthDelta int32
+	NewParent  string
+}
+
+// Renomme une branche entière en une passe.
+//
+// Les chemins sont des chaînes : déplacer « Tintin » vers « BD/Tintin » revient
+// à réécrire le préfixe de tous les descendants. Un parcours récursif
+// d'identifiants ferait le même travail en n requêtes.
+func (q *Queries) RenameFolderTree(ctx context.Context, arg RenameFolderTreeParams) (int64, error) {
+	result, err := q.db.Exec(ctx, renameFolderTree,
+		arg.LibraryID,
+		arg.NewPath,
+		arg.OldPath,
+		arg.NewName,
+		arg.DepthDelta,
+		arg.NewParent,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const restoreComic = `-- name: RestoreComic :exec
@@ -463,4 +719,49 @@ type UnsetFavoriteParams struct {
 func (q *Queries) UnsetFavorite(ctx context.Context, arg UnsetFavoriteParams) error {
 	_, err := q.db.Exec(ctx, unsetFavorite, arg.UserID, arg.ComicID)
 	return err
+}
+
+const upsertFolder = `-- name: UpsertFolder :one
+INSERT INTO folders (id, library_id, path, name, depth, parent_path, explicit)
+VALUES ($1, $2, $3, $4, $5, $6, $7)
+ON CONFLICT (library_id, path) DO UPDATE
+SET explicit = folders.explicit OR EXCLUDED.explicit
+RETURNING id, library_id, path, name, depth, parent_path, explicit, created_at, updated_at
+`
+
+type UpsertFolderParams struct {
+	ID         uuid.UUID
+	LibraryID  uuid.UUID
+	Path       string
+	Name       string
+	Depth      int32
+	ParentPath *string
+	Explicit   bool
+}
+
+// Un dossier constaté par le parcours ne perd pas son caractère explicite :
+// l'utilisateur l'a voulu, y déposer des fichiers ne défait pas sa décision.
+func (q *Queries) UpsertFolder(ctx context.Context, arg UpsertFolderParams) (Folder, error) {
+	row := q.db.QueryRow(ctx, upsertFolder,
+		arg.ID,
+		arg.LibraryID,
+		arg.Path,
+		arg.Name,
+		arg.Depth,
+		arg.ParentPath,
+		arg.Explicit,
+	)
+	var i Folder
+	err := row.Scan(
+		&i.ID,
+		&i.LibraryID,
+		&i.Path,
+		&i.Name,
+		&i.Depth,
+		&i.ParentPath,
+		&i.Explicit,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+	)
+	return i, err
 }

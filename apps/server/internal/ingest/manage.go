@@ -150,6 +150,8 @@ func (s *Service) Move(ctx context.Context, p MoveParams) (string, error) {
 	}
 
 	folder := indexer.FolderOf(target, lib.RootPrefix)
+	s.registerFolder(ctx, lib.ID, folder)
+
 	if err := s.manage.MoveComic(ctx, p.ComicID, target, folder); err != nil {
 		// L'objet a bougé mais le catalogue l'ignore : il pointe une clé qui
 		// n'existe plus. Un scan rétablira la cohérence ; le signaler permet

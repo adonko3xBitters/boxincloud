@@ -39,6 +39,9 @@ type Querier interface {
 	// rien dans l'interface ne permettrait d'en refaire un.
 	CountAdmins(ctx context.Context) (int64, error)
 	CountComicPages(ctx context.Context, comicID uuid.UUID) (int64, error)
+	// Comptes d'albums par dossier exact, sans les descendants.
+	// Le cumul se fait ensuite en une passe côté service.
+	CountComicsByExactFolder(ctx context.Context, libraryIds []uuid.UUID) ([]CountComicsByExactFolderRow, error)
 	CountComicsByLibrary(ctx context.Context, libraryID uuid.UUID) (int64, error)
 	// Sert à l'assistant de première installation : tant qu'il n'y a personne,
 	// l'inscription du premier administrateur est ouverte.
@@ -54,6 +57,7 @@ type Querier interface {
 	DeleteComicPages(ctx context.Context, comicID uuid.UUID) error
 	DeleteDevice(ctx context.Context, arg DeleteDeviceParams) error
 	DeleteExpiredSessions(ctx context.Context) (int64, error)
+	DeleteFolderTree(ctx context.Context, arg DeleteFolderTreeParams) (int64, error)
 	DeleteLibrary(ctx context.Context, id uuid.UUID) error
 	DeleteReadingProgress(ctx context.Context, arg DeleteReadingProgressParams) error
 	DeleteSetting(ctx context.Context, key string) error
@@ -87,6 +91,8 @@ type Querier interface {
 	GetComicPage(ctx context.Context, arg GetComicPageParams) (ComicPage, error)
 	GetDefaultStorageBackend(ctx context.Context) (StorageBackend, error)
 	GetDevice(ctx context.Context, id uuid.UUID) (Device, error)
+	GetFolder(ctx context.Context, arg GetFolderParams) (Folder, error)
+	GetFolderByID(ctx context.Context, id uuid.UUID) (Folder, error)
 	GetLibrary(ctx context.Context, id uuid.UUID) (Library, error)
 	GetLibraryByName(ctx context.Context, name string) (Library, error)
 	GetReadingProgress(ctx context.Context, arg GetReadingProgressParams) (ReadingProgress, error)
@@ -109,6 +115,7 @@ type Querier interface {
 	ListComicPages(ctx context.Context, comicID uuid.UUID) ([]ComicPage, error)
 	ListComicsByLibrary(ctx context.Context, arg ListComicsByLibraryParams) ([]Comic, error)
 	ListComicsBySeries(ctx context.Context, seriesID uuid.NullUUID) ([]ListComicsBySeriesRow, error)
+	ListComicsInFolderTree(ctx context.Context, arg ListComicsInFolderTreeParams) ([]ListComicsInFolderTreeRow, error)
 	// Requêtes de consultation du catalogue.
 	//
 	// Pagination par curseur plutôt que par OFFSET : sur une bibliothèque de
@@ -137,6 +144,8 @@ type Querier interface {
 	// l'arbre. Calculer l'arbre en SQL demanderait une récursion pour un résultat
 	// que le client sait bâtir en une passe.
 	ListFolders(ctx context.Context, libraryIds []uuid.UUID) ([]ListFoldersRow, error)
+	// ─── Dossiers ────────────────────────────────────────────────────────────────
+	ListFoldersByLibraries(ctx context.Context, libraryIds []uuid.UUID) ([]Folder, error)
 	// « Reprendre la lecture » : les albums commencés mais non terminés.
 	ListInProgress(ctx context.Context, arg ListInProgressParams) ([]ListInProgressRow, error)
 	ListLibraries(ctx context.Context) ([]Library, error)
@@ -169,12 +178,23 @@ type Querier interface {
 	// pas détruire la progression de lecture des utilisateurs.
 	MarkMissingComicsDeleted(ctx context.Context, arg MarkMissingComicsDeletedParams) (int64, error)
 	MoveComic(ctx context.Context, arg MoveComicParams) error
+	// Supprime les dossiers constatés devenus vides.
+	//
+	// Seuls les non-explicites : un dossier créé à la main survit au fait d'être
+	// vide, c'est même souvent la raison de l'avoir créé.
+	PruneEmptyFolders(ctx context.Context, libraryID uuid.UUID) (int64, error)
 	// Efface définitivement la ligne, une fois le fichier supprimé du backend.
 	PurgeComic(ctx context.Context, id uuid.UUID) error
 	// ─── Cache dérivé ────────────────────────────────────────────────────────────
 	RecordCacheEntry(ctx context.Context, arg RecordCacheEntryParams) error
 	RefreshSeriesCounts(ctx context.Context, libraryID uuid.UUID) error
 	RemoveFavorite(ctx context.Context, arg RemoveFavoriteParams) error
+	// Renomme une branche entière en une passe.
+	//
+	// Les chemins sont des chaînes : déplacer « Tintin » vers « BD/Tintin » revient
+	// à réécrire le préfixe de tous les descendants. Un parcours récursif
+	// d'identifiants ferait le même travail en n requêtes.
+	RenameFolderTree(ctx context.Context, arg RenameFolderTreeParams) (int64, error)
 	RestoreComic(ctx context.Context, id uuid.UUID) error
 	RevokeAllUserSessions(ctx context.Context, userID uuid.UUID) (int64, error)
 	RevokeLibraryAccess(ctx context.Context, arg RevokeLibraryAccessParams) error
@@ -231,6 +251,9 @@ type Querier interface {
 	UpsertComic(ctx context.Context, arg UpsertComicParams) (UpsertComicRow, error)
 	// ─── Appareils ───────────────────────────────────────────────────────────────
 	UpsertDevice(ctx context.Context, arg UpsertDeviceParams) (Device, error)
+	// Un dossier constaté par le parcours ne perd pas son caractère explicite :
+	// l'utilisateur l'a voulu, y déposer des fichiers ne défait pas sa décision.
+	UpsertFolder(ctx context.Context, arg UpsertFolderParams) (Folder, error)
 	// Progression de lecture et synchronisation.
 	// ★ La requête qui porte la règle de résolution de conflit.
 	//

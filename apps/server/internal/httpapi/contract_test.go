@@ -100,6 +100,7 @@ func newContractHarness(t *testing.T) *contractHarness {
 		Auth:      core.Auth,
 		Accounts:  core.Accounts,
 		Catalog:   core.Catalog,
+		Folders:   core.Folders,
 		Libraries: core.Libraries,
 		Ingest:    core.Ingest,
 		Tools:     core.Tools,
