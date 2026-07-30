@@ -51,6 +51,11 @@ type comicDTO struct {
 	// Chemin de la couverture, relatif à l'API. Le client y ajoute la largeur
 	// voulue plutôt que de composer l'URL lui-même.
 	CoverPath string `json:"coverPath"`
+
+	// Aperçu de chargement : data-URI d'une image de 16 px, affichée floutée
+	// le temps que la couverture arrive. Absent tant que l'album n'a pas été
+	// indexé par une version qui le produit.
+	CoverPlaceholder string `json:"coverPlaceholder,omitempty"`
 }
 
 func toComicDTO(c catalog.Comic) comicDTO {
@@ -71,6 +76,8 @@ func toComicDTO(c catalog.Comic) comicDTO {
 		FileSize:   c.FileSize,
 		CreatedAt:  c.CreatedAt,
 		CoverPath:  "/api/v1/comics/" + c.ID.String() + "/cover",
+
+		CoverPlaceholder: c.CoverPlaceholder,
 	}
 	if c.ReleasedAt != nil {
 		s := c.ReleasedAt.Format("2006-01-02")
@@ -159,9 +166,11 @@ func (h *Catalog) ListComics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	q := catalog.ListComicsQuery{
-		State:  r.URL.Query().Get("state"),
-		Cursor: r.URL.Query().Get("cursor"),
-		Limit:  intParam(r, "limit", 0),
+		State:      r.URL.Query().Get("state"),
+		ReadStatus: r.URL.Query().Get("readStatus"),
+		Sort:       r.URL.Query().Get("sort"),
+		Cursor:     r.URL.Query().Get("cursor"),
+		Limit:      intParam(r, "limit", 0),
 	}
 
 	if id, ok := uuidParam(w, r, "libraryId"); !ok {

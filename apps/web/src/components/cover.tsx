@@ -48,7 +48,30 @@ export function Cover({
       )}
       style={{ aspectRatio: COVER_RATIO }}
     >
-      {!loaded && !failed && <div className="absolute inset-0 skeleton" aria-hidden="true" />}
+      {/*
+        Aperçu de chargement.
+        Le serveur livre une image de 16 px en data-URI avec la liste : on
+        l'étire et on la floute pour donner tout de suite les couleurs de la
+        couverture. Une grille qui se remplit ainsi paraît déjà là, là où une
+        grille de rectangles gris paraît en attente.
+        Sans aperçu — album indexé par une version antérieure — on retombe sur
+        le squelette animé.
+      */}
+      {!loaded && !failed && (
+        comic.coverPlaceholder ? (
+          <div
+            className="absolute inset-0 scale-110 blur-lg"
+            style={{
+              backgroundImage: `url("${comic.coverPlaceholder}")`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+            }}
+            aria-hidden="true"
+          />
+        ) : (
+          <div className="absolute inset-0 skeleton" aria-hidden="true" />
+        )
+      )}
 
       {failed ? (
         <FallbackCover comic={comic} />

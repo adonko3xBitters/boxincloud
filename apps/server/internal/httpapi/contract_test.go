@@ -470,3 +470,23 @@ func truncate(s string, n int) string {
 	}
 	return s[:n] + "…"
 }
+
+// Les filtres et le tri font partie du contrat : un paramètre non déclaré
+// serait rejeté ici, avant que le client web ne l'envoie en production.
+func TestIntegrationContractFilters(t *testing.T) {
+	h := newContractHarness(t)
+
+	for _, query := range []string{
+		"sort=recent",
+		"sort=title",
+		"sort=released",
+		"readStatus=unread",
+		"readStatus=in_progress",
+		"readStatus=read",
+		"readStatus=&sort=title&limit=10",
+	} {
+		t.Run(query, func(t *testing.T) {
+			h.expect(t, http.MethodGet, "/api/v1/comics?"+query, nil, http.StatusOK)
+		})
+	}
+}

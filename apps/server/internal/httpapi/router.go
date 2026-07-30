@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"path"
 	"strings"
 	"time"
 
@@ -178,23 +179,32 @@ func serveWeb(d Deps, w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	path := strings.TrimPrefix(r.URL.Path, "/")
-	if path == "" || path == "index.html" {
+	name := strings.TrimPrefix(r.URL.Path, "/")
+	if name == "" || name == "index.html" {
 		serveHTML(d.WebFS, "index.html", w, r)
 		return
 	}
 
-	if exists(d.WebFS, path) {
+	if exists(d.WebFS, name) {
 		// Les assets buildés portent un hash dans leur nom : immuables.
-		if strings.HasPrefix(path, "_next/") {
+		if strings.HasPrefix(name, "_next/") {
 			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
 		}
 		http.FileServer(http.FS(d.WebFS)).ServeHTTP(w, r)
 		return
 	}
 
-	if candidate := path + ".html"; exists(d.WebFS, candidate) {
+	if candidate := name + ".html"; exists(d.WebFS, candidate) {
 		serveHTML(d.WebFS, candidate, w, r)
+		return
+	}
+
+	// Un chemin portant une extension désigne un fichier, pas une route de la
+	// SPA. Lui servir index.html renverrait du HTML avec un code 200 à une
+	// balise <img> ou <script> — ce qui masque l'absence réelle du fichier et
+	// rend le diagnostic pénible. On répond 404, comme il se doit.
+	if path.Ext(name) != "" {
+		problem.Write(w, r, problem.NotFound("resource not found"))
 		return
 	}
 

@@ -57,6 +57,7 @@ type Repository interface {
 	SetComicState(ctx context.Context, id uuid.UUID, state, detail string) error
 	SetComicIndexed(ctx context.Context, id uuid.UUID, pageCount int) error
 	ApplyMetadata(ctx context.Context, id uuid.UUID, m Metadata, seriesID *uuid.UUID, metadataJSON []byte) error
+	SetCoverPlaceholder(ctx context.Context, id uuid.UUID, dataURI string) error
 	MarkMissingDeleted(ctx context.Context, libraryID uuid.UUID, seenKeys []string) (int64, error)
 
 	// Pages — remplacement atomique : une réindexation ne doit jamais laisser

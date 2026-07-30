@@ -64,17 +64,32 @@ func (r *PostgresRepository) CanAccessLibrary(ctx context.Context, v Viewer, lib
 
 func (r *PostgresRepository) ListComics(ctx context.Context, p ListComicsParams) ([]Comic, error) {
 	params := sqlc.ListComicsPageParams{
+		UserID:       p.UserID,
 		LibraryIds:   p.LibraryIDs,
 		State:        p.State,
+		ReadStatus:   p.ReadStatus,
+		Sort:         string(p.Sort),
 		MaxAgeRating: p.MaxAgeRating,
 		PageSize:     p.Limit,
 	}
 	if p.SeriesID != nil {
 		params.SeriesID = uuid.NullUUID{UUID: *p.SeriesID, Valid: true}
 	}
-	if p.Cursor != nil {
-		params.CursorCreatedAt = pgtype.Timestamptz{Time: p.Cursor.CreatedAt, Valid: true}
-		params.CursorID = uuid.NullUUID{UUID: p.Cursor.ID, Valid: true}
+	if c := p.Cursor; c != nil {
+		params.CursorID = uuid.NullUUID{UUID: c.ID, Valid: true}
+
+		// Seul le champ correspondant au tri est renseigné : les autres restent
+		// NULL, ce qui neutralise leur branche dans la clause de curseur.
+		switch c.Sort {
+		case Sort("title"):
+			params.CursorTitle = &c.Title
+		case Sort("released"):
+			if c.ReleasedAt != nil {
+				params.CursorReleased = pgtype.Date{Time: *c.ReleasedAt, Valid: true}
+			}
+		default:
+			params.CursorCreatedAt = pgtype.Timestamptz{Time: c.CreatedAt, Valid: true}
+		}
 	}
 
 	rows, err := r.q.ListComicsPage(ctx, params)
@@ -103,6 +118,7 @@ func (r *PostgresRepository) SearchComics(ctx context.Context, p SearchParams) (
 			Summary: row.Summary, Format: row.Format, PageCount: row.PageCount,
 			State: row.State, AgeRating: row.AgeRating, Language: row.Language,
 			FileSize: row.FileSize, ReleasedAt: row.ReleasedAt, CreatedAt: row.CreatedAt,
+			CoverPlaceholder: row.CoverPlaceholder,
 		}))
 	}
 	return out, nil
@@ -241,6 +257,9 @@ func comicFromRow(row sqlc.Comic) Comic {
 	}
 	if row.Language != nil {
 		c.Language = *row.Language
+	}
+	if row.CoverPlaceholder != nil {
+		c.CoverPlaceholder = *row.CoverPlaceholder
 	}
 	if row.ReleasedAt.Valid {
 		t := row.ReleasedAt.Time

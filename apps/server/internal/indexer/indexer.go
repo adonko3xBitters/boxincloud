@@ -15,6 +15,7 @@ package indexer
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -455,7 +456,46 @@ func (w *IndexComicWorker) generateCover(ctx context.Context, provider storage.P
 			return err
 		}
 	}
+
+	// Aperçu de chargement (LQIP). Stocké en base plutôt que dans le cache : il
+	// doit arriver AVEC la liste d'albums, en une seule requête — le chercher
+	// ailleurs annulerait tout son intérêt.
+	if placeholder, err := w.buildPlaceholder(original); err != nil {
+		w.deps.Log.Debug("aperçu de couverture non généré",
+			slog.String("comic_id", comic.ID.String()), slog.Any("err", err))
+	} else if err := w.deps.Repo.SetCoverPlaceholder(ctx, comic.ID, placeholder); err != nil {
+		return err
+	}
+
 	return nil
+}
+
+// maxPlaceholderBytes borne la taille du LQIP.
+//
+// Il voyage dans chaque élément de la liste d'albums : au-delà, une page de
+// soixante couvertures paierait plus cher en JSON que ce que l'aperçu fait
+// gagner en confort. Un JPEG de 16 px reste très en deçà.
+const maxPlaceholderBytes = 2048
+
+// buildPlaceholder produit un data-URI d'un JPEG de 16 px de large.
+func (w *IndexComicWorker) buildPlaceholder(original []byte) (string, error) {
+	var buf bytes.Buffer
+
+	if _, err := w.deps.Imaging.Transform(&buf, bytes.NewReader(original), imaging.Options{
+		Width:  imaging.PlaceholderWidth,
+		Format: imaging.FormatJPEG,
+		// Qualité basse assumée : l'image sera floutée et étirée, les artefacts
+		// de compression disparaissent entièrement.
+		Quality: 45,
+	}); err != nil {
+		return "", err
+	}
+
+	if buf.Len() > maxPlaceholderBytes {
+		return "", fmt.Errorf("aperçu trop volumineux : %d octets", buf.Len())
+	}
+
+	return "data:image/jpeg;base64," + base64.StdEncoding.EncodeToString(buf.Bytes()), nil
 }
 
 // maxCoverBytes borne la lecture d'une page de couverture.

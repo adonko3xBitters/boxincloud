@@ -153,6 +153,17 @@ func (r *PostgresRepository) ApplyMetadata(ctx context.Context, id uuid.UUID, m 
 	return r.q.ApplyComicMetadata(ctx, params)
 }
 
+func (r *PostgresRepository) SetCoverPlaceholder(ctx context.Context, id uuid.UUID, dataURI string) error {
+	var value *string
+	if dataURI != "" {
+		value = &dataURI
+	}
+	return r.q.SetComicPlaceholder(ctx, sqlc.SetComicPlaceholderParams{
+		ID:               id,
+		CoverPlaceholder: value,
+	})
+}
+
 func (r *PostgresRepository) MarkMissingDeleted(ctx context.Context, libraryID uuid.UUID, seenKeys []string) (int64, error) {
 	// Une liste vide effacerait toute la bibliothèque. Cela n'arrive que si le
 	// backend a répondu sans erreur mais sans aucun objet — bien plus

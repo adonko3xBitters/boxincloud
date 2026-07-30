@@ -5,7 +5,8 @@ import { useMemo, useState } from "react";
 
 import { AppShell } from "@/components/app-shell";
 import { ComicGrid, ComicGridSkeleton } from "@/components/comic-grid";
-import { EmptyState, ErrorState, cx } from "@/components/ui";
+import { LibraryFilters, type ReadStatus, type SortOrder } from "@/components/filters";
+import { EmptyState, ErrorState } from "@/components/ui";
 import * as api from "@/lib/api/endpoints";
 
 /**
@@ -25,6 +26,8 @@ export default function LibraryPage() {
 
 function LibraryContent() {
   const [libraryId, setLibraryId] = useState<string | undefined>(undefined);
+  const [readStatus, setReadStatus] = useState<ReadStatus>("");
+  const [sort, setSort] = useState<SortOrder>("recent");
 
   const libraries = useQuery({
     queryKey: ["libraries"],
@@ -32,9 +35,11 @@ function LibraryContent() {
   });
 
   const comics = useInfiniteQuery({
-    queryKey: ["comics", { libraryId }],
+    // Les filtres font partie de la clé : changer de tri repart d'une page
+    // vierge plutôt que de recoller des résultats d'ordres différents.
+    queryKey: ["comics", { libraryId, readStatus, sort }],
     queryFn: ({ pageParam }) =>
-      api.listComics({ libraryId, cursor: pageParam, limit: 60 }),
+      api.listComics({ libraryId, readStatus, sort, cursor: pageParam, limit: 60 }),
     initialPageParam: undefined as string | undefined,
     // nextCursor absent signifie « dernière page » : le contrat le garantit,
     // le client n'a pas à compter les éléments pour le déduire.
@@ -51,44 +56,40 @@ function LibraryContent() {
   }
 
   const availableLibraries = libraries.data?.libraries ?? [];
+  const filtered = readStatus !== "" || libraryId !== undefined;
 
   return (
     <div className="flex flex-col gap-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight">Bibliothèque</h1>
-          {!comics.isLoading && (
-            <p className="text-sm text-muted">
-              {all.length} album{all.length > 1 ? "s" : ""}
-              {comics.hasNextPage ? " et plus" : ""}
-            </p>
-          )}
-        </div>
-
-        {availableLibraries.length > 1 && (
-          <div className="flex flex-wrap gap-1" role="group" aria-label="Filtrer par bibliothèque">
-            <FilterChip active={libraryId === undefined} onClick={() => setLibraryId(undefined)}>
-              Toutes
-            </FilterChip>
-            {availableLibraries.map((library) => (
-              <FilterChip
-                key={library.id}
-                active={libraryId === library.id}
-                onClick={() => setLibraryId(library.id)}
-              >
-                {library.name}
-              </FilterChip>
-            ))}
-          </div>
+      <div>
+        <h1 className="text-xl font-semibold tracking-tight">Bibliothèque</h1>
+        {!comics.isLoading && (
+          <p className="text-sm text-muted">
+            {all.length} album{all.length > 1 ? "s" : ""}
+            {comics.hasNextPage ? " et plus" : ""}
+          </p>
         )}
       </div>
+
+      <LibraryFilters
+        libraries={availableLibraries}
+        libraryId={libraryId}
+        onLibraryChange={setLibraryId}
+        readStatus={readStatus}
+        onReadStatusChange={setReadStatus}
+        sort={sort}
+        onSortChange={setSort}
+      />
 
       {comics.isLoading ? (
         <ComicGridSkeleton />
       ) : all.length === 0 ? (
         <EmptyState
-          title="Aucun album"
-          description="Cette bibliothèque ne contient rien pour le moment. Lancez un scan depuis le serveur."
+          title={filtered ? "Aucun album ne correspond" : "Aucun album"}
+          description={
+            filtered
+              ? "Élargissez les filtres pour voir plus de résultats."
+              : "Cette bibliothèque ne contient rien pour le moment. Lancez un scan depuis le serveur."
+          }
         />
       ) : (
         <ComicGrid
@@ -99,30 +100,5 @@ function LibraryContent() {
         />
       )}
     </div>
-  );
-}
-
-function FilterChip({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      aria-pressed={active}
-      className={cx(
-        "rounded-full px-3 py-1.5 text-sm font-medium transition-colors",
-        active
-          ? "bg-accent text-inverted"
-          : "bg-surface-raised text-muted hover:bg-surface-hover hover:text-fg",
-      )}
-    >
-      {children}
-    </button>
   );
 }

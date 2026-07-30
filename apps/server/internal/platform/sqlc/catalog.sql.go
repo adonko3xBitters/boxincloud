@@ -13,7 +13,7 @@ import (
 )
 
 const getComicDetail = `-- name: GetComicDetail :one
-SELECT comics.id, comics.library_id, comics.series_id, comics.object_key, comics.file_size, comics.file_etag, comics.content_hash, comics.format, comics.title, comics.number, comics.number_sort, comics.volume, comics.summary, comics.released_at, comics.age_rating, comics.language, comics.page_count, comics.cover_page, comics.state, comics.state_detail, comics.hydrated_at, comics.indexed_at, comics.metadata, comics.locked_fields, comics.created_at, comics.updated_at, comics.deleted_at, comics.search_vector, series.id, series.library_id, series.name, series.sort_name, series.description, series.publisher, series.status, series.age_rating, series.year_started, series.cover_comic_id, series.comic_count, series.metadata, series.locked_fields, series.created_at, series.updated_at
+SELECT comics.id, comics.library_id, comics.series_id, comics.object_key, comics.file_size, comics.file_etag, comics.content_hash, comics.format, comics.title, comics.number, comics.number_sort, comics.volume, comics.summary, comics.released_at, comics.age_rating, comics.language, comics.page_count, comics.cover_page, comics.state, comics.state_detail, comics.hydrated_at, comics.indexed_at, comics.metadata, comics.locked_fields, comics.created_at, comics.updated_at, comics.deleted_at, comics.search_vector, comics.cover_placeholder, series.id, series.library_id, series.name, series.sort_name, series.description, series.publisher, series.status, series.age_rating, series.year_started, series.cover_comic_id, series.comic_count, series.metadata, series.locked_fields, series.created_at, series.updated_at
 FROM comics
 LEFT JOIN series ON series.id = comics.series_id
 WHERE comics.id = $1 AND comics.deleted_at IS NULL
@@ -56,6 +56,7 @@ func (q *Queries) GetComicDetail(ctx context.Context, id uuid.UUID) (GetComicDet
 		&i.Comic.UpdatedAt,
 		&i.Comic.DeletedAt,
 		&i.Comic.SearchVector,
+		&i.Comic.CoverPlaceholder,
 		&i.Series.ID,
 		&i.Series.LibraryID,
 		&i.Series.Name,
@@ -76,7 +77,7 @@ func (q *Queries) GetComicDetail(ctx context.Context, id uuid.UUID) (GetComicDet
 }
 
 const listComicsBySeries = `-- name: ListComicsBySeries :many
-SELECT id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector FROM comics
+SELECT id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector, cover_placeholder FROM comics
 WHERE series_id = $1 AND deleted_at IS NULL
 ORDER BY number_sort NULLS LAST, title
 `
@@ -119,6 +120,7 @@ func (q *Queries) ListComicsBySeries(ctx context.Context, seriesID uuid.NullUUID
 			&i.UpdatedAt,
 			&i.DeletedAt,
 			&i.SearchVector,
+			&i.CoverPlaceholder,
 		); err != nil {
 			return nil, err
 		}
@@ -132,29 +134,57 @@ func (q *Queries) ListComicsBySeries(ctx context.Context, seriesID uuid.NullUUID
 
 const listComicsPage = `-- name: ListComicsPage :many
 
-SELECT id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector FROM comics
-WHERE library_id = ANY($1::uuid[])
-  AND deleted_at IS NULL
-  AND ($2::uuid IS NULL OR series_id = $2::uuid)
-  AND ($3::text = '' OR state::text = $3)
+SELECT c.id, c.library_id, c.series_id, c.object_key, c.file_size, c.file_etag, c.content_hash, c.format, c.title, c.number, c.number_sort, c.volume, c.summary, c.released_at, c.age_rating, c.language, c.page_count, c.cover_page, c.state, c.state_detail, c.hydrated_at, c.indexed_at, c.metadata, c.locked_fields, c.created_at, c.updated_at, c.deleted_at, c.search_vector, c.cover_placeholder FROM comics c
+LEFT JOIN reading_progress p
+       ON p.comic_id = c.id AND p.user_id = $1
+WHERE c.library_id = ANY($2::uuid[])
+  AND c.deleted_at IS NULL
+  AND ($3::uuid IS NULL OR c.series_id = $3::uuid)
+  AND ($4::text = '' OR c.state::text = $4)
   -- Filtrage par classification d'âge, pour les profils restreints.
-  AND ($4::smallint IS NULL
-       OR age_rating IS NULL
-       OR age_rating <= $4::smallint)
-  -- Curseur : (created_at, id) est un ordre total, donc sans ex æquo ambigus.
-  AND ($5::timestamptz IS NULL
-       OR (created_at, id) < ($5::timestamptz, $6::uuid))
-ORDER BY created_at DESC, id DESC
-LIMIT $7
+  AND ($5::smallint IS NULL
+       OR c.age_rating IS NULL
+       OR c.age_rating <= $5::smallint)
+  -- Filtrage par statut de lecture. « unread » couvre l'absence de ligne :
+  -- un album jamais ouvert n'a pas d'entrée dans reading_progress.
+  AND ($6::text = ''
+       OR ($6 = 'unread'      AND (p.status IS NULL OR p.status = 'unread'))
+       OR ($6 = 'in_progress' AND p.status = 'in_progress')
+       OR ($6 = 'read'        AND p.status = 'read'))
+  -- Curseur, dans l'ordre du tri demandé.
+  AND (
+    CASE $7::text
+      WHEN 'title' THEN
+        $8::text IS NULL
+        OR (c.title, c.id) > ($8::text, $9::uuid)
+      WHEN 'released' THEN
+        $10::date IS NULL
+        OR (c.released_at, c.id) < ($10::date, $9::uuid)
+      ELSE
+        $11::timestamptz IS NULL
+        OR (c.created_at, c.id) < ($11::timestamptz, $9::uuid)
+    END
+  )
+ORDER BY
+  CASE WHEN $7 = 'title'    THEN c.title END ASC,
+  CASE WHEN $7 = 'released' THEN c.released_at END DESC NULLS LAST,
+  CASE WHEN $7 NOT IN ('title', 'released') THEN c.created_at END DESC,
+  c.id DESC
+LIMIT $12
 `
 
 type ListComicsPageParams struct {
+	UserID          uuid.UUID
 	LibraryIds      []uuid.UUID
 	SeriesID        uuid.NullUUID
 	State           string
 	MaxAgeRating    *int16
-	CursorCreatedAt pgtype.Timestamptz
+	ReadStatus      string
+	Sort            string
+	CursorTitle     *string
 	CursorID        uuid.NullUUID
+	CursorReleased  pgtype.Date
+	CursorCreatedAt pgtype.Timestamptz
 	PageSize        int32
 }
 
@@ -164,14 +194,29 @@ type ListComicsPageParams struct {
 // plusieurs milliers de titres, OFFSET force PostgreSQL à parcourir puis jeter
 // toutes les lignes précédentes, et une insertion pendant la pagination décale
 // silencieusement les résultats. Le curseur est stable et à coût constant.
+// Liste paginée, filtrable et triable.
+//
+// Le tri est porté par la requête plutôt que par une concaténation côté Go :
+// une clause ORDER BY construite en chaîne serait une porte d'injection, et le
+// plan d'exécution ne serait plus mis en cache. Les trois ordres possibles sont
+// donc écrits en dur, sélectionnés par un paramètre.
+//
+// Le curseur suit l'ordre choisi : (created_at, id) pour le tri par ajout,
+// (title, id) pour le tri alphabétique. Un seul curseur composite ne
+// conviendrait pas aux deux.
 func (q *Queries) ListComicsPage(ctx context.Context, arg ListComicsPageParams) ([]Comic, error) {
 	rows, err := q.db.Query(ctx, listComicsPage,
+		arg.UserID,
 		arg.LibraryIds,
 		arg.SeriesID,
 		arg.State,
 		arg.MaxAgeRating,
-		arg.CursorCreatedAt,
+		arg.ReadStatus,
+		arg.Sort,
+		arg.CursorTitle,
 		arg.CursorID,
+		arg.CursorReleased,
+		arg.CursorCreatedAt,
 		arg.PageSize,
 	)
 	if err != nil {
@@ -210,6 +255,7 @@ func (q *Queries) ListComicsPage(ctx context.Context, arg ListComicsPageParams) 
 			&i.UpdatedAt,
 			&i.DeletedAt,
 			&i.SearchVector,
+			&i.CoverPlaceholder,
 		); err != nil {
 			return nil, err
 		}
@@ -222,7 +268,7 @@ func (q *Queries) ListComicsPage(ctx context.Context, arg ListComicsPageParams) 
 }
 
 const listNextInSeries = `-- name: ListNextInSeries :many
-SELECT DISTINCT ON (c.series_id) c.id, c.library_id, c.series_id, c.object_key, c.file_size, c.file_etag, c.content_hash, c.format, c.title, c.number, c.number_sort, c.volume, c.summary, c.released_at, c.age_rating, c.language, c.page_count, c.cover_page, c.state, c.state_detail, c.hydrated_at, c.indexed_at, c.metadata, c.locked_fields, c.created_at, c.updated_at, c.deleted_at, c.search_vector
+SELECT DISTINCT ON (c.series_id) c.id, c.library_id, c.series_id, c.object_key, c.file_size, c.file_etag, c.content_hash, c.format, c.title, c.number, c.number_sort, c.volume, c.summary, c.released_at, c.age_rating, c.language, c.page_count, c.cover_page, c.state, c.state_detail, c.hydrated_at, c.indexed_at, c.metadata, c.locked_fields, c.created_at, c.updated_at, c.deleted_at, c.search_vector, c.cover_placeholder
 FROM comics c
 JOIN series s ON s.id = c.series_id
 WHERE c.library_id = ANY($1::uuid[])
@@ -289,6 +335,7 @@ func (q *Queries) ListNextInSeries(ctx context.Context, arg ListNextInSeriesPara
 			&i.UpdatedAt,
 			&i.DeletedAt,
 			&i.SearchVector,
+			&i.CoverPlaceholder,
 		); err != nil {
 			return nil, err
 		}
@@ -301,7 +348,7 @@ func (q *Queries) ListNextInSeries(ctx context.Context, arg ListNextInSeriesPara
 }
 
 const listRecentComics = `-- name: ListRecentComics :many
-SELECT id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector FROM comics
+SELECT id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector, cover_placeholder FROM comics
 WHERE library_id = ANY($1::uuid[])
   AND deleted_at IS NULL
   AND state = 'ready'
@@ -357,6 +404,7 @@ func (q *Queries) ListRecentComics(ctx context.Context, arg ListRecentComicsPara
 			&i.UpdatedAt,
 			&i.DeletedAt,
 			&i.SearchVector,
+			&i.CoverPlaceholder,
 		); err != nil {
 			return nil, err
 		}
@@ -419,7 +467,7 @@ func (q *Queries) ListSeriesPage(ctx context.Context, arg ListSeriesPageParams) 
 }
 
 const searchComics = `-- name: SearchComics :many
-SELECT id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector, (
+SELECT id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector, cover_placeholder, (
     ts_rank(search_vector, websearch_to_tsquery('simple', immutable_unaccent($1)))
     + word_similarity(immutable_unaccent($1), immutable_unaccent(title))
 )::real AS rank
@@ -443,35 +491,36 @@ type SearchComicsParams struct {
 }
 
 type SearchComicsRow struct {
-	ID           uuid.UUID
-	LibraryID    uuid.UUID
-	SeriesID     uuid.NullUUID
-	ObjectKey    string
-	FileSize     int64
-	FileEtag     *string
-	ContentHash  []byte
-	Format       ComicFormat
-	Title        string
-	Number       *string
-	NumberSort   pgtype.Numeric
-	Volume       *int16
-	Summary      *string
-	ReleasedAt   pgtype.Date
-	AgeRating    *int16
-	Language     *string
-	PageCount    int32
-	CoverPage    int32
-	State        ComicState
-	StateDetail  *string
-	HydratedAt   pgtype.Timestamptz
-	IndexedAt    pgtype.Timestamptz
-	Metadata     []byte
-	LockedFields []string
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
-	DeletedAt    pgtype.Timestamptz
-	SearchVector interface{}
-	Rank         float32
+	ID               uuid.UUID
+	LibraryID        uuid.UUID
+	SeriesID         uuid.NullUUID
+	ObjectKey        string
+	FileSize         int64
+	FileEtag         *string
+	ContentHash      []byte
+	Format           ComicFormat
+	Title            string
+	Number           *string
+	NumberSort       pgtype.Numeric
+	Volume           *int16
+	Summary          *string
+	ReleasedAt       pgtype.Date
+	AgeRating        *int16
+	Language         *string
+	PageCount        int32
+	CoverPage        int32
+	State            ComicState
+	StateDetail      *string
+	HydratedAt       pgtype.Timestamptz
+	IndexedAt        pgtype.Timestamptz
+	Metadata         []byte
+	LockedFields     []string
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
+	SearchVector     interface{}
+	CoverPlaceholder *string
+	Rank             float32
 }
 
 // Recherche plein texte, avec repli sur la similarité trigramme.
@@ -533,6 +582,7 @@ func (q *Queries) SearchComics(ctx context.Context, arg SearchComicsParams) ([]S
 			&i.UpdatedAt,
 			&i.DeletedAt,
 			&i.SearchVector,
+			&i.CoverPlaceholder,
 			&i.Rank,
 		); err != nil {
 			return nil, err

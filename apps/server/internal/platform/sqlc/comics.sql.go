@@ -113,7 +113,7 @@ func (q *Queries) DeleteComicPages(ctx context.Context, comicID uuid.UUID) error
 }
 
 const getComic = `-- name: GetComic :one
-SELECT id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector FROM comics WHERE id = $1
+SELECT id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector, cover_placeholder FROM comics WHERE id = $1
 `
 
 func (q *Queries) GetComic(ctx context.Context, id uuid.UUID) (Comic, error) {
@@ -148,12 +148,13 @@ func (q *Queries) GetComic(ctx context.Context, id uuid.UUID) (Comic, error) {
 		&i.UpdatedAt,
 		&i.DeletedAt,
 		&i.SearchVector,
+		&i.CoverPlaceholder,
 	)
 	return i, err
 }
 
 const getComicByObjectKey = `-- name: GetComicByObjectKey :one
-SELECT id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector FROM comics WHERE library_id = $1 AND object_key = $2
+SELECT id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector, cover_placeholder FROM comics WHERE library_id = $1 AND object_key = $2
 `
 
 type GetComicByObjectKeyParams struct {
@@ -193,6 +194,7 @@ func (q *Queries) GetComicByObjectKey(ctx context.Context, arg GetComicByObjectK
 		&i.UpdatedAt,
 		&i.DeletedAt,
 		&i.SearchVector,
+		&i.CoverPlaceholder,
 	)
 	return i, err
 }
@@ -359,7 +361,7 @@ func (q *Queries) ListComicPages(ctx context.Context, comicID uuid.UUID) ([]Comi
 }
 
 const listComicsByLibrary = `-- name: ListComicsByLibrary :many
-SELECT id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector FROM comics
+SELECT id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector, cover_placeholder FROM comics
 WHERE library_id = $1 AND deleted_at IS NULL
 ORDER BY title
 LIMIT $2 OFFSET $3
@@ -409,6 +411,7 @@ func (q *Queries) ListComicsByLibrary(ctx context.Context, arg ListComicsByLibra
 			&i.UpdatedAt,
 			&i.DeletedAt,
 			&i.SearchVector,
+			&i.CoverPlaceholder,
 		); err != nil {
 			return nil, err
 		}
@@ -546,6 +549,20 @@ func (q *Queries) SetComicIndexed(ctx context.Context, arg SetComicIndexedParams
 	return err
 }
 
+const setComicPlaceholder = `-- name: SetComicPlaceholder :exec
+UPDATE comics SET cover_placeholder = $2 WHERE id = $1
+`
+
+type SetComicPlaceholderParams struct {
+	ID               uuid.UUID
+	CoverPlaceholder *string
+}
+
+func (q *Queries) SetComicPlaceholder(ctx context.Context, arg SetComicPlaceholderParams) error {
+	_, err := q.db.Exec(ctx, setComicPlaceholder, arg.ID, arg.CoverPlaceholder)
+	return err
+}
+
 const setComicState = `-- name: SetComicState :exec
 UPDATE comics
 SET state = $2, state_detail = $3
@@ -601,7 +618,7 @@ SET file_size  = EXCLUDED.file_size,
         THEN 'pending'::comic_state
         ELSE comics.state
     END
-RETURNING id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector, (xmax = 0) AS inserted
+RETURNING id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector, cover_placeholder, (xmax = 0) AS inserted
 `
 
 type UpsertComicParams struct {
@@ -615,35 +632,36 @@ type UpsertComicParams struct {
 }
 
 type UpsertComicRow struct {
-	ID           uuid.UUID
-	LibraryID    uuid.UUID
-	SeriesID     uuid.NullUUID
-	ObjectKey    string
-	FileSize     int64
-	FileEtag     *string
-	ContentHash  []byte
-	Format       ComicFormat
-	Title        string
-	Number       *string
-	NumberSort   pgtype.Numeric
-	Volume       *int16
-	Summary      *string
-	ReleasedAt   pgtype.Date
-	AgeRating    *int16
-	Language     *string
-	PageCount    int32
-	CoverPage    int32
-	State        ComicState
-	StateDetail  *string
-	HydratedAt   pgtype.Timestamptz
-	IndexedAt    pgtype.Timestamptz
-	Metadata     []byte
-	LockedFields []string
-	CreatedAt    pgtype.Timestamptz
-	UpdatedAt    pgtype.Timestamptz
-	DeletedAt    pgtype.Timestamptz
-	SearchVector interface{}
-	Inserted     bool
+	ID               uuid.UUID
+	LibraryID        uuid.UUID
+	SeriesID         uuid.NullUUID
+	ObjectKey        string
+	FileSize         int64
+	FileEtag         *string
+	ContentHash      []byte
+	Format           ComicFormat
+	Title            string
+	Number           *string
+	NumberSort       pgtype.Numeric
+	Volume           *int16
+	Summary          *string
+	ReleasedAt       pgtype.Date
+	AgeRating        *int16
+	Language         *string
+	PageCount        int32
+	CoverPage        int32
+	State            ComicState
+	StateDetail      *string
+	HydratedAt       pgtype.Timestamptz
+	IndexedAt        pgtype.Timestamptz
+	Metadata         []byte
+	LockedFields     []string
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+	DeletedAt        pgtype.Timestamptz
+	SearchVector     interface{}
+	CoverPlaceholder *string
+	Inserted         bool
 }
 
 // Ingestion idempotente : la clé naturelle (library_id, object_key) permet de
@@ -688,6 +706,7 @@ func (q *Queries) UpsertComic(ctx context.Context, arg UpsertComicParams) (Upser
 		&i.UpdatedAt,
 		&i.DeletedAt,
 		&i.SearchVector,
+		&i.CoverPlaceholder,
 		&i.Inserted,
 	)
 	return i, err

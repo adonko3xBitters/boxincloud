@@ -5,20 +5,53 @@
 -- toutes les lignes précédentes, et une insertion pendant la pagination décale
 -- silencieusement les résultats. Le curseur est stable et à coût constant.
 
+-- Liste paginée, filtrable et triable.
+--
+-- Le tri est porté par la requête plutôt que par une concaténation côté Go :
+-- une clause ORDER BY construite en chaîne serait une porte d'injection, et le
+-- plan d'exécution ne serait plus mis en cache. Les trois ordres possibles sont
+-- donc écrits en dur, sélectionnés par un paramètre.
+--
+-- Le curseur suit l'ordre choisi : (created_at, id) pour le tri par ajout,
+-- (title, id) pour le tri alphabétique. Un seul curseur composite ne
+-- conviendrait pas aux deux.
 -- name: ListComicsPage :many
-SELECT * FROM comics
-WHERE library_id = ANY(@library_ids::uuid[])
-  AND deleted_at IS NULL
-  AND (sqlc.narg('series_id')::uuid IS NULL OR series_id = sqlc.narg('series_id')::uuid)
-  AND (@state::text = '' OR state::text = @state)
+SELECT c.* FROM comics c
+LEFT JOIN reading_progress p
+       ON p.comic_id = c.id AND p.user_id = @user_id
+WHERE c.library_id = ANY(@library_ids::uuid[])
+  AND c.deleted_at IS NULL
+  AND (sqlc.narg('series_id')::uuid IS NULL OR c.series_id = sqlc.narg('series_id')::uuid)
+  AND (@state::text = '' OR c.state::text = @state)
   -- Filtrage par classification d'âge, pour les profils restreints.
   AND (sqlc.narg('max_age_rating')::smallint IS NULL
-       OR age_rating IS NULL
-       OR age_rating <= sqlc.narg('max_age_rating')::smallint)
-  -- Curseur : (created_at, id) est un ordre total, donc sans ex æquo ambigus.
-  AND (sqlc.narg('cursor_created_at')::timestamptz IS NULL
-       OR (created_at, id) < (sqlc.narg('cursor_created_at')::timestamptz, sqlc.narg('cursor_id')::uuid))
-ORDER BY created_at DESC, id DESC
+       OR c.age_rating IS NULL
+       OR c.age_rating <= sqlc.narg('max_age_rating')::smallint)
+  -- Filtrage par statut de lecture. « unread » couvre l'absence de ligne :
+  -- un album jamais ouvert n'a pas d'entrée dans reading_progress.
+  AND (@read_status::text = ''
+       OR (@read_status = 'unread'      AND (p.status IS NULL OR p.status = 'unread'))
+       OR (@read_status = 'in_progress' AND p.status = 'in_progress')
+       OR (@read_status = 'read'        AND p.status = 'read'))
+  -- Curseur, dans l'ordre du tri demandé.
+  AND (
+    CASE @sort::text
+      WHEN 'title' THEN
+        sqlc.narg('cursor_title')::text IS NULL
+        OR (c.title, c.id) > (sqlc.narg('cursor_title')::text, sqlc.narg('cursor_id')::uuid)
+      WHEN 'released' THEN
+        sqlc.narg('cursor_released')::date IS NULL
+        OR (c.released_at, c.id) < (sqlc.narg('cursor_released')::date, sqlc.narg('cursor_id')::uuid)
+      ELSE
+        sqlc.narg('cursor_created_at')::timestamptz IS NULL
+        OR (c.created_at, c.id) < (sqlc.narg('cursor_created_at')::timestamptz, sqlc.narg('cursor_id')::uuid)
+    END
+  )
+ORDER BY
+  CASE WHEN @sort = 'title'    THEN c.title END ASC,
+  CASE WHEN @sort = 'released' THEN c.released_at END DESC NULLS LAST,
+  CASE WHEN @sort NOT IN ('title', 'released') THEN c.created_at END DESC,
+  c.id DESC
 LIMIT @page_size;
 
 -- name: ListComicsBySeries :many

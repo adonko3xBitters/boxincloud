@@ -156,3 +156,6 @@ LIMIT $1;
 
 -- name: DeleteCacheEntry :exec
 DELETE FROM cache_entries WHERE key = $1;
+
+-- name: SetComicPlaceholder :exec
+UPDATE comics SET cover_placeholder = $2 WHERE id = $1;

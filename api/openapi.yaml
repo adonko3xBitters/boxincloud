@@ -454,6 +454,26 @@ paths:
         - name: state
           in: query
           schema: { $ref: "#/components/schemas/ComicState" }
+        - name: readStatus
+          in: query
+          description: |
+            Filtre sur la progression de lecture du compte courant. Omis ou
+            vide, aucun filtre. `unread` inclut les albums jamais ouverts,
+            qui n'ont aucune ligne de progression.
+          schema:
+            type: string
+            enum: ["", unread, in_progress, read]
+        - name: sort
+          in: query
+          description: |
+            Ordre d'affichage. Défaut `recent`.
+
+            Le curseur est lié au tri : le changer invalide la position
+            précédente, et le serveur repart alors du début plutôt que de
+            servir des résultats incohérents.
+          schema:
+            type: string
+            enum: [recent, title, released]
         - $ref: "#/components/parameters/Cursor"
         - $ref: "#/components/parameters/Limit"
       responses:
@@ -937,6 +957,16 @@ components:
           description: |
             Chemin de la couverture. Le client y ajoute `?width=` plutôt que de
             composer l'URL lui-même.
+        coverPlaceholder:
+          type: string
+          description: |
+            Aperçu de chargement (LQIP) : data-URI d'une image de 16 px de
+            large, à afficher floutée le temps que la couverture arrive.
+            Quelques centaines d'octets, livrés avec la liste pour éviter une
+            requête supplémentaire.
+
+            Absent tant que l'album n'a pas été indexé par une version qui le
+            produit — le client doit gérer son absence.
 
     Series:
       type: object

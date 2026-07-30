@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Favicon : le logo boxincloud, sans dépendre des couleurs du thème.
+       Une planche qui s'échappe d'une boîte — le nom dit « box in cloud »,
+       l'icône dit qu'il s'agit de bandes dessinées. -->
+  <rect width="32" height="32" rx="7" fill="#0f172a"/>
+  <rect x="11" y="4" width="12" height="16" rx="1.5" fill="#6366f1" opacity="0.35" transform="rotate(8 17 12)"/>
+  <rect x="9.5" y="5.5" width="12" height="16" rx="1.5" fill="#818cf8" opacity="0.7"/>
+  <path d="M5 14.5 16 10.5l11 4v9.5L16 28 5 24V14.5Z" fill="#6366f1"/>
+  <path d="M5 14.5 16 18.5l11-4M16 18.5V28" stroke="#0f172a" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" fill="none"/>
+</svg>

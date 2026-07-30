@@ -62,6 +62,10 @@ export const getHome = (limit = 20) =>
 export const listComics = (params: {
   libraryId?: string;
   seriesId?: string;
+  /** unread | in_progress | read. Vide, aucun filtre. */
+  readStatus?: string;
+  /** recent | title | released. */
+  sort?: string;
   cursor?: string;
   limit?: number;
 }) => request<ComicPage>("/comics", { query: params });

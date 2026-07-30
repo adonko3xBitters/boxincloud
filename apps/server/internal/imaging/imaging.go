@@ -91,6 +91,20 @@ const (
 // ThumbSizes est l'ensemble des largeurs générées pour une couverture.
 var ThumbSizes = []int{ThumbSmall, ThumbMedium, ThumbLarge}
 
+// PlaceholderWidth est la largeur du LQIP — l'aperçu affiché flouté pendant le
+// chargement d'une couverture.
+//
+// 16 px produit un JPEG d'environ 870 octets une fois en base64 — l'essentiel
+// étant l'en-tête et les tables de quantification, presque incompressibles à
+// cette taille. Élargir n'ajouterait donc que peu à la charge utile, mais le
+// flou appliqué à l'affichage rend tout détail supplémentaire invisible :
+// 16 px est le point où l'on paie le minimum pour tout le bénéfice.
+//
+// Coût mesuré : ~52 Ko de JSON supplémentaires sur une page de 60 albums, en
+// échange de 60 aperçus disponibles immédiatement. Le compromis penche
+// nettement du bon côté sur un réseau local, et reste acceptable à distance.
+const PlaceholderWidth = 16
+
 // Options décrit une transformation.
 type Options struct {
 	// Width est la largeur cible. La hauteur suit le ratio d'origine.

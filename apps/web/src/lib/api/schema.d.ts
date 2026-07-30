@@ -588,6 +588,16 @@ export interface components {
              *     composer l'URL lui-même.
              */
             coverPath: string;
+            /**
+             * @description Aperçu de chargement (LQIP) : data-URI d'une image de 16 px de
+             *     large, à afficher floutée le temps que la couverture arrive.
+             *     Quelques centaines d'octets, livrés avec la liste pour éviter une
+             *     requête supplémentaire.
+             *
+             *     Absent tant que l'album n'a pas été indexé par une version qui le
+             *     produit — le client doit gérer son absence.
+             */
+            coverPlaceholder?: string;
         };
         Series: {
             /** Format: uuid */
@@ -1185,6 +1195,20 @@ export interface operations {
                 libraryId?: components["parameters"]["LibraryId"];
                 seriesId?: string;
                 state?: components["schemas"]["ComicState"];
+                /**
+                 * @description Filtre sur la progression de lecture du compte courant. Omis ou
+                 *     vide, aucun filtre. `unread` inclut les albums jamais ouverts,
+                 *     qui n'ont aucune ligne de progression.
+                 */
+                readStatus?: "" | "unread" | "in_progress" | "read";
+                /**
+                 * @description Ordre d'affichage. Défaut `recent`.
+                 *
+                 *     Le curseur est lié au tri : le changer invalide la position
+                 *     précédente, et le serveur repart alors du début plutôt que de
+                 *     servir des résultats incohérents.
+                 */
+                sort?: "recent" | "title" | "released";
                 /**
                  * @description Valeur `nextCursor` de la page précédente. Opaque : à renvoyer telle
                  *     quelle, jamais à construire.

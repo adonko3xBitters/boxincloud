@@ -77,6 +77,16 @@ type Querier interface {
 	// plusieurs milliers de titres, OFFSET force PostgreSQL à parcourir puis jeter
 	// toutes les lignes précédentes, et une insertion pendant la pagination décale
 	// silencieusement les résultats. Le curseur est stable et à coût constant.
+	// Liste paginée, filtrable et triable.
+	//
+	// Le tri est porté par la requête plutôt que par une concaténation côté Go :
+	// une clause ORDER BY construite en chaîne serait une porte d'injection, et le
+	// plan d'exécution ne serait plus mis en cache. Les trois ordres possibles sont
+	// donc écrits en dur, sélectionnés par un paramètre.
+	//
+	// Le curseur suit l'ordre choisi : (created_at, id) pour le tri par ajout,
+	// (title, id) pour le tri alphabétique. Un seul curseur composite ne
+	// conviendrait pas aux deux.
 	ListComicsPage(ctx context.Context, arg ListComicsPageParams) ([]Comic, error)
 	ListDevicesByUser(ctx context.Context, userID uuid.UUID) ([]Device, error)
 	ListFavorites(ctx context.Context, arg ListFavoritesParams) ([]ListFavoritesRow, error)
@@ -140,6 +150,7 @@ type Querier interface {
 	SearchComics(ctx context.Context, arg SearchComicsParams) ([]SearchComicsRow, error)
 	SearchSeries(ctx context.Context, arg SearchSeriesParams) ([]SearchSeriesRow, error)
 	SetComicIndexed(ctx context.Context, arg SetComicIndexedParams) error
+	SetComicPlaceholder(ctx context.Context, arg SetComicPlaceholderParams) error
 	SetComicState(ctx context.Context, arg SetComicStateParams) error
 	SetDefaultStorageBackend(ctx context.Context, id uuid.UUID) error
 	SetLibraryScanResult(ctx context.Context, arg SetLibraryScanResultParams) error

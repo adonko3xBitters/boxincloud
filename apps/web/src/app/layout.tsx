@@ -5,6 +5,16 @@ import { Providers } from "@/components/providers";
 export const metadata: Metadata = {
   title: "boxincloud",
   description: "Votre bibliothèque de BD, comics et mangas",
+  // SVG plutôt qu'ICO : net à toutes les tailles, et un seul fichier de
+  // quelques centaines d'octets au lieu d'une famille de PNG.
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/icon.svg" }],
+  },
+  // L'application est entièrement derrière authentification : rien à indexer,
+  // et une instance auto-hébergée n'a aucune raison d'apparaître dans un
+  // moteur de recherche.
+  robots: { index: false, follow: false },
 };
 
 export const viewport: Viewport = {

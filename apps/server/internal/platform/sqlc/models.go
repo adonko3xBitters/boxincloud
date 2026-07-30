@@ -412,6 +412,8 @@ type Comic struct {
 	UpdatedAt    pgtype.Timestamptz
 	DeletedAt    pgtype.Timestamptz
 	SearchVector interface{}
+	// Data-URI d'une miniature JPEG de ~16px, affichée floutée pendant le chargement.
+	CoverPlaceholder *string
 }
 
 type ComicPage struct {

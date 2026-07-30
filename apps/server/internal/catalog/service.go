@@ -47,6 +47,10 @@ type Comic struct {
 	FileSize   int64
 	ReleasedAt *time.Time
 	CreatedAt  time.Time
+
+	// CoverPlaceholder est un data-URI de quelques centaines d'octets, affiché
+	// flouté pendant le chargement de la vraie couverture.
+	CoverPlaceholder string
 }
 
 // Series est la vue applicative d'une série.
@@ -99,9 +103,12 @@ type Repository interface {
 
 // ListComicsParams décrit une page d'albums à lister.
 type ListComicsParams struct {
+	UserID       uuid.UUID
 	LibraryIDs   []uuid.UUID
 	SeriesID     *uuid.UUID
 	State        string
+	ReadStatus   string
+	Sort         Sort
 	MaxAgeRating *int16
 	Cursor       *Cursor
 	Limit        int32
@@ -192,8 +199,12 @@ type ListComicsQuery struct {
 	LibraryID *uuid.UUID
 	SeriesID  *uuid.UUID
 	State     string
-	Cursor    string
-	Limit     int32
+	// ReadStatus filtre sur la progression : unread, in_progress, read.
+	// Vide, aucun filtre.
+	ReadStatus string
+	Sort       string
+	Cursor     string
+	Limit      int32
 }
 
 func (s *Service) ListComics(ctx context.Context, v Viewer, q ListComicsQuery) (Page[Comic], error) {
@@ -210,15 +221,28 @@ func (s *Service) ListComics(ctx context.Context, v Viewer, q ListComicsQuery) (
 		return Page[Comic]{}, err
 	}
 
+	sort := ParseSort(q.Sort)
+
+	// Un curseur produit sous un autre tri désigne une position qui n'a plus
+	// de sens : on repart du début plutôt que de servir des résultats
+	// incohérents. C'est ce qui arrive quand l'utilisateur change de tri sans
+	// que le client pense à réinitialiser sa pagination.
+	if cursor != nil && cursor.Sort != sort {
+		cursor = nil
+	}
+
 	limit := clampLimit(q.Limit)
 
 	// Une ligne de plus que demandé : sa présence indique qu'il reste une page,
 	// sans avoir à compter le total — un COUNT sur une grande table coûterait
 	// plus cher que la requête elle-même.
 	comics, err := s.repo.ListComics(ctx, ListComicsParams{
+		UserID:       v.UserID,
 		LibraryIDs:   libraryIDs,
 		SeriesID:     q.SeriesID,
 		State:        q.State,
+		ReadStatus:   normalizeReadStatus(q.ReadStatus),
+		Sort:         sort,
 		MaxAgeRating: v.MaxAgeRating,
 		Cursor:       cursor,
 		Limit:        limit + 1,
@@ -228,8 +252,27 @@ func (s *Service) ListComics(ctx context.Context, v Viewer, q ListComicsQuery) (
 	}
 
 	return paginate(comics, limit, func(c Comic) string {
-		return EncodeCursor(Cursor{CreatedAt: c.CreatedAt, ID: c.ID})
+		return EncodeCursor(Cursor{
+			Sort:       sort,
+			CreatedAt:  c.CreatedAt,
+			Title:      c.Title,
+			ReleasedAt: c.ReleasedAt,
+			ID:         c.ID,
+		})
 	}), nil
+}
+
+// normalizeReadStatus écarte les valeurs inconnues.
+//
+// Comme pour le tri, un filtre mal orthographié ne justifie pas de rejeter la
+// requête : on l'ignore, et l'utilisateur voit tout.
+func normalizeReadStatus(s string) string {
+	switch s {
+	case "unread", "in_progress", "read":
+		return s
+	default:
+		return ""
+	}
 }
 
 func (s *Service) GetComic(ctx context.Context, v Viewer, id uuid.UUID) (Comic, error) {
