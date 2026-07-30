@@ -1,0 +1,96 @@
+package middleware
+
+import (
+	"context"
+	"errors"
+	"net/http"
+	"strings"
+
+	"github.com/adonko3xBitters/boxincloud/server/internal/auth"
+	"github.com/adonko3xBitters/boxincloud/server/internal/httpapi/problem"
+)
+
+type claimsKey struct{}
+
+// Verifier est ce dont le middleware a besoin du service d'authentification.
+type Verifier interface {
+	VerifyAccessToken(token string) (auth.Claims, error)
+}
+
+// Authenticate exige un jeton d'accès valide.
+//
+// Les claims sont attachées au contexte : les handlers y accèdent par
+// ClaimsFrom, sans reparser le jeton.
+func Authenticate(v Verifier) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			token, ok := bearerToken(r)
+			if !ok {
+				problem.Write(w, r, problem.Unauthorized("missing bearer token"))
+				return
+			}
+
+			claims, err := v.VerifyAccessToken(token)
+			if err != nil {
+				// L'expiration est distinguée de l'invalidité : c'est ce qui
+				// permet au client de savoir s'il doit rafraîchir son jeton ou
+				// redemander une connexion complète.
+				if errors.Is(err, auth.ErrTokenExpired) {
+					p := problem.Unauthorized("access token expired")
+					p.Type = "https://boxincloud.dev/problems/token-expired"
+					problem.Write(w, r, p)
+					return
+				}
+				problem.Write(w, r, problem.Unauthorized("invalid access token"))
+				return
+			}
+
+			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), claimsKey{}, claims)))
+		})
+	}
+}
+
+// RequireAdmin refuse l'accès aux comptes non administrateurs.
+//
+// À composer après Authenticate.
+func RequireAdmin(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		claims, ok := ClaimsFrom(r.Context())
+		if !ok {
+			problem.Write(w, r, problem.Unauthorized("authentication required"))
+			return
+		}
+		if claims.Role != "admin" {
+			problem.Write(w, r, problem.Forbidden("administrator role required"))
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// ClaimsFrom récupère les claims attachées par Authenticate.
+func ClaimsFrom(ctx context.Context) (auth.Claims, bool) {
+	claims, ok := ctx.Value(claimsKey{}).(auth.Claims)
+	return claims, ok
+}
+
+// bearerToken extrait le jeton de l'en-tête Authorization.
+//
+// Une requête d'image ne peut pas porter d'en-tête personnalisé quand elle est
+// émise par une balise <img>. Le paramètre de requête `token` est donc accepté
+// en repli, uniquement là où c'est nécessaire — voir le routeur.
+func bearerToken(r *http.Request) (string, bool) {
+	header := r.Header.Get("Authorization")
+	if header != "" {
+		const prefix = "Bearer "
+		if len(header) > len(prefix) && strings.EqualFold(header[:len(prefix)], prefix) {
+			return header[len(prefix):], true
+		}
+		return "", false
+	}
+
+	if token := r.URL.Query().Get("token"); token != "" {
+		return token, true
+	}
+	return "", false
+}

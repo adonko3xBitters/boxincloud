@@ -69,6 +69,7 @@ func Build(ctx context.Context, cfg *config.Config, log *slog.Logger, build hand
 		Log:    log,
 		DB:     pool,
 		Build:  build,
+		Auth:   core.Auth,
 		WebFS:  webFS,
 	})
 

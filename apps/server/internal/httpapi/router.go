@@ -17,6 +17,7 @@ import (
 	chimw "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 
+	"github.com/adonko3xBitters/boxincloud/server/internal/auth"
 	"github.com/adonko3xBitters/boxincloud/server/internal/config"
 	"github.com/adonko3xBitters/boxincloud/server/internal/httpapi/handlers"
 	"github.com/adonko3xBitters/boxincloud/server/internal/httpapi/middleware"
@@ -32,6 +33,7 @@ type Deps struct {
 	Log    *slog.Logger
 	DB     handlers.Pinger
 	Build  handlers.BuildInfo
+	Auth   *auth.Service
 	WebFS  fs.FS // application web embarquée ; nil pour ne rien servir
 }
 
@@ -71,6 +73,8 @@ func NewRouter(d Deps) http.Handler {
 	r.Get("/healthz", health.Live)
 	r.Get("/readyz", health.Ready)
 
+	authHandler := handlers.NewAuth(d.Auth)
+
 	r.Route("/api/v1", func(r chi.Router) {
 		// Une lecture de page peut être longue sur un backend distant, mais
 		// une requête d'API ne doit jamais rester pendante indéfiniment.
@@ -78,7 +82,25 @@ func NewRouter(d Deps) http.Handler {
 
 		r.Get("/version", health.Version)
 
-		// M2 : /auth, /libraries, /series, /comics, /progress, /sync
+		// ── Routes publiques ────────────────────────────────────────────
+		r.Route("/auth", func(r chi.Router) {
+			r.Get("/status", authHandler.Status)
+			r.Post("/setup", authHandler.Setup)
+			r.Post("/login", authHandler.Login)
+			r.Post("/refresh", authHandler.Refresh)
+			r.Post("/logout", authHandler.Logout)
+		})
+
+		// ── Routes authentifiées ────────────────────────────────────────
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.Authenticate(d.Auth))
+
+			r.Get("/me", authHandler.Me)
+			r.Get("/me/devices", authHandler.ListDevices)
+			r.Post("/me/logout-all", authHandler.LogoutAll)
+
+			// M2, suite : /libraries, /series, /comics, /progress, /sync
+		})
 	})
 
 	r.NotFound(func(w http.ResponseWriter, req *http.Request) {

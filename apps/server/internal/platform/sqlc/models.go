@@ -7,6 +7,7 @@ package sqlc
 import (
 	"database/sql/driver"
 	"fmt"
+	"net/netip"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
@@ -102,6 +103,51 @@ func (ns NullComicState) Value() (driver.Value, error) {
 	return string(ns.ComicState), nil
 }
 
+type DevicePlatform string
+
+const (
+	DevicePlatformWeb     DevicePlatform = "web"
+	DevicePlatformAndroid DevicePlatform = "android"
+	DevicePlatformIos     DevicePlatform = "ios"
+	DevicePlatformDesktop DevicePlatform = "desktop"
+	DevicePlatformUnknown DevicePlatform = "unknown"
+)
+
+func (e *DevicePlatform) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = DevicePlatform(s)
+	case string:
+		*e = DevicePlatform(s)
+	default:
+		return fmt.Errorf("unsupported scan type for DevicePlatform: %T", src)
+	}
+	return nil
+}
+
+type NullDevicePlatform struct {
+	DevicePlatform DevicePlatform
+	Valid          bool // Valid is true if DevicePlatform is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullDevicePlatform) Scan(value interface{}) error {
+	if value == nil {
+		ns.DevicePlatform, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.DevicePlatform.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullDevicePlatform) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.DevicePlatform), nil
+}
+
 type LibraryKind string
 
 const (
@@ -144,6 +190,49 @@ func (ns NullLibraryKind) Value() (driver.Value, error) {
 		return nil, nil
 	}
 	return string(ns.LibraryKind), nil
+}
+
+type ReadStatus string
+
+const (
+	ReadStatusUnread     ReadStatus = "unread"
+	ReadStatusInProgress ReadStatus = "in_progress"
+	ReadStatusRead       ReadStatus = "read"
+)
+
+func (e *ReadStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ReadStatus(s)
+	case string:
+		*e = ReadStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ReadStatus: %T", src)
+	}
+	return nil
+}
+
+type NullReadStatus struct {
+	ReadStatus ReadStatus
+	Valid      bool // Valid is true if ReadStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullReadStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.ReadStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ReadStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullReadStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ReadStatus), nil
 }
 
 type StorageKind string
@@ -233,6 +322,58 @@ func (ns NullStorageStatus) Value() (driver.Value, error) {
 	return string(ns.StorageStatus), nil
 }
 
+type UserRole string
+
+const (
+	UserRoleAdmin UserRole = "admin"
+	UserRoleUser  UserRole = "user"
+)
+
+func (e *UserRole) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = UserRole(s)
+	case string:
+		*e = UserRole(s)
+	default:
+		return fmt.Errorf("unsupported scan type for UserRole: %T", src)
+	}
+	return nil
+}
+
+type NullUserRole struct {
+	UserRole UserRole
+	Valid    bool // Valid is true if UserRole is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullUserRole) Scan(value interface{}) error {
+	if value == nil {
+		ns.UserRole, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.UserRole.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullUserRole) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.UserRole), nil
+}
+
+type APIKey struct {
+	ID         uuid.UUID
+	UserID     uuid.UUID
+	Name       string
+	KeyHash    []byte
+	LastUsedAt pgtype.Timestamptz
+	ExpiresAt  pgtype.Timestamptz
+	CreatedAt  pgtype.Timestamptz
+}
+
 type CacheEntry struct {
 	Key       string
 	ComicID   uuid.NullUUID
@@ -286,6 +427,23 @@ type ComicPage struct {
 	IsDouble    bool
 }
 
+type Device struct {
+	ID         uuid.UUID
+	UserID     uuid.UUID
+	Name       string
+	Platform   DevicePlatform
+	AppVersion *string
+	PushToken  *string
+	LastSeenAt pgtype.Timestamptz
+	CreatedAt  pgtype.Timestamptz
+}
+
+type Favorite struct {
+	UserID    uuid.UUID
+	ComicID   uuid.UUID
+	CreatedAt pgtype.Timestamptz
+}
+
 type Library struct {
 	ID               uuid.UUID
 	StorageBackendID uuid.UUID
@@ -299,6 +457,26 @@ type Library struct {
 	ComicCount       int32
 	CreatedAt        pgtype.Timestamptz
 	UpdatedAt        pgtype.Timestamptz
+}
+
+type LibraryAccess struct {
+	LibraryID uuid.UUID
+	UserID    uuid.UUID
+	CanWrite  bool
+}
+
+type ReadingProgress struct {
+	UserID     uuid.UUID
+	ComicID    uuid.UUID
+	Page       int32
+	PageCount  int32
+	Status     ReadStatus
+	ReadCount  int32
+	Version    int64
+	DeviceID   uuid.NullUUID
+	StartedAt  pgtype.Timestamptz
+	FinishedAt pgtype.Timestamptz
+	UpdatedAt  pgtype.Timestamptz
 }
 
 type ScanRun struct {
@@ -334,6 +512,19 @@ type Series struct {
 	UpdatedAt    pgtype.Timestamptz
 }
 
+type Session struct {
+	ID        uuid.UUID
+	UserID    uuid.UUID
+	DeviceID  uuid.NullUUID
+	TokenHash []byte
+	ParentID  uuid.NullUUID
+	ExpiresAt pgtype.Timestamptz
+	RevokedAt pgtype.Timestamptz
+	UserAgent *string
+	IP        *netip.Addr
+	CreatedAt pgtype.Timestamptz
+}
+
 type Setting struct {
 	Key       string
 	Value     []byte
@@ -353,4 +544,21 @@ type StorageBackend struct {
 	CheckedAt    pgtype.Timestamptz
 	CreatedAt    pgtype.Timestamptz
 	UpdatedAt    pgtype.Timestamptz
+}
+
+type User struct {
+	ID           uuid.UUID
+	Username     string
+	Email        *string
+	PasswordHash string
+	Role         UserRole
+	DisplayName  *string
+	AvatarKey    *string
+	Restricted   bool
+	MaxAgeRating *int16
+	Preferences  []byte
+	LastLoginAt  pgtype.Timestamptz
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+	DeletedAt    pgtype.Timestamptz
 }

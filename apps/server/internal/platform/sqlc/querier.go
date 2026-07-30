@@ -11,22 +11,34 @@ import (
 )
 
 type Querier interface {
+	// ─── Favoris ─────────────────────────────────────────────────────────────────
+	AddFavorite(ctx context.Context, arg AddFavoriteParams) error
 	// Applique les métadonnées issues de ComicInfo.xml ou du nom de fichier.
 	// Les champs présents dans locked_fields sont préservés : une saisie manuelle
 	// ne doit jamais être écrasée par un rescan.
 	ApplyComicMetadata(ctx context.Context, arg ApplyComicMetadataParams) error
+	CanAccessLibrary(ctx context.Context, arg CanAccessLibraryParams) (*bool, error)
 	// Un seul backend par défaut : on retire le drapeau aux autres avant de le
 	// poser, l'index unique partiel refuserait sinon la mise à jour.
 	ClearDefaultStorageBackend(ctx context.Context, id uuid.UUID) error
 	CountComicPages(ctx context.Context, comicID uuid.UUID) (int64, error)
 	CountComicsByLibrary(ctx context.Context, libraryID uuid.UUID) (int64, error)
+	// Sert à l'assistant de première installation : tant qu'il n'y a personne,
+	// l'inscription du premier administrateur est ouverte.
+	CountUsers(ctx context.Context) (int64, error)
 	CreateLibrary(ctx context.Context, arg CreateLibraryParams) (Library, error)
+	// ─── Sessions ────────────────────────────────────────────────────────────────
+	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
 	CreateStorageBackend(ctx context.Context, arg CreateStorageBackendParams) (StorageBackend, error)
+	CreateUser(ctx context.Context, arg CreateUserParams) (User, error)
 	DeleteCacheEntry(ctx context.Context, key string) error
 	DeleteComic(ctx context.Context, id uuid.UUID) error
 	// ─── Pages ───────────────────────────────────────────────────────────────────
 	DeleteComicPages(ctx context.Context, comicID uuid.UUID) error
+	DeleteDevice(ctx context.Context, arg DeleteDeviceParams) error
+	DeleteExpiredSessions(ctx context.Context) (int64, error)
 	DeleteLibrary(ctx context.Context, id uuid.UUID) error
+	DeleteReadingProgress(ctx context.Context, arg DeleteReadingProgressParams) error
 	DeleteSetting(ctx context.Context, key string) error
 	DeleteStorageBackend(ctx context.Context, id uuid.UUID) error
 	FinishScanRun(ctx context.Context, arg FinishScanRunParams) error
@@ -36,10 +48,13 @@ type Querier interface {
 	// Un seul aller-retour en base, puis un seul ReadRange sur le backend.
 	GetComicPage(ctx context.Context, arg GetComicPageParams) (ComicPage, error)
 	GetDefaultStorageBackend(ctx context.Context) (StorageBackend, error)
+	GetDevice(ctx context.Context, id uuid.UUID) (Device, error)
 	GetLibrary(ctx context.Context, id uuid.UUID) (Library, error)
 	GetLibraryByName(ctx context.Context, name string) (Library, error)
+	GetReadingProgress(ctx context.Context, arg GetReadingProgressParams) (ReadingProgress, error)
 	GetScanRun(ctx context.Context, id uuid.UUID) (ScanRun, error)
 	GetSeries(ctx context.Context, id uuid.UUID) (Series, error)
+	GetSessionByTokenHash(ctx context.Context, tokenHash []byte) (Session, error)
 	// Paramètres d'instance.
 	//
 	// Première requête du projet : elle valide la chaîne sqlc de bout en bout.
@@ -47,16 +62,35 @@ type Querier interface {
 	GetSetting(ctx context.Context, key string) (Setting, error)
 	GetStorageBackend(ctx context.Context, id uuid.UUID) (StorageBackend, error)
 	GetStorageBackendByName(ctx context.Context, name string) (StorageBackend, error)
+	GetUser(ctx context.Context, id uuid.UUID) (User, error)
+	GetUserByUsername(ctx context.Context, username string) (User, error)
+	GrantLibraryAccess(ctx context.Context, arg GrantLibraryAccessParams) error
 	InsertComicPage(ctx context.Context, arg InsertComicPageParams) error
 	ListCacheEntriesForEviction(ctx context.Context, limit int32) ([]ListCacheEntriesForEvictionRow, error)
 	ListComicPages(ctx context.Context, comicID uuid.UUID) ([]ComicPage, error)
 	ListComicsByLibrary(ctx context.Context, arg ListComicsByLibraryParams) ([]Comic, error)
+	ListDevicesByUser(ctx context.Context, userID uuid.UUID) ([]Device, error)
+	ListFavorites(ctx context.Context, arg ListFavoritesParams) ([]ListFavoritesRow, error)
+	// « Reprendre la lecture » : les albums commencés mais non terminés.
+	ListInProgress(ctx context.Context, arg ListInProgressParams) ([]ListInProgressRow, error)
 	ListLibraries(ctx context.Context) ([]Library, error)
 	ListLibrariesWithBackend(ctx context.Context) ([]ListLibrariesWithBackendRow, error)
+	ListLibraryAccess(ctx context.Context, libraryID uuid.UUID) ([]LibraryAccess, error)
+	ListReadingProgressByComics(ctx context.Context, arg ListReadingProgressByComicsParams) ([]ReadingProgress, error)
+	// Synchronisation delta : tout ce qui a changé depuis le curseur du client.
+	ListReadingProgressSince(ctx context.Context, arg ListReadingProgressSinceParams) ([]ReadingProgress, error)
 	ListScanRuns(ctx context.Context, arg ListScanRunsParams) ([]ScanRun, error)
 	ListSeriesByLibrary(ctx context.Context, libraryID uuid.UUID) ([]Series, error)
 	ListSettings(ctx context.Context) ([]Setting, error)
 	ListStorageBackends(ctx context.Context) ([]StorageBackend, error)
+	ListUsers(ctx context.Context) ([]User, error)
+	// ─── Accès aux bibliothèques ─────────────────────────────────────────────────
+	// Bibliothèques visibles par un utilisateur.
+	//
+	// Règle : une bibliothèque sans aucune restriction est visible de tous ; dès
+	// qu'une restriction existe, seuls les utilisateurs listés y ont accès. Les
+	// administrateurs voient tout.
+	ListVisibleLibraries(ctx context.Context, arg ListVisibleLibrariesParams) ([]Library, error)
 	// Marque comme supprimés les objets absents du dernier scan.
 	// On ne supprime pas la ligne : un backend momentanément injoignable ne doit
 	// pas détruire la progression de lecture des utilisateurs.
@@ -64,18 +98,46 @@ type Querier interface {
 	// ─── Cache dérivé ────────────────────────────────────────────────────────────
 	RecordCacheEntry(ctx context.Context, arg RecordCacheEntryParams) error
 	RefreshSeriesCounts(ctx context.Context, libraryID uuid.UUID) error
+	RemoveFavorite(ctx context.Context, arg RemoveFavoriteParams) error
+	RevokeAllUserSessions(ctx context.Context, userID uuid.UUID) (int64, error)
+	RevokeLibraryAccess(ctx context.Context, arg RevokeLibraryAccessParams) error
+	RevokeSession(ctx context.Context, id uuid.UUID) error
+	// Détection de réutilisation : si un jeton déjà tourné est présenté, c'est
+	// qu'il a été volé. On révoque alors toute la chaîne de rotation, pas
+	// seulement le jeton présenté.
+	RevokeSessionChain(ctx context.Context, id uuid.UUID) (int64, error)
 	SetComicIndexed(ctx context.Context, arg SetComicIndexedParams) error
 	SetComicState(ctx context.Context, arg SetComicStateParams) error
 	SetDefaultStorageBackend(ctx context.Context, id uuid.UUID) error
 	SetLibraryScanResult(ctx context.Context, arg SetLibraryScanResultParams) error
 	SetStorageBackendStatus(ctx context.Context, arg SetStorageBackendStatusParams) error
+	SetUserPassword(ctx context.Context, arg SetUserPasswordParams) error
+	SetUserRole(ctx context.Context, arg SetUserRoleParams) error
+	SoftDeleteUser(ctx context.Context, id uuid.UUID) error
 	// ─── Scans ───────────────────────────────────────────────────────────────────
 	StartScanRun(ctx context.Context, arg StartScanRunParams) (ScanRun, error)
 	TotalCacheSize(ctx context.Context) (int64, error)
 	TouchCacheEntry(ctx context.Context, key string) error
+	TouchDevice(ctx context.Context, id uuid.UUID) error
+	TouchUserLogin(ctx context.Context, id uuid.UUID) error
+	UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (User, error)
 	// Ingestion idempotente : la clé naturelle (library_id, object_key) permet de
 	// rejouer un scan sans créer de doublon ni perdre les champs verrouillés.
 	UpsertComic(ctx context.Context, arg UpsertComicParams) (UpsertComicRow, error)
+	// ─── Appareils ───────────────────────────────────────────────────────────────
+	UpsertDevice(ctx context.Context, arg UpsertDeviceParams) (Device, error)
+	// Progression de lecture et synchronisation.
+	// ★ La requête qui porte la règle de résolution de conflit.
+	//
+	// Deux appareils peuvent écrire la même progression hors ligne, puis se
+	// synchroniser. La règle retenue : **la page la plus avancée gagne**, sauf
+	// remise à zéro explicite (status = 'unread').
+	//
+	// C'est le comportement qu'attend un lecteur : on ne perd jamais sa
+	// progression, et lire sur tablette puis reprendre sur téléphone reprend au bon
+	// endroit. Un « dernière écriture gagne » ferait régresser la position dès que
+	// les horloges des appareils divergent un peu.
+	UpsertReadingProgress(ctx context.Context, arg UpsertReadingProgressParams) (ReadingProgress, error)
 	// ─── Séries ──────────────────────────────────────────────────────────────────
 	UpsertSeries(ctx context.Context, arg UpsertSeriesParams) (Series, error)
 	UpsertSetting(ctx context.Context, arg UpsertSettingParams) (Setting, error)

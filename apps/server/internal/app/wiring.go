@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/riverqueue/river"
 
+	"github.com/adonko3xBitters/boxincloud/server/internal/auth"
 	"github.com/adonko3xBitters/boxincloud/server/internal/cache"
 	"github.com/adonko3xBitters/boxincloud/server/internal/config"
 	"github.com/adonko3xBitters/boxincloud/server/internal/imaging"
@@ -27,6 +28,7 @@ import (
 // binaires font exactement les mêmes choses, avec le même câblage.
 type Core struct {
 	Queries   *sqlc.Queries
+	Auth      *auth.Service
 	Libraries *library.Service
 	Cache     *cache.Cache
 	Imaging   imaging.Processor
@@ -42,6 +44,13 @@ func BuildCore(ctx context.Context, cfg *config.Config, pool *db.Pool, log *slog
 	if err != nil {
 		return nil, fmt.Errorf("clé de chiffrement inutilisable : %w", err)
 	}
+
+	authService := auth.NewService(
+		auth.NewPostgresRepository(queries),
+		auth.NewTokenIssuer(cfg.Auth.JWTSecret, cfg.Auth.AccessTokenTTL),
+		cfg.Auth.RefreshTokenTTL,
+		log,
+	)
 
 	libraries := library.NewService(library.NewPostgresRepository(queries), sealer, log)
 
@@ -87,6 +96,7 @@ func BuildCore(ctx context.Context, cfg *config.Config, pool *db.Pool, log *slog
 
 	return &Core{
 		Queries:   queries,
+		Auth:      authService,
 		Libraries: libraries,
 		Cache:     derived,
 		Imaging:   processor,
