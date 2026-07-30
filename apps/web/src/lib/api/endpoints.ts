@@ -59,16 +59,29 @@ export const listLibraries = () => request<{ libraries: Library[] }>("/libraries
 export const getHome = (limit = 20) =>
   request<{ recent: Comic[]; nextInSeries: Comic[] }>("/home", { query: { limit } });
 
-export const listComics = (params: {
+/**
+ * Critères de listage des albums.
+ *
+ * Exporté parce que l'espace de travail les construit ailleurs : sans un type
+ * partagé, une portée qui produirait un paramètre mal nommé serait ignorée
+ * silencieusement par le serveur au lieu d'échouer à la compilation.
+ */
+export type ComicQuery = {
   libraryId?: string;
   seriesId?: string;
+  /** Dossier et ses sous-dossiers. Chaîne vide = racine. */
+  folder?: string;
+  favorites?: boolean;
   /** unread | in_progress | read. Vide, aucun filtre. */
   readStatus?: string;
   /** recent | title | released. */
   sort?: string;
   cursor?: string;
   limit?: number;
-}) => request<ComicPage>("/comics", { query: params });
+};
+
+export const listComics = (params: ComicQuery) =>
+  request<ComicPage>("/comics", { query: params });
 
 export const getComic = (comicId: string) => request<Comic>(`/comics/${comicId}`);
 
@@ -101,3 +114,45 @@ export const deleteProgress = (comicId: string) =>
 
 export const continueReading = (limit = 20) =>
   request<{ items: Progress[] }>("/continue-reading", { query: { limit } });
+
+// ─── Outils de gestion ───────────────────────────────────────────────────────
+
+export type Folder = {
+  path: string;
+  name: string;
+  depth: number;
+  comicCount: number;
+};
+
+export const listFolders = (libraryId?: string) =>
+  request<{ folders: Folder[] }>("/folders", { query: { libraryId } });
+
+/** Favoris et notes en une requête : une grille les affiche ensemble. */
+export const getUserMarks = () =>
+  request<{ favorites: string[]; ratings: Record<string, number> }>("/me/marks");
+
+export const setFavorite = (comicId: string, favorite: boolean) =>
+  request<{ favorite: boolean }>(`/comics/${comicId}/favorite`, {
+    method: "PUT",
+    body: { favorite },
+  });
+
+/** rating de 1 à 5 ; 0 retire la note. */
+export const setRating = (comicId: string, rating: number) =>
+  request<{ rating: number }>(`/comics/${comicId}/rating`, {
+    method: "PUT",
+    body: { rating },
+  });
+
+export const editComic = (
+  comicId: string,
+  edit: { title?: string; number?: string; summary?: string; language?: string },
+) => request<Comic>(`/comics/${comicId}`, { method: "PATCH", body: edit });
+
+export type BulkAction = "read" | "unread" | "favorite" | "unfavorite";
+
+export const bulk = (action: BulkAction, ids: string[]) =>
+  request<{ affected: number }>("/comics/bulk", {
+    method: "POST",
+    body: { action, ids },
+  });

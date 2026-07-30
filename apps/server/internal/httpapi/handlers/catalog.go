@@ -56,6 +56,11 @@ type comicDTO struct {
 	// le temps que la couverture arrive. Absent tant que l'album n'a pas été
 	// indexé par une version qui le produit.
 	CoverPlaceholder string `json:"coverPlaceholder,omitempty"`
+
+	// Nom du fichier et dossier : une vue tableau les affiche en colonnes,
+	// et ils aident à diagnostiquer une indexation douteuse.
+	FileName   string `json:"fileName"`
+	FolderPath string `json:"folderPath"`
 }
 
 func toComicDTO(c catalog.Comic) comicDTO {
@@ -78,6 +83,8 @@ func toComicDTO(c catalog.Comic) comicDTO {
 		CoverPath:  "/api/v1/comics/" + c.ID.String() + "/cover",
 
 		CoverPlaceholder: c.CoverPlaceholder,
+		FileName:         c.FileName,
+		FolderPath:       c.FolderPath,
 	}
 	if c.ReleasedAt != nil {
 		s := c.ReleasedAt.Format("2006-01-02")
@@ -166,11 +173,12 @@ func (h *Catalog) ListComics(w http.ResponseWriter, r *http.Request) {
 	}
 
 	q := catalog.ListComicsQuery{
-		State:      r.URL.Query().Get("state"),
-		ReadStatus: r.URL.Query().Get("readStatus"),
-		Sort:       r.URL.Query().Get("sort"),
-		Cursor:     r.URL.Query().Get("cursor"),
-		Limit:      intParam(r, "limit", 0),
+		State:         r.URL.Query().Get("state"),
+		ReadStatus:    r.URL.Query().Get("readStatus"),
+		Sort:          r.URL.Query().Get("sort"),
+		FavoritesOnly: r.URL.Query().Get("favorites") == "true",
+		Cursor:        r.URL.Query().Get("cursor"),
+		Limit:         intParam(r, "limit", 0),
 	}
 
 	if id, ok := uuidParam(w, r, "libraryId"); !ok {
@@ -182,6 +190,12 @@ func (h *Catalog) ListComics(w http.ResponseWriter, r *http.Request) {
 		return
 	} else if id != nil {
 		q.SeriesID = id
+	}
+	// Un dossier vide est une valeur légitime — la racine — qu'il faut
+	// distinguer de « pas de filtre ». D'où le pointeur.
+	if r.URL.Query().Has("folder") {
+		folder := r.URL.Query().Get("folder")
+		q.Folder = &folder
 	}
 
 	page, err := h.svc.ListComics(r.Context(), v, q)

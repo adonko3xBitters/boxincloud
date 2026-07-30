@@ -43,6 +43,9 @@ type UpsertComicParams struct {
 	FileETag  string
 	Format    string
 	Title     string
+	// FolderPath est le dossier contenant l'album, relatif au préfixe de la
+	// bibliothèque. Vide à la racine.
+	FolderPath string
 }
 
 // Repository est tout ce dont l'indexeur a besoin de la persistance.
@@ -58,6 +61,7 @@ type Repository interface {
 	SetComicIndexed(ctx context.Context, id uuid.UUID, pageCount int) error
 	ApplyMetadata(ctx context.Context, id uuid.UUID, m Metadata, seriesID *uuid.UUID, metadataJSON []byte) error
 	SetCoverPlaceholder(ctx context.Context, id uuid.UUID, dataURI string) error
+	SetFolder(ctx context.Context, id uuid.UUID, folder string) error
 	MarkMissingDeleted(ctx context.Context, libraryID uuid.UUID, seenKeys []string) (int64, error)
 
 	// Pages — remplacement atomique : une réindexation ne doit jamais laisser

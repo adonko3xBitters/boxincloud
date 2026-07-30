@@ -309,6 +309,112 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/folders": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Arborescence des dossiers
+         * @description Retourne les dossiers à plat, triés de sorte qu'un parent précède
+         *     toujours ses enfants — le client bâtit l'arbre en une passe, sans
+         *     récursion.
+         *
+         *     Les compteurs sont cumulatifs : un dossier affiche le total de sa
+         *     branche, ce qu'attend quelqu'un qui replie un nœud.
+         */
+        get: operations["listFolders"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/marks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Favoris et notes
+         * @description Groupés délibérément : une grille les affiche ensemble, et deux
+         *     allers-retours pour peupler la même vue seraient du gâchis.
+         */
+        get: operations["getUserMarks"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/comics/bulk": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Action en lot sur une sélection
+         * @description Les identifiants sont filtrés sur les bibliothèques visibles avant
+         *     toute écriture : une sélection ne peut pas déborder sur ce à quoi le
+         *     compte n'a pas accès, même si le client envoie des identifiants
+         *     arbitraires.
+         */
+        post: operations["bulkAction"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/comics/{comicId}/favorite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Mettre ou retirer des favoris */
+        put: operations["setFavorite"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/comics/{comicId}/rating": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Noter un album
+         * @description Note de 1 à 5. Zéro retire la note.
+         */
+        put: operations["setRating"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/comics/{comicId}": {
         parameters: {
             query?: never;
@@ -327,7 +433,13 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        patch?: never;
+        /**
+         * Corriger les métadonnées
+         * @description Chaque champ envoyé est appliqué **et verrouillé** : une réindexation ne
+         *     l'écrasera plus. C'est la contrepartie indispensable de l'automatisme —
+         *     sans elle, corriger un titre serait vain.
+         */
+        patch: operations["editComic"];
         trace?: never;
     };
     "/comics/{comicId}/manifest": {
@@ -598,6 +710,13 @@ export interface components {
              *     produit — le client doit gérer son absence.
              */
             coverPlaceholder?: string;
+            /** @description Nom du fichier dans le backend, sans son chemin. */
+            fileName: string;
+            /**
+             * @description Dossier contenant l'album, relatif au préfixe de la bibliothèque.
+             *     Vide à la racine.
+             */
+            folderPath: string;
         };
         Series: {
             /** Format: uuid */
@@ -612,6 +731,16 @@ export interface components {
             /** Format: uuid */
             coverComicId?: string;
             coverPath?: string;
+        };
+        Folder: {
+            /** @description Chemin complet, relatif au préfixe. Vide pour la racine. */
+            path: string;
+            /** @description Dernier segment du chemin — ce qui s'affiche dans l'arbre. */
+            name: string;
+            /** @description 0 à la racine. */
+            depth: number;
+            /** @description Albums de ce dossier et de ses sous-dossiers. */
+            comicCount: number;
         };
         ComicPage: {
             items: components["schemas"]["Comic"][];
@@ -1210,6 +1339,14 @@ export interface operations {
                  */
                 sort?: "recent" | "title" | "released";
                 /**
+                 * @description Restreint à un dossier et à ses sous-dossiers. La chaîne vide
+                 *     désigne la racine de la bibliothèque, ce qui est distinct de
+                 *     l'absence du paramètre.
+                 */
+                folder?: string;
+                /** @description Ne retourne que les albums mis en favori. */
+                favorites?: boolean;
+                /**
                  * @description Valeur `nextCursor` de la page précédente. Opaque : à renvoyer telle
                  *     quelle, jamais à construire.
                  */
@@ -1237,6 +1374,156 @@ export interface operations {
             422: components["responses"]["ValidationFailed"];
         };
     };
+    listFolders: {
+        parameters: {
+            query?: {
+                /** @description Restreint à une bibliothèque. Omis, toutes les bibliothèques visibles. */
+                libraryId?: components["parameters"]["LibraryId"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Dossiers */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        folders: components["schemas"]["Folder"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    getUserMarks: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Annotations du compte */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        favorites: string[];
+                        ratings: {
+                            [key: string]: number;
+                        };
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    bulkAction: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    action: "read" | "unread" | "favorite" | "unfavorite";
+                    ids: string[];
+                };
+            };
+        };
+        responses: {
+            /** @description Nombre d'éléments affectés */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: int64 */
+                        affected: number;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    setFavorite: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                comicId: components["parameters"]["ComicId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    favorite: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description État du favori */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        favorite: boolean;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    setRating: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                comicId: components["parameters"]["ComicId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    rating: number;
+                };
+            };
+        };
+        responses: {
+            /** @description Note enregistrée */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        rating: number;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
     getComic: {
         parameters: {
             query?: never;
@@ -1249,6 +1536,39 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description Album */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Comic"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    editComic: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                comicId: components["parameters"]["ComicId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    title?: string;
+                    number?: string;
+                    summary?: string;
+                    language?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Album mis à jour */
             200: {
                 headers: {
                     [name: string]: unknown;

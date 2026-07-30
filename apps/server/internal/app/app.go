@@ -73,6 +73,7 @@ func Build(ctx context.Context, cfg *config.Config, log *slog.Logger, build hand
 		Catalog:  core.Catalog,
 		Reader:   core.Reader,
 		Progress: core.Progress,
+		Tools:    core.Tools,
 		WebFS:    webFS,
 	})
 

@@ -213,6 +213,30 @@ func (e ListComicsParamsSort) Valid() bool {
 	}
 }
 
+// Defines values for BulkActionJSONBodyAction.
+const (
+	BulkActionJSONBodyActionFavorite   BulkActionJSONBodyAction = "favorite"
+	BulkActionJSONBodyActionRead       BulkActionJSONBodyAction = "read"
+	BulkActionJSONBodyActionUnfavorite BulkActionJSONBodyAction = "unfavorite"
+	BulkActionJSONBodyActionUnread     BulkActionJSONBodyAction = "unread"
+)
+
+// Valid indicates whether the value is a known member of the BulkActionJSONBodyAction enum.
+func (e BulkActionJSONBodyAction) Valid() bool {
+	switch e {
+	case BulkActionJSONBodyActionFavorite:
+		return true
+	case BulkActionJSONBodyActionRead:
+		return true
+	case BulkActionJSONBodyActionUnfavorite:
+		return true
+	case BulkActionJSONBodyActionUnread:
+		return true
+	default:
+		return false
+	}
+}
+
 // BuildInfo defines model for BuildInfo.
 type BuildInfo struct {
 	// Commit Commit git abrégé.
@@ -238,11 +262,18 @@ type Comic struct {
 	//
 	// Absent tant que l'album n'a pas été indexé par une version qui le
 	// produit — le client doit gérer son absence.
-	CoverPlaceholder *string            `json:"coverPlaceholder,omitempty"`
-	CreatedAt        time.Time          `json:"createdAt"`
-	FileSize         int64              `json:"fileSize"`
-	Format           ComicFormat        `json:"format"`
-	Id               openapi_types.UUID `json:"id"`
+	CoverPlaceholder *string   `json:"coverPlaceholder,omitempty"`
+	CreatedAt        time.Time `json:"createdAt"`
+
+	// FileName Nom du fichier dans le backend, sans son chemin.
+	FileName string `json:"fileName"`
+	FileSize int64  `json:"fileSize"`
+
+	// FolderPath Dossier contenant l'album, relatif au préfixe de la bibliothèque.
+	// Vide à la racine.
+	FolderPath string             `json:"folderPath"`
+	Format     ComicFormat        `json:"format"`
+	Id         openapi_types.UUID `json:"id"`
 
 	// Language Code BCP-47.
 	Language  *string            `json:"language,omitempty"`
@@ -292,6 +323,21 @@ type Device struct {
 
 // DevicePlatform defines model for DevicePlatform.
 type DevicePlatform string
+
+// Folder defines model for Folder.
+type Folder struct {
+	// ComicCount Albums de ce dossier et de ses sous-dossiers.
+	ComicCount int `json:"comicCount"`
+
+	// Depth 0 à la racine.
+	Depth int `json:"depth"`
+
+	// Name Dernier segment du chemin — ce qui s'affiche dans l'arbre.
+	Name string `json:"name"`
+
+	// Path Chemin complet, relatif au préfixe. Vide pour la racine.
+	Path string `json:"path"`
+}
 
 // Library defines model for Library.
 type Library struct {
@@ -531,6 +577,14 @@ type ListComicsParams struct {
 	// servir des résultats incohérents.
 	Sort *ListComicsParamsSort `form:"sort,omitempty" json:"sort,omitempty"`
 
+	// Folder Restreint à un dossier et à ses sous-dossiers. La chaîne vide
+	// désigne la racine de la bibliothèque, ce qui est distinct de
+	// l'absence du paramètre.
+	Folder *string `form:"folder,omitempty" json:"folder,omitempty"`
+
+	// Favorites Ne retourne que les albums mis en favori.
+	Favorites *bool `form:"favorites,omitempty" json:"favorites,omitempty"`
+
 	// Cursor Valeur `nextCursor` de la page précédente. Opaque : à renvoyer telle
 	// quelle, jamais à construire.
 	Cursor *Cursor `form:"cursor,omitempty" json:"cursor,omitempty"`
@@ -545,6 +599,23 @@ type ListComicsParamsReadStatus string
 // ListComicsParamsSort defines parameters for ListComics.
 type ListComicsParamsSort string
 
+// BulkActionJSONBody defines parameters for BulkAction.
+type BulkActionJSONBody struct {
+	Action BulkActionJSONBodyAction `json:"action"`
+	Ids    []openapi_types.UUID     `json:"ids"`
+}
+
+// BulkActionJSONBodyAction defines parameters for BulkAction.
+type BulkActionJSONBodyAction string
+
+// EditComicJSONBody defines parameters for EditComic.
+type EditComicJSONBody struct {
+	Language *string `json:"language,omitempty"`
+	Number   *string `json:"number,omitempty"`
+	Summary  *string `json:"summary,omitempty"`
+	Title    *string `json:"title,omitempty"`
+}
+
 // GetCoverParams defines parameters for GetCover.
 type GetCoverParams struct {
 	Width *int `form:"width,omitempty" json:"width,omitempty"`
@@ -552,6 +623,11 @@ type GetCoverParams struct {
 	// Token Jeton d'accès, accepté en repli pour les requêtes qui ne peuvent pas
 	// porter d'en-tête `Authorization` — une balise `<img>`, par exemple.
 	Token *TokenQuery `form:"token,omitempty" json:"token,omitempty"`
+}
+
+// SetFavoriteJSONBody defines parameters for SetFavorite.
+type SetFavoriteJSONBody struct {
+	Favorite bool `json:"favorite"`
 }
 
 // GetPageParams defines parameters for GetPage.
@@ -564,10 +640,21 @@ type GetPageParams struct {
 	Token *TokenQuery `form:"token,omitempty" json:"token,omitempty"`
 }
 
+// SetRatingJSONBody defines parameters for SetRating.
+type SetRatingJSONBody struct {
+	Rating int `json:"rating"`
+}
+
 // ContinueReadingParams defines parameters for ContinueReading.
 type ContinueReadingParams struct {
 	// Limit Nombre d'éléments. Défaut 50, plafond 200.
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// ListFoldersParams defines parameters for ListFolders.
+type ListFoldersParams struct {
+	// LibraryId Restreint à une bibliothèque. Omis, toutes les bibliothèques visibles.
+	LibraryId *LibraryId `form:"libraryId,omitempty" json:"libraryId,omitempty"`
 }
 
 // GetHomeParams defines parameters for GetHome.
@@ -625,8 +712,20 @@ type RefreshTokensJSONRequestBody RefreshTokensJSONBody
 // SetupJSONRequestBody defines body for Setup for application/json ContentType.
 type SetupJSONRequestBody SetupJSONBody
 
+// BulkActionJSONRequestBody defines body for BulkAction for application/json ContentType.
+type BulkActionJSONRequestBody BulkActionJSONBody
+
+// EditComicJSONRequestBody defines body for EditComic for application/json ContentType.
+type EditComicJSONRequestBody EditComicJSONBody
+
+// SetFavoriteJSONRequestBody defines body for SetFavorite for application/json ContentType.
+type SetFavoriteJSONRequestBody SetFavoriteJSONBody
+
 // UpdateProgressJSONRequestBody defines body for UpdateProgress for application/json ContentType.
 type UpdateProgressJSONRequestBody = ProgressUpdate
+
+// SetRatingJSONRequestBody defines body for SetRating for application/json ContentType.
+type SetRatingJSONRequestBody SetRatingJSONBody
 
 // SyncPushJSONRequestBody defines body for SyncPush for application/json ContentType.
 type SyncPushJSONRequestBody SyncPushJSONBody
@@ -651,12 +750,21 @@ type ServerInterface interface {
 	// ListComics Lister les albums
 	// (GET /comics)
 	ListComics(w http.ResponseWriter, r *http.Request, params ListComicsParams)
+	// BulkAction Action en lot sur une sélection
+	// (POST /comics/bulk)
+	BulkAction(w http.ResponseWriter, r *http.Request)
 	// GetComic Détail d'un album
 	// (GET /comics/{comicId})
 	GetComic(w http.ResponseWriter, r *http.Request, comicId ComicId)
+	// EditComic Corriger les métadonnées
+	// (PATCH /comics/{comicId})
+	EditComic(w http.ResponseWriter, r *http.Request, comicId ComicId)
 	// GetCover Vignette de couverture
 	// (GET /comics/{comicId}/cover)
 	GetCover(w http.ResponseWriter, r *http.Request, comicId ComicId, params GetCoverParams)
+	// SetFavorite Mettre ou retirer des favoris
+	// (PUT /comics/{comicId}/favorite)
+	SetFavorite(w http.ResponseWriter, r *http.Request, comicId ComicId)
 	// GetManifest Manifeste de lecture
 	// (GET /comics/{comicId}/manifest)
 	GetManifest(w http.ResponseWriter, r *http.Request, comicId ComicId)
@@ -672,9 +780,15 @@ type ServerInterface interface {
 	// UpdateProgress Enregistrer une progression
 	// (PUT /comics/{comicId}/progress)
 	UpdateProgress(w http.ResponseWriter, r *http.Request, comicId ComicId)
+	// SetRating Noter un album
+	// (PUT /comics/{comicId}/rating)
+	SetRating(w http.ResponseWriter, r *http.Request, comicId ComicId)
 	// ContinueReading Albums en cours de lecture
 	// (GET /continue-reading)
 	ContinueReading(w http.ResponseWriter, r *http.Request, params ContinueReadingParams)
+	// ListFolders Arborescence des dossiers
+	// (GET /folders)
+	ListFolders(w http.ResponseWriter, r *http.Request, params ListFoldersParams)
 	// GetHome Étagères d'accueil
 	// (GET /home)
 	GetHome(w http.ResponseWriter, r *http.Request, params GetHomeParams)
@@ -690,6 +804,9 @@ type ServerInterface interface {
 	// LogoutAllDevices Révoquer toutes les sessions
 	// (POST /me/logout-all)
 	LogoutAllDevices(w http.ResponseWriter, r *http.Request)
+	// GetUserMarks Favoris et notes
+	// (GET /me/marks)
+	GetUserMarks(w http.ResponseWriter, r *http.Request)
 	// Search Rechercher dans la bibliothèque
 	// (GET /search)
 	Search(w http.ResponseWriter, r *http.Request, params SearchParams)
@@ -750,15 +867,33 @@ func (_ Unimplemented) ListComics(w http.ResponseWriter, r *http.Request, params
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// BulkAction Action en lot sur une sélection
+// (POST /comics/bulk)
+func (_ Unimplemented) BulkAction(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // GetComic Détail d'un album
 // (GET /comics/{comicId})
 func (_ Unimplemented) GetComic(w http.ResponseWriter, r *http.Request, comicId ComicId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// EditComic Corriger les métadonnées
+// (PATCH /comics/{comicId})
+func (_ Unimplemented) EditComic(w http.ResponseWriter, r *http.Request, comicId ComicId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // GetCover Vignette de couverture
 // (GET /comics/{comicId}/cover)
 func (_ Unimplemented) GetCover(w http.ResponseWriter, r *http.Request, comicId ComicId, params GetCoverParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// SetFavorite Mettre ou retirer des favoris
+// (PUT /comics/{comicId}/favorite)
+func (_ Unimplemented) SetFavorite(w http.ResponseWriter, r *http.Request, comicId ComicId) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -792,9 +927,21 @@ func (_ Unimplemented) UpdateProgress(w http.ResponseWriter, r *http.Request, co
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
+// SetRating Noter un album
+// (PUT /comics/{comicId}/rating)
+func (_ Unimplemented) SetRating(w http.ResponseWriter, r *http.Request, comicId ComicId) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
 // ContinueReading Albums en cours de lecture
 // (GET /continue-reading)
 func (_ Unimplemented) ContinueReading(w http.ResponseWriter, r *http.Request, params ContinueReadingParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListFolders Arborescence des dossiers
+// (GET /folders)
+func (_ Unimplemented) ListFolders(w http.ResponseWriter, r *http.Request, params ListFoldersParams) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -825,6 +972,12 @@ func (_ Unimplemented) ListDevices(w http.ResponseWriter, r *http.Request) {
 // LogoutAllDevices Révoquer toutes les sessions
 // (POST /me/logout-all)
 func (_ Unimplemented) LogoutAllDevices(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetUserMarks Favoris et notes
+// (GET /me/marks)
+func (_ Unimplemented) GetUserMarks(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -1017,6 +1170,32 @@ func (siw *ServerInterfaceWrapper) ListComics(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	// ------------- Optional query parameter "folder" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "folder", r.URL.Query(), &params.Folder, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "folder"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "folder", Err: err})
+		}
+		return
+	}
+
+	// ------------- Optional query parameter "favorites" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "favorites", r.URL.Query(), &params.Favorites, runtime.BindQueryParameterOptions{Type: "boolean", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "favorites"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "favorites", Err: err})
+		}
+		return
+	}
+
 	// ------------- Optional query parameter "cursor" -------------
 
 	err = runtime.BindQueryParameterWithOptions("form", true, false, "cursor", r.URL.Query(), &params.Cursor, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
@@ -1054,6 +1233,20 @@ func (siw *ServerInterfaceWrapper) ListComics(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// BulkAction operation middleware
+func (siw *ServerInterfaceWrapper) BulkAction(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.BulkAction(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // GetComic operation middleware
 func (siw *ServerInterfaceWrapper) GetComic(w http.ResponseWriter, r *http.Request) {
 
@@ -1071,6 +1264,32 @@ func (siw *ServerInterfaceWrapper) GetComic(w http.ResponseWriter, r *http.Reque
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetComic(w, r, comicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// EditComic operation middleware
+func (siw *ServerInterfaceWrapper) EditComic(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "comicId" -------------
+	var comicId ComicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "comicId", chi.URLParam(r, "comicId"), &comicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "comicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.EditComic(w, r, comicId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1126,6 +1345,32 @@ func (siw *ServerInterfaceWrapper) GetCover(w http.ResponseWriter, r *http.Reque
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetCover(w, r, comicId, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetFavorite operation middleware
+func (siw *ServerInterfaceWrapper) SetFavorite(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "comicId" -------------
+	var comicId ComicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "comicId", chi.URLParam(r, "comicId"), &comicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "comicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetFavorite(w, r, comicId)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1303,6 +1548,32 @@ func (siw *ServerInterfaceWrapper) UpdateProgress(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// SetRating operation middleware
+func (siw *ServerInterfaceWrapper) SetRating(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "comicId" -------------
+	var comicId ComicId
+
+	err = runtime.BindStyledParameterWithOptions("simple", "comicId", chi.URLParam(r, "comicId"), &comicId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "uuid", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "comicId", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetRating(w, r, comicId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ContinueReading operation middleware
 func (siw *ServerInterfaceWrapper) ContinueReading(w http.ResponseWriter, r *http.Request) {
 
@@ -1327,6 +1598,39 @@ func (siw *ServerInterfaceWrapper) ContinueReading(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ContinueReading(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListFolders operation middleware
+func (siw *ServerInterfaceWrapper) ListFolders(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListFoldersParams
+
+	// ------------- Optional query parameter "libraryId" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "libraryId", r.URL.Query(), &params.LibraryId, runtime.BindQueryParameterOptions{Type: "string", Format: "uuid"})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "libraryId"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "libraryId", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListFolders(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1416,6 +1720,20 @@ func (siw *ServerInterfaceWrapper) LogoutAllDevices(w http.ResponseWriter, r *ht
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.LogoutAllDevices(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetUserMarks operation middleware
+func (siw *ServerInterfaceWrapper) GetUserMarks(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetUserMarks(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1802,7 +2120,25 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 		r.Get(options.BaseURL+"/comics", wrapper.ListComics)
 	})
 	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/folders", wrapper.ListFolders)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/me/marks", wrapper.GetUserMarks)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/comics/bulk", wrapper.BulkAction)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/comics/{comicId}/favorite", wrapper.SetFavorite)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/comics/{comicId}/rating", wrapper.SetRating)
+	})
+	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/comics/{comicId}", wrapper.GetComic)
+	})
+	r.Group(func(r chi.Router) {
+		r.Patch(options.BaseURL+"/comics/{comicId}", wrapper.EditComic)
 	})
 	r.Group(func(r chi.Router) {
 		r.Get(options.BaseURL+"/comics/{comicId}/manifest", wrapper.GetManifest)
@@ -2101,6 +2437,62 @@ func (response ListComics422ApplicationProblemPlusJSONResponse) VisitListComicsR
 	return err
 }
 
+type BulkActionRequestObject struct {
+	Body *BulkActionJSONRequestBody
+}
+
+type BulkActionResponseObject interface {
+	VisitBulkActionResponse(w http.ResponseWriter) error
+}
+
+type BulkAction200JSONResponse struct {
+	Affected int64 `json:"affected"`
+}
+
+func (response BulkAction200JSONResponse) VisitBulkActionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type BulkAction401ApplicationProblemPlusJSONResponse struct {
+	UnauthorizedApplicationProblemPlusJSONResponse
+}
+
+func (response BulkAction401ApplicationProblemPlusJSONResponse) VisitBulkActionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type BulkAction422ApplicationProblemPlusJSONResponse struct {
+	ValidationFailedApplicationProblemPlusJSONResponse
+}
+
+func (response BulkAction422ApplicationProblemPlusJSONResponse) VisitBulkActionResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type GetComicRequestObject struct {
 	ComicId ComicId `json:"comicId"`
 }
@@ -2144,6 +2536,61 @@ type GetComic404ApplicationProblemPlusJSONResponse struct {
 }
 
 func (response GetComic404ApplicationProblemPlusJSONResponse) VisitGetComicResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EditComicRequestObject struct {
+	ComicId ComicId `json:"comicId"`
+	Body    *EditComicJSONRequestBody
+}
+
+type EditComicResponseObject interface {
+	VisitEditComicResponse(w http.ResponseWriter) error
+}
+
+type EditComic200JSONResponse Comic
+
+func (response EditComic200JSONResponse) VisitEditComicResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EditComic401ApplicationProblemPlusJSONResponse struct {
+	UnauthorizedApplicationProblemPlusJSONResponse
+}
+
+func (response EditComic401ApplicationProblemPlusJSONResponse) VisitEditComicResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type EditComic404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response EditComic404ApplicationProblemPlusJSONResponse) VisitEditComicResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -2225,6 +2672,63 @@ type GetCover404ApplicationProblemPlusJSONResponse struct {
 }
 
 func (response GetCover404ApplicationProblemPlusJSONResponse) VisitGetCoverResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetFavoriteRequestObject struct {
+	ComicId ComicId `json:"comicId"`
+	Body    *SetFavoriteJSONRequestBody
+}
+
+type SetFavoriteResponseObject interface {
+	VisitSetFavoriteResponse(w http.ResponseWriter) error
+}
+
+type SetFavorite200JSONResponse struct {
+	Favorite bool `json:"favorite"`
+}
+
+func (response SetFavorite200JSONResponse) VisitSetFavoriteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetFavorite401ApplicationProblemPlusJSONResponse struct {
+	UnauthorizedApplicationProblemPlusJSONResponse
+}
+
+func (response SetFavorite401ApplicationProblemPlusJSONResponse) VisitSetFavoriteResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetFavorite404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response SetFavorite404ApplicationProblemPlusJSONResponse) VisitSetFavoriteResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -2647,6 +3151,79 @@ func (response UpdateProgress404ApplicationProblemPlusJSONResponse) VisitUpdateP
 	return err
 }
 
+type SetRatingRequestObject struct {
+	ComicId ComicId `json:"comicId"`
+	Body    *SetRatingJSONRequestBody
+}
+
+type SetRatingResponseObject interface {
+	VisitSetRatingResponse(w http.ResponseWriter) error
+}
+
+type SetRating200JSONResponse struct {
+	Rating int `json:"rating"`
+}
+
+func (response SetRating200JSONResponse) VisitSetRatingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetRating401ApplicationProblemPlusJSONResponse struct {
+	UnauthorizedApplicationProblemPlusJSONResponse
+}
+
+func (response SetRating401ApplicationProblemPlusJSONResponse) VisitSetRatingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetRating404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response SetRating404ApplicationProblemPlusJSONResponse) VisitSetRatingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetRating422ApplicationProblemPlusJSONResponse struct {
+	ValidationFailedApplicationProblemPlusJSONResponse
+}
+
+func (response SetRating422ApplicationProblemPlusJSONResponse) VisitSetRatingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
 type ContinueReadingRequestObject struct {
 	Params ContinueReadingParams
 }
@@ -2676,6 +3253,46 @@ type ContinueReading401ApplicationProblemPlusJSONResponse struct {
 }
 
 func (response ContinueReading401ApplicationProblemPlusJSONResponse) VisitContinueReadingResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListFoldersRequestObject struct {
+	Params ListFoldersParams
+}
+
+type ListFoldersResponseObject interface {
+	VisitListFoldersResponse(w http.ResponseWriter) error
+}
+
+type ListFolders200JSONResponse struct {
+	Folders []Folder `json:"folders"`
+}
+
+func (response ListFolders200JSONResponse) VisitListFoldersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListFolders401ApplicationProblemPlusJSONResponse struct {
+	UnauthorizedApplicationProblemPlusJSONResponse
+}
+
+func (response ListFolders401ApplicationProblemPlusJSONResponse) VisitListFoldersResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -2872,6 +3489,46 @@ type LogoutAllDevices401ApplicationProblemPlusJSONResponse struct {
 }
 
 func (response LogoutAllDevices401ApplicationProblemPlusJSONResponse) VisitLogoutAllDevicesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetUserMarksRequestObject struct {
+}
+
+type GetUserMarksResponseObject interface {
+	VisitGetUserMarksResponse(w http.ResponseWriter) error
+}
+
+type GetUserMarks200JSONResponse struct {
+	Favorites []openapi_types.UUID `json:"favorites"`
+	Ratings   map[string]int       `json:"ratings"`
+}
+
+func (response GetUserMarks200JSONResponse) VisitGetUserMarksResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetUserMarks401ApplicationProblemPlusJSONResponse struct {
+	UnauthorizedApplicationProblemPlusJSONResponse
+}
+
+func (response GetUserMarks401ApplicationProblemPlusJSONResponse) VisitGetUserMarksResponse(w http.ResponseWriter) error {
 
 	var buf bytes.Buffer
 	if err := json.NewEncoder(&buf).Encode(response); err != nil {
@@ -3212,12 +3869,21 @@ type StrictServerInterface interface {
 	// ListComics Lister les albums
 	// (GET /comics)
 	ListComics(ctx context.Context, request ListComicsRequestObject) (ListComicsResponseObject, error)
+	// BulkAction Action en lot sur une sélection
+	// (POST /comics/bulk)
+	BulkAction(ctx context.Context, request BulkActionRequestObject) (BulkActionResponseObject, error)
 	// GetComic Détail d'un album
 	// (GET /comics/{comicId})
 	GetComic(ctx context.Context, request GetComicRequestObject) (GetComicResponseObject, error)
+	// EditComic Corriger les métadonnées
+	// (PATCH /comics/{comicId})
+	EditComic(ctx context.Context, request EditComicRequestObject) (EditComicResponseObject, error)
 	// GetCover Vignette de couverture
 	// (GET /comics/{comicId}/cover)
 	GetCover(ctx context.Context, request GetCoverRequestObject) (GetCoverResponseObject, error)
+	// SetFavorite Mettre ou retirer des favoris
+	// (PUT /comics/{comicId}/favorite)
+	SetFavorite(ctx context.Context, request SetFavoriteRequestObject) (SetFavoriteResponseObject, error)
 	// GetManifest Manifeste de lecture
 	// (GET /comics/{comicId}/manifest)
 	GetManifest(ctx context.Context, request GetManifestRequestObject) (GetManifestResponseObject, error)
@@ -3233,9 +3899,15 @@ type StrictServerInterface interface {
 	// UpdateProgress Enregistrer une progression
 	// (PUT /comics/{comicId}/progress)
 	UpdateProgress(ctx context.Context, request UpdateProgressRequestObject) (UpdateProgressResponseObject, error)
+	// SetRating Noter un album
+	// (PUT /comics/{comicId}/rating)
+	SetRating(ctx context.Context, request SetRatingRequestObject) (SetRatingResponseObject, error)
 	// ContinueReading Albums en cours de lecture
 	// (GET /continue-reading)
 	ContinueReading(ctx context.Context, request ContinueReadingRequestObject) (ContinueReadingResponseObject, error)
+	// ListFolders Arborescence des dossiers
+	// (GET /folders)
+	ListFolders(ctx context.Context, request ListFoldersRequestObject) (ListFoldersResponseObject, error)
 	// GetHome Étagères d'accueil
 	// (GET /home)
 	GetHome(ctx context.Context, request GetHomeRequestObject) (GetHomeResponseObject, error)
@@ -3251,6 +3923,9 @@ type StrictServerInterface interface {
 	// LogoutAllDevices Révoquer toutes les sessions
 	// (POST /me/logout-all)
 	LogoutAllDevices(ctx context.Context, request LogoutAllDevicesRequestObject) (LogoutAllDevicesResponseObject, error)
+	// GetUserMarks Favoris et notes
+	// (GET /me/marks)
+	GetUserMarks(ctx context.Context, request GetUserMarksRequestObject) (GetUserMarksResponseObject, error)
 	// Search Rechercher dans la bibliothèque
 	// (GET /search)
 	Search(ctx context.Context, request SearchRequestObject) (SearchResponseObject, error)
@@ -3484,6 +4159,37 @@ func (sh *strictHandler) ListComics(w http.ResponseWriter, r *http.Request, para
 	}
 }
 
+// BulkAction operation middleware
+func (sh *strictHandler) BulkAction(w http.ResponseWriter, r *http.Request) {
+	var request BulkActionRequestObject
+
+	var body BulkActionJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.BulkAction(ctx, request.(BulkActionRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "BulkAction")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(BulkActionResponseObject); ok {
+		if err := validResponse.VisitBulkActionResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // GetComic operation middleware
 func (sh *strictHandler) GetComic(w http.ResponseWriter, r *http.Request, comicId ComicId) {
 	var request GetComicRequestObject
@@ -3503,6 +4209,39 @@ func (sh *strictHandler) GetComic(w http.ResponseWriter, r *http.Request, comicI
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetComicResponseObject); ok {
 		if err := validResponse.VisitGetComicResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// EditComic operation middleware
+func (sh *strictHandler) EditComic(w http.ResponseWriter, r *http.Request, comicId ComicId) {
+	var request EditComicRequestObject
+
+	request.ComicId = comicId
+
+	var body EditComicJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.EditComic(ctx, request.(EditComicRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "EditComic")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(EditComicResponseObject); ok {
+		if err := validResponse.VisitEditComicResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -3530,6 +4269,39 @@ func (sh *strictHandler) GetCover(w http.ResponseWriter, r *http.Request, comicI
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(GetCoverResponseObject); ok {
 		if err := validResponse.VisitGetCoverResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SetFavorite operation middleware
+func (sh *strictHandler) SetFavorite(w http.ResponseWriter, r *http.Request, comicId ComicId) {
+	var request SetFavoriteRequestObject
+
+	request.ComicId = comicId
+
+	var body SetFavoriteJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetFavorite(ctx, request.(SetFavoriteRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetFavorite")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetFavoriteResponseObject); ok {
+		if err := validResponse.VisitSetFavoriteResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -3676,6 +4448,39 @@ func (sh *strictHandler) UpdateProgress(w http.ResponseWriter, r *http.Request, 
 	}
 }
 
+// SetRating operation middleware
+func (sh *strictHandler) SetRating(w http.ResponseWriter, r *http.Request, comicId ComicId) {
+	var request SetRatingRequestObject
+
+	request.ComicId = comicId
+
+	var body SetRatingJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetRating(ctx, request.(SetRatingRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetRating")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetRatingResponseObject); ok {
+		if err := validResponse.VisitSetRatingResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // ContinueReading operation middleware
 func (sh *strictHandler) ContinueReading(w http.ResponseWriter, r *http.Request, params ContinueReadingParams) {
 	var request ContinueReadingRequestObject
@@ -3695,6 +4500,32 @@ func (sh *strictHandler) ContinueReading(w http.ResponseWriter, r *http.Request,
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ContinueReadingResponseObject); ok {
 		if err := validResponse.VisitContinueReadingResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListFolders operation middleware
+func (sh *strictHandler) ListFolders(w http.ResponseWriter, r *http.Request, params ListFoldersParams) {
+	var request ListFoldersRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListFolders(ctx, request.(ListFoldersRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListFolders")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListFoldersResponseObject); ok {
+		if err := validResponse.VisitListFoldersResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -3817,6 +4648,30 @@ func (sh *strictHandler) LogoutAllDevices(w http.ResponseWriter, r *http.Request
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(LogoutAllDevicesResponseObject); ok {
 		if err := validResponse.VisitLogoutAllDevicesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetUserMarks operation middleware
+func (sh *strictHandler) GetUserMarks(w http.ResponseWriter, r *http.Request) {
+	var request GetUserMarksRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetUserMarks(ctx, request.(GetUserMarksRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetUserMarks")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetUserMarksResponseObject); ok {
+		if err := validResponse.VisitGetUserMarksResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -3988,133 +4843,150 @@ func (sh *strictHandler) GetVersion(w http.ResponseWriter, r *http.Request) {
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"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",
-	"3b66/f8BAAD//w==",
+	"1H3djhtHsuarJHgWoK2tZrcseQanB4uF3LLm9IFs93RbXmBN4TBZFSTTysos5Q/VbUPA3O717gMM5uaY",
+	"M8C5Ondz58K+yD7JIiKz/sgqNltqSzMXM26RxfyJjJ8vIiOifhqlOi+0AuXs6PSnUcENz8GBoX+d6Vyk",
+	"5xn+KdTodFRwtxolI8VzGJ3iL+nbZGTgtRcGstGpMx6SkU1XkHP82UKbnLvR6ch7gU+6mwJ/ap0Rajl6",
+	"+zYZnXljtcFnM7CpEYUTGuf6jkvwhs0UXLvwzIxlwCRnBV8CK0y5SctNBsrBhH1T8Nce2Ckr/8QMqLW+",
+	"AcMcSAlT9drjfxP2A8+5sPhEqpV1Blc8mapREvb22oO5aW0uLKu9l921Pxdzw81NoFB3+ZdgnQGhHE7o",
+	"FbC5mEuh3ar8+bXHFefCJsxp78AyCbb7vWVrYcVcgp0MrE/WU9+N3M9FLtzucr/W+dwAy8blRpabHNlh",
+	"wp6WmwX3jn1+krBC8oVWGfvs5GR4STh0ezk5vxa5z0enn52cJKNcqPCvh/XChHKwBEMr+1a/AvUHGnJn",
+	"ef8KTiuWjXmalj/bhPE0hcKVGwaKGSikYIX2huiIvFj+Ban62gumgBXg16AcK7idqkIbB4ZlY1BHDh9j",
+	"syferbQRP3Kca8b+3x//TzgvLoUFNpv6k5NHqciX9AfMElZww+Aa8kLu4R+Hu9nLPm9RbmyhlQUSti94",
+	"dgl49nQ8qVYOFP3Ji0KKlJZ3XBg9l5D/1x8s0uWn1vD/xcBidDr6p+NGoI/Dt/b4IvwqTLrNp4FcLOcS",
+	"uafcwOhtMnqmzVxkGagPuZanRgtnmVDWLxbCctRJb5PR19o9015lH5Ys1mpvUmBCOaP9ms8lxMWcqwyu",
+	"4YMu5/mYy7nPmRqj+rNsIZRAYf2LM7jCDK7LDa7uheKRmz/s+oJ88rkF5RIG14Uw5YZpz4RacykyIt13",
+	"+Bct4BkX8sMusJmblZt0pT3x+dtKPoMAeiGzc7XQZAiNLsA4EWQz1Xmv2jyjz9lSOMbnptwsy81kV+0m",
+	"o6X+DowVYTM7366b77ZWHb5gttzkXDnx2kOCVJ2OMlhPR2ylDSo8CdzCpFfdN5b5+3qapNpOe10v61/r",
+	"+Q+QOlwXmf9dYvAlXHKHM7QtjlDu0WejXc2Os63BXCB02KXfCnKhol1PtV+Dcd7AhD0HlkqBavuG8R/Q",
+	"SrLZf38jMrf6bzNWSO/K/3QMTX4GU0WsYMEwOX5x+ZxJL47y8i951M475A7rkTyFlZYZ9GCPJwWY8t89",
+	"ritdcbMENIjsk+d/OL/4lJ2yjDt+9OLynGVjtBQiR0CSAXv4G1Zc04ok/ihB088XC5GuwLCF1N6VG2AS",
+	"mIO8sLT8zrYZN0ascdl/8CAJBqSgHBcKLMvGOnXgbMKkWJtyYxlfQ4oDSGEdBANYbtYC7ZtXMFWVJWTW",
+	"F0W06jyAnql6QrLKHFeBjnJLw5QbNK9RtZDJw61GFiLTitiqMDrzwpHRlPWRZRplotwYMMxWeiEdPA4D",
+	"3EH2xHXYKeMOjpzIoe8nCyHha7KzPTiGZZ4hzQXaea4QXbE5T1+ByhJm8QNcU0qcNxka/Ur8CNvs/ZvH",
+	"vey9ICbq5++n2lpcR1BzSOtI5wTFljuxYNwTll2Ia4hy0EWKU/WdyABZSXJmeCrUECGrtf40AoUw6/tR",
+	"Ov8RpX1u6P9/O0pGRbYYJSMo/Lwl8c0QIjsARSYjydXS8yX0KcQM2BdnF0ePf9tLW9lGzLfOo3w+75PP",
+	"b+HaQcJSHiCf8nm5MdoyU25A0vk6Zjl+hYz5y1/ZI/bL3xL6Y/J59ee/XLFf/jZASnQxzrRX7kAVF3Vw",
+	"HxP3DW/BCLAHEiE8XLH77tcOJ7nFMpImv6In8Sc+z3mA2TvDOeFk/0RrLX0OBxFky/DQvtoOS5ik5tg2",
+	"vasNtcSwrSLa1qSlBzpSOGjKLiLLds2ZcJB3/7iVkkSoMAU3ht8Qr9Z+ao89CcrWoovCWQZGifJnA+TJ",
+	"3m63w7oGd3VVMUB3zivwMniWpHAsmxng2c0sSIes3Es2A2PQtybPiJQ8XNdAbKqCBh3j0ZoFT9FF5Bl6",
+	"ctYZeiRIUKVxClAZ7gGdogyuw5808SgZrW4yE4BDMqJZe3XQU1iLtOeceFHsA1GpNyYiyS0QZXjlHo55",
+	"UXADQjJ+g8q43OTCkl6NprJ1GHOtJXB1J61o3RWAuoslU0NiXUjucIjb+DFQ66J6ulf0VBCResjOUhvK",
+	"9XHY1vAt2/IG5qNkxFVmNE0itB0R6n7ldDFKRl69UvqN6j3iZzXu2oHZIq317pYMBS5GSAYsi3YVHH5g",
+	"AXW+t0fxYzvpVdIZFH02+qRrW3t/qnrBxlMUZMQ4sCSAmPkIK8jspEAwyY4jBIxgZMzN3MCk3+rswch4",
+	"9hJcL3CYMMIIgcl7djKgWNrhvIo8SfsQ+jgixrxuO7wDjOaBYvVKBNe/BjWkgZNRztWSjxIU1Ff4T4E+",
+	"+cvDZWyPpNCUt1LiK67EIoZrekhxoHm/K9TA5w83V9UayfTtWK0tEjQB3bY9DhPuI0C/XV2BWK4O5gW0",
+	"Foc+a59qP5d9Akmfs0JyRQJXbhyk5HRxz8hckWcpIXUQ7EEUTQteAgPFco3uWxbH4ejE2Si2aDpQ2snt",
+	"ImdIC7uNxltWg7zVISwAzAo0q+Q6Vj5X4VmI6HDF5Y0tNyTDd0ZbRMoWmfqOrgqV7CzvS2OQNNyzMC+7",
+	"fHbG/vnx579NmAWzFhDdTmA4Jvvq/Ksvp2o2FLuZBeJ0GSMDx4XsmbrBHVHNp0gUU25SYZPoSXM8GFTY",
+	"Y++EFJbjSfZqU0IYATlkmcBRubzoLGTnJ9uKl6ObXoWwbNIEmYGoRNZoXUeWWqtoCC2UdVylPcx6noFy",
+	"YiEQiATHr0YhrPwjEyqV3kSr4RUzvECIho/O/ZKWgi4+BSeB1L4ziM/S8j/Rc8fDQsr0+zeIsX2bBi3x",
+	"GvYAwgf79mEdnU+M53BXbpbaCASNgWK32yT6tvEQ4kIHWHhpwNr3U78ZAZwDH14g7l3dLVZR9PrJTzs+",
+	"AJMeEnZyNEcf8iCZ37Ib2054gTT3TMVbnTCLRanOdYAqdEKoCCncdgnWAUv1qtwgFISpogBaUFIhMATW",
+	"MQN5IXnaExDiHrVtqj1tJxOLRRgp8N8h2wGTwpYRDGq4eTyGA94Gj2Jg81/Xe467swE6lT+7cJt2wGKs",
+	"4+aOIalGovaZ40vg2VV48m0y8kV218jXYKj4XKUmhPjKDd1xruhGtNykRtAZb+28N5i1Fw9sw4J4YPXW",
+	"26eStILNzS73SfELempXltvy2d3xM5566QgKx/DjD3QLERzZrNz8QGaicvk6BNgHxnpRSH13eXKrLN7x",
+	"tw3jcCm/WYxOvz+chV4m+2mSlRsKz8Z7c23JDDI7FpLkWefCTnrcgq3D7ju31jJa2Nwr5AHy/v+tqPRz",
+	"YIxeaH5Fsa178CUoKnR2B73fuZTYDwR+evc46d2inYOxAD+XaHfMgV5MO9QWPZpbXJlwDvcRH4snemuA",
+	"7F1DXlc3Km10RSMy74oABlRez9S33j229djbl1VGQw938zQFa+nbAe4b0nnlHyl5BbEdBT/a6S7cX+OX",
+	"Cq6FVpZZL9Zcbdu8Id6jK1uwT1wvLBcmonIfdWyTiYF+S+aZgYUBu2KU9tCZca85iz8bJoW3gev3kf6F",
+	"7bFdbRpvzdPebYvYcbI+pnth+6JVmbCF5DeDkXnIo5vzrurDAP6dOujhhAujF0LGbCYHyrOFkM5EaJZK",
+	"bq1Y1N7UuPzzciC4aXRA+5UKp+juLjG6R3KHkEr9eJyqs61dYtOFR+qNcDdXeL6B1HPgBswTH9R1+Nez",
+	"inz/+j++HSV7E4aYnhOJ1oKz2cU3V9+yY+7d6ljqpVCzCXvqTbkhzIgObqq9QQj8ycPPWS4UETQLqVCf",
+	"st9FmUOvS1bRAAlbAjCtU3+I2rTehvor54qQpCBitkF38V+0LwBxVV88TRhpJotCT4EvS7cJ1un0FSJu",
+	"JJ+ji90zrZzhweaPn1ycs7m+Rl9S+4y+f/DgDOr7UQQBkrOY6oL7LzdGuHIzefCAPYfKi2S/10nrfvfb",
+	"mwKuaL1TlXn2Bua4rOb7p9zE+VtxAfZMeudwThWuIJblRpUbU27sVH0yy/krYEtQYLiD2acT9i1d+peb",
+	"tZa+CgmEDaU6z0GlwEQqCObEzL6CrgOnKtUZJMwKpRU562FVlmViDWYZnJKpeqGYw+1nQBKEJPtkRtcc",
+	"istjPCJeiOPwVer+DZ+dLPXs0+DwQwTYU2XKDeVwoRasyEX3kGFYimPYdFVucs5OyWeq1pECA3pC1kuY",
+	"KiTkWOT1fT1tfcGFi3krwdU/O6c9/NM/sRCvsfiv563ABGp/PArJ2fdVBOflJ7gre3p8/ObNm4lZpEeQ",
+	"CafNRJvlsVmk+D987lM8j8GIzqchOWPF84LNkKFnxEXR8z9tU3yqqtw7i5zg0UplYK23IZIyNxSnw1Pz",
+	"hrw0hO647Ql7Cv4aSR02lxNb4kheMWe4CI/hkTuReom8fIo0OGKzyWRyTFJ4FNR8Nuv6B7VS4FWiUsIM",
+	"Xxhe/ke6EoYVXlhm4Aei9e/qIS1YdGiODKz1q3pQzuLnwT9Gdn3tyw0kzEAGOVdZyMZoLPNUscYhZZ/g",
+	"d6bcVMGsyOgdbcJ4zMZo4pmfVsd/wZdCxau6qWr+FayANxa8aWfTEFoQ0E2rdSDZaw+ySpeYKkoDLn9G",
+	"5pyl8anfMSEZsq8WrhK5wLkxmZYpUd0UFgaXaiZT9Xwcsz9wW51ZrVgqsRDAfvnr1pVouJen/cUbP0XH",
+	"HZi8SZeYHaOIrh/OkB3VEphX4rUPnAGKoodIS19UOUU25BJZklpnNJ4Dd3QRyiywBaqlQAPOQgAkurET",
+	"9p0Whs1wvssvnzz96stJnsXgphQpKEvmMOZ+Pvn9xfOjR5OTI63kDZpAI6PWr4RvqTxJXfytPebLQuJP",
+	"JiuXy1YUbtRob/bk4rzlWJ+OTiYPJydHGazxeV2A4oUYnY5wlEejcJtExrNl6wjEaOv68pWd9kYhDbfl",
+	"JKtMIsuCnQQSw22LN1WzCksFlbBonFG6q4KcwudFAZL0RK0u8axoYK+CIaHAJi2nzbuR2fBHQX+gdbSU",
+	"8tvGvVoQqxjuHEe9G+NedJx1MIBODsEcSQtC7dFzIlBAMGDdFzq72ZOhuJuZeKfb6mGI/6S6ooZrYR1H",
+	"XRhyxb1iAXXUuyAqI+VC1uGBsc7hxKmYFFCF2lHjRGEIKWYZkjLObQduMK19o00X3tYfJvd3zX0XGNpC",
+	"oPVSeoDn2+06hu0E7c9OTu7EEPv2E13DnkzVq2hPQlYgXdo9Pnn4IXNlWwH91u3HhD3nrAY7yHmCnkMh",
+	"pARCILOGwFmNiXeBnEPtq69z7UIo2lpAMXWIVrQqNyFWJawTakkAB+xUZQgACjA5ODL4VJsQMr3CI3E6",
+	"i7LcdhtGp9+/bOU4jb7xayOCEY62GhmRLy15O+hSvMSf11pSezesJs8zyAtNSOS0UZVCoQLySRV1rHEA",
+	"7r7KhlZjJBqShLIz44UIe6Eq/UbZvFIsFewE6im2HlUcK8C7GqBY3kr0LKS3zHGTDeg33Np9KbhbXPct",
+	"Gew8/W7C97gvxynIygJi4cIeNniGrHQoG8TlDvNB+b9qyLEF1iLqr7Q192g8CxksWYxQo9MTIvVgHYGR",
+	"yC4oCEZH1G9vrEO3gWSMDOyVaJnnwGpkJsNArXETlhK3vfZjIWv8uNay3LDTUHXEJJ+qdMXL/1CEzepp",
+	"u0CWDHJL8EN0PV7/TlUvNG4bbUKLXIZE9SFEXOPhPr69bLGO/cdl3w9hO74OHHcdWMS2bEffePUCjztl",
+	"I/ijzz67/Uc75Rz7pO+yiZig6o7rGxZAC84Xw+L3DRnHkJqBzweDFQMNMad9zH3qVbQSrLZJlJpFwoE4",
+	"04KXLNc3QHg31yaN3Fnd2zOFLuyEXZIAZOzxySOWISp+7cfN6HyqgohFNNbDxle0o/ti3zq2WKOs8Mk7",
+	"YLJcqOeglm41On14cku8b6sqCU0z2ISlK7FY0F9OGHAJK7RAH8wxqz1atABQc35dzfTos87Ej5IPhuEe",
+	"3pscxrjzjhQ+afJjKa5BLBFk8dHtYtVU3v0qgniGjhYKYeOQdZa7Tybr674l9EEjlREYDIlNtfiMOQOV",
+	"aoOgppHHCXveCQ6+gTmzY1AokcYF9w5Bj8goYkhRsjG3NrhEBCNx+RQyoLmkjNbLMTkuN6nhCjFkY2X6",
+	"ZPL34J54t7pqLrDfQ2V3BVQBZPaq0mI9Gcl7tVRfqH5LIloT9AvCNmBxVVC4Tknaxyd9z/eyRohLt7hi",
+	"C3UK687CI0mnunzgmrt55Liprn6b/NRbZFvXUdypBnpgrFh2cJjstwsqcMSta3ghkWNjvn91EV4FsUNa",
+	"CmULh1NPtTe1o8+0n6q1yNANJ9agex2YsFm4XJ+FzDDXTu2P0bjgMtpkqqj0eayVC2NAdCtIbOrFDBcv",
+	"m+Zyv02Q6oqIsrvvctG/S6FvTEbl5jGpbwlNtfnMQArKzSYx3BejmOGuQpQbdI6cESGEFFC4qd3Udp7D",
+	"VLWbBCTxjqKO0UPBTQVNM0pfmnu3U1tISY8UtkYMbCmgZcnhi7lSdpiMVhvXS8Cww1aaW1U/dBDttloL",
+	"tJPhyz/1JMOj414BfWSsqcrKjSWGqJPF+0rPkiqFna5JyD1PXShvbIK6njWx4mFKhOqc/d0UdiJSwKoo",
+	"YIwg1PyOYgKKLfhaGzHUjiB868D2TdvSqrfqoZi0cMCTobnC25e/IvhvCpl6lPwFJd+FhL33QP8fEqbU",
+	"BgcNRfQO4vobc5Nyx6VedizO8dzLV8MewnOwMUAVA1l05xjvyMPl6Z6uG4yvuXJT5eIlZEyiixd4ttyg",
+	"Ekd9HvpLhLAOahBtELDg6CmlKb/2WsRLyWjgQ6p3lT7RpFnWHnO8ocm2NjBV3MyFM1wYsH1g5gsvXz2h",
+	"Vd1fEDutMqAazUVav1b/lZDRZ/U/+ktLu0lEt0arc359Hh5+eHJyckvpAq82jtN8CAd9i1CLBVR5GnfN",
+	"sqx/ewiM6+nTwsIA5eaj+Pu1/AbWQ7UsdSh17IrKbeL8U0y9ejvoYLxQQTPEsvuO6DKhQsYPim+MVqGz",
+	"/jhkKKHXTvHaxyePUBbVQpgcKKxscdEEulUlsiCDcx9Q1A0LIpsZLdyAF3EWa5LuBnCrfMVf32D0uqlI",
+	"y/cwEo9v/1HduaXLKk/LjeNC0jmGI+1lDrrCTHsr4ii3OeQgUPpbDIASlSiQ+uABOLYGY7QXUpabBw+i",
+	"7jblhgpkeFTfCGbIXbRgOAXQJ+xsHPNiQiyXkgyozYqwBShblziMuXc6507YnOJKU0UBqdBuKtXGiCVF",
+	"k5gT5A4Ehltz0euMfpmJe+Gj+1D87QL/PVX5u1nw71BZ/vYjh1P3CwhhzfJP7AftzUcRlrOKjxCW5Cg5",
+	"mVaq3IA9WKMeU7LzoF59zhn1K/Ho5uQcvYNwwYcMhjPFeisVQIkzWliGAowrqrO4wE7VJw9/c5KwR5+d",
+	"JOw3j08+ZachQpuC5AlJ39Lgr9CD+1HrnORLKB9u/0k4wtWYclU+XsrTFVAySyGuQQY3hdY6qInX5Gi8",
+	"owQNBAdCLV+ntdneZma3TthqdnaA9qcyweMfClh22bqGGnOhOK23p8nYVuwJ/T5HgG0FPKsa/SGZjyh1",
+	"UMvuHLvS+uW3fLn/GXzqUd+F3bkihz02GfvgslRtPqa0xLY7LTkyRJIhMarxLepL3xPsugL3rAHEH1uJ",
+	"t5d7SzCxB7l/KOh8f6vsDXj6GCX4KPz2FV2QMO2ZASdMSH+MC7qD+s5bhea9Gvxp8FDb7SRDwR+oAHrq",
+	"wtLmYlbPXcyqsiwTOSgrtEIvc81D3mgrwE5VyuBi5kG5iQUIkqN1pLppSttruh5MlfVFYUROV8VZuUm5",
+	"xCfWwnqQrACVxVmqEsR+bV6X2P9dQut6dT3sV333wRQd/uCfD/pB1b9wi1erBbdi1AdrRuK2458IWQ87",
+	"cFcIBmZkS2dJ3ck1G2sjlkIFzBGLzEGxhfTXSWjiyl77Mf2X0iUo6Z3wQdVQI12JNUzYkzWkzfhUnsqN",
+	"4MqhBNQ8riK8qbuXQUj5rViZIEdMEW+NQBlPee5jmnPMJwy9vMI/QruA8HcNqLRSECNJCCFthHF/ycGy",
+	"0NCtm1gVqxe1StFxmKGtnYWEy6madcz0KS2H0q5nSXikkXSEVqHoXYUuuJ/MzhdHX2sFR1+hUzX7tHaS",
+	"H508DjDNGa7sIuRXeRVWN6kSy0M7VLvbD5VCYNqT1qAmBrd1WE0oHraVY4rULTdLLkP2bt3ftWrg1k5I",
+	"pjyb2YDGuKiKF98V/m3FW0JrsaqEulOk3dMSueq9MNwQeV8x6O70zyMbpWIuY9Ng2C85Q9Hwf1gEm8Tf",
+	"Fuqdf/oG5sV7A+fzqstjpP7HBtAsA1JbktdF+FQfoDzESpho6f+ODdD9RB6vwhUdqr94MAcarVYDiQwk",
+	"BAza1ShP6fOL5obz3mDI496avvqiGBYLnn4sP+lLnBy2L69bhK1J9/JtckuwtnM33dzo0Wm19rumBlb1",
+	"5euYYrWP2elUNTcjVbeeX/7KqLbLs1/+FnPA1loYVv4p1gaR/aLyj6rvyICx+BXO9f7gZb26vpu+1rF8",
+	"DA5ps2qI9e8Ecjs8Et3l7iYePLgsf16GYCp6Fa1Kv1SrhRSOndbGToboLN3MoWCwJV8qePAgYZb7xVSh",
+	"t2IpVPUjWezQxRDR3SezkLl0ymIGRaieClFe8lfG3DlQGe6i6g11yqrbPZNVPGw74oCYa6qkiIkeBMRc",
+	"BSYNFAZUVn1HtzXFShNCo28Y92xO9yXVvcILik4TPToVUc3tI+0YeX4RgmWm3NBioqRW7R2y8mdLrz0g",
+	"rLnSRmr0BTvVG1vFkJFCO3U7p9QiImGx1qS/n0SfcIUy+HuSr3cLhtylWv/DRpwPFGzGC4PYuCUaQWxP",
+	"bhfb1ssEPooBUQaWwjoTs2lvtSK9BtrUXcZ71cfXOjirD1HoP5+w/0lyHyItyJ9Kh0S6nRjdZdWE9GNH",
+	"6JoN1m/K+Dy5xUXo5qWHAT581K5Z+fussOc8oeKcD4h97geG4vJ7DeF2dI/uPOAITVGkYW/m5Fl88DI+",
+	"d/f0yXtJRnqfZjCNorslfWOo38vApZytegCUG8vINCMedGByod49D6KbzhDmoYKe2OlvNyi2pcBClttw",
+	"hnRdY0sx15ieh8qrkNwlzBmB+8mAWQoCBRSMBlu5+L6jnzNohZIsRXgXlN7U7cA/L//shKuazVZhYKq8",
+	"Cw0tqego9SbmgYYYT8hRopG1ciz1uadWszbkTlR5hhUMl8Ccdpwu5SyfqljOn3QxVTedgl7WE6qj/u//",
+	"9v11asK6Z5GS75EyfL983zragzg/dji+je+rYQ/h/PgugfvhbjPXBmwaC/MbbhxUWysdKkAGGHtptC8C",
+	"Y5cbx5eIXG37fV0U6fMg5ATR7WUNj5srAAS2Ib6L/jyz5abgsaUdBTRmO6pzxk4RmRqQ5c/rOjbTQuhT",
+	"lelYOB4244E6GJSbAlmz4HbAMfwXncPfh8JVcO3OVdMnbRstxhqO8O6O4BTXzUmQhoaC6Y7nsZvs+zW5",
+	"j4nL79ksf6e4LmZDd/Z66B1fYLX7EIpmtIZbB+Uh9FiLh9J/2wFe9r/bjfvr8FI621RNMx5zQoPujXGS",
+	"ckO5ni920t0o6lE1UqqqNmP2KjKA094OKdfn9dLvlVM7FDmIPapW4rcxSDPyIUzR6Z50L4zxRX+S8CBv",
+	"dDTlboZKaLdP1WO/opM5VJ121qk5uQ/ybI3YWyWUw3HoPrG/UuhpfOZeGbM18UFsGV9AcRtXVsMewpPP",
+	"d/tn3IsZr8M5VOYWkoCH6B9aGxxxKdtZ8309Ap5I+ascRKwPj1X79l2SpbeHOIT41cOtqvZ7of5lGA5M",
+	"O+/CVisbOoacm1fDRuP3iKPICyg3Uswpsy6vuk3U+XNUoRBROCgLOXVtoZdh+Oup4lKCsUfBhsReWwX4",
+	"QsacjdDZyMeM1PjmimX553QlhgARapOvaOW/SvLPHUsDdmAJBRkO6fXe7nO+03iwL9eINhyHP8g/VSo2",
+	"UrBNhd99cFtILKMGgEq7PdbHAjcha3oAq6crMJRVKUGg13xNyjufiyrXkxL3RS4kp16A6JguDc9zSJhQ",
+	"FhSZv6ni/pou6tH9PEVUz60DI64RyIe29PjhE+sQhV5Xr90KD6UWn+LeWlGnWtS5CxmwXAtF/gO1gUm5",
+	"4akL0Ky+QUJtSn2JLF0e2f6ie6LFDpLffp2YyUMbKaJMuRl86+7rvXf7PSVtdypx/Rj+RVO++36egYU7",
+	"Qb+hNsF97XipgO9wp+CyLtO8FyVfiYupm2F1kPgeMdzyDnbRTiTC+9VF/yMVL7baTA9WL1Ze64erXxwq",
+	"Q6zWsf+Ej3+qqtDf7kP9Q2fdk0TUqmp/9xer/71riUOUw5YysBUJ42oOwn4xAuIoWBoKS5MqcVCHIvQm",
+	"svuxi6Eq3h9muRuVDgccblS6Mlo1fUSl433NP2Wrq2fVphdkp1w+9DnuZAHbreGFRBLmQH1eDJT/rmMG",
+	"crhRXnH7lTYwo7qp0CRuXKXoVBXlhVYUsBB5Xm4ywWNXV4o2hzWHVgaGO2d4EbJGpFZLD6yuQMdp59qn",
+	"krqhKctC4Lk/pxhpdOGlvA0SnMWmA3UcJr7xJLavbFGq/Sr/+JKU+JMhEGFFaKbRI8x7mqUPlabseet+",
+	"qJvdm+d3z2qCujHcx/0QvZWw912a5R/bLe9ZYXS64iIeTG9TysiJBxQYVOuvZ29+fIiyOaOfU1HuRy3F",
+	"vSw3KXqRdaPEZl1V+4vBPJ3eYvqzrZfJxB6OlGZY+ZOmN5WnykKpf2qnClRoRzJhl7GJoQ9Fw623JoY3",
+	"YbPXnqus03/OxpQcfFYBdZh2IV2a3ovPhYGhvBglojsWchLqPizkMy80+b5T9cSHPKPPT04oJbyu/qPt",
+	"1j5KS0cxA+vwcuegw4OCmqpaQ4UXIwGVGkdVxpd71JNd3VsFf3j5zh1wefN6jU4J/ue3VuBXM32E4nt8",
+	"NtTe/2pa54IakVJWe2ylYqq8t8JLWcXjU6BExDR2LBlrNVVr4hGr40vpaQxSX73vZttuDhD3Vq/sED3U",
+	"yiGyTU10hag/UPbQPeixL6Oap3qmzp5Supum3s5N19Thi/nWW7NuuZhvJVN7NheK9EmTBDCGa9StlPXG",
+	"XlDP9ggNqGdt9aaBqn2Zg9TV/QSrZuNCUlAFHO6p0DY+UGUvoqoZCMJ9V79T61fz0L7wQmbnaqF7U+BV",
+	"ACohuAVsjg/v7SL2XUPMXcNjb6yDHI+oO0L3dR/fv0SQEirO+pDaedVpLt4/QN1wPXaHJ5c2ztlTkUTd",
+	"UqtDRxEXfKm0dVSHXyG2sNLd+ozzVuu5pOk1l9RhYByxCfnXA1JIeHe47kVTUnmgNEjVEyeOUPkFPTUj",
+	"0a6hhawqByGpCgJdq/DVdjt+gekZ7aK/eRk6VF1/oBmrFr63L9/+/wAAAP//",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

@@ -41,11 +41,31 @@ type Deps struct {
 	Catalog  *catalog.Service
 	Reader   *reader.Service
 	Progress *progress.Service
+	Tools    *catalog.Tools
 	WebFS    fs.FS // application web embarquée ; nil pour ne rien servir
 }
 
 // NewRouter assemble le routeur complet.
+//
+// Une dépendance oubliée fait échouer la construction, pas la requête : sans ce
+// contrôle, un service non câblé se manifeste par des 500 opaques sur les
+// routes concernées, et rien ne dit lequel manque.
 func NewRouter(d Deps) http.Handler {
+	for name, wired := range map[string]bool{
+		"Config":   d.Config != nil,
+		"Log":      d.Log != nil,
+		"DB":       d.DB != nil,
+		"Auth":     d.Auth != nil,
+		"Catalog":  d.Catalog != nil,
+		"Tools":    d.Tools != nil,
+		"Reader":   d.Reader != nil,
+		"Progress": d.Progress != nil,
+	} {
+		if !wired {
+			panic("httpapi : dépendance " + name + " non câblée dans NewRouter")
+		}
+	}
+
 	r := chi.NewRouter()
 
 	r.Use(chimw.RequestID)
@@ -132,6 +152,16 @@ func NewRouter(d Deps) http.Handler {
 
 			r.Get("/continue-reading", progressHandler.ContinueReading)
 			r.Get("/sync", progressHandler.SyncPull)
+
+			// ── Outils de gestion ───────────────────────────────────
+			toolsHandler := handlers.NewTools(d.Tools)
+
+			r.Get("/folders", toolsHandler.ListFolders)
+			r.Get("/me/marks", toolsHandler.UserMarks)
+			r.Post("/comics/bulk", toolsHandler.Bulk)
+			r.Put("/comics/{comicID}/favorite", toolsHandler.SetFavorite)
+			r.Put("/comics/{comicID}/rating", toolsHandler.SetRating)
+			r.Patch("/comics/{comicID}", toolsHandler.EditComic)
 		})
 
 		// ── Routes acceptant le jeton en paramètre d'URL ────────────────

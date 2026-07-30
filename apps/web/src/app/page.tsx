@@ -1,196 +1,318 @@
 "use client";
 
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
-import { AppShell } from "@/components/app-shell";
-import { ComicCard, ComicCardSkeleton } from "@/components/cover";
-import { EmptyState, ErrorState } from "@/components/ui";
+import { BrandLockup } from "@/components/brand";
+import { ComicTable } from "@/components/comic-table";
+import { DetailPanel } from "@/components/detail-panel";
+import { SearchOverlay } from "@/components/search-overlay";
+import { Sidebar } from "@/components/sidebar";
+import { Toolbar } from "@/components/toolbar";
+import { EmptyState, ErrorState, Spinner, cx } from "@/components/ui";
+import { imageURL } from "@/lib/api/client";
+import type { Comic } from "@/lib/api/client";
 import * as api from "@/lib/api/endpoints";
-import type { Comic, Progress } from "@/lib/api/client";
+import { useCurrentUser, useLogout, useRequireAuth } from "@/lib/auth";
+import { WorkspaceProvider, scopeLabel, scopeToQuery, useWorkspace } from "@/lib/workspace";
 
 /**
- * Accueil.
+ * L'espace de travail — la page unique.
  *
- * Trois étagères, dans l'ordre où elles servent : reprendre ce qu'on lisait,
- * poursuivre une série entamée, découvrir ce qui vient d'arriver. Un utilisateur
- * qui ouvre l'application veut presque toujours la première.
+ * Tout s'y gère : barre latérale à gauche, barre d'outils en haut, liste ou
+ * grille au centre, détail à droite. Aucune navigation entre pages ; seul le
+ * lecteur s'ouvre en plein écran.
  */
-export default function HomePage() {
-  return (
-    <AppShell>
-      <HomeContent />
-    </AppShell>
-  );
-}
+export default function Page() {
+  const authenticated = useRequireAuth();
 
-function HomeContent() {
-  const home = useQuery({ queryKey: ["home"], queryFn: () => api.getHome(20) });
-  const reading = useQuery({
-    queryKey: ["continue-reading"],
-    queryFn: () => api.continueReading(20),
-  });
-
-  if (home.isError) return <ErrorState error={home.error} onRetry={() => void home.refetch()} />;
-
-  const loading = home.isLoading || reading.isLoading;
-
-  const inProgress = reading.data?.items ?? [];
-  const recent = home.data?.recent ?? [];
-  const next = home.data?.nextInSeries ?? [];
-
-  // Bibliothèque réellement vide : on explique quoi faire plutôt que d'afficher
-  // trois étagères vides les unes sous les autres.
-  if (!loading && recent.length === 0 && inProgress.length === 0) {
-    return <EmptyLibrary />;
+  if (!authenticated) {
+    return (
+      <div className="grid min-h-dvh place-items-center">
+        <Spinner className="size-6 text-muted" />
+      </div>
+    );
   }
 
   return (
-    <div className="flex flex-col gap-10">
-      {loading ? (
-        <ShelfSkeleton title="Reprendre la lecture" />
-      ) : (
-        inProgress.length > 0 && <ContinueShelf items={inProgress} />
-      )}
+    <WorkspaceProvider>
+      <Workspace />
+    </WorkspaceProvider>
+  );
+}
 
-      {!loading && next.length > 0 && (
-        <Shelf title="Suite de vos séries" comics={next} />
-      )}
-
-      {loading ? (
-        <ShelfSkeleton title="Récemment ajouté" />
-      ) : (
-        recent.length > 0 && (
-          <Shelf title="Récemment ajouté" comics={recent} href="/library" />
-        )
-      )}
+function Workspace() {
+  return (
+    <div className="flex h-dvh flex-col overflow-hidden">
+      <TopBar />
+      <div className="flex min-h-0 flex-1">
+        <Sidebar />
+        <MainArea />
+        <DetailPanel />
+      </div>
     </div>
   );
 }
 
-/**
- * Étagère horizontale.
- *
- * Défilement horizontal plutôt que grille : une étagère montre une sélection,
- * pas un catalogue. La grille complète vit sur /library.
- */
-function Shelf({
-  title,
-  comics,
-  href,
-}: {
-  title: string;
-  comics: Comic[];
-  href?: string;
-}) {
-  return (
-    <section>
-      <div className="mb-3 flex items-baseline justify-between gap-4">
-        <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
-        {href && (
-          <Link href={href} className="text-sm text-muted transition-colors hover:text-accent-text">
-            Tout voir
-          </Link>
-        )}
-      </div>
+function TopBar() {
+  const { data: user } = useCurrentUser();
+  const logout = useLogout();
 
-      <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
-        {comics.map((comic, index) => (
-          <div key={comic.id} className="w-[140px] shrink-0 snap-start sm:w-[160px]">
-            <ComicCard comic={comic} width={320} priority={index < 6} />
+  return (
+    <header className="flex h-11 shrink-0 items-center gap-3 border-b border-border bg-surface px-3">
+      <BrandLockup />
+
+      <div className="ml-auto flex items-center gap-2">
+        <SearchOverlay />
+        <ThemeToggle />
+
+        <div className="group relative">
+          <button
+            className="grid size-7 place-items-center rounded-full bg-accent-subtle text-[12px] font-semibold text-accent-text"
+            aria-label="Compte"
+          >
+            {(user?.displayName || user?.username || "?").charAt(0).toUpperCase()}
+          </button>
+          <div className="invisible absolute right-0 top-full z-50 mt-1 w-44 rounded-lg border border-border bg-surface-raised p-1 opacity-0 shadow-lg transition-opacity group-hover:visible group-hover:opacity-100">
+            <p className="truncate px-2 py-1 text-[12px] text-muted">
+              {user?.username} · {user?.role === "admin" ? "admin" : "utilisateur"}
+            </p>
+            <button
+              onClick={() => void logout()}
+              className="w-full rounded px-2 py-1 text-left text-[12px] text-muted hover:bg-surface-hover hover:text-fg"
+            >
+              Se déconnecter
+            </button>
           </div>
-        ))}
+        </div>
       </div>
-    </section>
+    </header>
   );
 }
 
-/**
- * Étagère « Reprendre la lecture ».
- *
- * Distincte des autres : elle affiche l'avancement, qui est l'information la
- * plus utile pour décider si l'on rouvre cet album maintenant.
- */
-function ContinueShelf({ items }: { items: Progress[] }) {
-  const comics = useQuery({
-    queryKey: ["continue-reading", "comics", items.map((i) => i.comicId)],
-    queryFn: async () => {
-      const results = await Promise.all(
-        items.map((item) =>
-          api.getComic(item.comicId).catch(() => null),
-        ),
-      );
-      return results.filter((c): c is Comic => c !== null);
-    },
-    enabled: items.length > 0,
+function ThemeToggle() {
+  return (
+    <button
+      onClick={() => {
+        const root = document.documentElement;
+        const current = root.dataset.theme;
+        const next = current === "dark" ? "light" : "dark";
+        root.dataset.theme = next;
+        localStorage.setItem("boxincloud.theme", next);
+      }}
+      aria-label="Changer de thème"
+      title="Changer de thème"
+      className="grid size-7 place-items-center rounded text-subtle transition-colors hover:bg-surface-hover hover:text-fg"
+    >
+      <svg viewBox="0 0 16 16" fill="currentColor" className="size-3.5" aria-hidden="true">
+        <path d="M8 1.5a6.5 6.5 0 1 0 0 13v-13Z" />
+        <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="1.3" />
+      </svg>
+    </button>
+  );
+}
+
+// ─── Zone principale ─────────────────────────────────────────────────────────
+
+function MainArea() {
+  const { scope, readStatus, sort, view } = useWorkspace();
+
+  const query = useMemo(() => scopeToQuery(scope, readStatus, sort), [scope, readStatus, sort]);
+
+  const comics = useInfiniteQuery({
+    queryKey: ["comics", query],
+    queryFn: ({ pageParam }) => api.listComics({ ...query, cursor: pageParam }),
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.nextCursor || undefined,
   });
 
-  if (!comics.data || comics.data.length === 0) return null;
-
-  const percentByComic = new Map(items.map((i) => [i.comicId, i.percent]));
-
-  return (
-    <section>
-      <h2 className="mb-3 text-lg font-semibold tracking-tight">Reprendre la lecture</h2>
-
-      <div className="no-scrollbar -mx-4 flex snap-x snap-mandatory gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
-        {comics.data.map((comic, index) => (
-          <div key={comic.id} className="w-[140px] shrink-0 snap-start sm:w-[160px]">
-            <ComicCard
-              comic={comic}
-              width={320}
-              priority={index < 6}
-              progressPercent={percentByComic.get(comic.id)}
-            />
-          </div>
-        ))}
-      </div>
-    </section>
+  const all = useMemo(
+    () => comics.data?.pages.flatMap((page) => page.items) ?? [],
+    [comics.data],
   );
-}
+  const ids = useMemo(() => all.map((c) => c.id), [all]);
 
-function ShelfSkeleton({ title }: { title: string }) {
+  // Progression de tous les albums affichés, en une requête plutôt qu'une par
+  // ligne — sans quoi une page de cent albums en déclencherait cent.
+  const progress = useQuery({
+    queryKey: ["continue-reading", "all"],
+    queryFn: () => api.continueReading(500),
+    staleTime: 30_000,
+  });
+
+  const progressByComic = useMemo(() => {
+    const map = new Map<string, { page: number; status: string }>();
+    for (const item of progress.data?.items ?? []) {
+      map.set(item.comicId, { page: item.page, status: item.status });
+    }
+    return map;
+  }, [progress.data]);
+
   return (
-    <section>
-      <h2 className="mb-3 text-lg font-semibold tracking-tight text-muted">{title}</h2>
-      <div className="no-scrollbar -mx-4 flex gap-4 overflow-hidden px-4 sm:mx-0 sm:px-0">
-        {Array.from({ length: 8 }, (_, i) => (
-          <div key={i} className="w-[140px] shrink-0 sm:w-[160px]">
-            <ComicCardSkeleton />
-          </div>
-        ))}
+    <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <div className="flex shrink-0 items-baseline gap-2 border-b border-border bg-surface px-3 py-2">
+        <h1 className="text-sm font-semibold text-fg">{scopeLabel(scope)}</h1>
+        <span className="text-[12px] tabular-nums text-subtle">
+          {comics.isLoading ? "…" : `${all.length}${comics.hasNextPage ? "+" : ""} albums`}
+        </span>
       </div>
-    </section>
-  );
-}
 
-function EmptyLibrary() {
-  return (
-    <EmptyState
-      icon={
-        <svg viewBox="0 0 48 48" fill="none" className="size-12" aria-hidden="true">
-          <path
-            d="M8 14 24 8l16 6v20l-16 6-16-6V14Z"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinejoin="round"
+      <Toolbar visibleIds={ids} />
+
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {comics.isError ? (
+          <ErrorState error={comics.error} onRetry={() => void comics.refetch()} />
+        ) : comics.isLoading ? (
+          <div className="grid place-items-center py-16">
+            <Spinner className="size-6 text-muted" />
+          </div>
+        ) : all.length === 0 ? (
+          <EmptyState
+            title="Aucun album ici"
+            description="Changez de dossier ou élargissez les filtres."
           />
-          <path d="M8 14l16 6 16-6M24 20v20" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-        </svg>
-      }
-      title="Votre bibliothèque est vide"
-      description="Connectez un espace de stockage et lancez un scan pour voir vos albums apparaître ici."
-      action={
-        <div className="rounded-lg bg-surface-sunken p-4 text-left">
-          <p className="mb-2 text-xs font-medium uppercase tracking-wide text-subtle">
-            Depuis le serveur
-          </p>
-          <pre className="overflow-x-auto text-xs leading-relaxed">
-            <code>{`boxincloudctl library add BD monminio bd/
-boxincloudctl scan-now BD`}</code>
-          </pre>
-        </div>
-      }
-    />
+        ) : view === "list" || view === "detail" ? (
+          <ComicTable comics={all} progressByComic={progressByComic} />
+        ) : (
+          <CoverGrid comics={all} progressByComic={progressByComic} />
+        )}
+
+        {comics.hasNextPage && (
+          <div className="p-4 text-center">
+            <button
+              onClick={() => void comics.fetchNextPage()}
+              disabled={comics.isFetchingNextPage}
+              className="rounded-md border border-border px-4 py-1.5 text-[13px] text-muted hover:bg-surface-hover hover:text-fg disabled:opacity-50"
+            >
+              {comics.isFetchingNextPage ? "Chargement…" : "Charger la suite"}
+            </button>
+          </div>
+        )}
+      </div>
+    </main>
+  );
+}
+
+/**
+ * Grille dense.
+ *
+ * Colonnes serrées et informations empilées sous chaque couverture : une
+ * bibliothèque doit se lire d'un coup d'œil, pas s'étaler.
+ */
+function CoverGrid({
+  comics,
+  progressByComic,
+}: {
+  comics: Comic[];
+  progressByComic: Map<string, { page: number; status: string }>;
+}) {
+  const { isSelected, select, favorites, ratings } = useWorkspace();
+  const ids = comics.map((c) => c.id);
+
+  return (
+    <div
+      className="grid gap-3 p-3"
+      style={{ gridTemplateColumns: "repeat(auto-fill, minmax(128px, 1fr))" }}
+    >
+      {comics.map((comic) => {
+        const selected = isSelected(comic.id);
+        const progress = progressByComic.get(comic.id);
+        const rating = ratings.get(comic.id) ?? 0;
+
+        return (
+          <div
+            key={comic.id}
+            onClick={(event) => {
+              const mode = event.shiftKey ? "range" : event.metaKey || event.ctrlKey ? "toggle" : "replace";
+              select(comic.id, mode, ids);
+            }}
+            className={cx(
+              "group cursor-default rounded-md p-1.5 transition-colors",
+              selected ? "bg-accent/20 ring-1 ring-accent" : "hover:bg-surface-hover",
+            )}
+          >
+            <div className="relative overflow-hidden rounded-[3px] bg-surface-sunken shadow-[var(--shadow-cover)]"
+                 style={{ aspectRatio: 0.7 }}>
+              {comic.coverPlaceholder && (
+                <div
+                  className="absolute inset-0 scale-110 blur-lg"
+                  style={{
+                    backgroundImage: `url("${comic.coverPlaceholder}")`,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
+                  }}
+                  aria-hidden="true"
+                />
+              )}
+              <img
+                src={imageURL(comic.coverPath, { width: 320 })}
+                alt=""
+                loading="lazy"
+                decoding="async"
+                className="relative size-full object-cover"
+              />
+
+              {/* Marqueurs posés sur la couverture : ils informent sans coûter
+                  de place sous la vignette. */}
+              <div className="absolute left-1 top-1 flex gap-1">
+                {favorites.has(comic.id) && (
+                  <span className="grid size-4 place-items-center rounded-full bg-black/60">
+                    <svg viewBox="0 0 16 16" fill="currentColor" className="size-2.5 text-danger" aria-hidden="true">
+                      <path d="M8 14S2 10.4 2 6.5A3.5 3.5 0 0 1 8 4a3.5 3.5 0 0 1 6 2.5C14 10.4 8 14 8 14Z" />
+                    </svg>
+                  </span>
+                )}
+              </div>
+
+              {progress?.status === "read" && (
+                <span className="absolute right-1 top-1 grid size-4 place-items-center rounded-full bg-success text-white">
+                  <svg viewBox="0 0 16 16" fill="currentColor" className="size-2.5" aria-hidden="true">
+                    <path d="M13.5 4.5 6.5 11.5 2.5 7.5l1-1 3 3 6-6 1 1Z" />
+                  </svg>
+                </span>
+              )}
+
+              {progress && progress.status === "in_progress" && (
+                <div className="absolute inset-x-0 bottom-0 h-[3px] bg-black/50">
+                  <div
+                    className="h-full bg-accent"
+                    style={{ width: `${((progress.page + 1) / Math.max(comic.pageCount, 1)) * 100}%` }}
+                  />
+                </div>
+              )}
+
+              <Link
+                href={`/read?id=${comic.id}`}
+                onClick={(e) => e.stopPropagation()}
+                className="absolute inset-0 grid place-items-center bg-black/45 opacity-0 transition-opacity group-hover:opacity-100"
+                aria-label={`Lire ${comic.title}`}
+              >
+                <span className="grid size-9 place-items-center rounded-full bg-white/95 text-black">
+                  <svg viewBox="0 0 16 16" fill="currentColor" className="size-4" aria-hidden="true">
+                    <path d="M5 3.5v9l7-4.5-7-4.5Z" />
+                  </svg>
+                </span>
+              </Link>
+            </div>
+
+            <p className="mt-1.5 truncate text-[12px] font-medium leading-tight text-fg" title={comic.title}>
+              {comic.title}
+            </p>
+            <p className="truncate text-[11px] text-subtle">
+              {comic.seriesName ? `${comic.seriesName}${comic.number ? ` · ${comic.number}` : ""}` : `${comic.pageCount} p.`}
+            </p>
+
+            {rating > 0 && (
+              <span className="mt-1 flex gap-0.5">
+                {Array.from({ length: 5 }, (_, i) => (
+                  <span key={i} className={cx("size-1.5 rounded-full", i < rating ? "bg-warning" : "bg-border")} />
+                ))}
+              </span>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }

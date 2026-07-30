@@ -33,6 +33,7 @@ type Core struct {
 	Queries   *sqlc.Queries
 	Auth      *auth.Service
 	Catalog   *catalog.Service
+	Tools     *catalog.Tools
 	Reader    *reader.Service
 	Progress  *progress.Service
 	Libraries *library.Service
@@ -85,6 +86,7 @@ func BuildCore(ctx context.Context, cfg *config.Config, pool *db.Pool, log *slog
 	indexerRepo := indexer.NewPostgresRepository(queries, pool, enqueuer)
 
 	processor := imaging.NewPureGo()
+	catalogService := catalog.NewService(catalog.NewPostgresRepository(queries))
 
 	jobClient, err := jobs.New(pool, cfg.Jobs, log, func(w *river.Workers) {
 		indexer.Register(w, indexer.Deps{
@@ -103,7 +105,8 @@ func BuildCore(ctx context.Context, cfg *config.Config, pool *db.Pool, log *slog
 	return &Core{
 		Queries: queries,
 		Auth:    authService,
-		Catalog: catalog.NewService(catalog.NewPostgresRepository(queries)),
+		Catalog: catalogService,
+		Tools:   catalog.NewTools(catalog.NewPostgresTools(queries), catalogService),
 		Reader: reader.NewService(
 			reader.NewPostgresRepository(queries), libraries, derived, processor, log),
 		Progress:  progress.NewService(progress.NewPostgresRepository(queries)),

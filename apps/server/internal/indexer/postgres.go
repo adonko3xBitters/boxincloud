@@ -77,6 +77,11 @@ func (r *PostgresRepository) UpsertComic(ctx context.Context, p UpsertComicParam
 	}, row.Inserted, nil
 }
 
+// SetFolder enregistre le dossier d'un album.
+func (r *PostgresRepository) SetFolder(ctx context.Context, id uuid.UUID, folder string) error {
+	return r.q.SetComicFolder(ctx, sqlc.SetComicFolderParams{ID: id, FolderPath: folder})
+}
+
 func (r *PostgresRepository) GetComic(ctx context.Context, id uuid.UUID) (Comic, error) {
 	row, err := r.q.GetComic(ctx, id)
 	if errors.Is(err, pgx.ErrNoRows) {

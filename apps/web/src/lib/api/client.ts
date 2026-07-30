@@ -66,7 +66,7 @@ export class ApiError extends Error {
 type RequestOptions = {
   method?: string;
   body?: unknown;
-  query?: Record<string, string | number | undefined | null>;
+  query?: Record<string, string | number | boolean | undefined | null>;
   /** Requête publique : ni jeton, ni tentative de rafraîchissement. */
   anonymous?: boolean;
   signal?: AbortSignal;
@@ -78,9 +78,12 @@ function buildURL(path: string, query?: RequestOptions["query"]): string {
 
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) {
-    if (value !== undefined && value !== null && value !== "") {
-      params.set(key, String(value));
-    }
+    // `false` et la chaîne vide sont écartés : ils signifient « pas de
+    // filtre ». Une exception — `folder: ""` désigne la racine, et le
+    // paramètre doit alors être présent ; l'appelant passe donc `folder`
+    // explicitement via une clé dédiée quand c'est le cas.
+    if (value === undefined || value === null || value === "" || value === false) continue;
+    params.set(key, String(value));
   }
   const qs = params.toString();
   return qs ? `${url}?${qs}` : url;

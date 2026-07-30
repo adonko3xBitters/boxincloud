@@ -87,6 +87,7 @@ func newContractHarness(t *testing.T) *contractHarness {
 		Build:    handlers.BuildInfo{Version: "test", Commit: "test", GoVersion: "test"},
 		Auth:     core.Auth,
 		Catalog:  core.Catalog,
+		Tools:    core.Tools,
 		Reader:   core.Reader,
 		Progress: core.Progress,
 	})
@@ -186,6 +187,19 @@ func (h *contractHarness) seed(t *testing.T, core *app.Core, minio miniotest.Env
 // validation d'entrée doit passer avant, sur son propre lecteur.
 func (h *contractHarness) call(t *testing.T, method, path string, body any) *httptest.ResponseRecorder {
 	t.Helper()
+	return h.callWith(t, method, path, body, true)
+}
+
+// callWith exécute l'appel en choisissant de valider ou non la requête.
+//
+// Ne pas la valider sert un cas précis : envoyer délibérément un corps que le
+// contrat interdit, pour vérifier que le serveur le refuse de lui-même. Le
+// contrat ne protège que les clients qui le respectent ; le serveur doit tenir
+// aussi face à ceux qui ne le font pas.
+func (h *contractHarness) callWith(
+	t *testing.T, method, path string, body any, validateRequest bool,
+) *httptest.ResponseRecorder {
+	t.Helper()
 
 	var raw []byte
 	if body != nil {
@@ -231,8 +245,10 @@ func (h *contractHarness) call(t *testing.T, method, path string, body any) *htt
 		},
 	}
 
-	if err := openapi3filter.ValidateRequest(context.Background(), reqInput); err != nil {
-		t.Errorf("%s %s : requête non conforme au contrat : %v", method, path, err)
+	if validateRequest {
+		if err := openapi3filter.ValidateRequest(context.Background(), reqInput); err != nil {
+			t.Errorf("%s %s : requête non conforme au contrat : %v", method, path, err)
+		}
 	}
 
 	// Requête neuve pour le serveur : celle de validation a été consommée.
@@ -464,6 +480,19 @@ func (h *contractHarness) expect(t *testing.T, method, path string, body any, wa
 	return rec
 }
 
+// expectRejected envoie un corps que le contrat interdit et exige que le
+// serveur le refuse. La réponse, elle, reste validée : une erreur doit être
+// conforme au contrat même quand la requête ne l'était pas.
+func (h *contractHarness) expectRejected(t *testing.T, method, path string, body any, want int) {
+	t.Helper()
+
+	rec := h.callWith(t, method, path, body, false)
+	if rec.Code != want {
+		t.Errorf("%s %s : statut %d, attendu %d — le serveur aurait dû refuser ce corps ; corps : %s",
+			method, path, rec.Code, want, truncate(rec.Body.String(), 300))
+	}
+}
+
 func truncate(s string, n int) string {
 	if len(s) <= n {
 		return s
@@ -484,9 +513,140 @@ func TestIntegrationContractFilters(t *testing.T) {
 		"readStatus=in_progress",
 		"readStatus=read",
 		"readStatus=&sort=title&limit=10",
+		"folder=",
+		"folder=bd",
+		"favorites=true",
 	} {
 		t.Run(query, func(t *testing.T) {
 			h.expect(t, http.MethodGet, "/api/v1/comics?"+query, nil, http.StatusOK)
 		})
 	}
+}
+
+// TestIntegrationContractTools couvre les outils de bibliothèque : dossiers,
+// favoris, notes, édition et actions en lot.
+//
+// Les sous-tests s'enchaînent volontairement dans l'ordre où l'utilisateur les
+// déclenche — poser une note puis la retirer, mettre en favori puis vérifier
+// que /me/marks le rapporte. Un endpoint validé isolément ne prouverait pas que
+// ce qu'il écrit ressort ailleurs sous la forme annoncée.
+func TestIntegrationContractTools(t *testing.T) {
+	h := newContractHarness(t)
+	comic := "/api/v1/comics/" + h.comicID.String()
+
+	t.Run("folders", func(t *testing.T) {
+		h.expect(t, http.MethodGet, "/api/v1/folders", nil, http.StatusOK)
+	})
+
+	t.Run("foldersByLibrary", func(t *testing.T) {
+		h.expect(t, http.MethodGet,
+			"/api/v1/folders?libraryId="+h.libraryID.String(), nil, http.StatusOK)
+	})
+
+	t.Run("marksEmpty", func(t *testing.T) {
+		h.expect(t, http.MethodGet, "/api/v1/me/marks", nil, http.StatusOK)
+	})
+
+	t.Run("setFavorite", func(t *testing.T) {
+		h.expect(t, http.MethodPut, comic+"/favorite",
+			map[string]any{"favorite": true}, http.StatusOK)
+	})
+
+	t.Run("setRating", func(t *testing.T) {
+		h.expect(t, http.MethodPut, comic+"/rating",
+			map[string]any{"rating": 4}, http.StatusOK)
+	})
+
+	// Les écritures précédentes doivent ressortir ici : c'est la seule requête
+	// dont dépend l'affichage des favoris et des notes dans une grille.
+	t.Run("marksPopulated", func(t *testing.T) {
+		rec := h.expect(t, http.MethodGet, "/api/v1/me/marks", nil, http.StatusOK)
+
+		var payload struct {
+			Favorites []string       `json:"favorites"`
+			Ratings   map[string]int `json:"ratings"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+			t.Fatal(err)
+		}
+		if len(payload.Favorites) != 1 || payload.Favorites[0] != h.comicID.String() {
+			t.Errorf("favoris = %v, attendu [%s]", payload.Favorites, h.comicID)
+		}
+		if payload.Ratings[h.comicID.String()] != 4 {
+			t.Errorf("note = %d, attendu 4", payload.Ratings[h.comicID.String()])
+		}
+	})
+
+	t.Run("clearRating", func(t *testing.T) {
+		h.expect(t, http.MethodPut, comic+"/rating",
+			map[string]any{"rating": 0}, http.StatusOK)
+	})
+
+	t.Run("ratingOutOfRange", func(t *testing.T) {
+		h.expectRejected(t, http.MethodPut, comic+"/rating",
+			map[string]any{"rating": 9}, http.StatusUnprocessableEntity)
+	})
+
+	t.Run("unsetFavorite", func(t *testing.T) {
+		h.expect(t, http.MethodPut, comic+"/favorite",
+			map[string]any{"favorite": false}, http.StatusOK)
+	})
+
+	t.Run("editComic", func(t *testing.T) {
+		rec := h.expect(t, http.MethodPatch, comic,
+			map[string]any{"title": "Le Secret de la Licorne"}, http.StatusOK)
+
+		var payload struct {
+			Title string `json:"title"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+			t.Fatal(err)
+		}
+		if payload.Title != "Le Secret de la Licorne" {
+			t.Errorf("titre = %q après édition", payload.Title)
+		}
+	})
+
+	t.Run("bulkRead", func(t *testing.T) {
+		rec := h.expect(t, http.MethodPost, "/api/v1/comics/bulk", map[string]any{
+			"action": "read",
+			"ids":    []string{h.comicID.String()},
+		}, http.StatusOK)
+
+		var payload struct {
+			Affected int64 `json:"affected"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+			t.Fatal(err)
+		}
+		if payload.Affected != 1 {
+			t.Errorf("affected = %d, attendu 1", payload.Affected)
+		}
+	})
+
+	// Un identifiant inconnu ne doit pas faire échouer le lot : il est filtré
+	// en amont de l'écriture, avec les albums hors des bibliothèques visibles.
+	t.Run("bulkIgnoresUnknownIDs", func(t *testing.T) {
+		rec := h.expect(t, http.MethodPost, "/api/v1/comics/bulk", map[string]any{
+			"action": "unread",
+			"ids":    []string{h.comicID.String(), uuid.NewString()},
+		}, http.StatusOK)
+
+		var payload struct {
+			Affected int64 `json:"affected"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+			t.Fatal(err)
+		}
+		if payload.Affected != 1 {
+			t.Errorf("affected = %d : l'identifiant inconnu aurait dû être ignoré", payload.Affected)
+		}
+	})
+
+	t.Run("bulkRejectsUnknownAction", func(t *testing.T) {
+		h.expectRejected(t, http.MethodPost, "/api/v1/comics/bulk", map[string]any{
+			"action": "incinerate",
+			"ids":    []string{h.comicID.String()},
+		}, http.StatusUnprocessableEntity)
+	})
 }

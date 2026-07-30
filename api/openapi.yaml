@@ -474,6 +474,17 @@ paths:
           schema:
             type: string
             enum: [recent, title, released]
+        - name: folder
+          in: query
+          description: |
+            Restreint à un dossier et à ses sous-dossiers. La chaîne vide
+            désigne la racine de la bibliothèque, ce qui est distinct de
+            l'absence du paramètre.
+          schema: { type: string }
+        - name: favorites
+          in: query
+          description: Ne retourne que les albums mis en favori.
+          schema: { type: boolean }
         - $ref: "#/components/parameters/Cursor"
         - $ref: "#/components/parameters/Limit"
       responses:
@@ -489,7 +500,199 @@ paths:
         "422":
           $ref: "#/components/responses/ValidationFailed"
 
+  /folders:
+    get:
+      operationId: listFolders
+      summary: Arborescence des dossiers
+      description: |
+        Retourne les dossiers à plat, triés de sorte qu'un parent précède
+        toujours ses enfants — le client bâtit l'arbre en une passe, sans
+        récursion.
+
+        Les compteurs sont cumulatifs : un dossier affiche le total de sa
+        branche, ce qu'attend quelqu'un qui replie un nœud.
+      tags: [catalog]
+      parameters:
+        - $ref: "#/components/parameters/LibraryId"
+      responses:
+        "200":
+          description: Dossiers
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [folders]
+                properties:
+                  folders:
+                    type: array
+                    items: { $ref: "#/components/schemas/Folder" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /me/marks:
+    get:
+      operationId: getUserMarks
+      summary: Favoris et notes
+      description: |
+        Groupés délibérément : une grille les affiche ensemble, et deux
+        allers-retours pour peupler la même vue seraient du gâchis.
+      tags: [catalog]
+      responses:
+        "200":
+          description: Annotations du compte
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [favorites, ratings]
+                properties:
+                  favorites:
+                    type: array
+                    items: { type: string, format: uuid }
+                  ratings:
+                    type: object
+                    additionalProperties: { type: integer }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /comics/bulk:
+    post:
+      operationId: bulkAction
+      summary: Action en lot sur une sélection
+      description: |
+        Les identifiants sont filtrés sur les bibliothèques visibles avant
+        toute écriture : une sélection ne peut pas déborder sur ce à quoi le
+        compte n'a pas accès, même si le client envoie des identifiants
+        arbitraires.
+      tags: [catalog]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action, ids]
+              properties:
+                action:
+                  type: string
+                  enum: [read, unread, favorite, unfavorite]
+                ids:
+                  type: array
+                  maxItems: 1000
+                  items: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Nombre d'éléments affectés
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [affected]
+                properties:
+                  affected: { type: integer, format: int64 }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /comics/{comicId}/favorite:
+    put:
+      operationId: setFavorite
+      summary: Mettre ou retirer des favoris
+      tags: [catalog]
+      parameters:
+        - $ref: "#/components/parameters/ComicId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [favorite]
+              properties:
+                favorite: { type: boolean }
+      responses:
+        "200":
+          description: État du favori
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [favorite]
+                properties:
+                  favorite: { type: boolean }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /comics/{comicId}/rating:
+    put:
+      operationId: setRating
+      summary: Noter un album
+      description: Note de 1 à 5. Zéro retire la note.
+      tags: [catalog]
+      parameters:
+        - $ref: "#/components/parameters/ComicId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [rating]
+              properties:
+                rating: { type: integer, minimum: 0, maximum: 5 }
+      responses:
+        "200":
+          description: Note enregistrée
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [rating]
+                properties:
+                  rating: { type: integer }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
   /comics/{comicId}:
+    patch:
+      operationId: editComic
+      summary: Corriger les métadonnées
+      description: |
+        Chaque champ envoyé est appliqué **et verrouillé** : une réindexation ne
+        l'écrasera plus. C'est la contrepartie indispensable de l'automatisme —
+        sans elle, corriger un titre serait vain.
+      tags: [catalog]
+      parameters:
+        - $ref: "#/components/parameters/ComicId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: { type: string }
+                number: { type: string }
+                summary: { type: string }
+                language: { type: string }
+      responses:
+        "200":
+          description: Album mis à jour
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Comic" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
     get:
       operationId: getComic
       summary: Détail d'un album
@@ -929,7 +1132,7 @@ components:
 
     Comic:
       type: object
-      required: [id, libraryId, title, format, pageCount, state, fileSize, createdAt, coverPath]
+      required: [id, libraryId, title, format, pageCount, state, fileSize, createdAt, coverPath, fileName, folderPath]
       properties:
         id: { type: string, format: uuid }
         libraryId: { type: string, format: uuid }
@@ -967,6 +1170,14 @@ components:
 
             Absent tant que l'album n'a pas été indexé par une version qui le
             produit — le client doit gérer son absence.
+        fileName:
+          type: string
+          description: Nom du fichier dans le backend, sans son chemin.
+        folderPath:
+          type: string
+          description: |
+            Dossier contenant l'album, relatif au préfixe de la bibliothèque.
+            Vide à la racine.
 
     Series:
       type: object
@@ -980,6 +1191,21 @@ components:
         comicCount: { type: integer, format: int32 }
         coverComicId: { type: string, format: uuid }
         coverPath: { type: string }
+
+    Folder:
+      type: object
+      required: [path, name, depth, comicCount]
+      properties:
+        path:
+          type: string
+          description: Chemin complet, relatif au préfixe. Vide pour la racine.
+        name:
+          type: string
+          description: Dernier segment du chemin — ce qui s'affiche dans l'arbre.
+        depth: { type: integer, description: "0 à la racine." }
+        comicCount:
+          type: integer
+          description: Albums de ce dossier et de ses sous-dossiers.
 
     ComicPage:
       type: object

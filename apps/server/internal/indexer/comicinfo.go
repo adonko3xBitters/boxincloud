@@ -206,18 +206,3 @@ func ageRatingToNumber(s string) *int16 {
 func collapseSpaces(s string) string {
 	return strings.Join(strings.Fields(s), " ")
 }
-
-// SortName normalise un nom de série pour le tri et l'unicité.
-//
-// Les articles de tête sont retirés : « Les Aventures de Tintin » se classe à
-// « A », pas à « L ». C'est ce qu'attend un lecteur qui parcourt une étagère.
-func SortName(name string) string {
-	s := strings.ToLower(strings.TrimSpace(name))
-	for _, article := range []string{"le ", "la ", "les ", "l'", "un ", "une ", "des ", "the ", "a ", "an "} {
-		if strings.HasPrefix(s, article) {
-			s = strings.TrimSpace(strings.TrimPrefix(s, article))
-			break
-		}
-	}
-	return collapseSpaces(s)
-}

@@ -73,7 +73,7 @@ func (q *Queries) GetReadingProgress(ctx context.Context, arg GetReadingProgress
 }
 
 const listFavorites = `-- name: ListFavorites :many
-SELECT comics.id, comics.library_id, comics.series_id, comics.object_key, comics.file_size, comics.file_etag, comics.content_hash, comics.format, comics.title, comics.number, comics.number_sort, comics.volume, comics.summary, comics.released_at, comics.age_rating, comics.language, comics.page_count, comics.cover_page, comics.state, comics.state_detail, comics.hydrated_at, comics.indexed_at, comics.metadata, comics.locked_fields, comics.created_at, comics.updated_at, comics.deleted_at, comics.search_vector, comics.cover_placeholder
+SELECT comics.id, comics.library_id, comics.series_id, comics.object_key, comics.file_size, comics.file_etag, comics.content_hash, comics.format, comics.title, comics.number, comics.number_sort, comics.volume, comics.summary, comics.released_at, comics.age_rating, comics.language, comics.page_count, comics.cover_page, comics.state, comics.state_detail, comics.hydrated_at, comics.indexed_at, comics.metadata, comics.locked_fields, comics.created_at, comics.updated_at, comics.deleted_at, comics.search_vector, comics.cover_placeholder, comics.folder_path
 FROM favorites
 JOIN comics ON comics.id = favorites.comic_id
 WHERE favorites.user_id = $1 AND comics.deleted_at IS NULL
@@ -130,6 +130,7 @@ func (q *Queries) ListFavorites(ctx context.Context, arg ListFavoritesParams) ([
 			&i.Comic.DeletedAt,
 			&i.Comic.SearchVector,
 			&i.Comic.CoverPlaceholder,
+			&i.Comic.FolderPath,
 		); err != nil {
 			return nil, err
 		}
@@ -142,7 +143,7 @@ func (q *Queries) ListFavorites(ctx context.Context, arg ListFavoritesParams) ([
 }
 
 const listInProgress = `-- name: ListInProgress :many
-SELECT reading_progress.user_id, reading_progress.comic_id, reading_progress.page, reading_progress.page_count, reading_progress.status, reading_progress.read_count, reading_progress.version, reading_progress.device_id, reading_progress.started_at, reading_progress.finished_at, reading_progress.updated_at, comics.id, comics.library_id, comics.series_id, comics.object_key, comics.file_size, comics.file_etag, comics.content_hash, comics.format, comics.title, comics.number, comics.number_sort, comics.volume, comics.summary, comics.released_at, comics.age_rating, comics.language, comics.page_count, comics.cover_page, comics.state, comics.state_detail, comics.hydrated_at, comics.indexed_at, comics.metadata, comics.locked_fields, comics.created_at, comics.updated_at, comics.deleted_at, comics.search_vector, comics.cover_placeholder
+SELECT reading_progress.user_id, reading_progress.comic_id, reading_progress.page, reading_progress.page_count, reading_progress.status, reading_progress.read_count, reading_progress.version, reading_progress.device_id, reading_progress.started_at, reading_progress.finished_at, reading_progress.updated_at, comics.id, comics.library_id, comics.series_id, comics.object_key, comics.file_size, comics.file_etag, comics.content_hash, comics.format, comics.title, comics.number, comics.number_sort, comics.volume, comics.summary, comics.released_at, comics.age_rating, comics.language, comics.page_count, comics.cover_page, comics.state, comics.state_detail, comics.hydrated_at, comics.indexed_at, comics.metadata, comics.locked_fields, comics.created_at, comics.updated_at, comics.deleted_at, comics.search_vector, comics.cover_placeholder, comics.folder_path
 FROM reading_progress
 JOIN comics ON comics.id = reading_progress.comic_id
 WHERE reading_progress.user_id = $1
@@ -213,6 +214,7 @@ func (q *Queries) ListInProgress(ctx context.Context, arg ListInProgressParams) 
 			&i.Comic.DeletedAt,
 			&i.Comic.SearchVector,
 			&i.Comic.CoverPlaceholder,
+			&i.Comic.FolderPath,
 		); err != nil {
 			return nil, err
 		}

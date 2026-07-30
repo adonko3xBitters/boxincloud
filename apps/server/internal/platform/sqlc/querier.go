@@ -17,10 +17,21 @@ type Querier interface {
 	// Les champs présents dans locked_fields sont préservés : une saisie manuelle
 	// ne doit jamais être écrasée par un rescan.
 	ApplyComicMetadata(ctx context.Context, arg ApplyComicMetadataParams) error
+	// ─── Actions en lot ──────────────────────────────────────────────────────────
+	// Marque un lot d'albums comme lus.
+	//
+	// page est fixée à la dernière page de chaque album : marquer lu doit donner le
+	// même état que lire jusqu'au bout, sans quoi « reprendre la lecture »
+	// proposerait un album déjà déclaré terminé.
+	BulkMarkRead(ctx context.Context, arg BulkMarkReadParams) (int64, error)
+	BulkMarkUnread(ctx context.Context, arg BulkMarkUnreadParams) (int64, error)
+	BulkSetFavorite(ctx context.Context, arg BulkSetFavoriteParams) (int64, error)
+	BulkUnsetFavorite(ctx context.Context, arg BulkUnsetFavoriteParams) (int64, error)
 	CanAccessLibrary(ctx context.Context, arg CanAccessLibraryParams) (*bool, error)
 	// Un seul backend par défaut : on retire le drapeau aux autres avant de le
 	// poser, l'index unique partiel refuserait sinon la mise à jour.
 	ClearDefaultStorageBackend(ctx context.Context, id uuid.UUID) error
+	ClearRating(ctx context.Context, arg ClearRatingParams) error
 	CountComicPages(ctx context.Context, comicID uuid.UUID) (int64, error)
 	CountComicsByLibrary(ctx context.Context, libraryID uuid.UUID) (int64, error)
 	// Sert à l'assistant de première installation : tant qu'il n'y a personne,
@@ -41,6 +52,13 @@ type Querier interface {
 	DeleteReadingProgress(ctx context.Context, arg DeleteReadingProgressParams) error
 	DeleteSetting(ctx context.Context, key string) error
 	DeleteStorageBackend(ctx context.Context, id uuid.UUID) error
+	// ─── Édition manuelle ────────────────────────────────────────────────────────
+	// Édition d'un album par l'utilisateur.
+	//
+	// Chaque champ renseigné entre dans locked_fields : une réindexation ne doit
+	// jamais écraser une saisie manuelle. C'est la contrepartie de l'automatisme —
+	// sans elle, corriger un titre serait inutile.
+	EditComic(ctx context.Context, arg EditComicParams) (Comic, error)
 	FinishScanRun(ctx context.Context, arg FinishScanRunParams) error
 	GetComic(ctx context.Context, id uuid.UUID) (Comic, error)
 	GetComicByObjectKey(ctx context.Context, arg GetComicByObjectKeyParams) (Comic, error)
@@ -89,7 +107,15 @@ type Querier interface {
 	// conviendrait pas aux deux.
 	ListComicsPage(ctx context.Context, arg ListComicsPageParams) ([]Comic, error)
 	ListDevicesByUser(ctx context.Context, userID uuid.UUID) ([]Device, error)
+	ListFavoriteIDs(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error)
 	ListFavorites(ctx context.Context, arg ListFavoritesParams) ([]ListFavoritesRow, error)
+	// Outils de gestion : dossiers, favoris, notes, actions en lot.
+	// Arborescence des dossiers d'une bibliothèque.
+	//
+	// Les chemins distincts avec leur nombre d'albums ; le client en reconstitue
+	// l'arbre. Calculer l'arbre en SQL demanderait une récursion pour un résultat
+	// que le client sait bâtir en une passe.
+	ListFolders(ctx context.Context, libraryIds []uuid.UUID) ([]ListFoldersRow, error)
 	// « Reprendre la lecture » : les albums commencés mais non terminés.
 	ListInProgress(ctx context.Context, arg ListInProgressParams) ([]ListInProgressRow, error)
 	ListLibraries(ctx context.Context) ([]Library, error)
@@ -98,6 +124,7 @@ type Querier interface {
 	// Étagère « Suite de la série » : le premier album non lu de chaque série déjà
 	// entamée. C'est la suggestion la plus utile d'une page d'accueil de lecteur.
 	ListNextInSeries(ctx context.Context, arg ListNextInSeriesParams) ([]Comic, error)
+	ListRatings(ctx context.Context, userID uuid.UUID) ([]ListRatingsRow, error)
 	ListReadingProgressByComics(ctx context.Context, arg ListReadingProgressByComicsParams) ([]ReadingProgress, error)
 	// Synchronisation delta : tout ce qui a changé depuis le curseur du client.
 	ListReadingProgressSince(ctx context.Context, arg ListReadingProgressSinceParams) ([]ReadingProgress, error)
@@ -149,11 +176,16 @@ type Querier interface {
 	// dans un champ de recherche, et c'est rédhibitoire sur de la BD franco-belge.
 	SearchComics(ctx context.Context, arg SearchComicsParams) ([]SearchComicsRow, error)
 	SearchSeries(ctx context.Context, arg SearchSeriesParams) ([]SearchSeriesRow, error)
+	SetComicFolder(ctx context.Context, arg SetComicFolderParams) error
 	SetComicIndexed(ctx context.Context, arg SetComicIndexedParams) error
 	SetComicPlaceholder(ctx context.Context, arg SetComicPlaceholderParams) error
 	SetComicState(ctx context.Context, arg SetComicStateParams) error
 	SetDefaultStorageBackend(ctx context.Context, id uuid.UUID) error
+	// ─── Favoris ─────────────────────────────────────────────────────────────────
+	SetFavorite(ctx context.Context, arg SetFavoriteParams) error
 	SetLibraryScanResult(ctx context.Context, arg SetLibraryScanResultParams) error
+	// ─── Notes ───────────────────────────────────────────────────────────────────
+	SetRating(ctx context.Context, arg SetRatingParams) error
 	SetStorageBackendStatus(ctx context.Context, arg SetStorageBackendStatusParams) error
 	SetUserPassword(ctx context.Context, arg SetUserPasswordParams) error
 	SetUserRole(ctx context.Context, arg SetUserRoleParams) error
@@ -164,6 +196,7 @@ type Querier interface {
 	TouchCacheEntry(ctx context.Context, key string) (int64, error)
 	TouchDevice(ctx context.Context, id uuid.UUID) error
 	TouchUserLogin(ctx context.Context, id uuid.UUID) error
+	UnsetFavorite(ctx context.Context, arg UnsetFavoriteParams) error
 	UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (User, error)
 	// Ingestion idempotente : la clé naturelle (library_id, object_key) permet de
 	// rejouer un scan sans créer de doublon ni perdre les champs verrouillés.

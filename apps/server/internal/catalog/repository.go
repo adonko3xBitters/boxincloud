@@ -3,6 +3,7 @@ package catalog
 import (
 	"context"
 	"errors"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -64,13 +65,15 @@ func (r *PostgresRepository) CanAccessLibrary(ctx context.Context, v Viewer, lib
 
 func (r *PostgresRepository) ListComics(ctx context.Context, p ListComicsParams) ([]Comic, error) {
 	params := sqlc.ListComicsPageParams{
-		UserID:       p.UserID,
-		LibraryIds:   p.LibraryIDs,
-		State:        p.State,
-		ReadStatus:   p.ReadStatus,
-		Sort:         string(p.Sort),
-		MaxAgeRating: p.MaxAgeRating,
-		PageSize:     p.Limit,
+		UserID:        p.UserID,
+		LibraryIds:    p.LibraryIDs,
+		State:         p.State,
+		ReadStatus:    p.ReadStatus,
+		Folder:        p.Folder,
+		FavoritesOnly: p.FavoritesOnly,
+		Sort:          string(p.Sort),
+		MaxAgeRating:  p.MaxAgeRating,
+		PageSize:      p.Limit,
 	}
 	if p.SeriesID != nil {
 		params.SeriesID = uuid.NullUUID{UUID: *p.SeriesID, Valid: true}
@@ -260,6 +263,11 @@ func comicFromRow(row sqlc.Comic) Comic {
 	}
 	if row.CoverPlaceholder != nil {
 		c.CoverPlaceholder = *row.CoverPlaceholder
+	}
+	c.FolderPath = row.FolderPath
+	c.FileName = row.ObjectKey
+	if idx := strings.LastIndex(row.ObjectKey, "/"); idx >= 0 {
+		c.FileName = row.ObjectKey[idx+1:]
 	}
 	if row.ReleasedAt.Valid {
 		t := row.ReleasedAt.Time

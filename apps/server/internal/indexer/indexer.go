@@ -120,17 +120,22 @@ func (w *ScanLibraryWorker) scan(ctx context.Context, libraryID uuid.UUID) (Scan
 		}
 
 		comic, inserted, err := w.deps.Repo.UpsertComic(ctx, UpsertComicParams{
-			LibraryID: lib.ID,
-			ObjectKey: obj.Key,
-			FileSize:  obj.Size,
-			FileETag:  obj.ETag,
-			Format:    string(format),
-			Title:     title,
+			LibraryID:  lib.ID,
+			ObjectKey:  obj.Key,
+			FileSize:   obj.Size,
+			FileETag:   obj.ETag,
+			Format:     string(format),
+			Title:      title,
+			FolderPath: FolderOf(obj.Key, lib.RootPrefix),
 		})
 		if err != nil {
 			stats.Errors++
 			log.Warn("ingestion impossible", slog.String("key", obj.Key), slog.Any("err", err))
 			return nil // un objet fautif ne doit pas interrompre le scan
+		}
+
+		if err := w.deps.Repo.SetFolder(ctx, comic.ID, FolderOf(obj.Key, lib.RootPrefix)); err != nil {
+			log.Debug("dossier non enregistré", slog.String("key", obj.Key), slog.Any("err", err))
 		}
 
 		if inserted {

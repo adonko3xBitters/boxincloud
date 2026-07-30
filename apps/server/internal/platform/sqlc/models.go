@@ -414,6 +414,8 @@ type Comic struct {
 	SearchVector interface{}
 	// Data-URI d'une miniature JPEG de ~16px, affichée floutée pendant le chargement.
 	CoverPlaceholder *string
+	// Dossier contenant l'album, relatif au préfixe de la bibliothèque. Vide à la racine.
+	FolderPath string
 }
 
 type ComicPage struct {
@@ -427,6 +429,14 @@ type ComicPage struct {
 	Width       *int32
 	Height      *int32
 	IsDouble    bool
+}
+
+type ComicRating struct {
+	UserID    uuid.UUID
+	ComicID   uuid.UUID
+	Rating    int16
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
 }
 
 type Device struct {

@@ -51,6 +51,8 @@ type Comic struct {
 	// CoverPlaceholder est un data-URI de quelques centaines d'octets, affiché
 	// flouté pendant le chargement de la vraie couverture.
 	CoverPlaceholder string
+	FileName         string
+	FolderPath       string
 }
 
 // Series est la vue applicative d'une série.
@@ -103,15 +105,17 @@ type Repository interface {
 
 // ListComicsParams décrit une page d'albums à lister.
 type ListComicsParams struct {
-	UserID       uuid.UUID
-	LibraryIDs   []uuid.UUID
-	SeriesID     *uuid.UUID
-	State        string
-	ReadStatus   string
-	Sort         Sort
-	MaxAgeRating *int16
-	Cursor       *Cursor
-	Limit        int32
+	UserID        uuid.UUID
+	LibraryIDs    []uuid.UUID
+	SeriesID      *uuid.UUID
+	State         string
+	ReadStatus    string
+	Folder        *string
+	FavoritesOnly bool
+	Sort          Sort
+	MaxAgeRating  *int16
+	Cursor        *Cursor
+	Limit         int32
 }
 
 // ListSeriesParams décrit une page de séries.
@@ -202,9 +206,12 @@ type ListComicsQuery struct {
 	// ReadStatus filtre sur la progression : unread, in_progress, read.
 	// Vide, aucun filtre.
 	ReadStatus string
-	Sort       string
-	Cursor     string
-	Limit      int32
+	// Folder restreint à un dossier et ses sous-dossiers.
+	Folder        *string
+	FavoritesOnly bool
+	Sort          string
+	Cursor        string
+	Limit         int32
 }
 
 func (s *Service) ListComics(ctx context.Context, v Viewer, q ListComicsQuery) (Page[Comic], error) {
@@ -237,15 +244,17 @@ func (s *Service) ListComics(ctx context.Context, v Viewer, q ListComicsQuery) (
 	// sans avoir à compter le total — un COUNT sur une grande table coûterait
 	// plus cher que la requête elle-même.
 	comics, err := s.repo.ListComics(ctx, ListComicsParams{
-		UserID:       v.UserID,
-		LibraryIDs:   libraryIDs,
-		SeriesID:     q.SeriesID,
-		State:        q.State,
-		ReadStatus:   normalizeReadStatus(q.ReadStatus),
-		Sort:         sort,
-		MaxAgeRating: v.MaxAgeRating,
-		Cursor:       cursor,
-		Limit:        limit + 1,
+		UserID:        v.UserID,
+		LibraryIDs:    libraryIDs,
+		SeriesID:      q.SeriesID,
+		State:         q.State,
+		ReadStatus:    normalizeReadStatus(q.ReadStatus),
+		Folder:        q.Folder,
+		FavoritesOnly: q.FavoritesOnly,
+		Sort:          sort,
+		MaxAgeRating:  v.MaxAgeRating,
+		Cursor:        cursor,
+		Limit:         limit + 1,
 	})
 	if err != nil {
 		return Page[Comic]{}, err

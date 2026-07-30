@@ -23,6 +23,14 @@ WHERE c.library_id = ANY(@library_ids::uuid[])
   AND c.deleted_at IS NULL
   AND (sqlc.narg('series_id')::uuid IS NULL OR c.series_id = sqlc.narg('series_id')::uuid)
   AND (@state::text = '' OR c.state::text = @state)
+  -- Filtrage par dossier. Le préfixe permet d'inclure les sous-dossiers, ce
+  -- qu'attend un utilisateur qui clique sur un nœud de l'arbre.
+  AND (sqlc.narg('folder')::text IS NULL
+       OR c.folder_path = sqlc.narg('folder')::text
+       OR c.folder_path LIKE sqlc.narg('folder')::text || '/%')
+  AND (@favorites_only::boolean = false
+       OR EXISTS (SELECT 1 FROM favorites f
+                  WHERE f.comic_id = c.id AND f.user_id = @user_id))
   -- Filtrage par classification d'âge, pour les profils restreints.
   AND (sqlc.narg('max_age_rating')::smallint IS NULL
        OR c.age_rating IS NULL
