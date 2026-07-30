@@ -78,7 +78,7 @@ M7, quand les profils restreints seront réellement exposés.
 
 ---
 
-## M3 — Web : bibliothèque *(~2 semaines)*
+## M3 — Web : bibliothèque ✅ *(~2 semaines)*
 
 **But :** la première chose que verront les gens. Le soin visuel commence ici.
 
@@ -92,9 +92,17 @@ M7, quand les profils restreints seront réellement exposés.
 
 **Sortie :** une bibliothèque de 2000 titres se parcourt sans à-coups. Premières captures d'écran présentables.
 
+**Atteint.** Design tokens partagés web/Flutter, assistant d'installation,
+accueil à étagères, grille virtualisée par rangées, séries, recherche avec
+anti-rebond, filtres par statut de lecture et tri, aperçus de chargement LQIP.
+Thème clair/sombre/système sans flash. Un binaire unique de 16 Mo.
+
+Écart assumé : les routes de détail utilisent `?id=` — l'export statique exige
+de connaître toutes les routes au build.
+
 ---
 
-## M4 — Web : le lecteur *(~2 semaines)*
+## M4 — Web : le lecteur ✅ *(~2 semaines)*
 
 **But :** la pièce sur laquelle le projet sera jugé. Ne pas la bâcler.
 
@@ -107,6 +115,15 @@ M7, quand les profils restreints seront réellement exposés.
 - Réglages persistés par utilisateur.
 
 **Sortie :** lire un album complet est agréable au point qu'on ne pense plus à l'outil. Critère subjectif assumé — c'est le différenciateur du projet.
+
+**Atteint.** Trois modes, ajustements, sens de lecture inversable, clavier
+complet, interface qui s'efface, préchargement glissant avec libération
+mémoire, progression sauvegardée par anti-rebond et sendBeacon.
+
+Écarts assumés : le zoom au pincement et le sélecteur de page à miniatures sont
+reportés — la navigation clavier, tactile et par zones couvre l'usage courant,
+et le zoom demande un travail de gestes qui mérite d'être fait correctement
+plutôt que vite.
 
 ---
 
