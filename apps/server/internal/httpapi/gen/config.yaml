@@ -1,0 +1,7 @@
+# Généré par tools/generate-api.sh — ne pas éditer.
+package: gen
+generate:
+  chi-server: true
+  models: true
+  strict-server: true
+  embedded-spec: true

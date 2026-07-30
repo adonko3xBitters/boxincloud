@@ -1,0 +1,135 @@
+name: CI · serveur
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "apps/server/**"
+      - "api/**"
+      - ".github/workflows/ci-server.yml"
+  pull_request:
+    paths:
+      - "apps/server/**"
+      - "api/**"
+      - ".github/workflows/ci-server.yml"
+
+concurrency:
+  group: ci-server-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GO_VERSION: "1.26"
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: apps/server/go.sum
+
+      - name: go vet
+        working-directory: apps/server
+        run: go vet ./...
+
+      - name: gofmt
+        working-directory: apps/server
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "::error::Fichiers non formatés — lancez 'make fmt' :"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - uses: golangci/golangci-lint-action@v6
+        with:
+          version: latest
+          working-directory: apps/server
+
+  test:
+    name: Tests unitaires
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: apps/server/go.sum
+
+      - name: Tests
+        working-directory: apps/server
+        run: go test ./... -race -short -coverprofile=coverage.out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: apps/server/coverage.out
+
+  integration:
+    name: Tests d'intégration
+    runs-on: ubuntu-latest
+    # Ces tests tournent contre un vrai PostgreSQL et un vrai MinIO via
+    # testcontainers. Un mock de S3 ne reproduit ni le comportement des
+    # requêtes Range, ni les codes d'erreur, ni la sémantique des ETag —
+    # c'est-à-dire précisément ce qui nous intéresse.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: apps/server/go.sum
+
+      - name: Tests d'intégration
+        working-directory: apps/server
+        run: go test ./... -race -run Integration -count=1
+
+  generate-check:
+    name: Code généré à jour
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: apps/server/go.sum
+
+      - name: Installer les générateurs
+        run: |
+          go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
+          go install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
+
+      - name: Régénérer
+        run: make generate
+
+      - name: Vérifier l'absence de diff
+        run: |
+          if ! git diff --exit-code; then
+            echo "::error::Code généré obsolète. Lancez 'make generate' et committez le résultat."
+            exit 1
+          fi
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: apps/server/go.sum
+
+      - name: Compiler
+        run: make build
+
+      - name: Vérifier que le binaire démarre
+        run: ./bin/boxincloudctl version

@@ -1,0 +1,45 @@
+name: CI · contrat API
+
+on:
+  push:
+    branches: [main]
+    paths: ["api/**"]
+  pull_request:
+    paths: ["api/**"]
+
+concurrency:
+  group: ci-api-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Valider le contrat
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Valider le schéma OpenAPI
+        run: npx --yes @redocly/cli@latest lint api/openapi.yaml
+
+  breaking-changes:
+    name: Détecter les ruptures
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    # Le mobile impose une prudence particulière : une version ancienne de
+    # l'application peut rester installée longtemps après la mise à jour du
+    # serveur. Une rupture ne casse pas seulement un navigateur qu'il suffit
+    # de rafraîchir.
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Comparer avec la base
+        run: |
+          git show ${{ github.event.pull_request.base.sha }}:api/openapi.yaml > /tmp/base.yaml 2>/dev/null \
+            || { echo "Pas de contrat sur la base — première introduction, rien à comparer."; exit 0; }
+          npx --yes @redocly/cli@latest diff /tmp/base.yaml api/openapi.yaml || true

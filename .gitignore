@@ -1,0 +1,40 @@
+# Build artifacts
+/bin/
+/dist/
+*.exe
+
+# Le web compilé est embarqué dans le binaire ; seul le placeholder est versionné.
+apps/server/web/dist/*
+!apps/server/web/dist/index.html
+
+# Env
+.env
+.env.local
+*.local
+
+# Go
+*.test
+*.out
+/coverage.*
+
+# Node
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+
+# Flutter / Dart
+.dart_tool/
+.packages
+build/
+*.g.dart.bak
+
+# Editors
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Local data
+/data/
+/tmp/

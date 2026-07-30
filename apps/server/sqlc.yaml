@@ -1,0 +1,51 @@
+# sqlc — génération de code Go typé depuis du SQL écrit à la main.
+#
+# ADR : sqlc plutôt qu'un ORM. On écrit du SQL, sqlc en dérive des fonctions Go
+# typées. Un contributeur lit une requête et comprend ce qu'elle fait ; il n'a
+# pas à deviner ce qu'un DSL produit. Le compilateur garantit l'accord entre les
+# requêtes et le schéma.
+#
+# Le code produit dans internal/platform/sqlc/ ne doit jamais être édité.
+version: "2"
+
+sql:
+  - engine: postgresql
+    schema: "migrations"
+    queries: "queries"
+
+    gen:
+      go:
+        package: "sqlc"
+        out: "internal/platform/sqlc"
+        sql_package: "pgx/v5"
+
+        emit_json_tags: false          # les DTO de l'API sont générés par oapi-codegen
+        emit_prepared_queries: false   # pgx gère déjà le cache d'instructions
+        emit_interface: true           # permet de doubler la couche données en test
+        emit_empty_slices: true        # une liste vide plutôt qu'un nil : évite les null en JSON
+        emit_pointers_for_null_types: true
+
+        overrides:
+          # UUID natifs plutôt que des chaînes.
+          - db_type: "uuid"
+            go_type: "github.com/google/uuid.UUID"
+          - db_type: "uuid"
+            nullable: true
+            go_type:
+              import: "github.com/google/uuid"
+              type: "NullUUID"
+
+          # jsonb reste en octets bruts (défaut de sqlc avec pgx/v5) : chaque
+          # module désérialise vers son propre type. Une map générique perdrait
+          # le typage à l'usage.
+
+          # citext se comporte comme du texte côté Go.
+          - db_type: "citext"
+            go_type: "string"
+
+        rename:
+          id: "ID"
+          url: "URL"
+          etag: "ETag"
+          api_key: "APIKey"
+          ip: "IP"

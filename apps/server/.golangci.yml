@@ -1,0 +1,46 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  default: standard
+  enable:
+    - bodyclose      # une réponse HTTP non fermée fuit une connexion — critique ici
+    - errorlint      # comparaisons d'erreurs correctes (errors.Is/As)
+    - gosec
+    # misspell est volontairement absent : les commentaires du projet sont en
+    # français, et le linter ne sait pas changer de langue. Il signalerait
+    # « démarrage » comme une faute de « marriage ».
+    - nilerr
+    - revive
+    - unconvert
+    - wastedassign
+
+  settings:
+    revive:
+      rules:
+        - name: exported
+          disabled: true   # les commentaires godoc sont attendus, pas imposés par le linter
+
+    gosec:
+      excludes:
+        - G104   # doublon avec errcheck
+
+  exclusions:
+    rules:
+      # Les tests peuvent se permettre des raccourcis que le code de production
+      # ne doit pas.
+      - path: _test\.go
+        linters: [gosec, errcheck]
+
+      # Code généré : ni relu ni modifiable à la main.
+      - path: internal/platform/sqlc/
+        linters: [revive, gosec, errcheck, staticcheck]
+      - path: internal/httpapi/gen/
+        linters: [revive, gosec, errcheck, staticcheck]
+
+formatters:
+  enable:
+    - gofmt
+    - goimports

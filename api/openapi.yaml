@@ -1,0 +1,161 @@
+openapi: 3.1.0
+
+info:
+  title: boxincloud API
+  version: 0.1.0-dev
+  summary: Bibliothèque de BD, comics et mangas sur stockage objet
+  description: |
+    Contrat de l'API boxincloud.
+
+    **Ce fichier est la source de vérité.** Le serveur Go, le client TypeScript
+    du web et le client Dart de l'application Flutter en sont générés
+    (`make generate`). Toute évolution de l'API commence ici — jamais par le
+    code, sinon les clients divergent.
+
+    ## Erreurs
+
+    Les erreurs suivent la [RFC 9457](https://www.rfc-editor.org/rfc/rfc9457)
+    (`application/problem+json`). Le champ `type` est stable : les clients
+    peuvent s'appuyer dessus pour brancher leur comportement.
+
+    ## Versionnement
+
+    Le préfixe `/api/v1` change uniquement en cas de rupture. Les ajouts
+    rétrocompatibles (nouveau champ optionnel, nouvel endpoint) se font dans la
+    même version.
+  license:
+    name: AGPL-3.0-only
+    url: https://www.gnu.org/licenses/agpl-3.0.html
+
+servers:
+  - url: /api/v1
+    description: Instance courante
+
+tags:
+  - name: system
+    description: Santé, version et diagnostic
+
+paths:
+  /version:
+    get:
+      operationId: getVersion
+      summary: Version du serveur
+      description: |
+        Retourne la version du binaire en cours d'exécution. Utilisé par les
+        clients pour détecter une incompatibilité et proposer une mise à jour.
+      tags: [system]
+      security: []
+      responses:
+        "200":
+          description: Informations de build
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BuildInfo"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        Jeton d'accès obtenu via `POST /auth/login`. Durée de vie courte
+        (15 min par défaut) ; à renouveler avec le refresh token.
+
+  schemas:
+    BuildInfo:
+      type: object
+      required: [version, commit, goVersion]
+      properties:
+        version:
+          type: string
+          description: Version sémantique, ou "dev" hors release.
+          examples: ["0.1.0", "dev"]
+        commit:
+          type: string
+          description: Commit git abrégé.
+          examples: ["a1b2c3d"]
+        goVersion:
+          type: string
+          examples: ["go1.26.5"]
+
+    Problem:
+      type: object
+      description: |
+        Erreur au format RFC 9457. Servie avec le type MIME
+        `application/problem+json`.
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri
+          description: Identifiant stable de la catégorie d'erreur.
+          examples: ["https://boxincloud.dev/problems/not-found"]
+        title:
+          type: string
+          description: Résumé lisible par un développeur.
+          examples: ["Not Found"]
+        status:
+          type: integer
+          description: Code HTTP.
+          examples: [404]
+        detail:
+          type: string
+          description: Explication de ce cas précis, affichable à l'utilisateur.
+        instance:
+          type: string
+          description: |
+            Identifiant de la requête. À inclure dans un rapport de bug pour
+            retrouver la trace côté serveur.
+        errors:
+          type: object
+          additionalProperties:
+            type: string
+          description: Champs invalides, pour les erreurs de validation.
+
+  responses:
+    BadRequest:
+      description: Requête malformée
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+
+    Unauthorized:
+      description: Jeton absent, expiré ou invalide
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+
+    Forbidden:
+      description: Droits insuffisants
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+
+    NotFound:
+      description: Ressource introuvable
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+
+    ValidationFailed:
+      description: Validation échouée
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+
+    ServiceUnavailable:
+      description: Dépendance indisponible
+      content:
+        application/problem+json:
+          schema:
+            $ref: "#/components/schemas/Problem"
+
+security:
+  - bearerAuth: []

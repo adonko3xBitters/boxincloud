@@ -1,0 +1,27 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>boxincloud</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root { color-scheme: light dark; }
+  body {
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+    display: grid; place-items: center; min-height: 100dvh; margin: 0;
+    padding: 2rem; text-align: center;
+  }
+  main { max-width: 34rem; }
+  h1 { font-size: 1.5rem; margin: 0 0 .5rem; letter-spacing: -.02em; }
+  p { margin: .5rem 0; opacity: .75; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .875em;
+    background: color-mix(in srgb, currentColor 10%, transparent);
+    padding: .15em .4em; border-radius: .3em;
+  }
+  a { color: inherit; }
+</style>
+<main>
+  <h1>boxincloud</h1>
+  <p>Le serveur fonctionne, mais l'application web n'est pas encore compilée dans ce binaire.</p>
+  <p>Lancez <code>make build-web</code> pour l'embarquer, ou <code>make dev-web</code> pour la développer sur le port 3000.</p>
+  <p><a href="/healthz">/healthz</a> · <a href="/api/v1/version">/api/v1/version</a></p>
+</main>

@@ -1,0 +1,56 @@
+name: Proposition de fonctionnalité
+description: Suggérer une amélioration
+labels: ["enhancement", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Avant de proposer, jetez un œil à la
+        [feuille de route](../blob/main/docs/04-roadmap.md) — la fonctionnalité
+        y est peut-être déjà prévue.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Quel problème cela résout-il ?
+      description: |
+        Décrivez la gêne concrète, pas la solution. C'est ce qui permet
+        d'évaluer si une autre approche serait meilleure.
+      placeholder: "Quand je lis sur ma tablette puis reprends sur mon téléphone, …"
+    validations:
+      required: true
+
+  - type: textarea
+    id: solution
+    attributes:
+      label: Solution envisagée
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considérées
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Composant concerné
+      multiple: true
+      options:
+        - Serveur / API
+        - Application web
+        - Application mobile (Flutter)
+        - Indexation / métadonnées
+        - Stockage
+        - Lecteur
+        - Déploiement
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      options:
+        - label: Je suis prêt à travailler sur cette fonctionnalité

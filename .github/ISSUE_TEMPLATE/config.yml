@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Question ou aide
+    url: https://github.com/adonko3xBitters/boxincloud/discussions
+    about: Les questions vont dans les Discussions. Il n'y a pas de question idiote sur un projet en pré-alpha.
+  - name: Faille de sécurité
+    url: https://github.com/adonko3xBitters/boxincloud/security/advisories/new
+    about: N'ouvrez pas d'issue publique — utilisez le canal privé.

@@ -1,0 +1,22 @@
+# air — rechargement à chaud du serveur en développement.
+#   make dev-server
+
+root = "."
+tmp_dir = ".air"
+
+[build]
+  cmd = "go build -o ./.air/boxincloud ./cmd/boxincloud"
+  bin = "./.air/boxincloud"
+  include_ext = ["go", "sql", "html"]
+  exclude_dir = [".air", "web/dist", "testdata", "internal/platform/sqlc", "internal/httpapi/gen"]
+  exclude_regex = ["_test\\.go"]
+  delay = 300
+  stop_on_error = true
+  send_interrupt = true
+  kill_delay = "2s"
+
+[log]
+  time = false
+
+[misc]
+  clean_on_exit = true

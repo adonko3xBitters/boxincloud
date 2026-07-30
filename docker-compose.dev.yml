@@ -1,0 +1,80 @@
+# Dépendances de développement : PostgreSQL et MinIO.
+#
+# Le serveur ne tourne PAS ici — on le lance sur la machine hôte avec
+# `make dev-server` pour bénéficier du rechargement à chaud.
+#
+#   make dev-deps        démarre
+#   make dev-deps-down   arrête
+#   make dev-reset       repart d'une base vide
+#
+# Les ports hôte sont paramétrables : si 5432 ou 9000 sont déjà pris sur votre
+# machine (une autre instance PostgreSQL, un autre projet), redéfinissez
+# BOXINCLOUD_DEV_*_PORT dans .env plutôt que d'éditer ce fichier.
+
+name: boxincloud-dev
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: boxincloud
+      POSTGRES_PASSWORD: boxincloud
+      POSTGRES_DB: boxincloud
+      # Accélère nettement les tests d'intégration ; jamais en production.
+      POSTGRES_INITDB_ARGS: "--data-checksums"
+    command:
+      - postgres
+      - -c
+      - fsync=off
+      - -c
+      - synchronous_commit=off
+      - -c
+      - full_page_writes=off
+    ports:
+      - "${BOXINCLOUD_DEV_POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U boxincloud -d boxincloud"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Backend de stockage objet par défaut. C'est contre lui que se développe et
+  # se teste tout le module storage.
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: boxincloud
+      MINIO_ROOT_PASSWORD: boxincloud
+    ports:
+      - "${BOXINCLOUD_DEV_MINIO_PORT:-9000}:9000"           # API S3
+      - "${BOXINCLOUD_DEV_MINIO_CONSOLE_PORT:-9001}:9001"   # console web
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Crée le bucket de développement puis s'arrête. Conteneur éphémère.
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 boxincloud boxincloud &&
+      mc mb --ignore-existing local/comics &&
+      mc mb --ignore-existing local/boxincloud-cache &&
+      echo '→ buckets comics et boxincloud-cache prêts'
+      "
+
+volumes:
+  postgres-data:
+  minio-data:
