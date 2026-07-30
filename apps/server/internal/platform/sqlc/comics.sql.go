@@ -591,15 +591,18 @@ func (q *Queries) TotalCacheSize(ctx context.Context) (int64, error) {
 	return column_1, err
 }
 
-const touchCacheEntry = `-- name: TouchCacheEntry :exec
+const touchCacheEntry = `-- name: TouchCacheEntry :execrows
 UPDATE cache_entries
 SET last_hit_at = now(), hits = hits + 1
 WHERE key = $1
 `
 
-func (q *Queries) TouchCacheEntry(ctx context.Context, key string) error {
-	_, err := q.db.Exec(ctx, touchCacheEntry, key)
-	return err
+func (q *Queries) TouchCacheEntry(ctx context.Context, key string) (int64, error) {
+	result, err := q.db.Exec(ctx, touchCacheEntry, key)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
 }
 
 const upsertComic = `-- name: UpsertComic :one

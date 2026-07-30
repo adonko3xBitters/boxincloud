@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 
 import { Cover } from "@/components/cover";
-import { Badge, Button, ErrorState, Skeleton } from "@/components/ui";
+import { Badge, buttonClass, ErrorState, Skeleton } from "@/components/ui";
 import * as api from "@/lib/api/endpoints";
 import type { Comic, Progress } from "@/lib/api/client";
 
@@ -72,19 +72,19 @@ function Detail({ comic, progress }: { comic: Comic; progress?: Progress }) {
           {comic.state === "error" && <Badge tone="danger">Erreur d&apos;indexation</Badge>}
         </div>
 
-        {/*
-          Le lecteur arrive en M4. Le bouton est donc désactivé plutôt
-          qu'absent : l'utilisateur voit où se trouvera l'action, et l'infobulle
-          dit pourquoi elle ne fonctionne pas encore.
-        */}
         <div className="mt-6 flex flex-wrap items-center gap-3">
-          <Button
-            size="lg"
-            disabled
-            title="Le lecteur arrive dans une prochaine version"
+          {/* La reprise pointe directement la page enregistrée : rouvrir un
+              album ne doit jamais demander de retrouver où l'on en était. */}
+          <Link
+            href={
+              started
+                ? `/read?id=${comic.id}&page=${progress!.page}`
+                : `/read?id=${comic.id}`
+            }
+            className={buttonClass("primary", "lg")}
           >
             {started ? `Reprendre p. ${progress!.page + 1}` : "Lire"}
-          </Button>
+          </Link>
 
           {started && (
             <div className="min-w-[160px] flex-1 sm:max-w-xs">

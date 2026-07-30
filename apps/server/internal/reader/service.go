@@ -177,6 +177,15 @@ func (s *Service) GetPage(ctx context.Context, req PageRequest) (PageContent, er
 		return PageContent{}, err
 	}
 
+	// La largeur demandée est ramenée à un palier. Sans cela, chaque valeur
+	// distincte créerait sa propre variante de cache : un redimensionnement de
+	// fenêtre en générerait des dizaines, et un client mal intentionné pourrait
+	// saturer le disque en faisant simplement varier le paramètre.
+	//
+	// Le client arrondit déjà de son côté ; ce second arrondi ne fait pas
+	// double emploi, il rend la garantie indépendante du client.
+	req.Width = nearestPageWidth(req.Width)
+
 	// Sans redimensionnement, la page d'origine est servie telle quelle depuis
 	// l'archive. La mettre en cache reviendrait à dupliquer ce que le backend
 	// contient déjà, pour un gain nul sur le nombre de requêtes.
@@ -339,6 +348,33 @@ func (s *Service) GetCover(ctx context.Context, comicID uuid.UUID, width int) (P
 		Size:        int64(len(data)),
 		ETag:        coverETag(comicID, width),
 	}, nil
+}
+
+// PageWidths sont les largeurs de page que le serveur accepte de produire.
+//
+// Elles couvrent les tailles d'écran usuelles, en tenant compte des écrans à
+// forte densité : 800 pour un téléphone, 1600 pour un portable, 2400 pour un
+// grand écran en double page.
+var PageWidths = []int{800, 1200, 1600, 2000, 2400}
+
+// nearestPageWidth ramène une largeur au palier immédiatement supérieur.
+//
+// Vers le haut plutôt que vers le plus proche : servir une image plus petite
+// que la place disponible se voit — l'agrandissement floute. Servir plus grand
+// ne coûte que quelques kilo-octets.
+//
+// Une largeur nulle ou négative signifie « page d'origine » et traverse
+// inchangée.
+func nearestPageWidth(width int) int {
+	if width <= 0 {
+		return 0
+	}
+	for _, step := range PageWidths {
+		if width <= step {
+			return step
+		}
+	}
+	return PageWidths[len(PageWidths)-1]
 }
 
 // nearestThumbSize ramène une largeur arbitraire à l'une des trois tailles

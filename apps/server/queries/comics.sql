@@ -141,7 +141,7 @@ VALUES ($1, $2, $3)
 ON CONFLICT (key) DO UPDATE
 SET size = EXCLUDED.size, last_hit_at = now();
 
--- name: TouchCacheEntry :exec
+-- name: TouchCacheEntry :execrows
 UPDATE cache_entries
 SET last_hit_at = now(), hits = hits + 1
 WHERE key = $1;

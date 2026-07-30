@@ -122,12 +122,7 @@ func NewRouter(d Deps) http.Handler {
 
 				r.Route("/{comicID}", func(r chi.Router) {
 					r.Get("/", catalogHandler.GetComic)
-
-					// Lecture. Le manifeste précède les pages : le client
-					// obtient toutes les dimensions avant la première image.
 					r.Get("/manifest", readerHandler.Manifest)
-					r.Get("/cover", readerHandler.Cover)
-					r.Get("/pages/{index}", readerHandler.Page)
 
 					r.Get("/progress", progressHandler.Get)
 					r.Put("/progress", progressHandler.Update)
@@ -136,11 +131,27 @@ func NewRouter(d Deps) http.Handler {
 			})
 
 			r.Get("/continue-reading", progressHandler.ContinueReading)
+			r.Get("/sync", progressHandler.SyncPull)
+		})
 
-			r.Route("/sync", func(r chi.Router) {
-				r.Get("/", progressHandler.SyncPull)
-				r.Post("/", progressHandler.SyncPush)
-			})
+		// ── Routes acceptant le jeton en paramètre d'URL ────────────────
+		//
+		// Une balise <img> ne peut pas porter d'en-tête Authorization, et
+		// sendBeacon — seul mécanisme qu'un navigateur exécute de façon fiable
+		// à la fermeture d'un onglet — non plus.
+		//
+		// Ces routes sont isolées : un jeton dans une URL fuit par l'en-tête
+		// Referer, les journaux de proxy et l'historique du navigateur. On
+		// l'accepte là où il n'y a pas d'alternative, nulle part ailleurs.
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.AuthenticateAllowingQueryToken(d.Auth))
+
+			readerHandler := handlers.NewReader(d.Reader, d.Catalog)
+			progressHandler := handlers.NewProgress(d.Progress, d.Catalog)
+
+			r.Get("/comics/{comicID}/cover", readerHandler.Cover)
+			r.Get("/comics/{comicID}/pages/{index}", readerHandler.Page)
+			r.Post("/sync", progressHandler.SyncPush)
 		})
 	})
 

@@ -526,7 +526,10 @@ func (m *memCacheStore) RecordEntry(_ context.Context, key string, _ uuid.UUID, 
 	m.sizes[key] = size
 	return nil
 }
-func (m *memCacheStore) TouchEntry(context.Context, string) error { return nil }
+func (m *memCacheStore) TouchEntry(_ context.Context, key string) (bool, error) {
+	_, ok := m.sizes[key]
+	return ok, nil
+}
 func (m *memCacheStore) TotalSize(context.Context) (int64, error) {
 	var total int64
 	for _, s := range m.sizes {

@@ -33,7 +33,10 @@ import (
 // module métier.
 type Store interface {
 	RecordEntry(ctx context.Context, key string, comicID uuid.UUID, size int64) error
-	TouchEntry(ctx context.Context, key string) error
+	// TouchEntry met à jour la date d'accès et indique si une ligne existait.
+	// Le booléen permet de détecter un fichier orphelin, présent sur disque
+	// mais absent de l'inventaire — donc jamais évincé.
+	TouchEntry(ctx context.Context, key string) (bool, error)
 	TotalSize(ctx context.Context) (int64, error)
 	ListForEviction(ctx context.Context, limit int32) ([]Entry, error)
 	DeleteEntry(ctx context.Context, key string) error
@@ -94,11 +97,40 @@ func (c *Cache) Get(ctx context.Context, key string) (io.ReadCloser, error) {
 
 	// La date de dernier accès pilote l'éviction. L'échec de sa mise à jour ne
 	// doit jamais empêcher de servir la donnée.
-	if err := c.store.TouchEntry(ctx, key); err != nil {
+	touched, err := c.store.TouchEntry(ctx, key)
+	if err != nil {
 		c.log.Debug("cache : mise à jour de l'accès impossible",
 			slog.String("key", key), slog.Any("err", err))
+		return r, nil
+	}
+
+	// Fichier présent sur disque mais absent de l'inventaire : il ne serait
+	// jamais évincé, et occuperait la place indéfiniment. Cela arrive après une
+	// purge de la base sans purge du disque, ou si l'inscription à l'inventaire
+	// a échoué à l'écriture. On le réinscrit.
+	if !touched {
+		c.readopt(ctx, key)
 	}
 	return r, nil
+}
+
+// readopt réinscrit à l'inventaire un fichier orphelin.
+//
+// Le comic d'origine n'est pas récupérable depuis la clé sans l'analyser ; on
+// laisse la référence nulle. L'entrée reste évinçable, c'est l'essentiel — et
+// une réindexation la recréera correctement.
+func (c *Cache) readopt(ctx context.Context, key string) {
+	info, err := c.provider.Stat(ctx, key)
+	if err != nil {
+		return
+	}
+	if err := c.store.RecordEntry(ctx, key, uuid.Nil, info.Size); err != nil {
+		c.log.Debug("cache : réinscription impossible",
+			slog.String("key", key), slog.Any("err", err))
+		return
+	}
+	c.log.Debug("cache : fichier orphelin réinscrit à l'inventaire",
+		slog.String("key", key), slog.Int64("taille", info.Size))
 }
 
 // Has indique si une entrée est présente, sans la lire.

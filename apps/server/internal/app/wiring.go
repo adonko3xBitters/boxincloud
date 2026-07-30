@@ -147,8 +147,9 @@ func (s *cacheStore) RecordEntry(ctx context.Context, key string, comicID uuid.U
 	})
 }
 
-func (s *cacheStore) TouchEntry(ctx context.Context, key string) error {
-	return s.q.TouchCacheEntry(ctx, key)
+func (s *cacheStore) TouchEntry(ctx context.Context, key string) (bool, error) {
+	rows, err := s.q.TouchCacheEntry(ctx, key)
+	return rows > 0, err
 }
 
 func (s *cacheStore) TotalSize(ctx context.Context) (int64, error) {

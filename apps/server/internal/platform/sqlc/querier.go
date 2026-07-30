@@ -161,7 +161,7 @@ type Querier interface {
 	// ─── Scans ───────────────────────────────────────────────────────────────────
 	StartScanRun(ctx context.Context, arg StartScanRunParams) (ScanRun, error)
 	TotalCacheSize(ctx context.Context) (int64, error)
-	TouchCacheEntry(ctx context.Context, key string) error
+	TouchCacheEntry(ctx context.Context, key string) (int64, error)
 	TouchDevice(ctx context.Context, id uuid.UUID) error
 	TouchUserLogin(ctx context.Context, id uuid.UUID) error
 	UpdateUserProfile(ctx context.Context, arg UpdateUserProfileParams) (User, error)

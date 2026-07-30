@@ -37,6 +37,26 @@ const buttonSizes: Record<NonNullable<ButtonProps["size"]>, string> = {
   lg: "h-12 px-6 text-base gap-2",
 };
 
+/**
+ * Classes d'un bouton, applicables à un élément qui n'en est pas un.
+ *
+ * Un lien de navigation doit rester un `<a>` — pour l'ouverture en nouvel
+ * onglet, la copie d'adresse, l'annonce par un lecteur d'écran — tout en
+ * ressemblant à un bouton. Partager les classes évite de dupliquer le style,
+ * sans introduire le mécanisme `asChild` d'une bibliothèque de composants.
+ */
+export function buttonClass(
+  variant: NonNullable<ButtonProps["variant"]> = "primary",
+  size: NonNullable<ButtonProps["size"]> = "md",
+): string {
+  return cx(
+    "inline-flex items-center justify-center rounded-md font-medium",
+    "transition-colors duration-[--motion-duration-fast]",
+    buttonVariants[variant],
+    buttonSizes[size],
+  );
+}
+
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button(
   { variant = "primary", size = "md", loading = false, disabled, className, children, ...props },
   ref,

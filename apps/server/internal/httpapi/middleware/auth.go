@@ -17,14 +17,34 @@ type Verifier interface {
 	VerifyAccessToken(token string) (auth.Claims, error)
 }
 
-// Authenticate exige un jeton d'accès valide.
+// Authenticate exige un jeton d'accès valide, porté par l'en-tête
+// Authorization.
 //
 // Les claims sont attachées au contexte : les handlers y accèdent par
 // ClaimsFrom, sans reparser le jeton.
 func Authenticate(v Verifier) func(http.Handler) http.Handler {
+	return authenticate(v, false)
+}
+
+// AuthenticateAllowingQueryToken accepte en plus le jeton dans le paramètre
+// `token`.
+//
+// Réservé aux routes qui ne peuvent pas porter d'en-tête : une image chargée
+// par une balise <img>, et l'envoi de progression par sendBeacon à la fermeture
+// d'un onglet.
+//
+// Cette tolérance n'est PAS le défaut, et c'est délibéré : un jeton dans une
+// URL fuit par l'en-tête Referer, les journaux de proxy et l'historique du
+// navigateur. On l'accepte là où il n'y a pas d'alternative, nulle part
+// ailleurs.
+func AuthenticateAllowingQueryToken(v Verifier) func(http.Handler) http.Handler {
+	return authenticate(v, true)
+}
+
+func authenticate(v Verifier, allowQuery bool) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			token, ok := bearerToken(r)
+			token, ok := bearerToken(r, allowQuery)
 			if !ok {
 				problem.Write(w, r, problem.Unauthorized("missing bearer token"))
 				return
@@ -74,23 +94,24 @@ func ClaimsFrom(ctx context.Context) (auth.Claims, bool) {
 	return claims, ok
 }
 
-// bearerToken extrait le jeton de l'en-tête Authorization.
-//
-// Une requête d'image ne peut pas porter d'en-tête personnalisé quand elle est
-// émise par une balise <img>. Le paramètre de requête `token` est donc accepté
-// en repli, uniquement là où c'est nécessaire — voir le routeur.
-func bearerToken(r *http.Request) (string, bool) {
+// bearerToken extrait le jeton de l'en-tête Authorization, et éventuellement du
+// paramètre `token`.
+func bearerToken(r *http.Request, allowQuery bool) (string, bool) {
 	header := r.Header.Get("Authorization")
 	if header != "" {
 		const prefix = "Bearer "
 		if len(header) > len(prefix) && strings.EqualFold(header[:len(prefix)], prefix) {
 			return header[len(prefix):], true
 		}
+		// En-tête présent mais malformé : c'est une erreur du client, pas une
+		// occasion de chercher ailleurs.
 		return "", false
 	}
 
-	if token := r.URL.Query().Get("token"); token != "" {
-		return token, true
+	if allowQuery {
+		if token := r.URL.Query().Get("token"); token != "" {
+			return token, true
+		}
 	}
 	return "", false
 }
