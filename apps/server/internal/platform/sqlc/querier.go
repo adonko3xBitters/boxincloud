@@ -44,6 +44,7 @@ type Querier interface {
 	FinishScanRun(ctx context.Context, arg FinishScanRunParams) error
 	GetComic(ctx context.Context, id uuid.UUID) (Comic, error)
 	GetComicByObjectKey(ctx context.Context, arg GetComicByObjectKeyParams) (Comic, error)
+	GetComicDetail(ctx context.Context, id uuid.UUID) (GetComicDetailRow, error)
 	// ★ La requête du chemin chaud : servir une page.
 	// Un seul aller-retour en base, puis un seul ReadRange sur le backend.
 	GetComicPage(ctx context.Context, arg GetComicPageParams) (ComicPage, error)
@@ -69,6 +70,14 @@ type Querier interface {
 	ListCacheEntriesForEviction(ctx context.Context, limit int32) ([]ListCacheEntriesForEvictionRow, error)
 	ListComicPages(ctx context.Context, comicID uuid.UUID) ([]ComicPage, error)
 	ListComicsByLibrary(ctx context.Context, arg ListComicsByLibraryParams) ([]Comic, error)
+	ListComicsBySeries(ctx context.Context, seriesID uuid.NullUUID) ([]Comic, error)
+	// Requêtes de consultation du catalogue.
+	//
+	// Pagination par curseur plutôt que par OFFSET : sur une bibliothèque de
+	// plusieurs milliers de titres, OFFSET force PostgreSQL à parcourir puis jeter
+	// toutes les lignes précédentes, et une insertion pendant la pagination décale
+	// silencieusement les résultats. Le curseur est stable et à coût constant.
+	ListComicsPage(ctx context.Context, arg ListComicsPageParams) ([]Comic, error)
 	ListDevicesByUser(ctx context.Context, userID uuid.UUID) ([]Device, error)
 	ListFavorites(ctx context.Context, arg ListFavoritesParams) ([]ListFavoritesRow, error)
 	// « Reprendre la lecture » : les albums commencés mais non terminés.
@@ -76,11 +85,17 @@ type Querier interface {
 	ListLibraries(ctx context.Context) ([]Library, error)
 	ListLibrariesWithBackend(ctx context.Context) ([]ListLibrariesWithBackendRow, error)
 	ListLibraryAccess(ctx context.Context, libraryID uuid.UUID) ([]LibraryAccess, error)
+	// Étagère « Suite de la série » : le premier album non lu de chaque série déjà
+	// entamée. C'est la suggestion la plus utile d'une page d'accueil de lecteur.
+	ListNextInSeries(ctx context.Context, arg ListNextInSeriesParams) ([]Comic, error)
 	ListReadingProgressByComics(ctx context.Context, arg ListReadingProgressByComicsParams) ([]ReadingProgress, error)
 	// Synchronisation delta : tout ce qui a changé depuis le curseur du client.
 	ListReadingProgressSince(ctx context.Context, arg ListReadingProgressSinceParams) ([]ReadingProgress, error)
+	// Étagère d'accueil : les derniers albums ajoutés.
+	ListRecentComics(ctx context.Context, arg ListRecentComicsParams) ([]Comic, error)
 	ListScanRuns(ctx context.Context, arg ListScanRunsParams) ([]ScanRun, error)
 	ListSeriesByLibrary(ctx context.Context, libraryID uuid.UUID) ([]Series, error)
+	ListSeriesPage(ctx context.Context, arg ListSeriesPageParams) ([]Series, error)
 	ListSettings(ctx context.Context) ([]Setting, error)
 	ListStorageBackends(ctx context.Context) ([]StorageBackend, error)
 	ListUsers(ctx context.Context) ([]User, error)
@@ -106,6 +121,24 @@ type Querier interface {
 	// qu'il a été volé. On révoque alors toute la chaîne de rotation, pas
 	// seulement le jeton présenté.
 	RevokeSessionChain(ctx context.Context, id uuid.UUID) (int64, error)
+	// Recherche plein texte, avec repli sur la similarité trigramme.
+	//
+	// Les deux sont combinés parce qu'ils échouent différemment :
+	// websearch_to_tsquery gère les expressions et les mots multiples mais rate
+	// les fautes de frappe ; la similarité trigramme rattrape « asterics » →
+	// « Astérix » mais ne comprend pas les requêtes à plusieurs mots.
+	//
+	// word_similarity plutôt que similarity : cette dernière compare la requête au
+	// titre ENTIER, si bien qu'un titre long fait chuter le score sous le seuil.
+	// Mesuré sur « asterics » contre « Astérix le Gaulois » : similarity = 0,27
+	// (rejeté), word_similarity = 0,67 (accepté). word_similarity cherche la
+	// meilleure sous-séquence de mots, ce qui est le comportement attendu quand on
+	// tape un seul mot d'un titre.
+	//
+	// Tout est désaccentué de part et d'autre : personne ne saisit les accents
+	// dans un champ de recherche, et c'est rédhibitoire sur de la BD franco-belge.
+	SearchComics(ctx context.Context, arg SearchComicsParams) ([]SearchComicsRow, error)
+	SearchSeries(ctx context.Context, arg SearchSeriesParams) ([]SearchSeriesRow, error)
 	SetComicIndexed(ctx context.Context, arg SetComicIndexedParams) error
 	SetComicState(ctx context.Context, arg SetComicStateParams) error
 	SetDefaultStorageBackend(ctx context.Context, id uuid.UUID) error
