@@ -63,19 +63,16 @@ fi
 
 cyan "Client Dart"
 
+# Générateur maison plutôt qu'openapi-generator : ce dernier exige une machine
+# virtuelle Java, dépendance lourde à imposer à quiconque veut contribuer au
+# client mobile. Le dépôt écrit déjà son propre générateur pour les tokens de
+# design ; celui-ci suit le même principe, avec zéro dépendance nouvelle.
 if [[ ! -d "$ROOT/apps/mobile" ]] || [[ ! -f "$ROOT/apps/mobile/pubspec.yaml" ]]; then
-    warn "apps/mobile pas encore initialisée (M5). Étape ignorée."
-elif ! command -v openapi-generator >/dev/null 2>&1; then
-    warn "openapi-generator absent (brew install openapi-generator). Étape ignorée."
+    warn "apps/mobile pas encore initialisée. Étape ignorée."
+elif ! command -v node >/dev/null 2>&1; then
+    warn "node absent. Étape ignorée."
 else
-    OUT_DIR="$ROOT/apps/mobile/lib/core/api"
-    rm -rf "$OUT_DIR"
-    openapi-generator generate \
-        -i "$SPEC" \
-        -g dart-dio \
-        -o "$OUT_DIR" \
-        --additional-properties=pubName=boxincloud_api,nullableFields=true
-    ok "apps/mobile/lib/core/api/"
+    node "$ROOT/tools/generate-dart-models.mjs"
 fi
 
 echo

@@ -125,6 +125,19 @@ function buildCSS() {
 /** `accent-hover` → `accentHover` */
 const camel = (s) => s.replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase());
 
+/**
+ * Rend un nom utilisable comme identifiant Dart.
+ *
+ * Un identifiant ne peut pas commencer par un chiffre : le rayon « 2xl » du
+ * fichier de tokens produisait `static const double 2xl`, que le compilateur
+ * refuse. Le préfixe est appliqué à ce seul cas, pour que tous les autres noms
+ * restent lisibles tels quels.
+ */
+const dartIdent = (s) => {
+  const name = camel(s);
+  return /^\d/.test(name) ? `r${name}` : name;
+};
+
 /** `#4f46e5` → `Color(0xFF4F46E5)` */
 function dartColor(hex) {
   const m = /^#([0-9a-f]{6})$/i.exec(hex.trim());
@@ -194,7 +207,7 @@ function buildDart() {
   for (const [name, value] of flatten(tokens.radius)) {
     const px = toPx(value);
     if (px === null) continue;
-    lines.push(`  static const double ${camel(name)} = ${px};`);
+    lines.push(`  static const double ${dartIdent(name)} = ${px};`);
   }
   lines.push("}", "");
 
