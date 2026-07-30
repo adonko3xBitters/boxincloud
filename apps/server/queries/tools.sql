@@ -95,3 +95,35 @@ ON CONFLICT DO NOTHING;
 
 -- name: BulkUnsetFavorite :execrows
 DELETE FROM favorites WHERE user_id = $1 AND comic_id = ANY($2::uuid[]);
+
+-- ─── Suppression et déplacement ──────────────────────────────────────────────
+
+-- Retire l'album du catalogue sans effacer sa ligne.
+--
+-- La progression de lecture, les favoris et les notes y sont rattachés : les
+-- détruire priverait d'historique quelqu'un qui remettrait le fichier en place.
+-- name: ExcludeComic :exec
+UPDATE comics
+SET deleted_at  = coalesce(deleted_at, now()),
+    excluded_at = now()
+WHERE id = $1;
+
+-- Efface définitivement la ligne, une fois le fichier supprimé du backend.
+-- name: PurgeComic :exec
+DELETE FROM comics WHERE id = $1;
+
+-- name: MoveComic :exec
+UPDATE comics
+SET object_key  = $2,
+    folder_path = $3
+WHERE id = $1;
+
+-- name: RestoreComic :exec
+UPDATE comics
+SET deleted_at = NULL, excluded_at = NULL
+WHERE id = $1;
+
+-- name: ListExcludedComics :many
+SELECT * FROM comics
+WHERE library_id = $1 AND excluded_at IS NOT NULL
+ORDER BY title;

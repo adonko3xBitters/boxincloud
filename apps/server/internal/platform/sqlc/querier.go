@@ -65,6 +65,12 @@ type Querier interface {
 	// jamais écraser une saisie manuelle. C'est la contrepartie de l'automatisme —
 	// sans elle, corriger un titre serait inutile.
 	EditComic(ctx context.Context, arg EditComicParams) (Comic, error)
+	// ─── Suppression et déplacement ──────────────────────────────────────────────
+	// Retire l'album du catalogue sans effacer sa ligne.
+	//
+	// La progression de lecture, les favoris et les notes y sont rattachés : les
+	// détruire priverait d'historique quelqu'un qui remettrait le fichier en place.
+	ExcludeComic(ctx context.Context, id uuid.UUID) error
 	FinishScanRun(ctx context.Context, arg FinishScanRunParams) error
 	GetComic(ctx context.Context, id uuid.UUID) (Comic, error)
 	GetComicByObjectKey(ctx context.Context, arg GetComicByObjectKeyParams) (Comic, error)
@@ -121,6 +127,7 @@ type Querier interface {
 	// conviendrait pas aux deux.
 	ListComicsPage(ctx context.Context, arg ListComicsPageParams) ([]ListComicsPageRow, error)
 	ListDevicesByUser(ctx context.Context, userID uuid.UUID) ([]Device, error)
+	ListExcludedComics(ctx context.Context, libraryID uuid.UUID) ([]Comic, error)
 	ListFavoriteIDs(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error)
 	ListFavorites(ctx context.Context, arg ListFavoritesParams) ([]ListFavoritesRow, error)
 	// Outils de gestion : dossiers, favoris, notes, actions en lot.
@@ -161,10 +168,14 @@ type Querier interface {
 	// On ne supprime pas la ligne : un backend momentanément injoignable ne doit
 	// pas détruire la progression de lecture des utilisateurs.
 	MarkMissingComicsDeleted(ctx context.Context, arg MarkMissingComicsDeletedParams) (int64, error)
+	MoveComic(ctx context.Context, arg MoveComicParams) error
+	// Efface définitivement la ligne, une fois le fichier supprimé du backend.
+	PurgeComic(ctx context.Context, id uuid.UUID) error
 	// ─── Cache dérivé ────────────────────────────────────────────────────────────
 	RecordCacheEntry(ctx context.Context, arg RecordCacheEntryParams) error
 	RefreshSeriesCounts(ctx context.Context, libraryID uuid.UUID) error
 	RemoveFavorite(ctx context.Context, arg RemoveFavoriteParams) error
+	RestoreComic(ctx context.Context, id uuid.UUID) error
 	RevokeAllUserSessions(ctx context.Context, userID uuid.UUID) (int64, error)
 	RevokeLibraryAccess(ctx context.Context, arg RevokeLibraryAccessParams) error
 	RevokeSession(ctx context.Context, id uuid.UUID) error

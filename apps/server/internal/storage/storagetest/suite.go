@@ -41,6 +41,7 @@ func RunSuite(t *testing.T, p storage.Provider) {
 	t.Run("ReadRangeEdgeCases", func(t *testing.T) { testReadRangeEdges(t, p) })
 	t.Run("List", func(t *testing.T) { testList(t, p) })
 	t.Run("Delete", func(t *testing.T) { testDelete(t, p) })
+	t.Run("Move", func(t *testing.T) { testMove(t, p) })
 	t.Run("NotFound", func(t *testing.T) { testNotFound(t, p) })
 }
 
@@ -272,6 +273,84 @@ func testDelete(t *testing.T, p storage.Provider) {
 	if err := p.Delete(ctx, key); err != nil {
 		t.Errorf("supprimer un objet absent ne devrait pas échouer, obtenu %v", err)
 	}
+}
+
+/*
+Move déplace sans recopier par le réseau, et refuse d'écraser.
+
+Les deux backends y arrivent par des chemins très différents — copie côté
+serveur pour S3, renommage pour un système de fichiers — et c'est justement ce
+que cette suite existe pour rapprocher : leurs comportements observables doivent
+être indiscernables.
+*/
+func testMove(t *testing.T, p storage.Provider) {
+	ctx := context.Background()
+	const content = "Le Secret de la Licorne"
+
+	from := "suite/move/source.cbz"
+	to := "suite/move/ranges/destination.cbz"
+
+	if err := p.Write(ctx, from, strings.NewReader(content), -1, ""); err != nil {
+		t.Fatalf("Write : %v", err)
+	}
+
+	if err := p.Move(ctx, from, to); err != nil {
+		t.Fatalf("Move : %v", err)
+	}
+
+	// La source a disparu…
+	if _, err := p.Stat(ctx, from); !errors.Is(err, storage.ErrNotFound) {
+		t.Errorf("la source subsiste après Move : %v", err)
+	}
+
+	// …et la destination porte exactement les mêmes octets.
+	reader, err := p.Open(ctx, to)
+	if err != nil {
+		t.Fatalf("Open de la destination : %v", err)
+	}
+	moved, err := io.ReadAll(reader)
+	_ = reader.Close()
+	if err != nil {
+		t.Fatalf("lecture de la destination : %v", err)
+	}
+	if string(moved) != content {
+		t.Errorf("contenu déplacé = %q, attendu %q", moved, content)
+	}
+
+	t.Run("destination occupée", func(t *testing.T) {
+		other := "suite/move/occupe.cbz"
+		if err := p.Write(ctx, other, strings.NewReader("un autre album"), -1, ""); err != nil {
+			t.Fatalf("Write : %v", err)
+		}
+
+		// Écraser détruirait un album que personne n'a demandé à perdre.
+		if err := p.Move(ctx, other, to); !errors.Is(err, storage.ErrAlreadyExists) {
+			t.Errorf("Move vers une destination occupée = %v, attendu ErrAlreadyExists", err)
+		}
+
+		// La source doit être intacte : un refus ne détruit rien.
+		if _, err := p.Stat(ctx, other); err != nil {
+			t.Errorf("la source a disparu malgré le refus : %v", err)
+		}
+	})
+
+	t.Run("source absente", func(t *testing.T) {
+		err := p.Move(ctx, "suite/move/jamais-ecrit.cbz", "suite/move/ailleurs.cbz")
+		if !errors.Is(err, storage.ErrNotFound) {
+			t.Errorf("Move depuis une source absente = %v, attendu ErrNotFound", err)
+		}
+	})
+
+	t.Run("même clé", func(t *testing.T) {
+		// Un déplacement sur place est un non-événement, pas une erreur : cela
+		// rend l'appelant plus simple, qui n'a pas à comparer les chemins.
+		if err := p.Move(ctx, to, to); err != nil {
+			t.Errorf("Move sur place = %v, attendu nil", err)
+		}
+		if _, err := p.Stat(ctx, to); err != nil {
+			t.Errorf("l'objet a disparu après un déplacement sur place : %v", err)
+		}
+	})
 }
 
 func testNotFound(t *testing.T, p storage.Provider) {

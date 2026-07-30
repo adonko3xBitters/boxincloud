@@ -113,7 +113,7 @@ func (q *Queries) DeleteComicPages(ctx context.Context, comicID uuid.UUID) error
 }
 
 const getComic = `-- name: GetComic :one
-SELECT id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector, cover_placeholder, folder_path FROM comics WHERE id = $1
+SELECT id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector, cover_placeholder, folder_path, excluded_at FROM comics WHERE id = $1
 `
 
 func (q *Queries) GetComic(ctx context.Context, id uuid.UUID) (Comic, error) {
@@ -150,12 +150,13 @@ func (q *Queries) GetComic(ctx context.Context, id uuid.UUID) (Comic, error) {
 		&i.SearchVector,
 		&i.CoverPlaceholder,
 		&i.FolderPath,
+		&i.ExcludedAt,
 	)
 	return i, err
 }
 
 const getComicByObjectKey = `-- name: GetComicByObjectKey :one
-SELECT id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector, cover_placeholder, folder_path FROM comics WHERE library_id = $1 AND object_key = $2
+SELECT id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector, cover_placeholder, folder_path, excluded_at FROM comics WHERE library_id = $1 AND object_key = $2
 `
 
 type GetComicByObjectKeyParams struct {
@@ -197,6 +198,7 @@ func (q *Queries) GetComicByObjectKey(ctx context.Context, arg GetComicByObjectK
 		&i.SearchVector,
 		&i.CoverPlaceholder,
 		&i.FolderPath,
+		&i.ExcludedAt,
 	)
 	return i, err
 }
@@ -363,7 +365,7 @@ func (q *Queries) ListComicPages(ctx context.Context, comicID uuid.UUID) ([]Comi
 }
 
 const listComicsByLibrary = `-- name: ListComicsByLibrary :many
-SELECT id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector, cover_placeholder, folder_path FROM comics
+SELECT id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector, cover_placeholder, folder_path, excluded_at FROM comics
 WHERE library_id = $1 AND deleted_at IS NULL
 ORDER BY title
 LIMIT $2 OFFSET $3
@@ -415,6 +417,7 @@ func (q *Queries) ListComicsByLibrary(ctx context.Context, arg ListComicsByLibra
 			&i.SearchVector,
 			&i.CoverPlaceholder,
 			&i.FolderPath,
+			&i.ExcludedAt,
 		); err != nil {
 			return nil, err
 		}
@@ -616,7 +619,9 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending')
 ON CONFLICT (library_id, object_key) DO UPDATE
 SET file_size  = EXCLUDED.file_size,
     file_etag  = EXCLUDED.file_etag,
-    deleted_at = NULL,
+    -- Un album retiré du catalogue à la demande le reste : le scan constate
+    -- une présence, il n'annule pas une décision.
+    deleted_at = CASE WHEN comics.excluded_at IS NOT NULL THEN comics.deleted_at ELSE NULL END,
     -- Un objet modifié doit être réindexé ; un objet inchangé garde son état.
     state = CASE
         WHEN comics.file_etag IS DISTINCT FROM EXCLUDED.file_etag
@@ -624,7 +629,7 @@ SET file_size  = EXCLUDED.file_size,
         THEN 'pending'::comic_state
         ELSE comics.state
     END
-RETURNING id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector, cover_placeholder, folder_path, (xmax = 0) AS inserted
+RETURNING id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector, cover_placeholder, folder_path, excluded_at, (xmax = 0) AS inserted
 `
 
 type UpsertComicParams struct {
@@ -668,6 +673,7 @@ type UpsertComicRow struct {
 	SearchVector     interface{}
 	CoverPlaceholder *string
 	FolderPath       string
+	ExcludedAt       pgtype.Timestamptz
 	Inserted         bool
 }
 
@@ -715,6 +721,7 @@ func (q *Queries) UpsertComic(ctx context.Context, arg UpsertComicParams) (Upser
 		&i.SearchVector,
 		&i.CoverPlaceholder,
 		&i.FolderPath,
+		&i.ExcludedAt,
 		&i.Inserted,
 	)
 	return i, err

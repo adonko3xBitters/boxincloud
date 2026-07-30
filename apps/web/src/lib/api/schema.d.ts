@@ -635,6 +635,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/comics/{comicId}/folder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Ranger un album dans un autre dossier
+         * @description Le dossier d'un album n'est pas une propriété du catalogue : il découle
+         *     de la clé de l'objet dans le backend. Le déplacer renomme donc l'objet,
+         *     par copie côté serveur quand le backend le permet — les octets ne
+         *     transitent jamais par boxincloud.
+         *
+         *     Une destination déjà occupée par un fichier du même nom est refusée
+         *     plutôt qu'écrasée.
+         */
+        put: operations["moveComic"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/comics/manage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Supprimer ou ranger une sélection
+         * @description Les identifiants sont filtrés sur ce que le compte peut voir avant toute
+         *     écriture : une sélection ne peut pas déborder sur une bibliothèque
+         *     inaccessible.
+         *
+         *     Les échecs individuels n'interrompent pas le lot — sur cinquante albums,
+         *     un objet manquant ne doit pas empêcher les quarante-neuf autres d'être
+         *     traités. Le nombre de réussites est retourné.
+         */
+        post: operations["manageComics"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/comics/{comicId}": {
         parameters: {
             query?: never;
@@ -650,7 +702,20 @@ export interface paths {
         get: operations["getComic"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Retirer un album
+         * @description Le fichier est CONSERVÉ par défaut. Retirer un album d'un catalogue se
+         *     rattrape ; effacer un fichier non.
+         *
+         *     Sans le fichier, la ligne est marquée comme exclue plutôt que détruite :
+         *     la progression de lecture, les favoris et les notes y sont rattachés, et
+         *     les effacer priverait d'historique quelqu'un qui remettrait le fichier
+         *     en place. Le parcours de bibliothèque respecte cette exclusion et ne
+         *     fait pas réapparaître l'album.
+         *
+         *     Avec le fichier, l'objet est supprimé du backend puis la ligne effacée.
+         */
+        delete: operations["deleteComic"];
         options?: never;
         head?: never;
         /**
@@ -2263,6 +2328,83 @@ export interface operations {
             422: components["responses"]["ValidationFailed"];
         };
     };
+    moveComic: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                comicId: components["parameters"]["ComicId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * @description Dossier de destination, relatif au préfixe de la
+                     *     bibliothèque. Vide pour la racine. Les remontées « .. » sont
+                     *     neutralisées.
+                     */
+                    folder: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Dossier réel après déplacement */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        folderPath: string;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    manageComics: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    action: "delete" | "move";
+                    ids: string[];
+                    /** @description Destination, pour l'action `move`. */
+                    folder?: string;
+                    /**
+                     * @description Pour l'action `delete` : supprimer aussi les fichiers du
+                     *     stockage. Faux par défaut.
+                     */
+                    deleteFile?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Nombre d'albums traités */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        affected: number;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
     getComic: {
         parameters: {
             query?: never;
@@ -2284,6 +2426,32 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    deleteComic: {
+        parameters: {
+            query?: {
+                /** @description Supprimer aussi le fichier du stockage. Irréversible. */
+                deleteFile?: boolean;
+            };
+            header?: never;
+            path: {
+                comicId: components["parameters"]["ComicId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Album retiré */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
         };
     };

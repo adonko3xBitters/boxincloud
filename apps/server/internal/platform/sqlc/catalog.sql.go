@@ -13,10 +13,10 @@ import (
 )
 
 const getComicDetail = `-- name: GetComicDetail :one
-SELECT comics.id, comics.library_id, comics.series_id, comics.object_key, comics.file_size, comics.file_etag, comics.content_hash, comics.format, comics.title, comics.number, comics.number_sort, comics.volume, comics.summary, comics.released_at, comics.age_rating, comics.language, comics.page_count, comics.cover_page, comics.state, comics.state_detail, comics.hydrated_at, comics.indexed_at, comics.metadata, comics.locked_fields, comics.created_at, comics.updated_at, comics.deleted_at, comics.search_vector, comics.cover_placeholder, comics.folder_path, COALESCE(series.name, '')::text AS series_name
+SELECT comics.id, comics.library_id, comics.series_id, comics.object_key, comics.file_size, comics.file_etag, comics.content_hash, comics.format, comics.title, comics.number, comics.number_sort, comics.volume, comics.summary, comics.released_at, comics.age_rating, comics.language, comics.page_count, comics.cover_page, comics.state, comics.state_detail, comics.hydrated_at, comics.indexed_at, comics.metadata, comics.locked_fields, comics.created_at, comics.updated_at, comics.deleted_at, comics.search_vector, comics.cover_placeholder, comics.folder_path, comics.excluded_at, COALESCE(series.name, '')::text AS series_name
 FROM comics
 LEFT JOIN series ON series.id = comics.series_id
-WHERE comics.id = $1 AND comics.deleted_at IS NULL
+WHERE comics.id = $1 AND comics.deleted_at IS NULL AND comics.excluded_at IS NULL
 `
 
 type GetComicDetailRow struct {
@@ -65,16 +65,18 @@ func (q *Queries) GetComicDetail(ctx context.Context, id uuid.UUID) (GetComicDet
 		&i.Comic.SearchVector,
 		&i.Comic.CoverPlaceholder,
 		&i.Comic.FolderPath,
+		&i.Comic.ExcludedAt,
 		&i.SeriesName,
 	)
 	return i, err
 }
 
 const listComicsBySeries = `-- name: ListComicsBySeries :many
-SELECT c.id, c.library_id, c.series_id, c.object_key, c.file_size, c.file_etag, c.content_hash, c.format, c.title, c.number, c.number_sort, c.volume, c.summary, c.released_at, c.age_rating, c.language, c.page_count, c.cover_page, c.state, c.state_detail, c.hydrated_at, c.indexed_at, c.metadata, c.locked_fields, c.created_at, c.updated_at, c.deleted_at, c.search_vector, c.cover_placeholder, c.folder_path, COALESCE(s.name, '')::text AS series_name
+SELECT c.id, c.library_id, c.series_id, c.object_key, c.file_size, c.file_etag, c.content_hash, c.format, c.title, c.number, c.number_sort, c.volume, c.summary, c.released_at, c.age_rating, c.language, c.page_count, c.cover_page, c.state, c.state_detail, c.hydrated_at, c.indexed_at, c.metadata, c.locked_fields, c.created_at, c.updated_at, c.deleted_at, c.search_vector, c.cover_placeholder, c.folder_path, c.excluded_at, COALESCE(s.name, '')::text AS series_name
 FROM comics c
 LEFT JOIN series s ON s.id = c.series_id
 WHERE c.series_id = $1 AND c.deleted_at IS NULL
+  AND c.excluded_at IS NULL
 ORDER BY c.number_sort NULLS LAST, c.title
 `
 
@@ -123,6 +125,7 @@ func (q *Queries) ListComicsBySeries(ctx context.Context, seriesID uuid.NullUUID
 			&i.Comic.SearchVector,
 			&i.Comic.CoverPlaceholder,
 			&i.Comic.FolderPath,
+			&i.Comic.ExcludedAt,
 			&i.SeriesName,
 		); err != nil {
 			return nil, err
@@ -137,13 +140,14 @@ func (q *Queries) ListComicsBySeries(ctx context.Context, seriesID uuid.NullUUID
 
 const listComicsPage = `-- name: ListComicsPage :many
 
-SELECT c.id, c.library_id, c.series_id, c.object_key, c.file_size, c.file_etag, c.content_hash, c.format, c.title, c.number, c.number_sort, c.volume, c.summary, c.released_at, c.age_rating, c.language, c.page_count, c.cover_page, c.state, c.state_detail, c.hydrated_at, c.indexed_at, c.metadata, c.locked_fields, c.created_at, c.updated_at, c.deleted_at, c.search_vector, c.cover_placeholder, c.folder_path, COALESCE(s.name, '')::text AS series_name
+SELECT c.id, c.library_id, c.series_id, c.object_key, c.file_size, c.file_etag, c.content_hash, c.format, c.title, c.number, c.number_sort, c.volume, c.summary, c.released_at, c.age_rating, c.language, c.page_count, c.cover_page, c.state, c.state_detail, c.hydrated_at, c.indexed_at, c.metadata, c.locked_fields, c.created_at, c.updated_at, c.deleted_at, c.search_vector, c.cover_placeholder, c.folder_path, c.excluded_at, COALESCE(s.name, '')::text AS series_name
 FROM comics c
 LEFT JOIN series s ON s.id = c.series_id
 LEFT JOIN reading_progress p
        ON p.comic_id = c.id AND p.user_id = $1
 WHERE c.library_id = ANY($2::uuid[])
   AND c.deleted_at IS NULL
+  AND c.excluded_at IS NULL
   AND ($3::uuid IS NULL OR c.series_id = $3::uuid)
   AND ($4::text = '' OR c.state::text = $4)
   -- Filtrage par dossier. Le préfixe permet d'inclure les sous-dossiers, ce
@@ -279,6 +283,7 @@ func (q *Queries) ListComicsPage(ctx context.Context, arg ListComicsPageParams) 
 			&i.Comic.SearchVector,
 			&i.Comic.CoverPlaceholder,
 			&i.Comic.FolderPath,
+			&i.Comic.ExcludedAt,
 			&i.SeriesName,
 		); err != nil {
 			return nil, err
@@ -292,11 +297,12 @@ func (q *Queries) ListComicsPage(ctx context.Context, arg ListComicsPageParams) 
 }
 
 const listNextInSeries = `-- name: ListNextInSeries :many
-SELECT DISTINCT ON (c.series_id) c.id, c.library_id, c.series_id, c.object_key, c.file_size, c.file_etag, c.content_hash, c.format, c.title, c.number, c.number_sort, c.volume, c.summary, c.released_at, c.age_rating, c.language, c.page_count, c.cover_page, c.state, c.state_detail, c.hydrated_at, c.indexed_at, c.metadata, c.locked_fields, c.created_at, c.updated_at, c.deleted_at, c.search_vector, c.cover_placeholder, c.folder_path, s.name AS series_name
+SELECT DISTINCT ON (c.series_id) c.id, c.library_id, c.series_id, c.object_key, c.file_size, c.file_etag, c.content_hash, c.format, c.title, c.number, c.number_sort, c.volume, c.summary, c.released_at, c.age_rating, c.language, c.page_count, c.cover_page, c.state, c.state_detail, c.hydrated_at, c.indexed_at, c.metadata, c.locked_fields, c.created_at, c.updated_at, c.deleted_at, c.search_vector, c.cover_placeholder, c.folder_path, c.excluded_at, s.name AS series_name
 FROM comics c
 JOIN series s ON s.id = c.series_id
 WHERE c.library_id = ANY($1::uuid[])
   AND c.deleted_at IS NULL
+  AND c.excluded_at IS NULL
   AND c.state = 'ready'
   -- Album non commencé…
   AND NOT EXISTS (
@@ -366,6 +372,7 @@ func (q *Queries) ListNextInSeries(ctx context.Context, arg ListNextInSeriesPara
 			&i.Comic.SearchVector,
 			&i.Comic.CoverPlaceholder,
 			&i.Comic.FolderPath,
+			&i.Comic.ExcludedAt,
 			&i.SeriesName,
 		); err != nil {
 			return nil, err
@@ -379,11 +386,12 @@ func (q *Queries) ListNextInSeries(ctx context.Context, arg ListNextInSeriesPara
 }
 
 const listRecentComics = `-- name: ListRecentComics :many
-SELECT c.id, c.library_id, c.series_id, c.object_key, c.file_size, c.file_etag, c.content_hash, c.format, c.title, c.number, c.number_sort, c.volume, c.summary, c.released_at, c.age_rating, c.language, c.page_count, c.cover_page, c.state, c.state_detail, c.hydrated_at, c.indexed_at, c.metadata, c.locked_fields, c.created_at, c.updated_at, c.deleted_at, c.search_vector, c.cover_placeholder, c.folder_path, COALESCE(s.name, '')::text AS series_name
+SELECT c.id, c.library_id, c.series_id, c.object_key, c.file_size, c.file_etag, c.content_hash, c.format, c.title, c.number, c.number_sort, c.volume, c.summary, c.released_at, c.age_rating, c.language, c.page_count, c.cover_page, c.state, c.state_detail, c.hydrated_at, c.indexed_at, c.metadata, c.locked_fields, c.created_at, c.updated_at, c.deleted_at, c.search_vector, c.cover_placeholder, c.folder_path, c.excluded_at, COALESCE(s.name, '')::text AS series_name
 FROM comics c
 LEFT JOIN series s ON s.id = c.series_id
 WHERE c.library_id = ANY($1::uuid[])
   AND c.deleted_at IS NULL
+  AND c.excluded_at IS NULL
   AND c.state = 'ready'
   AND ($2::smallint IS NULL
        OR c.age_rating IS NULL
@@ -444,6 +452,7 @@ func (q *Queries) ListRecentComics(ctx context.Context, arg ListRecentComicsPara
 			&i.Comic.SearchVector,
 			&i.Comic.CoverPlaceholder,
 			&i.Comic.FolderPath,
+			&i.Comic.ExcludedAt,
 			&i.SeriesName,
 		); err != nil {
 			return nil, err
@@ -507,7 +516,7 @@ func (q *Queries) ListSeriesPage(ctx context.Context, arg ListSeriesPageParams) 
 }
 
 const searchComics = `-- name: SearchComics :many
-SELECT c.id, c.library_id, c.series_id, c.object_key, c.file_size, c.file_etag, c.content_hash, c.format, c.title, c.number, c.number_sort, c.volume, c.summary, c.released_at, c.age_rating, c.language, c.page_count, c.cover_page, c.state, c.state_detail, c.hydrated_at, c.indexed_at, c.metadata, c.locked_fields, c.created_at, c.updated_at, c.deleted_at, c.search_vector, c.cover_placeholder, c.folder_path, COALESCE(s.name, '')::text AS series_name, (
+SELECT c.id, c.library_id, c.series_id, c.object_key, c.file_size, c.file_etag, c.content_hash, c.format, c.title, c.number, c.number_sort, c.volume, c.summary, c.released_at, c.age_rating, c.language, c.page_count, c.cover_page, c.state, c.state_detail, c.hydrated_at, c.indexed_at, c.metadata, c.locked_fields, c.created_at, c.updated_at, c.deleted_at, c.search_vector, c.cover_placeholder, c.folder_path, c.excluded_at, COALESCE(s.name, '')::text AS series_name, (
     ts_rank(c.search_vector, websearch_to_tsquery('simple', immutable_unaccent($1)))
     + word_similarity(immutable_unaccent($1), immutable_unaccent(c.title))
 )::real AS rank
@@ -515,6 +524,7 @@ FROM comics c
 LEFT JOIN series s ON s.id = c.series_id
 WHERE c.library_id = ANY($2::uuid[])
   AND c.deleted_at IS NULL
+  AND c.excluded_at IS NULL
   AND ($3::smallint IS NULL
        OR c.age_rating IS NULL
        OR c.age_rating <= $3::smallint)
@@ -598,6 +608,7 @@ func (q *Queries) SearchComics(ctx context.Context, arg SearchComicsParams) ([]S
 			&i.Comic.SearchVector,
 			&i.Comic.CoverPlaceholder,
 			&i.Comic.FolderPath,
+			&i.Comic.ExcludedAt,
 			&i.SeriesName,
 			&i.Rank,
 		); err != nil {

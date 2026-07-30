@@ -1114,7 +1114,135 @@ paths:
         "422":
           $ref: "#/components/responses/ValidationFailed"
 
+  /comics/{comicId}/folder:
+    put:
+      operationId: moveComic
+      summary: Ranger un album dans un autre dossier
+      description: |
+        Le dossier d'un album n'est pas une propriété du catalogue : il découle
+        de la clé de l'objet dans le backend. Le déplacer renomme donc l'objet,
+        par copie côté serveur quand le backend le permet — les octets ne
+        transitent jamais par boxincloud.
+
+        Une destination déjà occupée par un fichier du même nom est refusée
+        plutôt qu'écrasée.
+      tags: [catalog]
+      parameters:
+        - $ref: "#/components/parameters/ComicId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [folder]
+              properties:
+                folder:
+                  type: string
+                  description: |
+                    Dossier de destination, relatif au préfixe de la
+                    bibliothèque. Vide pour la racine. Les remontées « .. » sont
+                    neutralisées.
+      responses:
+        "200":
+          description: Dossier réel après déplacement
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [folderPath]
+                properties:
+                  folderPath: { type: string }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /comics/manage:
+    post:
+      operationId: manageComics
+      summary: Supprimer ou ranger une sélection
+      description: |
+        Les identifiants sont filtrés sur ce que le compte peut voir avant toute
+        écriture : une sélection ne peut pas déborder sur une bibliothèque
+        inaccessible.
+
+        Les échecs individuels n'interrompent pas le lot — sur cinquante albums,
+        un objet manquant ne doit pas empêcher les quarante-neuf autres d'être
+        traités. Le nombre de réussites est retourné.
+      tags: [catalog]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action, ids]
+              properties:
+                action:
+                  type: string
+                  enum: [delete, move]
+                ids:
+                  type: array
+                  maxItems: 1000
+                  items: { type: string, format: uuid }
+                folder:
+                  type: string
+                  description: Destination, pour l'action `move`.
+                deleteFile:
+                  type: boolean
+                  description: |
+                    Pour l'action `delete` : supprimer aussi les fichiers du
+                    stockage. Faux par défaut.
+      responses:
+        "200":
+          description: Nombre d'albums traités
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [affected]
+                properties:
+                  affected: { type: integer }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
   /comics/{comicId}:
+    delete:
+      operationId: deleteComic
+      summary: Retirer un album
+      description: |
+        Le fichier est CONSERVÉ par défaut. Retirer un album d'un catalogue se
+        rattrape ; effacer un fichier non.
+
+        Sans le fichier, la ligne est marquée comme exclue plutôt que détruite :
+        la progression de lecture, les favoris et les notes y sont rattachés, et
+        les effacer priverait d'historique quelqu'un qui remettrait le fichier
+        en place. Le parcours de bibliothèque respecte cette exclusion et ne
+        fait pas réapparaître l'album.
+
+        Avec le fichier, l'objet est supprimé du backend puis la ligne effacée.
+      tags: [catalog]
+      parameters:
+        - $ref: "#/components/parameters/ComicId"
+        - name: deleteFile
+          in: query
+          description: Supprimer aussi le fichier du stockage. Irréversible.
+          schema: { type: boolean }
+      responses:
+        "204":
+          description: Album retiré
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
     patch:
       operationId: editComic
       summary: Corriger les métadonnées

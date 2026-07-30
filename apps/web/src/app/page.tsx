@@ -154,6 +154,13 @@ function MainArea() {
   );
   const ids = useMemo(() => all.map((c) => c.id), [all]);
 
+  // Les boîtes de suppression et de rangement rappellent sur quoi elles portent :
+  // agir sur « 12 albums » sans savoir lesquels invite à l'erreur.
+  const titleOf = useMemo(() => {
+    const byId = new Map(all.map((comic) => [comic.id, comic.title]));
+    return (id: string) => byId.get(id) ?? id;
+  }, [all]);
+
   // Progression de tous les albums affichés, en une requête plutôt qu'une par
   // ligne — sans quoi une page de cent albums en déclencherait cent.
   const progress = useQuery({
@@ -181,7 +188,7 @@ function MainArea() {
         </span>
       </div>
 
-      <Toolbar visibleIds={ids} />
+      <Toolbar visibleIds={ids} titleOf={titleOf} />
 
       {/* Le carrousel est solidaire de la liste : il occupe le haut de la même
           zone, et la sélection circule entre les deux. Deux vues d'une même

@@ -23,6 +23,7 @@ LEFT JOIN reading_progress p
        ON p.comic_id = c.id AND p.user_id = @user_id
 WHERE c.library_id = ANY(@library_ids::uuid[])
   AND c.deleted_at IS NULL
+  AND c.excluded_at IS NULL
   AND (sqlc.narg('series_id')::uuid IS NULL OR c.series_id = sqlc.narg('series_id')::uuid)
   AND (@state::text = '' OR c.state::text = @state)
   -- Filtrage par dossier. Le préfixe permet d'inclure les sous-dossiers, ce
@@ -69,6 +70,7 @@ SELECT sqlc.embed(c), COALESCE(s.name, '')::text AS series_name
 FROM comics c
 LEFT JOIN series s ON s.id = c.series_id
 WHERE c.series_id = $1 AND c.deleted_at IS NULL
+  AND c.excluded_at IS NULL
 ORDER BY c.number_sort NULLS LAST, c.title;
 
 -- Recherche plein texte, avec repli sur la similarité trigramme.
@@ -96,6 +98,7 @@ FROM comics c
 LEFT JOIN series s ON s.id = c.series_id
 WHERE c.library_id = ANY(@library_ids::uuid[])
   AND c.deleted_at IS NULL
+  AND c.excluded_at IS NULL
   AND (sqlc.narg('max_age_rating')::smallint IS NULL
        OR c.age_rating IS NULL
        OR c.age_rating <= sqlc.narg('max_age_rating')::smallint)
@@ -115,7 +118,7 @@ LIMIT @page_size;
 SELECT sqlc.embed(comics), COALESCE(series.name, '')::text AS series_name
 FROM comics
 LEFT JOIN series ON series.id = comics.series_id
-WHERE comics.id = $1 AND comics.deleted_at IS NULL;
+WHERE comics.id = $1 AND comics.deleted_at IS NULL AND comics.excluded_at IS NULL;
 
 -- name: ListSeriesPage :many
 SELECT * FROM series
@@ -139,6 +142,7 @@ FROM comics c
 LEFT JOIN series s ON s.id = c.series_id
 WHERE c.library_id = ANY(@library_ids::uuid[])
   AND c.deleted_at IS NULL
+  AND c.excluded_at IS NULL
   AND c.state = 'ready'
   AND (sqlc.narg('max_age_rating')::smallint IS NULL
        OR c.age_rating IS NULL
@@ -154,6 +158,7 @@ FROM comics c
 JOIN series s ON s.id = c.series_id
 WHERE c.library_id = ANY(@library_ids::uuid[])
   AND c.deleted_at IS NULL
+  AND c.excluded_at IS NULL
   AND c.state = 'ready'
   -- Album non commencé…
   AND NOT EXISTS (

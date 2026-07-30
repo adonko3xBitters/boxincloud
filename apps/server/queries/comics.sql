@@ -8,7 +8,9 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, 'pending')
 ON CONFLICT (library_id, object_key) DO UPDATE
 SET file_size  = EXCLUDED.file_size,
     file_etag  = EXCLUDED.file_etag,
-    deleted_at = NULL,
+    -- Un album retiré du catalogue à la demande le reste : le scan constate
+    -- une présence, il n'annule pas une décision.
+    deleted_at = CASE WHEN comics.excluded_at IS NOT NULL THEN comics.deleted_at ELSE NULL END,
     -- Un objet modifié doit être réindexé ; un objet inchangé garde son état.
     state = CASE
         WHEN comics.file_etag IS DISTINCT FROM EXCLUDED.file_etag

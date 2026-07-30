@@ -55,10 +55,12 @@ type Scanner interface {
 	EnqueueScanLibrary(ctx context.Context, libraryID uuid.UUID) error
 }
 
-// Service reçoit les fichiers et les fait entrer au catalogue.
+// Service reçoit les fichiers, les fait entrer au catalogue, et les gère
+// ensuite : suppression, déplacement.
 type Service struct {
 	libraries *library.Service
 	repo      Repository
+	manage    ManageRepository
 	scanner   Scanner
 	log       *slog.Logger
 
@@ -69,11 +71,19 @@ type Service struct {
 func NewService(
 	libraries *library.Service,
 	repo Repository,
+	manage ManageRepository,
 	scanner Scanner,
 	maxSize int64,
 	log *slog.Logger,
 ) *Service {
-	return &Service{libraries: libraries, repo: repo, scanner: scanner, maxSize: maxSize, log: log}
+	return &Service{
+		libraries: libraries,
+		repo:      repo,
+		manage:    manage,
+		scanner:   scanner,
+		maxSize:   maxSize,
+		log:       log,
+	}
 }
 
 // UploadParams décrit un fichier à faire entrer.

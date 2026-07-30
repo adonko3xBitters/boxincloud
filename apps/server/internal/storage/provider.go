@@ -35,6 +35,7 @@ const (
 // jamais avoir à distinguer une 404 S3 d'un ENOENT.
 var (
 	ErrNotFound         = errors.New("storage : objet introuvable")
+	ErrAlreadyExists    = errors.New("storage : l'objet de destination existe déjà")
 	ErrNotSupported     = errors.New("storage : opération non supportée par ce backend")
 	ErrReadOnly         = errors.New("storage : backend en lecture seule")
 	ErrInvalidRange     = errors.New("storage : plage demandée invalide")
@@ -99,6 +100,18 @@ type Provider interface {
 
 	// Delete supprime un objet. Supprimer un objet absent n'est pas une erreur.
 	Delete(ctx context.Context, key string) error
+
+	// Move déplace un objet, sans faire transiter ses octets par le serveur.
+	//
+	// ★ La copie côté serveur est la raison d'être de cette méthode. Ranger une
+	// intégrale de cinq cents méga-octets dans un autre dossier ne doit pas
+	// coûter un aller-retour complet sur le réseau : S3 sait recopier un objet
+	// en interne, un système de fichiers sait renommer une entrée.
+	//
+	// Retourne ErrNotFound si la source n'existe pas, et ErrAlreadyExists si la
+	// destination est occupée — écraser silencieusement détruirait un album que
+	// personne n'a demandé à perdre.
+	Move(ctx context.Context, from, to string) error
 }
 
 // Presigner est implémenté par les backends sachant produire une URL d'accès

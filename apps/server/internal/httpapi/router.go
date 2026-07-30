@@ -199,6 +199,10 @@ func NewRouter(d Deps) http.Handler {
 			r.Post("/libraries", adminHandler.CreateLibrary)
 			r.Post("/libraries/{libraryID}/scan", adminHandler.Scan)
 
+			r.Delete("/comics/{comicID}", adminHandler.DeleteComic)
+			r.Put("/comics/{comicID}/folder", adminHandler.MoveComic)
+			r.Post("/comics/manage", adminHandler.BulkManage)
+
 			// ── Comptes ─────────────────────────────────────────────
 			accountsHandler := handlers.NewAccounts(d.Accounts)
 

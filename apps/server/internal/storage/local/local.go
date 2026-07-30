@@ -302,6 +302,56 @@ func (p *Provider) Delete(ctx context.Context, key string) error {
 	return nil // supprimer un objet absent n'est pas une erreur
 }
 
+/*
+Move renomme l'entrée.
+
+Un renommage est atomique et ne recopie aucun octet, quelle que soit la taille
+du fichier. Il échoue en revanche à travers deux systèmes de fichiers ; le cas
+ne se présente pas ici, la racine d'un backend local étant un seul arbre.
+*/
+func (p *Provider) Move(ctx context.Context, from, to string) error {
+	if p.readOnly {
+		return storage.ErrReadOnly
+	}
+	if from == to {
+		return nil
+	}
+
+	source, err := p.resolve(from)
+	if err != nil {
+		return err
+	}
+	target, err := p.resolve(to)
+	if err != nil {
+		return err
+	}
+
+	if _, err := os.Stat(source); err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return storage.ErrNotFound
+		}
+		return translateErr(err)
+	}
+
+	// os.Rename écrase la destination sans un mot. La vérification laisse une
+	// fenêtre de course, mais elle transforme le cas courant — deux albums de
+	// même nom — en refus explicite plutôt qu'en perte silencieuse.
+	if _, err := os.Stat(target); err == nil {
+		return storage.ErrAlreadyExists
+	} else if !errors.Is(err, fs.ErrNotExist) {
+		return translateErr(err)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(target), 0o750); err != nil {
+		return fmt.Errorf("storage/local : création du répertoire : %w", err)
+	}
+
+	if err := os.Rename(source, target); err != nil {
+		return translateErr(err)
+	}
+	return nil
+}
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 // sectionReadCloser ferme le fichier sous-jacent en même temps que la section.

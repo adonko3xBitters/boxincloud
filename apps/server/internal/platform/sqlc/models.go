@@ -416,6 +416,8 @@ type Comic struct {
 	CoverPlaceholder *string
 	// Dossier contenant l'album, relatif au préfixe de la bibliothèque. Vide à la racine.
 	FolderPath string
+	// Retiré du catalogue à la demande. Le scan ne le fait pas réapparaître.
+	ExcludedAt pgtype.Timestamptz
 }
 
 type ComicPage struct {

@@ -271,6 +271,56 @@ func (p *Provider) Delete(ctx context.Context, key string) error {
 	return nil
 }
 
+/*
+Move déplace un objet par copie côté serveur puis suppression.
+
+Les octets ne transitent jamais par nous : `CopyObject` demande au serveur
+d'objets de recopier en interne. Ranger une intégrale de cinq cents méga-octets
+dans un autre dossier coûte donc une requête, pas un téléchargement suivi d'un
+téléversement.
+
+La copie précède la suppression, et la suppression n'a lieu que si la copie a
+réussi : à aucun moment l'objet n'existe nulle part. L'échec laisse la source
+en place, ce qui est le seul état sûr.
+*/
+func (p *Provider) Move(ctx context.Context, from, to string) error {
+	if p.readOnly {
+		return storage.ErrReadOnly
+	}
+	if from == to {
+		return nil
+	}
+
+	if _, err := p.client.StatObject(ctx, p.bucket, from, minio.StatObjectOptions{}); err != nil {
+		return fmt.Errorf("storage/s3 : déplacement de %q : %w", from, translateErr(err))
+	}
+
+	// La destination est vérifiée explicitement : CopyObject écrase sans rien
+	// dire, et l'album écrasé serait perdu sans que personne ne l'ait demandé.
+	if _, err := p.client.StatObject(ctx, p.bucket, to, minio.StatObjectOptions{}); err == nil {
+		return fmt.Errorf("storage/s3 : déplacement vers %q : %w", to, storage.ErrAlreadyExists)
+	} else if !isNotFound(err) {
+		return fmt.Errorf("storage/s3 : déplacement vers %q : %w", to, translateErr(err))
+	}
+
+	_, err := p.client.CopyObject(ctx,
+		minio.CopyDestOptions{Bucket: p.bucket, Object: to},
+		minio.CopySrcOptions{Bucket: p.bucket, Object: from},
+	)
+	if err != nil {
+		return fmt.Errorf("storage/s3 : copie de %q vers %q : %w", from, to, translateErr(err))
+	}
+
+	if err := p.client.RemoveObject(ctx, p.bucket, from, minio.RemoveObjectOptions{}); err != nil {
+		// La copie est faite : l'objet existe aux deux endroits. Signaler plutôt
+		// que de tenter un retour arrière, qui risquerait de détruire la copie
+		// réussie sur une erreur transitoire.
+		return fmt.Errorf("storage/s3 : suppression de la source %q après copie : %w",
+			from, translateErr(err))
+	}
+	return nil
+}
+
 // PresignedURL produit une URL d'accès direct temporaire.
 //
 // Quand le backend le permet, le serveur y redirige le client au lieu de

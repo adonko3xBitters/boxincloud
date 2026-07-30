@@ -53,6 +53,14 @@ type contractHarness struct {
 	// loneComicID désigne un album sans série — le cas que toute jointure sur
 	// la table des séries doit supporter.
 	loneComicID uuid.UUID
+
+	// indexNow indexe un album en ligne.
+	//
+	// Les workers sont désactivés dans ce harnais : un album téléversé pendant
+	// un test reste donc à l'état « pending », et ses pages ne sont pas
+	// servies. Ce raccourci laisse un test vérifier ce qui suit l'indexation —
+	// qu'un album déplacé se lit toujours, par exemple.
+	indexNow func(ctx context.Context, comicID uuid.UUID) error
 }
 
 func newContractHarness(t *testing.T) *contractHarness {
@@ -111,6 +119,7 @@ func newContractHarness(t *testing.T) *contractHarness {
 	}
 
 	h := &contractHarness{router: router, router4Spec: specRouter, spec: spec}
+	h.indexNow = newDirectIndexer(core)
 	h.seed(t, core, minio)
 	return h
 }

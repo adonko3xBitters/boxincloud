@@ -128,7 +128,7 @@ SET title       = coalesce($1, title),
         ) AS f
     )
 WHERE id = $6
-RETURNING id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector, cover_placeholder, folder_path
+RETURNING id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector, cover_placeholder, folder_path, excluded_at
 `
 
 type EditComicParams struct {
@@ -187,8 +187,85 @@ func (q *Queries) EditComic(ctx context.Context, arg EditComicParams) (Comic, er
 		&i.SearchVector,
 		&i.CoverPlaceholder,
 		&i.FolderPath,
+		&i.ExcludedAt,
 	)
 	return i, err
+}
+
+const excludeComic = `-- name: ExcludeComic :exec
+
+UPDATE comics
+SET deleted_at  = coalesce(deleted_at, now()),
+    excluded_at = now()
+WHERE id = $1
+`
+
+// ─── Suppression et déplacement ──────────────────────────────────────────────
+// Retire l'album du catalogue sans effacer sa ligne.
+//
+// La progression de lecture, les favoris et les notes y sont rattachés : les
+// détruire priverait d'historique quelqu'un qui remettrait le fichier en place.
+func (q *Queries) ExcludeComic(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, excludeComic, id)
+	return err
+}
+
+const listExcludedComics = `-- name: ListExcludedComics :many
+SELECT id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector, cover_placeholder, folder_path, excluded_at FROM comics
+WHERE library_id = $1 AND excluded_at IS NOT NULL
+ORDER BY title
+`
+
+func (q *Queries) ListExcludedComics(ctx context.Context, libraryID uuid.UUID) ([]Comic, error) {
+	rows, err := q.db.Query(ctx, listExcludedComics, libraryID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []Comic{}
+	for rows.Next() {
+		var i Comic
+		if err := rows.Scan(
+			&i.ID,
+			&i.LibraryID,
+			&i.SeriesID,
+			&i.ObjectKey,
+			&i.FileSize,
+			&i.FileEtag,
+			&i.ContentHash,
+			&i.Format,
+			&i.Title,
+			&i.Number,
+			&i.NumberSort,
+			&i.Volume,
+			&i.Summary,
+			&i.ReleasedAt,
+			&i.AgeRating,
+			&i.Language,
+			&i.PageCount,
+			&i.CoverPage,
+			&i.State,
+			&i.StateDetail,
+			&i.HydratedAt,
+			&i.IndexedAt,
+			&i.Metadata,
+			&i.LockedFields,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+			&i.SearchVector,
+			&i.CoverPlaceholder,
+			&i.FolderPath,
+			&i.ExcludedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listFavoriteIDs = `-- name: ListFavoriteIDs :many
@@ -282,6 +359,45 @@ func (q *Queries) ListRatings(ctx context.Context, userID uuid.UUID) ([]ListRati
 		return nil, err
 	}
 	return items, nil
+}
+
+const moveComic = `-- name: MoveComic :exec
+UPDATE comics
+SET object_key  = $2,
+    folder_path = $3
+WHERE id = $1
+`
+
+type MoveComicParams struct {
+	ID         uuid.UUID
+	ObjectKey  string
+	FolderPath string
+}
+
+func (q *Queries) MoveComic(ctx context.Context, arg MoveComicParams) error {
+	_, err := q.db.Exec(ctx, moveComic, arg.ID, arg.ObjectKey, arg.FolderPath)
+	return err
+}
+
+const purgeComic = `-- name: PurgeComic :exec
+DELETE FROM comics WHERE id = $1
+`
+
+// Efface définitivement la ligne, une fois le fichier supprimé du backend.
+func (q *Queries) PurgeComic(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, purgeComic, id)
+	return err
+}
+
+const restoreComic = `-- name: RestoreComic :exec
+UPDATE comics
+SET deleted_at = NULL, excluded_at = NULL
+WHERE id = $1
+`
+
+func (q *Queries) RestoreComic(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, restoreComic, id)
+	return err
 }
 
 const setComicFolder = `-- name: SetComicFolder :exec

@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { cx } from "./ui";
+import { DeleteDialog, MoveDialog } from "./manage-dialogs";
 import * as api from "@/lib/api/endpoints";
 import { useWorkspace, type ReadStatus, type SortOrder, type ViewMode } from "@/lib/workspace";
 
@@ -16,7 +17,13 @@ import { useWorkspace, type ReadStatus, type SortOrder, type ViewMode } from "@/
  * visibles en permanence, désactivées tant que rien n'est sélectionné — les
  * masquer ferait douter de leur existence.
  */
-export function Toolbar({ visibleIds }: { visibleIds: string[] }) {
+export function Toolbar({
+  visibleIds,
+  titleOf,
+}: {
+  visibleIds: string[];
+  titleOf: (id: string) => string;
+}) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const {
@@ -28,8 +35,11 @@ export function Toolbar({ visibleIds }: { visibleIds: string[] }) {
   } = useWorkspace();
 
   const [busy, setBusy] = useState(false);
+  const [dialog, setDialog] = useState<"delete" | "move" | null>(null);
+
   const count = selection.length;
   const has = count > 0;
+  const titles = selection.map(titleOf);
 
   // Si toute la sélection est déjà en favori, le bouton retire au lieu d'ajouter.
   const allFavorite = has && selection.every((id) => favorites.has(id));
@@ -68,6 +78,20 @@ export function Toolbar({ visibleIds }: { visibleIds: string[] }) {
           onClick={() => void run(allFavorite ? "unfavorite" : "favorite")}
           icon={<HeartIcon filled={allFavorite} />}
           active={allFavorite}
+        />
+        <Divider />
+        <Tool
+          label="Ranger dans un dossier"
+          disabled={!has || busy}
+          onClick={() => setDialog("move")}
+          icon={<FolderMoveIcon />}
+        />
+        <Tool
+          label="Retirer de la bibliothèque"
+          disabled={!has || busy}
+          onClick={() => setDialog("delete")}
+          icon={<TrashIcon />}
+          destructive
         />
       </div>
 
@@ -137,6 +161,13 @@ export function Toolbar({ visibleIds }: { visibleIds: string[] }) {
           ))}
         </div>
       </div>
+
+      {dialog === "delete" && (
+        <DeleteDialog ids={selection} titles={titles} onClose={() => setDialog(null)} />
+      )}
+      {dialog === "move" && (
+        <MoveDialog ids={selection} titles={titles} onClose={() => setDialog(null)} />
+      )}
     </div>
   );
 }
@@ -155,12 +186,14 @@ function Tool({
   onClick,
   disabled,
   active,
+  destructive,
 }: {
   label: string;
   icon: React.ReactNode;
   onClick: () => void;
   disabled?: boolean;
   active?: boolean;
+  destructive?: boolean;
 }) {
   return (
     <button
@@ -172,7 +205,9 @@ function Tool({
         "pressable grid size-8 place-items-center rounded-md",
         "disabled:opacity-30 disabled:cursor-not-allowed",
         active ? "text-danger" : "text-muted",
-        !disabled && "hover:bg-surface-hover hover:text-fg",
+        // Le rouge n'apparaît qu'au survol : une barre d'outils constellée de
+        // rouge banalise la couleur, qui ne signale alors plus rien.
+        !disabled && (destructive ? "hover:bg-danger/10 hover:text-danger" : "hover:bg-surface-hover hover:text-fg"),
       )}
     >
       {icon}
@@ -255,6 +290,25 @@ function HeartIcon({ filled }: { filled?: boolean }) {
         strokeWidth="1.4"
         strokeLinejoin="round"
       />
+    </svg>
+  );
+}
+
+function FolderMoveIcon() {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" className="size-4" aria-hidden="true">
+      <path d="M2 4.5A1.5 1.5 0 0 1 3.5 3h2.2l1.3 1.5h5.5A1.5 1.5 0 0 1 14 6v5.5a1.5 1.5 0 0 1-1.5 1.5h-9A1.5 1.5 0 0 1 2 11.5v-7Z"
+            stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+      <path d="M6.5 8.5h4M9 7l1.5 1.5L9 10" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" className="size-4" aria-hidden="true">
+      <path d="M3 4.5h10M6.5 4.5V3h3v1.5M4.5 4.5l.5 8a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1l.5-8"
+            stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   );
 }

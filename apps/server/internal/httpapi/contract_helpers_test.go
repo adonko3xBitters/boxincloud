@@ -28,6 +28,18 @@ func newDirectRunner(core *app.Core) func(context.Context, uuid.UUID) (indexer.S
 	return runner.ScanAndIndex
 }
 
+// newDirectIndexer expose l'indexation d'un album au test de contrat.
+func newDirectIndexer(core *app.Core) func(context.Context, uuid.UUID) error {
+	runner := indexer.NewDirectRunner(indexer.Deps{
+		Libraries: core.Libraries,
+		Repo:      core.Indexer,
+		Cache:     core.Cache,
+		Imaging:   core.Imaging,
+		Log:       slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+	return runner.IndexComic
+}
+
 func listParams(libraryID uuid.UUID) sqlc.ListComicsByLibraryParams {
 	return sqlc.ListComicsByLibraryParams{LibraryID: libraryID, Limit: 10}
 }

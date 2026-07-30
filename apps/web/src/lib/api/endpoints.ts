@@ -352,3 +352,35 @@ export const grantLibraryAccess = (libraryId: string, userId: string, canWrite: 
 
 export const revokeLibraryAccess = (libraryId: string, userId: string) =>
   request<void>(`/libraries/${libraryId}/access/${userId}`, { method: "DELETE" });
+
+// ─── Suppression et déplacement ──────────────────────────────────────────────
+
+/**
+ * Retire un album.
+ *
+ * `deleteFile` est faux par défaut, et ce défaut compte : retirer un album d'un
+ * catalogue se rattrape, effacer un fichier non.
+ */
+export const deleteComic = (comicId: string, deleteFile = false) =>
+  request<void>(`/comics/${comicId}`, {
+    method: "DELETE",
+    query: deleteFile ? { deleteFile: true } : undefined,
+  });
+
+export const moveComic = (comicId: string, folder: string) =>
+  request<{ folderPath: string }>(`/comics/${comicId}/folder`, {
+    method: "PUT",
+    body: { folder },
+  });
+
+export type ManageAction = "delete" | "move";
+
+export const manageComics = (
+  action: ManageAction,
+  ids: string[],
+  options: { folder?: string; deleteFile?: boolean } = {},
+) =>
+  request<{ affected: number }>("/comics/manage", {
+    method: "POST",
+    body: { action, ids, ...options },
+  });

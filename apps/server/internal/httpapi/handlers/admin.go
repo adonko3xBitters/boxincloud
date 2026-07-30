@@ -404,6 +404,12 @@ func writeIngestError(w http.ResponseWriter, r *http.Request, err error) {
 		problem.Write(w, r, problem.Validation(map[string]string{
 			"file": "a file with this name already exists in the destination folder",
 		}))
+	case errors.Is(err, ingest.ErrComicNotFound):
+		problem.Write(w, r, problem.NotFound("comic not found"))
+	case errors.Is(err, ingest.ErrTooManyItems):
+		problem.Write(w, r, problem.Validation(map[string]string{
+			"ids": "at most 1000 items per request",
+		}))
 	case errors.Is(err, ingest.ErrTooLarge):
 		problem.Write(w, r, problem.Problem{
 			Status: http.StatusRequestEntityTooLarge,
@@ -421,4 +427,158 @@ func writeIngestError(w http.ResponseWriter, r *http.Request, err error) {
 
 func joinExtensions() string {
 	return strings.Join(ingest.SupportedExtensions(), ", ")
+}
+
+// ─── Suppression et déplacement ──────────────────────────────────────────────
+
+/*
+DeleteComic retire un album, avec ou sans son fichier.
+
+Le fichier est CONSERVÉ par défaut. Retirer un album d'un catalogue se rattrape ;
+effacer un fichier non. Le paramètre doit donc être demandé explicitement, et
+l'interface doit poser la question plutôt que de choisir à la place de
+l'utilisateur.
+*/
+func (h *Admin) DeleteComic(w http.ResponseWriter, r *http.Request) {
+	v, ok := viewerFrom(w, r)
+	if !ok {
+		return
+	}
+
+	comicID, err := uuid.Parse(chi.URLParam(r, "comicID"))
+	if err != nil {
+		problem.Write(w, r, problem.Validation(map[string]string{"comicId": "must be a UUID"}))
+		return
+	}
+
+	// La visibilité est vérifiée par le catalogue, qui porte déjà toute la
+	// règle : bibliothèque restreinte comme classification d'âge.
+	if _, err := h.catalog.GetComic(r.Context(), v, comicID); err != nil {
+		writeCatalogError(w, r, err)
+		return
+	}
+
+	deleteFile := r.URL.Query().Get("deleteFile") == "true"
+
+	if err := h.ingest.Delete(r.Context(), ingest.DeleteParams{
+		ComicID:    comicID,
+		DeleteFile: deleteFile,
+	}); err != nil {
+		writeIngestError(w, r, err)
+		return
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+type moveComicRequest struct {
+	Folder string `json:"folder"`
+}
+
+// MoveComic range un album dans un autre dossier.
+func (h *Admin) MoveComic(w http.ResponseWriter, r *http.Request) {
+	v, ok := viewerFrom(w, r)
+	if !ok {
+		return
+	}
+
+	comicID, err := uuid.Parse(chi.URLParam(r, "comicID"))
+	if err != nil {
+		problem.Write(w, r, problem.Validation(map[string]string{"comicId": "must be a UUID"}))
+		return
+	}
+
+	if _, err := h.catalog.GetComic(r.Context(), v, comicID); err != nil {
+		writeCatalogError(w, r, err)
+		return
+	}
+
+	var req moveComicRequest
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+
+	folder, err := h.ingest.Move(r.Context(), ingest.MoveParams{
+		ComicID: comicID,
+		Folder:  req.Folder,
+	})
+	if err != nil {
+		if errors.Is(err, ingest.ErrSameFolder) {
+			// Le résultat demandé est déjà atteint : ce n'est pas une erreur.
+			writeJSON(w, http.StatusOK, map[string]any{"folderPath": req.Folder})
+			return
+		}
+		writeIngestError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"folderPath": folder})
+}
+
+type bulkManageRequest struct {
+	Action     string   `json:"action"`
+	IDs        []string `json:"ids"`
+	Folder     string   `json:"folder"`
+	DeleteFile bool     `json:"deleteFile"`
+}
+
+/*
+BulkManage supprime ou déplace une sélection.
+
+Les identifiants sont filtrés sur ce que le compte peut voir AVANT toute
+écriture : une sélection ne doit pas pouvoir déborder sur une bibliothèque
+inaccessible, même si le client envoie des identifiants arbitraires.
+*/
+func (h *Admin) BulkManage(w http.ResponseWriter, r *http.Request) {
+	v, ok := viewerFrom(w, r)
+	if !ok {
+		return
+	}
+
+	var req bulkManageRequest
+	if !decodeJSONLarge(w, r, &req) {
+		return
+	}
+
+	if req.Action != "delete" && req.Action != "move" {
+		problem.Write(w, r, problem.Validation(map[string]string{
+			"action": "must be one of delete, move",
+		}))
+		return
+	}
+
+	ids := make([]uuid.UUID, 0, len(req.IDs))
+	for _, raw := range req.IDs {
+		id, err := uuid.Parse(raw)
+		if err != nil {
+			problem.Write(w, r, problem.Validation(map[string]string{
+				"ids": "all entries must be valid UUIDs",
+			}))
+			return
+		}
+		ids = append(ids, id)
+	}
+
+	allowed := make([]uuid.UUID, 0, len(ids))
+	for _, id := range ids {
+		if _, err := h.catalog.GetComic(r.Context(), v, id); err == nil {
+			allowed = append(allowed, id)
+		}
+	}
+
+	var (
+		affected int
+		err      error
+	)
+	if req.Action == "delete" {
+		affected, err = h.ingest.BulkDelete(r.Context(), allowed, req.DeleteFile)
+	} else {
+		affected, err = h.ingest.BulkMove(r.Context(), allowed, req.Folder)
+	}
+	if err != nil {
+		writeIngestError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{"affected": affected})
 }
