@@ -48,7 +48,7 @@ Les durées supposent un développeur principal à temps partiel soutenu. Elles 
 
 ---
 
-## M2 — API et lecture *(~2 semaines)*
+## M2 — API et lecture ✅ *(~2 semaines)*
 
 **But :** l'API complète de lecture, prouvée sans interface.
 
@@ -60,6 +60,21 @@ Les durées supposent un développeur principal à temps partiel soutenu. Elles 
 - OpenAPI complète, clients TS et Dart générés.
 
 **Sortie :** un parcours complet — connexion, navigation, lecture de 20 pages, progression sauvegardée — validé par des tests d'API. La documentation OpenAPI est publiable.
+
+**Atteint.** 24 endpoints, contrat OpenAPI complet, verrouillé par un test qui
+valide chaque réponse du serveur réel contre le contrat publié — 28 sous-tests,
+erreurs et réponses binaires comprises.
+
+Points notables : rotation des refresh tokens avec révocation de chaîne sur
+réutilisation détectée ; pagination par curseur ; recherche insensible aux
+accents et tolérante aux fautes de frappe ; résolution de conflit de
+progression « la page la plus avancée gagne », portée par le SQL ; ETag et
+requêtes conditionnelles sur les images.
+
+Écart assumé : le filtrage par classification d'âge est implémenté dans les
+requêtes mais le `Viewer` ne porte pas encore `MaxAgeRating` — le relire en base
+à chaque requête coûterait un aller-retour. Résolu par un cache utilisateur en
+M7, quand les profils restreints seront réellement exposés.
 
 ---
 
