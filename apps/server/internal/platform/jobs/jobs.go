@@ -59,12 +59,15 @@ func Migrate(ctx context.Context, pool *db.Pool, log *slog.Logger) error {
 
 // New construit le client de jobs et enregistre les workers.
 //
-// Les workers métier (indexation, vignettes) seront ajoutés ici au fil des
-// jalons. Register centralise l'enregistrement pour que le câblage reste
-// visible en un seul endroit.
-func New(pool *db.Pool, cfg config.Jobs, log *slog.Logger) (*Client, error) {
+// register reçoit le registre pour y déclarer les workers métier. Le câblage se
+// fait ainsi dans cmd/, et le paquet jobs ne dépend d'aucun module métier — un
+// worker d'indexation n'a pas à être connu de l'infrastructure qui l'exécute.
+func New(pool *db.Pool, cfg config.Jobs, log *slog.Logger, register func(*river.Workers)) (*Client, error) {
 	workers := river.NewWorkers()
-	Register(workers, log)
+	RegisterBuiltins(workers, log)
+	if register != nil {
+		register(workers)
+	}
 
 	riverCfg := &river.Config{
 		Logger:  log,
@@ -88,11 +91,10 @@ func New(pool *db.Pool, cfg config.Jobs, log *slog.Logger) (*Client, error) {
 	return &Client{river: rc, log: log}, nil
 }
 
-// Register enregistre l'ensemble des workers connus.
-func Register(workers *river.Workers, log *slog.Logger) {
+// RegisterBuiltins enregistre les workers d'infrastructure, indépendants du
+// métier.
+func RegisterBuiltins(workers *river.Workers, log *slog.Logger) {
 	river.AddWorker(workers, &PingWorker{log: log})
-	// M1 ajoutera ici : ScanLibraryWorker, IngestComicWorker,
-	// BuildPageIndexWorker, GenerateCoverWorker.
 }
 
 // Start démarre les workers. Sans effet si les jobs sont désactivés.

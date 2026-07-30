@@ -1,0 +1,470 @@
+// Package indexer découvre et indexe les archives d'une bibliothèque.
+//
+// Deux jobs enchaînés :
+//
+//	ScanLibrary  parcourt le backend, crée ou met à jour les comics, et enfile
+//	             un IndexComic pour chacun de ceux qui en ont besoin.
+//	IndexComic   lit l'index de l'archive, persiste comic_pages, extrait les
+//	             métadonnées et génère les vignettes de couverture.
+//
+// Les deux sont idempotents : rejouer un scan ne crée pas de doublon et ne
+// perd aucune saisie manuelle. C'est la condition pour qu'un scan interrompu
+// puisse simplement être relancé.
+package indexer
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io"
+	"log/slog"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/riverqueue/river"
+
+	"github.com/adonko3xBitters/boxincloud/server/internal/archive"
+	"github.com/adonko3xBitters/boxincloud/server/internal/cache"
+	"github.com/adonko3xBitters/boxincloud/server/internal/imaging"
+	"github.com/adonko3xBitters/boxincloud/server/internal/library"
+	"github.com/adonko3xBitters/boxincloud/server/internal/storage"
+)
+
+// Deps rassemble ce dont l'indexeur a besoin.
+type Deps struct {
+	Libraries *library.Service
+	Repo      Repository
+	Cache     *cache.Cache
+	Imaging   imaging.Processor
+	Log       *slog.Logger
+}
+
+// ─── ScanLibrary ─────────────────────────────────────────────────────────────
+
+// ScanLibraryArgs déclenche le parcours d'une bibliothèque.
+type ScanLibraryArgs struct {
+	LibraryID uuid.UUID `json:"library_id"`
+}
+
+func (ScanLibraryArgs) Kind() string { return "scan_library" }
+
+type ScanLibraryWorker struct {
+	river.WorkerDefaults[ScanLibraryArgs]
+	deps Deps
+}
+
+// Timeout généreux : parcourir un bucket de plusieurs dizaines de milliers
+// d'objets sur un backend distant prend du temps, et l'interrompre à mi-course
+// n'apporterait rien — le scan est reprenable, mais autant le laisser finir.
+func (w *ScanLibraryWorker) Timeout(*river.Job[ScanLibraryArgs]) time.Duration {
+	return 2 * time.Hour
+}
+
+func (w *ScanLibraryWorker) Work(ctx context.Context, job *river.Job[ScanLibraryArgs]) error {
+	_, err := w.scan(ctx, job.Args.LibraryID)
+	return err
+}
+
+// scan porte le corps du parcours et retourne son bilan.
+//
+// Séparé de Work pour que DirectRunner puisse récupérer les statistiques : le
+// contrat de River ne rend que l'erreur.
+func (w *ScanLibraryWorker) scan(ctx context.Context, libraryID uuid.UUID) (ScanStats, error) {
+	log := w.deps.Log.With(slog.String("library_id", libraryID.String()))
+
+	lib, err := w.deps.Libraries.GetLibrary(ctx, libraryID)
+	if err != nil {
+		return ScanStats{}, err
+	}
+
+	provider, err := w.deps.Libraries.ProviderForLibrary(ctx, lib)
+	if err != nil {
+		return ScanStats{}, err
+	}
+
+	run, err := w.deps.Repo.StartScanRun(ctx, lib.ID)
+	if err != nil {
+		return ScanStats{}, err
+	}
+
+	log.Info("scan démarré",
+		slog.String("bibliothèque", lib.Name),
+		slog.String("préfixe", lib.RootPrefix),
+	)
+
+	stats := ScanStats{}
+	seen := make([]string, 0, 256)
+	start := time.Now()
+
+	err = provider.List(ctx, lib.RootPrefix, func(obj storage.ObjectInfo) error {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+
+		// Un bucket contient couramment autre chose que des archives :
+		// couvertures exportées, notes, fichiers de configuration. Ce n'est pas
+		// une anomalie, on passe.
+		format, ok := detectComicFormat(obj.Key)
+		if !ok {
+			return nil
+		}
+		stats.ObjectsSeen++
+		seen = append(seen, obj.Key)
+
+		meta := ParseFilename(obj.Key)
+		title := meta.Title
+		if title == "" {
+			title = obj.Key
+		}
+
+		comic, inserted, err := w.deps.Repo.UpsertComic(ctx, UpsertComicParams{
+			LibraryID: lib.ID,
+			ObjectKey: obj.Key,
+			FileSize:  obj.Size,
+			FileETag:  obj.ETag,
+			Format:    string(format),
+			Title:     title,
+		})
+		if err != nil {
+			stats.Errors++
+			log.Warn("ingestion impossible", slog.String("key", obj.Key), slog.Any("err", err))
+			return nil // un objet fautif ne doit pas interrompre le scan
+		}
+
+		if inserted {
+			stats.Added++
+		} else if comic.NeedsIndexing {
+			stats.Updated++
+		}
+
+		// Seuls les comics nouveaux ou modifiés sont réindexés : un rescan
+		// d'une bibliothèque inchangée ne coûte qu'un listage.
+		if comic.NeedsIndexing {
+			if err := w.deps.Repo.EnqueueIndexComic(ctx, comic.ID); err != nil {
+				stats.Errors++
+				log.Warn("mise en file d'indexation impossible",
+					slog.String("comic_id", comic.ID.String()), slog.Any("err", err))
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		_ = w.deps.Repo.FinishScanRun(ctx, run.ID, "failed", stats, err.Error())
+		return stats, fmt.Errorf("parcours de la bibliothèque %q : %w", lib.Name, err)
+	}
+
+	// Les objets absents du parcours ont disparu du backend. On les marque
+	// plutôt que de les supprimer : un bucket momentanément démonté ne doit
+	// pas détruire la progression de lecture des utilisateurs.
+	removed, err := w.deps.Repo.MarkMissingDeleted(ctx, lib.ID, seen)
+	if err != nil {
+		log.Warn("marquage des objets disparus impossible", slog.Any("err", err))
+	}
+	stats.Removed = int(removed)
+
+	if err := w.deps.Repo.RefreshSeriesCounts(ctx, lib.ID); err != nil {
+		log.Warn("rafraîchissement des compteurs de séries impossible", slog.Any("err", err))
+	}
+	if err := w.deps.Repo.SetLibraryScanResult(ctx, lib.ID, "success"); err != nil {
+		log.Warn("enregistrement du résultat de scan impossible", slog.Any("err", err))
+	}
+	if err := w.deps.Repo.FinishScanRun(ctx, run.ID, "success", stats, ""); err != nil {
+		log.Warn("clôture du scan impossible", slog.Any("err", err))
+	}
+
+	log.Info("scan terminé",
+		slog.Int("objets", stats.ObjectsSeen),
+		slog.Int("ajoutés", stats.Added),
+		slog.Int("modifiés", stats.Updated),
+		slog.Int("disparus", stats.Removed),
+		slog.Int("erreurs", stats.Errors),
+		slog.Duration("durée", time.Since(start)),
+	)
+	return stats, nil
+}
+
+// ScanStats résume un scan.
+type ScanStats struct {
+	ObjectsSeen int
+	Added       int
+	Updated     int
+	Removed     int
+	Errors      int
+}
+
+// ─── IndexComic ──────────────────────────────────────────────────────────────
+
+// IndexComicArgs déclenche l'indexation d'une archive.
+type IndexComicArgs struct {
+	ComicID uuid.UUID `json:"comic_id"`
+}
+
+func (IndexComicArgs) Kind() string { return "index_comic" }
+
+type IndexComicWorker struct {
+	river.WorkerDefaults[IndexComicArgs]
+	deps Deps
+}
+
+func (w *IndexComicWorker) Timeout(*river.Job[IndexComicArgs]) time.Duration {
+	return 10 * time.Minute
+}
+
+func (w *IndexComicWorker) Work(ctx context.Context, job *river.Job[IndexComicArgs]) error {
+	log := w.deps.Log.With(slog.String("comic_id", job.Args.ComicID.String()))
+
+	comic, err := w.deps.Repo.GetComic(ctx, job.Args.ComicID)
+	if err != nil {
+		return err
+	}
+
+	lib, err := w.deps.Libraries.GetLibrary(ctx, comic.LibraryID)
+	if err != nil {
+		return err
+	}
+	provider, err := w.deps.Libraries.ProviderForLibrary(ctx, lib)
+	if err != nil {
+		return err
+	}
+
+	if err := w.deps.Repo.SetComicState(ctx, comic.ID, "indexing", ""); err != nil {
+		return err
+	}
+
+	fail := func(err error) error {
+		if setErr := w.deps.Repo.SetComicState(ctx, comic.ID, "error", err.Error()); setErr != nil {
+			log.Warn("enregistrement de l'état d'erreur impossible", slog.Any("err", setErr))
+		}
+		return err
+	}
+
+	format, err := archive.DetectFormat(comic.ObjectKey)
+	if err != nil {
+		return fail(err)
+	}
+
+	// M1 traite le CBZ, seul format à permettre l'accès aléatoire. Les autres
+	// relèvent de l'hydratation au premier accès, prévue pour un jalon
+	// ultérieur : on les marque explicitement plutôt que de les laisser
+	// silencieusement en attente.
+	if !format.SupportsRandomAccess() {
+		msg := fmt.Sprintf("le format %s demande une hydratation (non implémentée en M1)", format)
+		if err := w.deps.Repo.SetComicState(ctx, comic.ID, "error", msg); err != nil {
+			return err
+		}
+		log.Info("format différé", slog.String("format", string(format)), slog.String("key", comic.ObjectKey))
+		return nil
+	}
+
+	start := time.Now()
+
+	idx, err := archive.ReadZipIndex(ctx, provider, comic.ObjectKey, comic.FileSize)
+	if err != nil {
+		return fail(fmt.Errorf("indexation de %q : %w", comic.ObjectKey, err))
+	}
+
+	pages, err := w.buildPages(ctx, provider, comic.ObjectKey, idx)
+	if err != nil {
+		return fail(err)
+	}
+
+	if err := w.deps.Repo.ReplaceComicPages(ctx, comic.ID, pages); err != nil {
+		return fail(err)
+	}
+
+	if err := w.applyMetadata(ctx, provider, comic, lib, idx); err != nil {
+		// Des métadonnées manquantes ne rendent pas l'album illisible : on
+		// signale sans faire échouer l'indexation.
+		log.Warn("métadonnées non appliquées", slog.Any("err", err))
+	}
+
+	if err := w.generateCover(ctx, provider, comic, idx); err != nil {
+		log.Warn("couverture non générée", slog.Any("err", err))
+	}
+
+	if err := w.deps.Repo.SetComicIndexed(ctx, comic.ID, len(pages)); err != nil {
+		return err
+	}
+
+	log.Info("comic indexé",
+		slog.String("key", comic.ObjectKey),
+		slog.Int("pages", len(pages)),
+		slog.Duration("durée", time.Since(start)),
+	)
+	return nil
+}
+
+// buildPages convertit l'index de l'archive en lignes comic_pages, en lisant au
+// passage les dimensions de chaque page.
+//
+// Les dimensions permettent au client de réserver la mise en page avant
+// réception de l'image — donc aucun décalage visuel pendant la lecture. Elles
+// coûtent une lecture d'en-tête par page, soit quelques centaines d'octets :
+// image.DecodeConfig n'a pas besoin de l'image entière.
+func (w *IndexComicWorker) buildPages(ctx context.Context, provider storage.Provider, key string, idx *archive.Index) ([]Page, error) {
+	pages := make([]Page, 0, len(idx.Pages))
+
+	for i, entry := range idx.Pages {
+		page := Page{
+			Index:       i,
+			EntryName:   entry.Name,
+			DataOffset:  entry.DataOffset,
+			DataSize:    entry.DataSize,
+			Size:        entry.Size,
+			Compression: uint16ToInt16(uint16(entry.Compression)),
+		}
+
+		if info, err := w.inspectPage(ctx, provider, key, entry); err == nil {
+			page.Width = info.Width
+			page.Height = info.Height
+			page.IsDouble = info.IsDouble()
+		} else {
+			// Une page illisible ne doit pas empêcher d'indexer l'album : le
+			// lecteur s'adaptera, et l'utilisateur verra le problème sur cette
+			// page seulement.
+			w.deps.Log.Debug("dimensions illisibles",
+				slog.String("entry", entry.Name), slog.Any("err", err))
+		}
+
+		pages = append(pages, page)
+	}
+	return pages, nil
+}
+
+func (w *IndexComicWorker) inspectPage(ctx context.Context, provider storage.Provider, key string, entry archive.Entry) (imaging.Info, error) {
+	r, err := archive.OpenEntry(ctx, provider, key, entry)
+	if err != nil {
+		return imaging.Info{}, err
+	}
+	defer func() { _ = r.Close() }()
+
+	return w.deps.Imaging.Inspect(r)
+}
+
+// applyMetadata fusionne les métadonnées de ComicInfo.xml et du nom de fichier.
+//
+// Ordre de priorité : ComicInfo.xml prime sur le nom de fichier, et les champs
+// verrouillés (saisie manuelle) priment sur tout — cette dernière règle est
+// appliquée en SQL, pour qu'aucun chemin de code ne puisse la contourner.
+func (w *IndexComicWorker) applyMetadata(ctx context.Context, provider storage.Provider, comic Comic, lib library.Library, idx *archive.Index) error {
+	meta := ParseFilename(comic.ObjectKey)
+	var rawXML []byte
+
+	if idx.ComicInfo != nil {
+		r, err := archive.OpenEntry(ctx, provider, comic.ObjectKey, *idx.ComicInfo)
+		if err != nil {
+			return err
+		}
+		info, raw, err := ParseComicInfo(r)
+		_ = r.Close()
+
+		if err != nil {
+			w.deps.Log.Debug("ComicInfo.xml ignoré",
+				slog.String("key", comic.ObjectKey), slog.Any("err", err))
+		} else {
+			rawXML = raw
+			meta = mergeMetadata(info.ToMetadata(), meta)
+		}
+	}
+
+	var seriesID *uuid.UUID
+	if meta.Series != "" {
+		s, err := w.deps.Repo.UpsertSeries(ctx, lib.ID, meta.Series, SortName(meta.Series))
+		if err != nil {
+			return err
+		}
+		seriesID = &s
+	}
+
+	metadataJSON := []byte("{}")
+	if len(rawXML) > 0 {
+		// On conserve le XML brut : un jalon ultérieur pourra en exploiter des
+		// champs que le modèle actuel ignore, sans avoir à tout réindexer.
+		if b, err := json.Marshal(map[string]string{"comicinfo_xml": string(rawXML)}); err == nil {
+			metadataJSON = b
+		}
+	}
+
+	return w.deps.Repo.ApplyMetadata(ctx, comic.ID, meta, seriesID, metadataJSON)
+}
+
+// mergeMetadata complète les champs vides de primary avec ceux de fallback.
+func mergeMetadata(primary, fallback Metadata) Metadata {
+	if primary.Title == "" {
+		primary.Title = fallback.Title
+	}
+	if primary.Series == "" {
+		primary.Series = fallback.Series
+	}
+	if primary.Number == "" {
+		primary.Number = fallback.Number
+		primary.NumberSort = fallback.NumberSort
+	}
+	if primary.NumberSort == nil {
+		primary.NumberSort = fallback.NumberSort
+	}
+	if primary.Summary == "" {
+		primary.Summary = fallback.Summary
+	}
+	if primary.Language == "" {
+		primary.Language = fallback.Language
+	}
+	if primary.Volume == nil {
+		primary.Volume = fallback.Volume
+	}
+	if primary.AgeRating == nil {
+		primary.AgeRating = fallback.AgeRating
+	}
+	return primary
+}
+
+// generateCover produit les vignettes de couverture dans les trois tailles.
+func (w *IndexComicWorker) generateCover(ctx context.Context, provider storage.Provider, comic Comic, idx *archive.Index) error {
+	if len(idx.Pages) == 0 {
+		return archive.ErrNoPages
+	}
+
+	r, err := archive.OpenEntry(ctx, provider, comic.ObjectKey, idx.Pages[0])
+	if err != nil {
+		return err
+	}
+	defer func() { _ = r.Close() }()
+
+	// La page source est lue une seule fois puis réutilisée pour les trois
+	// tailles : une lecture distante au lieu de trois. La borne protège d'une
+	// entrée d'archive délibérément énorme — une planche réelle reste très en
+	// deçà de 64 Mio.
+	original, err := io.ReadAll(io.LimitReader(r, maxCoverBytes))
+	if err != nil {
+		return fmt.Errorf("lecture de la page de couverture : %w", err)
+	}
+
+	for _, width := range imaging.ThumbSizes {
+		var buf bytes.Buffer
+
+		if _, err := w.deps.Imaging.Transform(&buf, bytes.NewReader(original), imaging.Options{
+			Width:  width,
+			Format: imaging.FormatJPEG,
+		}); err != nil {
+			return fmt.Errorf("vignette %dpx : %w", width, err)
+		}
+
+		key := cache.CoverKey(comic.ID, width, imaging.FormatJPEG)
+		if err := w.deps.Cache.Put(ctx, key, comic.ID, buf.Bytes(), imaging.FormatJPEG.ContentType()); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// maxCoverBytes borne la lecture d'une page de couverture.
+const maxCoverBytes = 64 << 20
+
+// ─── Enregistrement des workers ──────────────────────────────────────────────
+
+// Register déclare les workers de l'indexeur auprès de River.
+func Register(workers *river.Workers, deps Deps) {
+	river.AddWorker(workers, &ScanLibraryWorker{deps: deps})
+	river.AddWorker(workers, &IndexComicWorker{deps: deps})
+}

@@ -21,7 +21,7 @@ Les durées supposent un développeur principal à temps partiel soutenu. Elles 
 
 ---
 
-## M1 — Stockage et indexation *(~2 semaines)*
+## M1 — Stockage et indexation ✅ *(~2 semaines)*
 
 **But :** le cœur cloud-native. C'est le jalon qui définit le projet — il vient avant toute interface.
 
@@ -34,6 +34,17 @@ Les durées supposent un développeur principal à temps partiel soutenu. Elles 
 - Tests d'intégration testcontainers contre un vrai MinIO.
 
 **Sortie :** `boxincloudctl scan` indexe un bucket de 500 CBZ ; les couvertures sont générées ; une page arbitraire s'extrait en une requête Range vérifiée. **Aucune UI encore.**
+
+**Atteint.** Mesures relevées sur MinIO, 5 albums et 274 pages :
+
+| Opération | Coût |
+|---|---|
+| Servir une page d'une archive de 2,2 Mo | **1 requête Range, 1,61 %** de l'archive |
+| Indexer un album de 62 pages | 65 requêtes, **0,42 %** de l'archive |
+| Scan complet, 5 albums / 274 pages | 1,57 s |
+| Rescan sans changement | 22 ms, aucun doublon |
+
+Écart assumé : le moteur d'imagerie est en Go pur (JPEG), libvips et la sortie WebP/AVIF sont reportés à M4. Le CBR est détecté et marqué explicitement — l'hydratation reste à implémenter.
 
 ---
 

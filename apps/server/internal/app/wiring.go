@@ -1,0 +1,153 @@
+package app
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"os"
+
+	"github.com/google/uuid"
+	"github.com/riverqueue/river"
+
+	"github.com/adonko3xBitters/boxincloud/server/internal/cache"
+	"github.com/adonko3xBitters/boxincloud/server/internal/config"
+	"github.com/adonko3xBitters/boxincloud/server/internal/imaging"
+	"github.com/adonko3xBitters/boxincloud/server/internal/indexer"
+	"github.com/adonko3xBitters/boxincloud/server/internal/library"
+	"github.com/adonko3xBitters/boxincloud/server/internal/platform/crypto"
+	"github.com/adonko3xBitters/boxincloud/server/internal/platform/db"
+	"github.com/adonko3xBitters/boxincloud/server/internal/platform/jobs"
+	"github.com/adonko3xBitters/boxincloud/server/internal/platform/sqlc"
+	"github.com/adonko3xBitters/boxincloud/server/internal/storage/local"
+)
+
+// Core rassemble les services métier.
+//
+// Construit une seule fois et partagé par le serveur et le CLI : les deux
+// binaires font exactement les mêmes choses, avec le même câblage.
+type Core struct {
+	Queries   *sqlc.Queries
+	Libraries *library.Service
+	Cache     *cache.Cache
+	Imaging   imaging.Processor
+	Indexer   indexer.Repository
+	Jobs      *jobs.Client
+}
+
+// BuildCore assemble les services métier au-dessus d'un pool PostgreSQL.
+func BuildCore(ctx context.Context, cfg *config.Config, pool *db.Pool, log *slog.Logger) (*Core, error) {
+	queries := sqlc.New(pool)
+
+	sealer, err := crypto.NewSealer(cfg.SecretKey)
+	if err != nil {
+		return nil, fmt.Errorf("clé de chiffrement inutilisable : %w", err)
+	}
+
+	libraries := library.NewService(library.NewPostgresRepository(queries), sealer, log)
+
+	// Le cache dérivé vit sur un provider local. Le placer sur un bucket dédié
+	// — pour le partager entre plusieurs instances — ne demandera que de
+	// changer ce provider.
+	//
+	// Le répertoire est créé au besoin : son contenu est entièrement
+	// reconstructible, il n'y a aucune raison d'exiger de l'administrateur
+	// qu'il le prépare.
+	if err := os.MkdirAll(cfg.Cache.Dir, 0o750); err != nil {
+		return nil, fmt.Errorf("création du répertoire de cache (%s) : %w", cfg.Cache.Dir, err)
+	}
+
+	cacheProvider, err := local.New(local.Options{Root: cfg.Cache.Dir})
+	if err != nil {
+		return nil, fmt.Errorf("répertoire de cache inutilisable (%s) : %w", cfg.Cache.Dir, err)
+	}
+
+	derived := cache.New(cacheProvider, &cacheStore{q: queries}, cfg.Cache.MaxSize, log)
+
+	// Dépendance circulaire assumée : le repository doit pouvoir enfiler des
+	// jobs, et le client de jobs doit connaître les workers qui utilisent ce
+	// repository. On la casse par une indirection, renseignée juste après.
+	enqueuer := &deferredEnqueuer{}
+	indexerRepo := indexer.NewPostgresRepository(queries, pool, enqueuer)
+
+	processor := imaging.NewPureGo()
+
+	jobClient, err := jobs.New(pool, cfg.Jobs, log, func(w *river.Workers) {
+		indexer.Register(w, indexer.Deps{
+			Libraries: libraries,
+			Repo:      indexerRepo,
+			Cache:     derived,
+			Imaging:   processor,
+			Log:       log,
+		})
+	})
+	if err != nil {
+		return nil, err
+	}
+	enqueuer.client = jobClient
+
+	return &Core{
+		Queries:   queries,
+		Libraries: libraries,
+		Cache:     derived,
+		Imaging:   processor,
+		Indexer:   indexerRepo,
+		Jobs:      jobClient,
+	}, nil
+}
+
+// ScanLibrary enfile un scan de bibliothèque.
+func (c *Core) ScanLibrary(ctx context.Context, libraryID uuid.UUID) error {
+	return c.Jobs.Insert(ctx, indexer.ScanLibraryArgs{LibraryID: libraryID})
+}
+
+// deferredEnqueuer permet de construire le repository avant le client de jobs.
+type deferredEnqueuer struct {
+	client *jobs.Client
+}
+
+func (d *deferredEnqueuer) EnqueueIndexComic(ctx context.Context, comicID uuid.UUID) error {
+	if d.client == nil {
+		return fmt.Errorf("jobs : client non initialisé")
+	}
+	return d.client.Insert(ctx, indexer.IndexComicArgs{ComicID: comicID})
+}
+
+// cacheStore adapte les requêtes générées à l'interface attendue par le cache.
+type cacheStore struct {
+	q *sqlc.Queries
+}
+
+var _ cache.Store = (*cacheStore)(nil)
+
+func (s *cacheStore) RecordEntry(ctx context.Context, key string, comicID uuid.UUID, size int64) error {
+	return s.q.RecordCacheEntry(ctx, sqlc.RecordCacheEntryParams{
+		Key:     key,
+		ComicID: uuid.NullUUID{UUID: comicID, Valid: comicID != uuid.Nil},
+		Size:    size,
+	})
+}
+
+func (s *cacheStore) TouchEntry(ctx context.Context, key string) error {
+	return s.q.TouchCacheEntry(ctx, key)
+}
+
+func (s *cacheStore) TotalSize(ctx context.Context) (int64, error) {
+	return s.q.TotalCacheSize(ctx)
+}
+
+func (s *cacheStore) ListForEviction(ctx context.Context, limit int32) ([]cache.Entry, error) {
+	rows, err := s.q.ListCacheEntriesForEviction(ctx, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]cache.Entry, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, cache.Entry{Key: row.Key, Size: row.Size})
+	}
+	return out, nil
+}
+
+func (s *cacheStore) DeleteEntry(ctx context.Context, key string) error {
+	return s.q.DeleteCacheEntry(ctx, key)
+}

@@ -5,11 +5,352 @@
 package sqlc
 
 import (
+	"database/sql/driver"
+	"fmt"
+
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
+
+type ComicFormat string
+
+const (
+	ComicFormatCbz  ComicFormat = "cbz"
+	ComicFormatCbr  ComicFormat = "cbr"
+	ComicFormatCb7  ComicFormat = "cb7"
+	ComicFormatPdf  ComicFormat = "pdf"
+	ComicFormatEpub ComicFormat = "epub"
+)
+
+func (e *ComicFormat) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ComicFormat(s)
+	case string:
+		*e = ComicFormat(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ComicFormat: %T", src)
+	}
+	return nil
+}
+
+type NullComicFormat struct {
+	ComicFormat ComicFormat
+	Valid       bool // Valid is true if ComicFormat is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullComicFormat) Scan(value interface{}) error {
+	if value == nil {
+		ns.ComicFormat, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ComicFormat.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullComicFormat) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ComicFormat), nil
+}
+
+type ComicState string
+
+const (
+	ComicStatePending   ComicState = "pending"
+	ComicStateIndexing  ComicState = "indexing"
+	ComicStateReady     ComicState = "ready"
+	ComicStateHydrating ComicState = "hydrating"
+	ComicStateError     ComicState = "error"
+)
+
+func (e *ComicState) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ComicState(s)
+	case string:
+		*e = ComicState(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ComicState: %T", src)
+	}
+	return nil
+}
+
+type NullComicState struct {
+	ComicState ComicState
+	Valid      bool // Valid is true if ComicState is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullComicState) Scan(value interface{}) error {
+	if value == nil {
+		ns.ComicState, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ComicState.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullComicState) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ComicState), nil
+}
+
+type LibraryKind string
+
+const (
+	LibraryKindComic LibraryKind = "comic"
+	LibraryKindManga LibraryKind = "manga"
+	LibraryKindBook  LibraryKind = "book"
+	LibraryKindMixed LibraryKind = "mixed"
+)
+
+func (e *LibraryKind) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = LibraryKind(s)
+	case string:
+		*e = LibraryKind(s)
+	default:
+		return fmt.Errorf("unsupported scan type for LibraryKind: %T", src)
+	}
+	return nil
+}
+
+type NullLibraryKind struct {
+	LibraryKind LibraryKind
+	Valid       bool // Valid is true if LibraryKind is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullLibraryKind) Scan(value interface{}) error {
+	if value == nil {
+		ns.LibraryKind, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.LibraryKind.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullLibraryKind) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.LibraryKind), nil
+}
+
+type StorageKind string
+
+const (
+	StorageKindS3     StorageKind = "s3"
+	StorageKindLocal  StorageKind = "local"
+	StorageKindWebdav StorageKind = "webdav"
+)
+
+func (e *StorageKind) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = StorageKind(s)
+	case string:
+		*e = StorageKind(s)
+	default:
+		return fmt.Errorf("unsupported scan type for StorageKind: %T", src)
+	}
+	return nil
+}
+
+type NullStorageKind struct {
+	StorageKind StorageKind
+	Valid       bool // Valid is true if StorageKind is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullStorageKind) Scan(value interface{}) error {
+	if value == nil {
+		ns.StorageKind, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.StorageKind.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullStorageKind) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.StorageKind), nil
+}
+
+type StorageStatus string
+
+const (
+	StorageStatusOk        StorageStatus = "ok"
+	StorageStatusDegraded  StorageStatus = "degraded"
+	StorageStatusError     StorageStatus = "error"
+	StorageStatusUnchecked StorageStatus = "unchecked"
+)
+
+func (e *StorageStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = StorageStatus(s)
+	case string:
+		*e = StorageStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for StorageStatus: %T", src)
+	}
+	return nil
+}
+
+type NullStorageStatus struct {
+	StorageStatus StorageStatus
+	Valid         bool // Valid is true if StorageStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullStorageStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.StorageStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.StorageStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullStorageStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.StorageStatus), nil
+}
+
+type CacheEntry struct {
+	Key       string
+	ComicID   uuid.NullUUID
+	Size      int64
+	LastHitAt pgtype.Timestamptz
+	Hits      int32
+	CreatedAt pgtype.Timestamptz
+}
+
+type Comic struct {
+	ID           uuid.UUID
+	LibraryID    uuid.UUID
+	SeriesID     uuid.NullUUID
+	ObjectKey    string
+	FileSize     int64
+	FileEtag     *string
+	ContentHash  []byte
+	Format       ComicFormat
+	Title        string
+	Number       *string
+	NumberSort   pgtype.Numeric
+	Volume       *int16
+	Summary      *string
+	ReleasedAt   pgtype.Date
+	AgeRating    *int16
+	Language     *string
+	PageCount    int32
+	CoverPage    int32
+	State        ComicState
+	StateDetail  *string
+	HydratedAt   pgtype.Timestamptz
+	IndexedAt    pgtype.Timestamptz
+	Metadata     []byte
+	LockedFields []string
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+	DeletedAt    pgtype.Timestamptz
+	SearchVector interface{}
+}
+
+type ComicPage struct {
+	ComicID     uuid.UUID
+	Index       int32
+	EntryName   string
+	DataOffset  *int64
+	DataSize    *int64
+	Size        *int64
+	Compression *int16
+	Width       *int32
+	Height      *int32
+	IsDouble    bool
+}
+
+type Library struct {
+	ID               uuid.UUID
+	StorageBackendID uuid.UUID
+	Name             string
+	Kind             LibraryKind
+	RootPrefix       string
+	ScanOptions      []byte
+	ScanCron         *string
+	LastScanAt       pgtype.Timestamptz
+	LastScanStatus   *string
+	ComicCount       int32
+	CreatedAt        pgtype.Timestamptz
+	UpdatedAt        pgtype.Timestamptz
+}
+
+type ScanRun struct {
+	ID          uuid.UUID
+	LibraryID   uuid.UUID
+	StartedAt   pgtype.Timestamptz
+	FinishedAt  pgtype.Timestamptz
+	Status      string
+	ObjectsSeen int32
+	Added       int32
+	Updated     int32
+	Removed     int32
+	Errors      int32
+	Cursor      *string
+	Detail      []byte
+}
+
+type Series struct {
+	ID           uuid.UUID
+	LibraryID    uuid.UUID
+	Name         string
+	SortName     string
+	Description  *string
+	Publisher    *string
+	Status       *string
+	AgeRating    *int16
+	YearStarted  *int16
+	CoverComicID uuid.NullUUID
+	ComicCount   int32
+	Metadata     []byte
+	LockedFields []string
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
+}
 
 type Setting struct {
 	Key       string
 	Value     []byte
 	UpdatedAt pgtype.Timestamptz
+}
+
+type StorageBackend struct {
+	ID           uuid.UUID
+	Name         string
+	Kind         StorageKind
+	Config       []byte
+	SecretsEnc   []byte
+	IsDefault    bool
+	ReadOnly     bool
+	Status       StorageStatus
+	StatusDetail *string
+	CheckedAt    pgtype.Timestamptz
+	CreatedAt    pgtype.Timestamptz
+	UpdatedAt    pgtype.Timestamptz
 }

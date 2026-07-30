@@ -6,16 +6,78 @@ package sqlc
 
 import (
 	"context"
+
+	"github.com/google/uuid"
 )
 
 type Querier interface {
+	// Applique les métadonnées issues de ComicInfo.xml ou du nom de fichier.
+	// Les champs présents dans locked_fields sont préservés : une saisie manuelle
+	// ne doit jamais être écrasée par un rescan.
+	ApplyComicMetadata(ctx context.Context, arg ApplyComicMetadataParams) error
+	// Un seul backend par défaut : on retire le drapeau aux autres avant de le
+	// poser, l'index unique partiel refuserait sinon la mise à jour.
+	ClearDefaultStorageBackend(ctx context.Context, id uuid.UUID) error
+	CountComicPages(ctx context.Context, comicID uuid.UUID) (int64, error)
+	CountComicsByLibrary(ctx context.Context, libraryID uuid.UUID) (int64, error)
+	CreateLibrary(ctx context.Context, arg CreateLibraryParams) (Library, error)
+	CreateStorageBackend(ctx context.Context, arg CreateStorageBackendParams) (StorageBackend, error)
+	DeleteCacheEntry(ctx context.Context, key string) error
+	DeleteComic(ctx context.Context, id uuid.UUID) error
+	// ─── Pages ───────────────────────────────────────────────────────────────────
+	DeleteComicPages(ctx context.Context, comicID uuid.UUID) error
+	DeleteLibrary(ctx context.Context, id uuid.UUID) error
 	DeleteSetting(ctx context.Context, key string) error
+	DeleteStorageBackend(ctx context.Context, id uuid.UUID) error
+	FinishScanRun(ctx context.Context, arg FinishScanRunParams) error
+	GetComic(ctx context.Context, id uuid.UUID) (Comic, error)
+	GetComicByObjectKey(ctx context.Context, arg GetComicByObjectKeyParams) (Comic, error)
+	// ★ La requête du chemin chaud : servir une page.
+	// Un seul aller-retour en base, puis un seul ReadRange sur le backend.
+	GetComicPage(ctx context.Context, arg GetComicPageParams) (ComicPage, error)
+	GetDefaultStorageBackend(ctx context.Context) (StorageBackend, error)
+	GetLibrary(ctx context.Context, id uuid.UUID) (Library, error)
+	GetLibraryByName(ctx context.Context, name string) (Library, error)
+	GetScanRun(ctx context.Context, id uuid.UUID) (ScanRun, error)
+	GetSeries(ctx context.Context, id uuid.UUID) (Series, error)
 	// Paramètres d'instance.
 	//
 	// Première requête du projet : elle valide la chaîne sqlc de bout en bout.
 	// Le schéma métier arrive avec M1.
 	GetSetting(ctx context.Context, key string) (Setting, error)
+	GetStorageBackend(ctx context.Context, id uuid.UUID) (StorageBackend, error)
+	GetStorageBackendByName(ctx context.Context, name string) (StorageBackend, error)
+	InsertComicPage(ctx context.Context, arg InsertComicPageParams) error
+	ListCacheEntriesForEviction(ctx context.Context, limit int32) ([]ListCacheEntriesForEvictionRow, error)
+	ListComicPages(ctx context.Context, comicID uuid.UUID) ([]ComicPage, error)
+	ListComicsByLibrary(ctx context.Context, arg ListComicsByLibraryParams) ([]Comic, error)
+	ListLibraries(ctx context.Context) ([]Library, error)
+	ListLibrariesWithBackend(ctx context.Context) ([]ListLibrariesWithBackendRow, error)
+	ListScanRuns(ctx context.Context, arg ListScanRunsParams) ([]ScanRun, error)
+	ListSeriesByLibrary(ctx context.Context, libraryID uuid.UUID) ([]Series, error)
 	ListSettings(ctx context.Context) ([]Setting, error)
+	ListStorageBackends(ctx context.Context) ([]StorageBackend, error)
+	// Marque comme supprimés les objets absents du dernier scan.
+	// On ne supprime pas la ligne : un backend momentanément injoignable ne doit
+	// pas détruire la progression de lecture des utilisateurs.
+	MarkMissingComicsDeleted(ctx context.Context, arg MarkMissingComicsDeletedParams) (int64, error)
+	// ─── Cache dérivé ────────────────────────────────────────────────────────────
+	RecordCacheEntry(ctx context.Context, arg RecordCacheEntryParams) error
+	RefreshSeriesCounts(ctx context.Context, libraryID uuid.UUID) error
+	SetComicIndexed(ctx context.Context, arg SetComicIndexedParams) error
+	SetComicState(ctx context.Context, arg SetComicStateParams) error
+	SetDefaultStorageBackend(ctx context.Context, id uuid.UUID) error
+	SetLibraryScanResult(ctx context.Context, arg SetLibraryScanResultParams) error
+	SetStorageBackendStatus(ctx context.Context, arg SetStorageBackendStatusParams) error
+	// ─── Scans ───────────────────────────────────────────────────────────────────
+	StartScanRun(ctx context.Context, arg StartScanRunParams) (ScanRun, error)
+	TotalCacheSize(ctx context.Context) (int64, error)
+	TouchCacheEntry(ctx context.Context, key string) error
+	// Ingestion idempotente : la clé naturelle (library_id, object_key) permet de
+	// rejouer un scan sans créer de doublon ni perdre les champs verrouillés.
+	UpsertComic(ctx context.Context, arg UpsertComicParams) (UpsertComicRow, error)
+	// ─── Séries ──────────────────────────────────────────────────────────────────
+	UpsertSeries(ctx context.Context, arg UpsertSeriesParams) (Series, error)
 	UpsertSetting(ctx context.Context, arg UpsertSettingParams) (Setting, error)
 }
 

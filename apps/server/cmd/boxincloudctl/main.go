@@ -1,8 +1,8 @@
 // Commande boxincloudctl : administration en ligne de commande.
 //
-// Utile pour les opérations qui n'ont pas leur place dans l'API — migrations
-// manuelles, diagnostic, tâches d'exploitation — et pour scripter une
-// installation.
+// Utile pour les opérations qui n'ont pas leur place dans l'API — diagnostic,
+// exploitation — et pour scripter une installation. En M1, c'est aussi
+// l'interface qui rend le pipeline démontrable avant qu'il existe une UI.
 package main
 
 import (
@@ -11,8 +11,8 @@ import (
 	"fmt"
 	"os"
 	"runtime"
-	"strings"
 
+	"github.com/adonko3xBitters/boxincloud/server/internal/app"
 	"github.com/adonko3xBitters/boxincloud/server/internal/config"
 	"github.com/adonko3xBitters/boxincloud/server/internal/platform/db"
 	"github.com/adonko3xBitters/boxincloud/server/internal/platform/jobs"
@@ -29,14 +29,37 @@ const usage = `boxincloudctl — administration de boxincloud
 Usage :
   boxincloudctl <commande> [arguments]
 
-Commandes :
-  migrate        Applique les migrations en attente (schéma applicatif + River)
-  ping-db        Vérifie la connexion à PostgreSQL
-  ping-job       Enfile un job de test et vérifie la file
-  version        Affiche la version du binaire
+Diagnostic
+  ping-db                       Vérifie la connexion à PostgreSQL
+  ping-job [message]            Enfile un job de test et vérifie la file
+  version                       Affiche la version du binaire
 
-Configuration : variables d'environnement, comme le serveur.
-Voir .env.example.
+Schéma
+  migrate                       Applique les migrations en attente
+
+Stockage
+  storage add <nom> <type> [clé=valeur ...]
+                                Enregistre un backend après l'avoir testé.
+                                Types : s3, local
+                                s3    : endpoint= bucket= access_key= secret_key=
+                                        [region=] [use_ssl=false] [path_style=true]
+                                local : root=
+  storage list                  Liste les backends enregistrés
+  storage test <nom>            Vérifie qu'un backend répond
+
+Bibliothèques
+  library add <nom> <backend> [préfixe]
+                                Crée une bibliothèque sur un backend
+  library list                  Liste les bibliothèques
+  scan <bibliothèque>           Enfile un scan (le serveur doit tourner)
+  scan-now <bibliothèque>       Scanne immédiatement, sans passer par la file
+
+Lecture
+  page <bibliothèque> <clé> <n> [fichier]
+                                Extrait la page n d'une archive et compte les
+                                requêtes Range effectuées
+
+Configuration : variables d'environnement, comme le serveur. Voir .env.example.
 `
 
 func main() {
@@ -52,9 +75,7 @@ func run(args []string) error {
 		return nil
 	}
 
-	cmd := args[0]
-
-	switch cmd {
+	switch args[0] {
 	case "version", "-v", "--version":
 		fmt.Printf("boxincloudctl %s (%s, %s)\n", version, commit, runtime.Version())
 		return nil
@@ -76,7 +97,19 @@ func run(args []string) error {
 	}
 	defer pool.Close()
 
-	switch cmd {
+	// Le CLI n'exécute pas de workers : il enfile, le serveur traite. Sauf
+	// scan-now, qui exécute en direct pour rendre le pipeline observable sans
+	// serveur.
+	cfg.Jobs.Enabled = false
+
+	core, err := app.BuildCore(ctx, cfg, pool, log)
+	if err != nil {
+		return err
+	}
+
+	cmd := &commands{core: core, pool: pool, cfg: cfg, log: log}
+
+	switch args[0] {
 	case "migrate":
 		if err := db.Migrate(ctx, pool, log); err != nil {
 			return err
@@ -91,26 +124,25 @@ func run(args []string) error {
 		return nil
 
 	case "ping-job":
-		message := "ping"
-		if len(args) > 1 {
-			message = strings.Join(args[1:], " ")
-		}
+		return cmd.pingJob(ctx, args[1:])
 
-		// Client sans queue : on enfile sans exécuter. C'est le serveur qui
-		// prendra le job, ce qui valide la chaîne complète.
-		client, err := jobs.New(pool, config.Jobs{Enabled: false}, log)
-		if err != nil {
-			return err
-		}
-		if err := client.Insert(ctx, jobs.PingArgs{Message: message}); err != nil {
-			return fmt.Errorf("insertion du job : %w", err)
-		}
-		fmt.Printf("Job 'ping' enfilé (%q).\n", message)
-		fmt.Println("Vérifiez les logs du serveur : il doit apparaître sous une seconde.")
-		return nil
+	case "storage":
+		return cmd.storage(ctx, args[1:])
+
+	case "library":
+		return cmd.library(ctx, args[1:])
+
+	case "scan":
+		return cmd.scan(ctx, args[1:])
+
+	case "scan-now":
+		return cmd.scanNow(ctx, args[1:])
+
+	case "page":
+		return cmd.page(ctx, args[1:])
 
 	default:
 		fmt.Print(usage)
-		return errors.New("commande inconnue : " + cmd)
+		return errors.New("commande inconnue : " + args[0])
 	}
 }

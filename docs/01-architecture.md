@@ -113,7 +113,7 @@ type Provider interface {
     Stat(ctx context.Context, key string) (ObjectInfo, error)
 
     // Lecture — ReadRange est le point chaud du produit
-    Read(ctx context.Context, key string) (io.ReadCloser, error)
+    Open(ctx context.Context, key string) (io.ReadCloser, error)
     ReadRange(ctx context.Context, key string, off, length int64) (io.ReadCloser, error)
 
     // Écriture (cache dérivé, imports)
@@ -181,11 +181,15 @@ Toute donnée dérivée (pages transcodées, vignettes, couvertures) va dans un 
 
 ## 6. Module `imaging`
 
-- **libvips** via `govips` : 4 à 8× plus rapide et bien plus économe en mémoire que `image/jpeg` sur des planches haute résolution.
-- Contrainte : cgo, donc build multi-étages avec `libvips-dev` et image finale `debian-slim` plutôt que `scratch`. Image finale visée : ~120 Mo.
-- Interface `imaging.Processor` avec une implémentation Go pur en repli, pour garder un build `CGO_ENABLED=0` possible (utile pour les architectures exotiques et le développement).
-- Formats de sortie : **AVIF** si le client l'annonce, **WebP** sinon, JPEG en dernier recours. Négociation par en-tête `Accept`.
+Interface `imaging.Processor`, avec deux implémentations prévues.
+
+**Implémenté (M1) — Go pur.** Décodage JPEG/PNG/GIF/BMP/TIFF/WebP, redimensionnement CatmullRom, sortie JPEG et PNG. Pas de cgo, donc build `CGO_ENABLED=0`, image Docker minimale et toutes les architectures supportées. Suffisant pour générer les vignettes de couverture et réduire une planche à la largeur demandée.
+
+**À venir — libvips via `govips`.** 4 à 8× plus rapide et bien plus économe en mémoire sur des planches haute résolution, et seul moyen de produire du **WebP** et de l'**AVIF**. Contrainte : cgo, donc build multi-étages avec `libvips-dev` et image finale `debian-slim` plutôt que `scratch` (~120 Mo). À introduire quand la négociation de format deviendra utile, c'est-à-dire avec le lecteur web en M4 — pas avant, l'enjeu de M1 étant l'accès aléatoire au stockage objet.
+
+- Formats de sortie visés à terme : **AVIF** si le client l'annonce, **WebP** sinon, JPEG en dernier recours. Négociation par en-tête `Accept`.
 - Vignettes en trois tailles : `sm` 160px, `md` 320px, `lg` 640px (largeur).
+- Les dimensions de chaque page sont lues via `image.DecodeConfig` — quelques centaines d'octets d'en-tête au lieu de l'image entière — et persistées dans `comic_pages`.
 
 ---
 

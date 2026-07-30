@@ -27,7 +27,7 @@ type App struct {
 	cfg  *config.Config
 	log  *slog.Logger
 	pool *db.Pool
-	jobs *jobs.Client
+	core *Core
 	http *http.Server
 }
 
@@ -53,7 +53,7 @@ func Build(ctx context.Context, cfg *config.Config, log *slog.Logger, build hand
 		}
 	}
 
-	jobClient, err := jobs.New(pool, cfg.Jobs, log)
+	core, err := BuildCore(ctx, cfg, pool, log)
 	if err != nil {
 		return closeOnError(err)
 	}
@@ -83,13 +83,13 @@ func Build(ctx context.Context, cfg *config.Config, log *slog.Logger, build hand
 		ErrorLog:          slog.NewLogLogger(log.Handler(), slog.LevelWarn),
 	}
 
-	return &App{cfg: cfg, log: log, pool: pool, jobs: jobClient, http: srv}, nil
+	return &App{cfg: cfg, log: log, pool: pool, core: core, http: srv}, nil
 }
 
 // Run démarre le serveur et bloque jusqu'à l'annulation du contexte, puis
 // procède à un arrêt propre.
 func (a *App) Run(ctx context.Context) error {
-	if err := a.jobs.Start(ctx); err != nil {
+	if err := a.core.Jobs.Start(ctx); err != nil {
 		return err
 	}
 
@@ -134,7 +134,7 @@ func (a *App) shutdown() error {
 
 	// Après le serveur HTTP : un job en cours peut avoir été déclenché par une
 	// requête qui vient tout juste de se terminer.
-	if err := a.jobs.Stop(ctx); err != nil {
+	if err := a.core.Jobs.Stop(ctx); err != nil {
 		errs = append(errs, fmt.Errorf("arrêt des workers : %w", err))
 	}
 
