@@ -71,7 +71,7 @@ func toTokensDTO(t auth.Tokens) tokensDTO {
 func (h *Auth) Status(w http.ResponseWriter, r *http.Request) {
 	needsSetup, err := h.svc.NeedsSetup(r.Context())
 	if err != nil {
-		problem.Write(w, r, problem.Internal())
+		writeInternal(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]bool{"needsSetup": needsSetup})
@@ -111,7 +111,7 @@ func (h *Auth) Setup(w http.ResponseWriter, r *http.Request) {
 		problem.Write(w, r, problem.Validation(map[string]string{"username": "already taken"}))
 		return
 	case err != nil:
-		problem.Write(w, r, problem.Internal())
+		writeInternal(w, r, err)
 		return
 	}
 
@@ -201,7 +201,7 @@ func (h *Auth) Logout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.svc.Logout(r.Context(), req.RefreshToken); err != nil {
-		problem.Write(w, r, problem.Internal())
+		writeInternal(w, r, err)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -217,7 +217,7 @@ func (h *Auth) LogoutAll(w http.ResponseWriter, r *http.Request) {
 
 	revoked, err := h.svc.LogoutAll(r.Context(), claims.UserID)
 	if err != nil {
-		problem.Write(w, r, problem.Internal())
+		writeInternal(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]int64{"revokedSessions": revoked})
@@ -257,7 +257,7 @@ func (h *Auth) ListDevices(w http.ResponseWriter, r *http.Request) {
 
 	devices, err := h.svc.ListDevices(r.Context(), claims.UserID)
 	if err != nil {
-		problem.Write(w, r, problem.Internal())
+		writeInternal(w, r, err)
 		return
 	}
 
@@ -285,7 +285,16 @@ func (h *Auth) ListDevices(w http.ResponseWriter, r *http.Request) {
 const maxRequestBody = 64 << 10
 
 func decodeJSON(w http.ResponseWriter, r *http.Request, dst any) bool {
-	dec := json.NewDecoder(io.LimitReader(r.Body, maxRequestBody))
+	return decodeJSONWithLimit(w, r, dst, maxRequestBody)
+}
+
+// decodeJSONWithLimit désérialise un corps JSON borné.
+//
+// DisallowUnknownFields est actif : un champ inconnu signale presque toujours
+// une faute de frappe côté client, et échouer bruyamment vaut mieux que
+// d'ignorer silencieusement une valeur que l'appelant croit avoir transmise.
+func decodeJSONWithLimit(w http.ResponseWriter, r *http.Request, dst any, limit int64) bool {
+	dec := json.NewDecoder(io.LimitReader(r.Body, limit))
 	dec.DisallowUnknownFields()
 
 	if err := dec.Decode(dst); err != nil {

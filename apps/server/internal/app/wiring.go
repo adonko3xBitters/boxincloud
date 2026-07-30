@@ -11,6 +11,7 @@ import (
 
 	"github.com/adonko3xBitters/boxincloud/server/internal/auth"
 	"github.com/adonko3xBitters/boxincloud/server/internal/cache"
+	"github.com/adonko3xBitters/boxincloud/server/internal/catalog"
 	"github.com/adonko3xBitters/boxincloud/server/internal/config"
 	"github.com/adonko3xBitters/boxincloud/server/internal/imaging"
 	"github.com/adonko3xBitters/boxincloud/server/internal/indexer"
@@ -19,6 +20,8 @@ import (
 	"github.com/adonko3xBitters/boxincloud/server/internal/platform/db"
 	"github.com/adonko3xBitters/boxincloud/server/internal/platform/jobs"
 	"github.com/adonko3xBitters/boxincloud/server/internal/platform/sqlc"
+	"github.com/adonko3xBitters/boxincloud/server/internal/progress"
+	"github.com/adonko3xBitters/boxincloud/server/internal/reader"
 	"github.com/adonko3xBitters/boxincloud/server/internal/storage/local"
 )
 
@@ -29,6 +32,9 @@ import (
 type Core struct {
 	Queries   *sqlc.Queries
 	Auth      *auth.Service
+	Catalog   *catalog.Service
+	Reader    *reader.Service
+	Progress  *progress.Service
 	Libraries *library.Service
 	Cache     *cache.Cache
 	Imaging   imaging.Processor
@@ -95,8 +101,12 @@ func BuildCore(ctx context.Context, cfg *config.Config, pool *db.Pool, log *slog
 	enqueuer.client = jobClient
 
 	return &Core{
-		Queries:   queries,
-		Auth:      authService,
+		Queries: queries,
+		Auth:    authService,
+		Catalog: catalog.NewService(catalog.NewPostgresRepository(queries)),
+		Reader: reader.NewService(
+			reader.NewPostgresRepository(queries), libraries, derived, processor, log),
+		Progress:  progress.NewService(progress.NewPostgresRepository(queries)),
 		Libraries: libraries,
 		Cache:     derived,
 		Imaging:   processor,

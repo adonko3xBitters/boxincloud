@@ -18,10 +18,13 @@ import (
 	"github.com/go-chi/cors"
 
 	"github.com/adonko3xBitters/boxincloud/server/internal/auth"
+	"github.com/adonko3xBitters/boxincloud/server/internal/catalog"
 	"github.com/adonko3xBitters/boxincloud/server/internal/config"
 	"github.com/adonko3xBitters/boxincloud/server/internal/httpapi/handlers"
 	"github.com/adonko3xBitters/boxincloud/server/internal/httpapi/middleware"
 	"github.com/adonko3xBitters/boxincloud/server/internal/httpapi/problem"
+	"github.com/adonko3xBitters/boxincloud/server/internal/progress"
+	"github.com/adonko3xBitters/boxincloud/server/internal/reader"
 )
 
 // Deps rassemble ce dont le routeur a besoin.
@@ -29,12 +32,15 @@ import (
 // Le câblage se fait dans cmd/ : le routeur ne construit rien lui-même, ce qui
 // le rend testable avec des doublures.
 type Deps struct {
-	Config *config.Config
-	Log    *slog.Logger
-	DB     handlers.Pinger
-	Build  handlers.BuildInfo
-	Auth   *auth.Service
-	WebFS  fs.FS // application web embarquée ; nil pour ne rien servir
+	Config   *config.Config
+	Log      *slog.Logger
+	DB       handlers.Pinger
+	Build    handlers.BuildInfo
+	Auth     *auth.Service
+	Catalog  *catalog.Service
+	Reader   *reader.Service
+	Progress *progress.Service
+	WebFS    fs.FS // application web embarquée ; nil pour ne rien servir
 }
 
 // NewRouter assemble le routeur complet.
@@ -99,7 +105,41 @@ func NewRouter(d Deps) http.Handler {
 			r.Get("/me/devices", authHandler.ListDevices)
 			r.Post("/me/logout-all", authHandler.LogoutAll)
 
-			// M2, suite : /libraries, /series, /comics, /progress, /sync
+			catalogHandler := handlers.NewCatalog(d.Catalog)
+			readerHandler := handlers.NewReader(d.Reader, d.Catalog)
+			progressHandler := handlers.NewProgress(d.Progress, d.Catalog)
+
+			r.Get("/home", catalogHandler.Home)
+			r.Get("/search", catalogHandler.Search)
+			r.Get("/libraries", catalogHandler.ListLibraries)
+
+			r.Get("/series", catalogHandler.ListSeries)
+			r.Get("/series/{seriesID}", catalogHandler.GetSeries)
+
+			r.Route("/comics", func(r chi.Router) {
+				r.Get("/", catalogHandler.ListComics)
+
+				r.Route("/{comicID}", func(r chi.Router) {
+					r.Get("/", catalogHandler.GetComic)
+
+					// Lecture. Le manifeste précède les pages : le client
+					// obtient toutes les dimensions avant la première image.
+					r.Get("/manifest", readerHandler.Manifest)
+					r.Get("/cover", readerHandler.Cover)
+					r.Get("/pages/{index}", readerHandler.Page)
+
+					r.Get("/progress", progressHandler.Get)
+					r.Put("/progress", progressHandler.Update)
+					r.Delete("/progress", progressHandler.Delete)
+				})
+			})
+
+			r.Get("/continue-reading", progressHandler.ContinueReading)
+
+			r.Route("/sync", func(r chi.Router) {
+				r.Get("/", progressHandler.SyncPull)
+				r.Post("/", progressHandler.SyncPush)
+			})
 		})
 	})
 

@@ -12,11 +12,17 @@
 -- les horloges des appareils divergent un peu.
 -- name: UpsertReadingProgress :one
 INSERT INTO reading_progress (
-    user_id, comic_id, page, page_count, status, device_id, started_at, updated_at
+    user_id, comic_id, page, page_count, status, device_id,
+    read_count, started_at, finished_at, updated_at
 )
 VALUES (
     $1, $2, $3, $4, $5, $6,
+    -- Un album marqué lu dès la première écriture compte pour une lecture.
+    -- Sans cela, seuls les albums passés par « en cours » seraient comptés, et
+    -- un import de progression depuis un autre lecteur donnerait zéro partout.
+    CASE WHEN $5::read_status = 'read' THEN 1 ELSE 0 END,
     CASE WHEN $3 > 0 THEN now() ELSE NULL END,
+    CASE WHEN $5::read_status = 'read' THEN now() ELSE NULL END,
     now()
 )
 ON CONFLICT (user_id, comic_id) DO UPDATE
