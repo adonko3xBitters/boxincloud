@@ -310,6 +310,118 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/accounts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Comptes du serveur */
+        get: operations["listAccounts"];
+        put?: never;
+        /** Ouvrir un compte */
+        post: operations["createAccount"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/accounts/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Désactiver un compte
+         * @description Suppression douce : la progression de lecture, les favoris et les notes
+         *     restent attachés à l'identifiant. Les effacer priverait d'historique un
+         *     compte rouvert plus tard, et fausserait les compteurs d'une bibliothèque
+         *     partagée.
+         *
+         *     Les sessions du compte sont révoquées : un compte désactivé ne doit pas
+         *     continuer de lire avec un jeton encore valide.
+         */
+        delete: operations["deleteAccount"];
+        options?: never;
+        head?: never;
+        /**
+         * Modifier un compte
+         * @description Profil, rôle, restriction et mot de passe en une requête : ce sont
+         *     quatre réglages d'une même fiche, et les séparer obligerait l'interface
+         *     à gérer quatre échecs partiels pour un seul formulaire.
+         *
+         *     Deux garde-fous refusent la requête : on ne se retire pas ses propres
+         *     droits d'administrateur, et on ne rétrograde pas le dernier
+         *     administrateur — l'instance deviendrait inadministrable, sans retour
+         *     possible depuis l'interface.
+         */
+        patch: operations["updateAccount"];
+        trace?: never;
+    };
+    "/accounts/{userId}/library-access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Bibliothèques explicitement ouvertes à un compte */
+        get: operations["listAccountAccess"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/libraries/{libraryId}/access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Comptes autorisés sur une bibliothèque */
+        get: operations["listLibraryAccess"];
+        put?: never;
+        /**
+         * Ouvrir une bibliothèque à un compte
+         * @description **Attention au modèle** : une bibliothèque SANS aucune autorisation
+         *     explicite est visible de tous. Le premier accès accordé la referme donc
+         *     pour tous les autres comptes.
+         */
+        post: operations["grantLibraryAccess"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/libraries/{libraryId}/access/{userId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Retirer l'accès d'un compte */
+        delete: operations["revokeLibraryAccess"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/storage-backends": {
         parameters: {
             query?: never;
@@ -840,6 +952,36 @@ export interface components {
             coverComicId?: string;
             coverPath?: string;
         };
+        Account: {
+            /** Format: uuid */
+            id: string;
+            username: string;
+            email?: string;
+            /** @enum {string} */
+            role: "admin" | "user";
+            displayName?: string;
+            /** @description Profil restreint — base du profil enfant. */
+            restricted: boolean;
+            /**
+             * @description Classification maximale autorisée. Ignorée si le profil n'est pas
+             *     restreint.
+             */
+            maxAgeRating?: number;
+            /** Format: date-time */
+            lastLoginAt?: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        LibraryGrant: {
+            /** Format: uuid */
+            libraryId: string;
+            /** Format: uuid */
+            userId: string;
+            canWrite: boolean;
+        };
+        LibraryGrants: {
+            grants: components["schemas"]["LibraryGrant"][];
+        };
         StorageBackend: {
             /** Format: uuid */
             id: string;
@@ -1053,6 +1195,7 @@ export interface components {
     };
     parameters: {
         ComicId: string;
+        UserIdPath: string;
         LibraryIdPath: string;
         /** @description Restreint à une bibliothèque. Omis, toutes les bibliothèques visibles. */
         LibraryId: string;
@@ -1555,6 +1698,244 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             422: components["responses"]["ValidationFailed"];
+        };
+    };
+    listAccounts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Comptes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        accounts: components["schemas"]["Account"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    username: string;
+                    email?: string;
+                    /**
+                     * @description Douze caractères minimum. La longueur est la seule règle :
+                     *     exiger majuscules et chiffres pousse surtout à des variantes
+                     *     prévisibles du même mot.
+                     */
+                    password: string;
+                    /**
+                     * @description Défaut : user.
+                     * @enum {string}
+                     */
+                    role?: "admin" | "user";
+                    displayName?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Compte créé */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Account"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    deleteAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: components["parameters"]["UserIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Compte désactivé */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    updateAccount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: components["parameters"]["UserIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    displayName?: string;
+                    email?: string;
+                    /** @enum {string} */
+                    role?: "admin" | "user";
+                    /**
+                     * @description Profil restreint. La classification maximale n'est prise en
+                     *     compte que sur un profil restreint.
+                     */
+                    restricted?: boolean;
+                    maxAgeRating?: number;
+                    password?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Compte modifié */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Account"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    listAccountAccess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                userId: components["parameters"]["UserIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryGrants"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    listLibraryAccess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                libraryId: components["parameters"]["LibraryIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accès */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryGrants"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    grantLibraryAccess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                libraryId: components["parameters"]["LibraryIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    userId: string;
+                    /** @description Autorise le dépôt et la modification. */
+                    canWrite?: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Accès accordé */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LibraryGrant"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    revokeLibraryAccess: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                libraryId: components["parameters"]["LibraryIdPath"];
+                userId: components["parameters"]["UserIdPath"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Accès retiré */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
         };
     };
     listStorageBackends: {

@@ -18,6 +18,7 @@ import (
 	chimw "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 
+	"github.com/adonko3xBitters/boxincloud/server/internal/accounts"
 	"github.com/adonko3xBitters/boxincloud/server/internal/auth"
 	"github.com/adonko3xBitters/boxincloud/server/internal/catalog"
 	"github.com/adonko3xBitters/boxincloud/server/internal/config"
@@ -40,6 +41,7 @@ type Deps struct {
 	DB        handlers.Pinger
 	Build     handlers.BuildInfo
 	Auth      *auth.Service
+	Accounts  *accounts.Service
 	Catalog   *catalog.Service
 	Libraries *library.Service
 	Ingest    *ingest.Service
@@ -73,6 +75,7 @@ func NewRouter(d Deps) http.Handler {
 		"Log":       d.Log != nil,
 		"DB":        d.DB != nil,
 		"Auth":      d.Auth != nil,
+		"Accounts":  d.Accounts != nil,
 		"Catalog":   d.Catalog != nil,
 		"Libraries": d.Libraries != nil,
 		"Ingest":    d.Ingest != nil,
@@ -195,6 +198,21 @@ func NewRouter(d Deps) http.Handler {
 
 			r.Post("/libraries", adminHandler.CreateLibrary)
 			r.Post("/libraries/{libraryID}/scan", adminHandler.Scan)
+
+			// ── Comptes ─────────────────────────────────────────────
+			accountsHandler := handlers.NewAccounts(d.Accounts)
+
+			r.Route("/accounts", func(r chi.Router) {
+				r.Get("/", accountsHandler.List)
+				r.Post("/", accountsHandler.Create)
+				r.Patch("/{userID}", accountsHandler.Update)
+				r.Delete("/{userID}", accountsHandler.Delete)
+				r.Get("/{userID}/library-access", accountsHandler.ListGrants)
+			})
+
+			r.Get("/libraries/{libraryID}/access", accountsHandler.ListLibraryGrants)
+			r.Post("/libraries/{libraryID}/access", accountsHandler.Grant)
+			r.Delete("/libraries/{libraryID}/access/{userID}", accountsHandler.Revoke)
 		})
 
 		// ── Téléversement ───────────────────────────────────────────────

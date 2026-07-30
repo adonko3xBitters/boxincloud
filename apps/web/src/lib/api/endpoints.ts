@@ -292,3 +292,63 @@ function readError(xhr: XMLHttpRequest): ApiError {
     return new ApiError(xhr.status, null, "envoi refusé");
   }
 }
+
+// ─── Comptes ─────────────────────────────────────────────────────────────────
+
+export type Account = {
+  id: string;
+  username: string;
+  email?: string;
+  role: "admin" | "user";
+  displayName?: string;
+  restricted: boolean;
+  maxAgeRating?: number;
+  lastLoginAt?: string;
+  createdAt: string;
+};
+
+export type LibraryGrant = {
+  libraryId: string;
+  userId: string;
+  canWrite: boolean;
+};
+
+export const listAccounts = () => request<{ accounts: Account[] }>("/accounts");
+
+export const createAccount = (input: {
+  username: string;
+  password: string;
+  email?: string;
+  role?: "admin" | "user";
+  displayName?: string;
+}) => request<Account>("/accounts", { method: "POST", body: input });
+
+export const updateAccount = (
+  userId: string,
+  input: {
+    displayName?: string;
+    email?: string;
+    role?: "admin" | "user";
+    restricted?: boolean;
+    maxAgeRating?: number;
+    password?: string;
+  },
+) => request<Account>(`/accounts/${userId}`, { method: "PATCH", body: input });
+
+export const deleteAccount = (userId: string) =>
+  request<void>(`/accounts/${userId}`, { method: "DELETE" });
+
+export const listAccountAccess = (userId: string) =>
+  request<{ grants: LibraryGrant[] }>(`/accounts/${userId}/library-access`);
+
+export const listLibraryAccess = (libraryId: string) =>
+  request<{ grants: LibraryGrant[] }>(`/libraries/${libraryId}/access`);
+
+export const grantLibraryAccess = (libraryId: string, userId: string, canWrite: boolean) =>
+  request<LibraryGrant>(`/libraries/${libraryId}/access`, {
+    method: "POST",
+    body: { userId, canWrite },
+  });
+
+export const revokeLibraryAccess = (libraryId: string, userId: string) =>
+  request<void>(`/libraries/${libraryId}/access/${userId}`, { method: "DELETE" });

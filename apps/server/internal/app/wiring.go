@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/riverqueue/river"
 
+	"github.com/adonko3xBitters/boxincloud/server/internal/accounts"
 	"github.com/adonko3xBitters/boxincloud/server/internal/auth"
 	"github.com/adonko3xBitters/boxincloud/server/internal/cache"
 	"github.com/adonko3xBitters/boxincloud/server/internal/catalog"
@@ -33,6 +34,7 @@ import (
 type Core struct {
 	Queries   *sqlc.Queries
 	Auth      *auth.Service
+	Accounts  *accounts.Service
 	Catalog   *catalog.Service
 	Tools     *catalog.Tools
 	Reader    *reader.Service
@@ -105,10 +107,11 @@ func BuildCore(ctx context.Context, cfg *config.Config, pool *db.Pool, log *slog
 	enqueuer.client = jobClient
 
 	return &Core{
-		Queries: queries,
-		Auth:    authService,
-		Catalog: catalogService,
-		Tools:   catalog.NewTools(catalog.NewPostgresTools(queries), catalogService),
+		Queries:  queries,
+		Auth:     authService,
+		Accounts: accounts.NewService(accounts.NewPostgresRepository(queries), authService, log),
+		Catalog:  catalogService,
+		Tools:    catalog.NewTools(catalog.NewPostgresTools(queries), catalogService),
 		Reader: reader.NewService(
 			reader.NewPostgresRepository(queries), libraries, derived, processor, log),
 		Progress:  progress.NewService(progress.NewPostgresRepository(queries)),

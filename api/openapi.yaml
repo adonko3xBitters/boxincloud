@@ -535,6 +535,230 @@ paths:
         "422":
           $ref: "#/components/responses/ValidationFailed"
 
+  /accounts:
+    get:
+      operationId: listAccounts
+      summary: Comptes du serveur
+      tags: [accounts]
+      responses:
+        "200":
+          description: Comptes
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [accounts]
+                properties:
+                  accounts:
+                    type: array
+                    items: { $ref: "#/components/schemas/Account" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+    post:
+      operationId: createAccount
+      summary: Ouvrir un compte
+      tags: [accounts]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, password]
+              properties:
+                username: { type: string }
+                email: { type: string }
+                password:
+                  type: string
+                  minLength: 12
+                  description: |
+                    Douze caractères minimum. La longueur est la seule règle :
+                    exiger majuscules et chiffres pousse surtout à des variantes
+                    prévisibles du même mot.
+                role:
+                  type: string
+                  enum: [admin, user]
+                  description: "Défaut : user."
+                displayName: { type: string }
+      responses:
+        "201":
+          description: Compte créé
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Account" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /accounts/{userId}:
+    patch:
+      operationId: updateAccount
+      summary: Modifier un compte
+      description: |
+        Profil, rôle, restriction et mot de passe en une requête : ce sont
+        quatre réglages d'une même fiche, et les séparer obligerait l'interface
+        à gérer quatre échecs partiels pour un seul formulaire.
+
+        Deux garde-fous refusent la requête : on ne se retire pas ses propres
+        droits d'administrateur, et on ne rétrograde pas le dernier
+        administrateur — l'instance deviendrait inadministrable, sans retour
+        possible depuis l'interface.
+      tags: [accounts]
+      parameters:
+        - $ref: "#/components/parameters/UserIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                displayName: { type: string }
+                email: { type: string }
+                role: { type: string, enum: [admin, user] }
+                restricted:
+                  type: boolean
+                  description: |
+                    Profil restreint. La classification maximale n'est prise en
+                    compte que sur un profil restreint.
+                maxAgeRating: { type: integer }
+                password: { type: string, minLength: 12 }
+      responses:
+        "200":
+          description: Compte modifié
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Account" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+    delete:
+      operationId: deleteAccount
+      summary: Désactiver un compte
+      description: |
+        Suppression douce : la progression de lecture, les favoris et les notes
+        restent attachés à l'identifiant. Les effacer priverait d'historique un
+        compte rouvert plus tard, et fausserait les compteurs d'une bibliothèque
+        partagée.
+
+        Les sessions du compte sont révoquées : un compte désactivé ne doit pas
+        continuer de lire avec un jeton encore valide.
+      tags: [accounts]
+      parameters:
+        - $ref: "#/components/parameters/UserIdPath"
+      responses:
+        "204":
+          description: Compte désactivé
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /accounts/{userId}/library-access:
+    get:
+      operationId: listAccountAccess
+      summary: Bibliothèques explicitement ouvertes à un compte
+      tags: [accounts]
+      parameters:
+        - $ref: "#/components/parameters/UserIdPath"
+      responses:
+        "200":
+          description: Accès
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LibraryGrants" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /libraries/{libraryId}/access:
+    get:
+      operationId: listLibraryAccess
+      summary: Comptes autorisés sur une bibliothèque
+      tags: [accounts]
+      parameters:
+        - $ref: "#/components/parameters/LibraryIdPath"
+      responses:
+        "200":
+          description: Accès
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LibraryGrants" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+    post:
+      operationId: grantLibraryAccess
+      summary: Ouvrir une bibliothèque à un compte
+      description: |
+        **Attention au modèle** : une bibliothèque SANS aucune autorisation
+        explicite est visible de tous. Le premier accès accordé la referme donc
+        pour tous les autres comptes.
+      tags: [accounts]
+      parameters:
+        - $ref: "#/components/parameters/LibraryIdPath"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId]
+              properties:
+                userId: { type: string, format: uuid }
+                canWrite:
+                  type: boolean
+                  description: Autorise le dépôt et la modification.
+      responses:
+        "200":
+          description: Accès accordé
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/LibraryGrant" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /libraries/{libraryId}/access/{userId}:
+    delete:
+      operationId: revokeLibraryAccess
+      summary: Retirer l'accès d'un compte
+      tags: [accounts]
+      parameters:
+        - $ref: "#/components/parameters/LibraryIdPath"
+        - $ref: "#/components/parameters/UserIdPath"
+      responses:
+        "204":
+          description: Accès retiré
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
   /storage-backends:
     get:
       operationId: listStorageBackends
@@ -1253,6 +1477,12 @@ components:
       required: true
       schema: { type: string, format: uuid }
 
+    UserIdPath:
+      name: userId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
     LibraryIdPath:
       name: libraryId
       in: path
@@ -1427,6 +1657,42 @@ components:
         comicCount: { type: integer, format: int32 }
         coverComicId: { type: string, format: uuid }
         coverPath: { type: string }
+
+    Account:
+      type: object
+      required: [id, username, role, restricted, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        username: { type: string }
+        email: { type: string }
+        role: { type: string, enum: [admin, user] }
+        displayName: { type: string }
+        restricted:
+          type: boolean
+          description: Profil restreint — base du profil enfant.
+        maxAgeRating:
+          type: integer
+          description: |
+            Classification maximale autorisée. Ignorée si le profil n'est pas
+            restreint.
+        lastLoginAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+
+    LibraryGrant:
+      type: object
+      required: [libraryId, userId, canWrite]
+      properties:
+        libraryId: { type: string, format: uuid }
+        userId: { type: string, format: uuid }
+        canWrite: { type: boolean }
+
+    LibraryGrants:
+      type: object
+      required: [grants]
+      properties:
+        grants:
+          type: array
+          items: { $ref: "#/components/schemas/LibraryGrant" }
 
     StorageBackend:
       type: object

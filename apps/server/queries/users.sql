@@ -125,3 +125,26 @@ DELETE FROM library_access WHERE library_id = $1 AND user_id = $2;
 
 -- name: ListLibraryAccess :many
 SELECT * FROM library_access WHERE library_id = $1;
+
+-- ─── Administration des comptes ──────────────────────────────────────────────
+
+-- name: SetUserRestriction :one
+UPDATE users
+SET restricted     = $2,
+    max_age_rating = $3
+WHERE id = $1 AND deleted_at IS NULL
+RETURNING *;
+
+-- name: SetUserRoleReturning :one
+UPDATE users SET role = $2 WHERE id = $1 AND deleted_at IS NULL RETURNING *;
+
+-- Compte les administrateurs encore actifs.
+--
+-- Sert à empêcher la suppression ou la rétrogradation du dernier d'entre eux :
+-- une instance sans administrateur ne peut plus être administrée du tout, et
+-- rien dans l'interface ne permettrait d'en refaire un.
+-- name: CountAdmins :one
+SELECT count(*) FROM users WHERE role = 'admin' AND deleted_at IS NULL;
+
+-- name: ListAccessByUser :many
+SELECT * FROM library_access WHERE user_id = $1;

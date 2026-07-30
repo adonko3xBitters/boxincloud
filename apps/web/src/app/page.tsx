@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
 import { BrandLockup } from "@/components/brand";
 import { ComicTable } from "@/components/comic-table";
 import { Coverflow } from "@/components/coverflow";
+import { AccountsPanel } from "@/components/accounts-panel";
 import { AddContentButton, GlobalDropZone, IngestProvider } from "@/components/ingest";
 import { DetailPanel } from "@/components/detail-panel";
 import { SearchOverlay } from "@/components/search-overlay";
@@ -64,6 +65,7 @@ function Workspace() {
 function TopBar() {
   const { data: user } = useCurrentUser();
   const logout = useLogout();
+  const [accountsOpen, setAccountsOpen] = useState(false);
 
   return (
     <header className="flex h-13 shrink-0 items-center gap-3 border-b border-border bg-surface px-4">
@@ -85,6 +87,16 @@ function TopBar() {
             <p className="truncate px-2 py-1 text-meta text-muted">
               {user?.username} · {user?.role === "admin" ? "admin" : "utilisateur"}
             </p>
+
+            {user?.role === "admin" && (
+              <button
+                onClick={() => setAccountsOpen(true)}
+                className="pressable w-full rounded px-2 py-1.5 text-left text-ui text-muted hover:bg-surface-hover hover:text-fg"
+              >
+                Comptes
+              </button>
+            )}
+
             <button
               onClick={() => void logout()}
               className="pressable w-full rounded px-2 py-1.5 text-left text-ui text-muted hover:bg-surface-hover hover:text-fg"
@@ -94,6 +106,8 @@ function TopBar() {
           </div>
         </div>
       </div>
+
+      {accountsOpen && <AccountsPanel onClose={() => setAccountsOpen(false)} />}
     </header>
   );
 }

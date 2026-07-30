@@ -87,10 +87,20 @@ type Service struct {
 	issuer     *TokenIssuer
 	refreshTTL time.Duration
 	log        *slog.Logger
+
+	// liveness évite de relire la base à chaque requête pour savoir si le
+	// compte porté par un jeton est toujours actif. Voir liveness.go.
+	liveness *livenessCache
 }
 
 func NewService(repo Repository, issuer *TokenIssuer, refreshTTL time.Duration, log *slog.Logger) *Service {
-	return &Service{repo: repo, issuer: issuer, refreshTTL: refreshTTL, log: log}
+	return &Service{
+		repo:       repo,
+		issuer:     issuer,
+		refreshTTL: refreshTTL,
+		log:        log,
+		liveness:   newLivenessCache(),
+	}
 }
 
 // ─── Première installation ───────────────────────────────────────────────────

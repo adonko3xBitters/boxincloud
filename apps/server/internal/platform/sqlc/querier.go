@@ -32,6 +32,12 @@ type Querier interface {
 	// poser, l'index unique partiel refuserait sinon la mise à jour.
 	ClearDefaultStorageBackend(ctx context.Context, id uuid.UUID) error
 	ClearRating(ctx context.Context, arg ClearRatingParams) error
+	// Compte les administrateurs encore actifs.
+	//
+	// Sert à empêcher la suppression ou la rétrogradation du dernier d'entre eux :
+	// une instance sans administrateur ne peut plus être administrée du tout, et
+	// rien dans l'interface ne permettrait d'en refaire un.
+	CountAdmins(ctx context.Context) (int64, error)
 	CountComicPages(ctx context.Context, comicID uuid.UUID) (int64, error)
 	CountComicsByLibrary(ctx context.Context, libraryID uuid.UUID) (int64, error)
 	// Sert à l'assistant de première installation : tant qu'il n'y a personne,
@@ -92,6 +98,7 @@ type Querier interface {
 	GetUserByUsername(ctx context.Context, username string) (User, error)
 	GrantLibraryAccess(ctx context.Context, arg GrantLibraryAccessParams) error
 	InsertComicPage(ctx context.Context, arg InsertComicPageParams) error
+	ListAccessByUser(ctx context.Context, userID uuid.UUID) ([]LibraryAccess, error)
 	ListCacheEntriesForEviction(ctx context.Context, limit int32) ([]ListCacheEntriesForEvictionRow, error)
 	ListComicPages(ctx context.Context, comicID uuid.UUID) ([]ComicPage, error)
 	ListComicsByLibrary(ctx context.Context, arg ListComicsByLibraryParams) ([]Comic, error)
@@ -195,7 +202,10 @@ type Querier interface {
 	SetRating(ctx context.Context, arg SetRatingParams) error
 	SetStorageBackendStatus(ctx context.Context, arg SetStorageBackendStatusParams) error
 	SetUserPassword(ctx context.Context, arg SetUserPasswordParams) error
+	// ─── Administration des comptes ──────────────────────────────────────────────
+	SetUserRestriction(ctx context.Context, arg SetUserRestrictionParams) (User, error)
 	SetUserRole(ctx context.Context, arg SetUserRoleParams) error
+	SetUserRoleReturning(ctx context.Context, arg SetUserRoleReturningParams) (User, error)
 	SoftDeleteUser(ctx context.Context, id uuid.UUID) error
 	// ─── Scans ───────────────────────────────────────────────────────────────────
 	StartScanRun(ctx context.Context, arg StartScanRunParams) (ScanRun, error)

@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/google/uuid"
+
 	"github.com/adonko3xBitters/boxincloud/server/internal/auth"
 	"github.com/adonko3xBitters/boxincloud/server/internal/httpapi/problem"
 )
@@ -15,6 +17,11 @@ type claimsKey struct{}
 // Verifier est ce dont le middleware a besoin du service d'authentification.
 type Verifier interface {
 	VerifyAccessToken(token string) (auth.Claims, error)
+
+	// AccountState confirme que le compte est toujours actif et rend son rôle
+	// courant. Un jeton est autoporteur : sans cette vérification, désactiver
+	// un compte ou le rétrograder n'aurait d'effet qu'à l'expiration du jeton.
+	AccountState(ctx context.Context, userID uuid.UUID) (string, error)
 }
 
 // Authenticate exige un jeton d'accès valide, porté par l'en-tête
@@ -64,6 +71,21 @@ func authenticate(v Verifier, allowQuery bool) func(http.Handler) http.Handler {
 				problem.Write(w, r, problem.Unauthorized("invalid access token"))
 				return
 			}
+
+			// Le rôle porté par le jeton peut avoir vieilli : c'est celui de la
+			// base qui fait foi, sans quoi un administrateur rétrogradé
+			// resterait administrateur jusqu'à l'expiration.
+			role, err := v.AccountState(r.Context(), claims.UserID)
+			if err != nil {
+				if errors.Is(err, auth.ErrAccountDisabled) {
+					problem.Write(w, r, problem.Unauthorized("account disabled"))
+					return
+				}
+				// Une panne de base n'est pas un défaut d'authentification.
+				problem.Write(w, r, problem.ServiceUnavailable("account state unavailable"))
+				return
+			}
+			claims.Role = role
 
 			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), claimsKey{}, claims)))
 		})

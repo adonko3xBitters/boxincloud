@@ -34,6 +34,22 @@ func (q *Queries) CanAccessLibrary(ctx context.Context, arg CanAccessLibraryPara
 	return allowed, err
 }
 
+const countAdmins = `-- name: CountAdmins :one
+SELECT count(*) FROM users WHERE role = 'admin' AND deleted_at IS NULL
+`
+
+// Compte les administrateurs encore actifs.
+//
+// Sert à empêcher la suppression ou la rétrogradation du dernier d'entre eux :
+// une instance sans administrateur ne peut plus être administrée du tout, et
+// rien dans l'interface ne permettrait d'en refaire un.
+func (q *Queries) CountAdmins(ctx context.Context) (int64, error) {
+	row := q.db.QueryRow(ctx, countAdmins)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countUsers = `-- name: CountUsers :one
 SELECT count(*) FROM users WHERE deleted_at IS NULL
 `
@@ -274,6 +290,30 @@ func (q *Queries) GrantLibraryAccess(ctx context.Context, arg GrantLibraryAccess
 	return err
 }
 
+const listAccessByUser = `-- name: ListAccessByUser :many
+SELECT library_id, user_id, can_write FROM library_access WHERE user_id = $1
+`
+
+func (q *Queries) ListAccessByUser(ctx context.Context, userID uuid.UUID) ([]LibraryAccess, error) {
+	rows, err := q.db.Query(ctx, listAccessByUser, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []LibraryAccess{}
+	for rows.Next() {
+		var i LibraryAccess
+		if err := rows.Scan(&i.LibraryID, &i.UserID, &i.CanWrite); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listDevicesByUser = `-- name: ListDevicesByUser :many
 SELECT id, user_id, name, platform, app_version, push_token, last_seen_at, created_at FROM devices WHERE user_id = $1 ORDER BY last_seen_at DESC
 `
@@ -496,6 +536,44 @@ func (q *Queries) SetUserPassword(ctx context.Context, arg SetUserPasswordParams
 	return err
 }
 
+const setUserRestriction = `-- name: SetUserRestriction :one
+
+UPDATE users
+SET restricted     = $2,
+    max_age_rating = $3
+WHERE id = $1 AND deleted_at IS NULL
+RETURNING id, username, email, password_hash, role, display_name, avatar_key, restricted, max_age_rating, preferences, last_login_at, created_at, updated_at, deleted_at
+`
+
+type SetUserRestrictionParams struct {
+	ID           uuid.UUID
+	Restricted   bool
+	MaxAgeRating *int16
+}
+
+// ─── Administration des comptes ──────────────────────────────────────────────
+func (q *Queries) SetUserRestriction(ctx context.Context, arg SetUserRestrictionParams) (User, error) {
+	row := q.db.QueryRow(ctx, setUserRestriction, arg.ID, arg.Restricted, arg.MaxAgeRating)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Role,
+		&i.DisplayName,
+		&i.AvatarKey,
+		&i.Restricted,
+		&i.MaxAgeRating,
+		&i.Preferences,
+		&i.LastLoginAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
+}
+
 const setUserRole = `-- name: SetUserRole :exec
 UPDATE users SET role = $2 WHERE id = $1
 `
@@ -508,6 +586,37 @@ type SetUserRoleParams struct {
 func (q *Queries) SetUserRole(ctx context.Context, arg SetUserRoleParams) error {
 	_, err := q.db.Exec(ctx, setUserRole, arg.ID, arg.Role)
 	return err
+}
+
+const setUserRoleReturning = `-- name: SetUserRoleReturning :one
+UPDATE users SET role = $2 WHERE id = $1 AND deleted_at IS NULL RETURNING id, username, email, password_hash, role, display_name, avatar_key, restricted, max_age_rating, preferences, last_login_at, created_at, updated_at, deleted_at
+`
+
+type SetUserRoleReturningParams struct {
+	ID   uuid.UUID
+	Role UserRole
+}
+
+func (q *Queries) SetUserRoleReturning(ctx context.Context, arg SetUserRoleReturningParams) (User, error) {
+	row := q.db.QueryRow(ctx, setUserRoleReturning, arg.ID, arg.Role)
+	var i User
+	err := row.Scan(
+		&i.ID,
+		&i.Username,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Role,
+		&i.DisplayName,
+		&i.AvatarKey,
+		&i.Restricted,
+		&i.MaxAgeRating,
+		&i.Preferences,
+		&i.LastLoginAt,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+	)
+	return i, err
 }
 
 const softDeleteUser = `-- name: SoftDeleteUser :exec

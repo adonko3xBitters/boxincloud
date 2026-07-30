@@ -90,6 +90,7 @@ func newContractHarness(t *testing.T) *contractHarness {
 		DB:        pool,
 		Build:     handlers.BuildInfo{Version: "test", Commit: "test", GoVersion: "test"},
 		Auth:      core.Auth,
+		Accounts:  core.Accounts,
 		Catalog:   core.Catalog,
 		Libraries: core.Libraries,
 		Ingest:    core.Ingest,

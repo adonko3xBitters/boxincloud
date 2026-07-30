@@ -70,6 +70,7 @@ func Build(ctx context.Context, cfg *config.Config, log *slog.Logger, build hand
 		DB:        pool,
 		Build:     build,
 		Auth:      core.Auth,
+		Accounts:  core.Accounts,
 		Catalog:   core.Catalog,
 		Libraries: core.Libraries,
 		Ingest:    core.Ingest,
