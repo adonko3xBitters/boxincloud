@@ -86,7 +86,7 @@ Lisez [CONTRIBUTING.md](CONTRIBUTING.md) avant votre première pull request.
 boxincloud est gratuit et le restera. Si le projet vous est utile, vous pouvez offrir
 un café — c'est ce qui finance le temps passé dessus.
 
-<a href="https://www.buymeacoffee.com/"><img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-☕-FFDD00?style=for-the-badge" alt="Buy me a coffee"></a>
+<a href="https://ko-fi.com/adonko3xbitters"><img src="https://img.shields.io/badge/Ko--fi-offrir%20un%20café-FF5E5B?style=for-the-badge&logo=ko-fi&logoColor=white" alt="Soutenir sur Ko-fi"></a>
 
 ## Licence
 
