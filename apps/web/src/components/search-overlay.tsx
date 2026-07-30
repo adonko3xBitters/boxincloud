@@ -137,18 +137,29 @@ export function SearchOverlay() {
         onClick={() => setOpen(false)}
         aria-hidden={!open}
         className={cx(
-          "fixed inset-0 z-50 bg-[var(--overlay)] transition-opacity duration-[--motion-duration-normal]",
+          "fixed inset-0 z-50 bg-[var(--overlay)] transition-opacity duration-(--motion-duration-normal)",
           open ? "opacity-100" : "pointer-events-none opacity-0",
         )}
       />
 
+      {/*
+        Le panneau reste monté en permanence : c'est ce qui lui permet de glisser
+        aussi bien à la fermeture qu'à l'ouverture. Un panneau démonté disparaît
+        d'un coup, puisqu'il n'y a plus rien à animer.
+
+        La contrepartie doit être payée : fermé, il est hors de l'écran mais
+        toujours dans le document. `inert` le retire du parcours au clavier et de
+        l'arbre d'accessibilité — sans quoi la tabulation irait se perdre dans un
+        formulaire de recherche invisible.
+      */}
       <div
         role="dialog"
         aria-modal="true"
         aria-label="Centre de recherche"
+        inert={!open}
         className={cx(
           "fixed inset-y-0 right-0 z-50 flex w-full max-w-[480px] flex-col border-l border-border bg-surface shadow-2xl",
-          "transition-transform duration-[--motion-duration-slow] ease-[--ease-emphasized]",
+          "transition-transform duration-(--motion-duration-slow) ease-emphasized",
           open ? "translate-x-0" : "translate-x-full",
         )}
       >
@@ -191,7 +202,7 @@ export function SearchOverlay() {
                       onMouseEnter={() => setCursor(index)}
                       className={cx(
                         "flex w-full items-center gap-3 px-3 py-2.5 text-left",
-                        "transition-colors duration-[--motion-duration-fast]",
+                        "transition-colors duration-(--motion-duration-fast)",
                         cursor === index ? "bg-accent/15 shadow-[inset_3px_0_0_var(--accent)]" : "hover:bg-surface-hover",
                       )}
                     >
@@ -221,7 +232,7 @@ export function SearchOverlay() {
                         onMouseEnter={() => setCursor(index)}
                         className={cx(
                           "flex w-full items-center gap-3 px-3 py-2.5 text-left",
-                          "transition-colors duration-[--motion-duration-fast]",
+                          "transition-colors duration-(--motion-duration-fast)",
                           cursor === index ? "bg-accent/15 shadow-[inset_3px_0_0_var(--accent)]" : "hover:bg-surface-hover",
                         )}
                       >

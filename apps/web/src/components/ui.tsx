@@ -51,7 +51,7 @@ export function buttonClass(
 ): string {
   return cx(
     "inline-flex items-center justify-center rounded-md font-medium",
-    "transition-colors duration-[--motion-duration-fast]",
+    "transition-colors duration-(--motion-duration-fast)",
     buttonVariants[variant],
     buttonSizes[size],
   );
@@ -67,7 +67,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(function Button
       disabled={disabled || loading}
       className={cx(
         "inline-flex items-center justify-center rounded-md font-medium",
-        "transition-colors duration-[--motion-duration-fast]",
+        "transition-colors duration-(--motion-duration-fast)",
         "disabled:opacity-50 disabled:cursor-not-allowed",
         buttonVariants[variant],
         buttonSizes[size],
@@ -111,7 +111,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
         className={cx(
           "h-10 rounded-md border bg-surface px-3 text-sm text-fg",
           "placeholder:text-subtle",
-          "transition-colors duration-[--motion-duration-fast]",
+          "transition-colors duration-(--motion-duration-fast)",
           error ? "border-danger" : "border-border focus:border-accent",
           className,
         )}

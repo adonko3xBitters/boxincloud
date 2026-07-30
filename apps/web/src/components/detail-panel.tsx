@@ -133,7 +133,7 @@ export function DetailPanel() {
             </div>
             <div className="h-1 overflow-hidden rounded-full bg-border">
               <div
-                className="h-full bg-accent transition-[width] duration-[--motion-duration-slow] ease-[--ease-standard]"
+                className="h-full bg-accent transition-[width] duration-(--motion-duration-slow) ease-standard"
                 style={{ width: `${Math.min(100, progress.data!.percent)}%` }}
               />
             </div>

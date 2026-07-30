@@ -176,8 +176,8 @@ export function Coverflow({ comics }: { comics: Comic[] }) {
                   transform: `translate3d(${x}px, 0, ${z}px) rotateY(${rotate}deg) scale(${scale})`,
                   transformStyle: "preserve-3d",
                   transition:
-                    "transform var(--motion-duration-deliberate) var(--motion-easing-spring)," +
-                    "opacity var(--motion-duration-slow) var(--motion-easing-standard)",
+                    "transform var(--motion-duration-(--motion-duration-deliberate)) var(--motion-easing-spring)," +
+                    "opacity var(--motion-duration-(--motion-duration-slow)) var(--motion-easing-standard)",
                 }}
               >
                 <CoverPlate comic={comic} lifted={distance === 0} favorite={favorites.has(comic.id)} />

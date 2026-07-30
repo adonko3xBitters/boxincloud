@@ -164,7 +164,7 @@ function FolderTree({
               >
                 <ChevronIcon
                   className={cx(
-                    "size-3.5 transition-transform duration-[--motion-duration-normal] ease-[--ease-spring]",
+                    "size-3.5 transition-transform duration-(--motion-duration-normal) ease-spring",
                     !isCollapsed && "rotate-90",
                   )}
                 />

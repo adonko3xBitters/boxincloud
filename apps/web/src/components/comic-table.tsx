@@ -107,7 +107,7 @@ export function ComicTable({
               onDoubleClick={() => router.push(`/read?id=${comic.id}`)}
               className={cx(
                 "grid cursor-default items-center gap-x-3 border-b border-border/50 px-3 py-2 text-ui",
-                "transition-colors duration-[--motion-duration-fast] ease-[--ease-standard]",
+                "transition-colors duration-(--motion-duration-fast) ease-standard",
                 selected
                   ? "bg-accent/15 shadow-[inset_3px_0_0_var(--accent)]"
                   : index % 2 === 1

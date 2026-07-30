@@ -57,3 +57,11 @@ jobs:
           test -f out/index.html || { echo "::error::index.html manquant"; exit 1; }
           test -d out/_next || { echo "::error::assets manquants"; exit 1; }
           echo "→ $(du -sh out | cut -f1) exportés"
+
+      # Une classe Tailwind qui référence mal une variable CSS compile sans
+      # avertissement et produit une déclaration que le navigateur écarte : la
+      # transition disparaît sans que rien n'échoue. Seule une inspection de la
+      # feuille compilée le voit.
+      - name: Vérifier la feuille de style
+        working-directory: apps/web
+        run: npm run check:css

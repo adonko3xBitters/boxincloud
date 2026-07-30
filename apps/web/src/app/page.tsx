@@ -75,7 +75,7 @@ function TopBar() {
           >
             {(user?.displayName || user?.username || "?").charAt(0).toUpperCase()}
           </button>
-          <div className="invisible absolute right-0 top-full z-50 mt-1.5 w-52 translate-y-1 rounded-lg border border-border bg-surface-raised p-1.5 opacity-0 shadow-lg transition-[opacity,transform] duration-[--motion-duration-fast] ease-[--ease-emphasized] group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
+          <div className="invisible absolute right-0 top-full z-50 mt-1.5 w-52 translate-y-1 rounded-lg border border-border bg-surface-raised p-1.5 opacity-0 shadow-lg transition-[opacity,transform] duration-(--motion-duration-fast) ease-emphasized group-hover:visible group-hover:translate-y-0 group-hover:opacity-100">
             <p className="truncate px-2 py-1 text-meta text-muted">
               {user?.username} · {user?.role === "admin" ? "admin" : "utilisateur"}
             </p>
@@ -245,15 +245,15 @@ function CoverGrid({
             }}
             className={cx(
               "rise-in group cursor-default rounded-lg p-2",
-              "transition-[background-color,box-shadow,transform] duration-[--motion-duration-fast]",
-              "ease-[--ease-emphasized] hover:-translate-y-0.5",
+              "transition-[background-color,box-shadow,transform] duration-(--motion-duration-fast)",
+              "ease-emphasized hover:-translate-y-0.5",
               selected ? "bg-accent/20 ring-1 ring-accent" : "hover:bg-surface-hover",
             )}
           >
             <div
               className={cx(
                 "relative overflow-hidden rounded-[5px] bg-surface-sunken",
-                "shadow-[var(--shadow-cover)] transition-shadow duration-[--motion-duration-normal]",
+                "shadow-[var(--shadow-cover)] transition-shadow duration-(--motion-duration-normal)",
                 "group-hover:shadow-[var(--shadow-cover-hover)]",
               )}
               style={{ aspectRatio: 0.7 }}
@@ -300,7 +300,7 @@ function CoverGrid({
               {progress && progress.status === "in_progress" && (
                 <div className="absolute inset-x-0 bottom-0 h-1 bg-black/50">
                   <div
-                    className="h-full bg-accent transition-[width] duration-[--motion-duration-slow] ease-[--ease-standard]"
+                    className="h-full bg-accent transition-[width] duration-(--motion-duration-slow) ease-standard"
                     style={{ width: `${((progress.page + 1) / Math.max(comic.pageCount, 1)) * 100}%` }}
                   />
                 </div>
@@ -311,14 +311,14 @@ function CoverGrid({
                 onClick={(e) => e.stopPropagation()}
                 className={cx(
                   "absolute inset-0 grid place-items-center bg-black/45 opacity-0",
-                  "transition-opacity duration-[--motion-duration-normal] group-hover:opacity-100",
+                  "transition-opacity duration-(--motion-duration-normal) group-hover:opacity-100",
                 )}
                 aria-label={`Lire ${comic.title}`}
               >
                 <span
                   className={cx(
                     "grid size-14 scale-75 place-items-center rounded-full bg-white/95 text-black shadow-lg",
-                    "transition-transform duration-[--motion-duration-normal] ease-[--ease-spring]",
+                    "transition-transform duration-(--motion-duration-normal) ease-spring",
                     "group-hover:scale-100",
                   )}
                 >

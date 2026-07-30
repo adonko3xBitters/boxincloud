@@ -108,7 +108,7 @@ function TopBar({
       className={cx(
         "absolute inset-x-0 top-0 z-20 flex items-center gap-3 px-3 py-2",
         "bg-gradient-to-b from-black/85 to-transparent pb-8",
-        "transition-opacity duration-[--motion-duration-normal]",
+        "transition-opacity duration-(--motion-duration-normal)",
         visible ? "opacity-100" : "pointer-events-none opacity-0",
       )}
     >
@@ -145,7 +145,7 @@ function BottomBar({
       className={cx(
         "absolute inset-x-0 bottom-0 z-20 px-4 pb-3 pt-8",
         "bg-gradient-to-t from-black/85 to-transparent",
-        "transition-opacity duration-[--motion-duration-normal]",
+        "transition-opacity duration-(--motion-duration-normal)",
         visible ? "opacity-100" : "pointer-events-none opacity-0",
       )}
     >

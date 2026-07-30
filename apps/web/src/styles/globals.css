@@ -1,6 +1,11 @@
 @import "tailwindcss";
 @import "./tokens.css";
 
+/* Les scripts de build ne contiennent pas d'interface. Les scanner ferait
+   naître des classes à partir des exemples cités dans leurs messages d'erreur —
+   dont, précisément, les classes fautives que l'un d'eux traque. */
+@source not "../../scripts";
+
 /*
  * Les tokens deviennent des utilitaires Tailwind : `bg-surface`, `text-muted`,
  * `rounded-cover` s'écrivent comme n'importe quel utilitaire, mais pointent sur
@@ -47,7 +52,21 @@
   --text-ui: var(--font-size-ui);
   --text-title: var(--font-size-title);
 
+  /*
+   * Assouplissements.
+   *
+   * `--ease-*` est un espace de noms que Tailwind reconnaît : les déclarer ici
+   * suffit à obtenir `ease-emphasized`, `ease-spring` comme utilitaires.
+   *
+   * Il n'existe pas d'équivalent pour les durées — `duration-*` n'accepte
+   * qu'un nombre. Elles s'écrivent donc `duration-(--motion-duration-slow)`,
+   * entre PARENTHÈSES. Entre crochets, la valeur serait reprise littéralement
+   * et le navigateur écarterait la déclaration sans un mot : la transition
+   * disparaîtrait en silence. `npm run check:css` monte la garde.
+   */
   --ease-standard: var(--motion-easing-standard);
+  --ease-decelerate: var(--motion-easing-decelerate);
+  --ease-accelerate: var(--motion-easing-accelerate);
   --ease-emphasized: var(--motion-easing-emphasized);
   --ease-spring: var(--motion-easing-spring);
 }
