@@ -6,7 +6,7 @@ import '../../core/auth/session.dart';
 import '../../core/db/database.dart';
 import '../../shared/theme.dart';
 import '../../shared/tokens.dart';
-import '../reader/reader_screen.dart';
+import 'comic_detail_screen.dart';
 import 'library_controller.dart';
 
 /// Bibliothèque : la grille de couvertures.
@@ -155,9 +155,12 @@ class _CoverGrid extends ConsumerWidget {
         return _CoverTile(
           comic: comic,
           imageUrl: session.client.imageUrl(comic.coverPath, width: 320),
+          // La fiche s'intercale plutôt que d'ouvrir le lecteur directement :
+          // c'est là qu'on voit où l'on s'était arrêté, et une couverture se
+          // touche aussi par erreur.
           onTap: () => Navigator.of(context).push(
             MaterialPageRoute<void>(
-              builder: (_) => ReaderScreen(comicId: comic.id, title: comic.title),
+              builder: (_) => ComicDetailScreen(comic: comic),
             ),
           ),
         );

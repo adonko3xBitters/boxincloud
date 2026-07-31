@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -87,6 +89,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         _page = resume.clamp(0, manifest.pageCount - 1);
         _controller = PageController(initialPage: _page);
       });
+
+      // La suivante est demandée avant même que l'utilisateur ne tourne : sur
+      // un album repris en cours, c'est le premier geste qu'il fera.
+      _prefetch(_page);
     } on NetworkException {
       if (mounted) {
         setState(() => _error =
@@ -97,8 +103,44 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     }
   }
 
+  /// URL d'une page, à la définition d'affichage.
+  String _pageUrl(int index) {
+    final session = ref.read(sessionProvider);
+    if (session is! SessionActive) return '';
+    return session.client.imageUrl(
+      '/api/v1/comics/${widget.comicId}/pages/$index',
+      width: 1600,
+    );
+  }
+
+  /*
+    Précharge les pages voisines.
+
+    Trois en avant, une en arrière. En avant parce que c'est le sens de lecture ;
+    une seule en arrière parce que revenir est rare, mais assez fréquent pour
+    qu'un retour instantané se remarque.
+
+    Sans cela, tourner une page affiche un indicateur de chargement — et une
+    lecture entrecoupée de chargements est une lecture gâchée. Le cache d'images
+    conserve ce qui a été demandé, il suffit donc de demander en avance.
+  */
+  void _prefetch(int around) {
+    final manifest = _manifest;
+    if (manifest == null) return;
+
+    for (var offset = -1; offset <= 3; offset++) {
+      final index = around + offset;
+      if (index < 0 || index >= manifest.pageCount || index == around) continue;
+
+      final url = _pageUrl(index);
+      if (url.isEmpty) continue;
+      unawaited(precacheImage(CachedNetworkImageProvider(url), context));
+    }
+  }
+
   void _onPageChanged(int index) {
     setState(() => _page = index);
+    _prefetch(index);
 
     final session = ref.read(sessionProvider);
     _sync?.record(
