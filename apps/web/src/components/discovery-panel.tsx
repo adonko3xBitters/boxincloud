@@ -26,21 +26,29 @@ const STATUS_KEYS: Record<string, MessageKey> = {
   invalid: "discovery.status.invalid",
 };
 
-export function DiscoveryPanel({
-  canAdmin = false,
-  onClose,
-}: {
-  /*
-    Déclarer un catalogue est une décision d'administration : l'adresse est
-    jointe par le serveur. L'onglet est donc masqué aux autres comptes — le
-    serveur refuserait de toute façon, et proposer une porte fermée n'aide
-    personne.
-  */
-  canAdmin?: boolean;
-  onClose: () => void;
-}) {
+/*
+DiscoverySheet — la recherche fédérée, en panneau du bas.
+
+Elle n'est plus dans le menu du compte. Ce menu répondait à « qui suis-je et que
+puis-je régler » ; chercher ailleurs n'est ni l'un ni l'autre, et l'y ranger
+obligeait à traverser un menu pour atteindre une action fréquente.
+
+Le panneau monte depuis le bord inférieur, là où celui de la recherche locale
+glisse depuis la droite. La distinction est délibérée : deux surfaces qui
+arrivent du même endroit se confondent, et le sens d'entrée devient ici le seul
+indice permanent de ce qu'on est en train d'interroger — sa propre bibliothèque
+ou les catalogues du dehors.
+
+Raccourci : Cmd/Ctrl + Maj + F. Le « F » de « fédérée », la touche Maj le
+distinguant du Cmd-F du navigateur, et le tout laissant Cmd-K à la recherche
+locale — la plus fréquente garde le raccourci le plus court.
+
+L'administration des catalogues n'est plus ici. Régler une source est une
+opération de configuration, elle a rejoint le hub ; ce panneau ne fait que
+chercher, et il est ouvert à tout compte.
+*/
+export function DiscoverySheet({ onClose }: { onClose: () => void }) {
   const t = useT();
-  const [tab, setTab] = useState<"search" | "sources">("search");
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -54,33 +62,28 @@ export function DiscoveryPanel({
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-[60] grid place-items-center bg-[var(--overlay)] p-4">
+    /*
+      `items-end` plutôt qu'un centrage : le panneau est ancré au bas de
+      l'écran, d'où il vient. Le centrer annulerait le sens de son entrée.
+    */
+    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-[var(--overlay)]">
       <div
         role="dialog"
         aria-modal="true"
         aria-label={t("discovery.dialogLabel")}
-        className="rise-in flex h-[80vh] w-full max-w-4xl flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-2xl"
+        className="slide-in-bottom flex max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-t-xl border border-b-0 border-border bg-surface shadow-2xl"
       >
         <header className="flex items-center gap-3 border-b border-border px-4 py-3">
-          <h2 className="text-title font-semibold text-fg">{t("discovery.title")}</h2>
+          {/*
+            Une poignée, comme sur les feuilles du bas des systèmes mobiles :
+            elle dit que la surface est ancrée en bas et qu'elle s'en ira par là.
+          */}
+          <span
+            aria-hidden="true"
+            className="absolute left-1/2 top-1.5 h-1 w-10 -translate-x-1/2 rounded-full bg-border-strong"
+          />
 
-          <div className="ml-2 flex items-center gap-0.5 rounded-md border border-border p-0.5">
-            {(canAdmin ? (["search", "sources"] as const) : (["search"] as const)).map((option) => (
-              <button
-                key={option}
-                onClick={() => setTab(option)}
-                aria-pressed={tab === option}
-                className={cx(
-                  "pressable rounded px-2.5 py-1 text-meta font-medium",
-                  tab === option
-                    ? "bg-accent text-inverted shadow-sm"
-                    : "text-muted hover:bg-surface-hover hover:text-fg",
-                )}
-              >
-                {t(option === "search" ? "discovery.tab.search" : "discovery.tab.sources")}
-              </button>
-            ))}
-          </div>
+          <h2 className="text-title font-semibold text-fg">{t("discovery.title")}</h2>
 
           <button
             onClick={onClose}
@@ -99,11 +102,22 @@ export function DiscoveryPanel({
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-4">
-          {tab === "sources" && canAdmin ? <SourcesSection /> : <SearchSection />}
+          <SearchSection />
         </div>
       </div>
     </div>
   );
+}
+
+/*
+DiscoverySources — l'administration des catalogues, pour le hub.
+
+Séparée du panneau de recherche parce que ce sont deux publics et deux moments :
+on cherche souvent, on configure une fois. Les garder ensemble obligeait à
+montrer un onglet réservé aux administrateurs dans une surface ouverte à tous.
+*/
+export function DiscoverySources() {
+  return <SourcesSection />;
 }
 
 // ─── Recherche ───────────────────────────────────────────────────────────────

@@ -1,18 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
 import { BrandLockup } from "@/components/brand";
 import { ComicTable } from "@/components/comic-table";
 import { Coverflow } from "@/components/coverflow";
-import { AccountsPanel } from "@/components/accounts-panel";
 import { useComicMenu } from "@/components/comic-menu";
-import { MobileAppDialog } from "@/components/mobile-app-dialog";
-import { SessionsPanel } from "@/components/sessions-panel";
-import { DiscoveryPanel } from "@/components/discovery-panel";
-import { StoragePanel } from "@/components/storage-panel";
+import { DiscoverySheet } from "@/components/discovery-panel";
+import { SettingsHub } from "@/components/settings-hub";
 import { AddContentButton, GlobalDropZone, IngestProvider } from "@/components/ingest";
 import { DetailPanel } from "@/components/detail-panel";
 import { SearchOverlay } from "@/components/search-overlay";
@@ -73,12 +70,34 @@ function TopBar() {
   const t = useT();
   const { data: user } = useCurrentUser();
   const logout = useLogout();
-  const [accountsOpen, setAccountsOpen] = useState(false);
-  const [storageOpen, setStorageOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const [discoveryOpen, setDiscoveryOpen] = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [sessionsOpen, setSessionsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+
+  /*
+    Cmd/Ctrl + Maj + F ouvre la recherche fédérée.
+
+    Le « F » de « fédérée ». La touche Maj le distingue du Cmd-F du navigateur,
+    et l'ensemble laisse Cmd-K et « / » à la recherche locale : la plus
+    fréquente garde le raccourci le plus court.
+
+    En capture, comme les autres raccourcis globaux, pour qu'un champ de saisie
+    au premier plan ne l'avale pas.
+  */
+  useEffect(() => {
+    function onKeyDown(event: KeyboardEvent) {
+      if (
+        (event.key === "f" || event.key === "F") &&
+        event.shiftKey &&
+        (event.metaKey || event.ctrlKey)
+      ) {
+        event.preventDefault();
+        setDiscoveryOpen((open) => !open);
+      }
+    }
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
 
   // Un clic ailleurs referme le menu, comme partout ailleurs dans le système.
   // La référence englobe le bouton ET le menu : rouvrir ou choisir un élément
@@ -94,6 +113,29 @@ function TopBar() {
       <div className="ml-auto flex items-center gap-2">
         <AddContentButton />
         <SearchOverlay />
+
+        {/*
+          Le bouton existe parce qu'un raccourci clavier seul est
+          indécouvrable : personne ne devine Cmd-Maj-F, et une fonctionnalité
+          qu'on ne trouve pas n'existe pas. L'infobulle rappelle le raccourci à
+          qui voudra s'en passer ensuite.
+        */}
+        <button
+          onClick={() => setDiscoveryOpen(true)}
+          title={`${t("settings.discoverHint")} (⌘⇧F)`}
+          aria-label={t("settings.discoverHint")}
+          className="pressable grid size-8 place-items-center rounded-md text-subtle hover:bg-surface-hover hover:text-fg"
+        >
+          <svg viewBox="0 0 18 18" fill="none" className="size-4.5" aria-hidden="true">
+            <path
+              d="M9 15.5a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13Zm-6.5-6.5h13M9 2.5c1.8 2 2.7 4.2 2.7 6.5S10.8 13.5 9 15.5C7.2 13.5 6.3 11.3 6.3 9S7.2 4.5 9 2.5Z"
+              stroke="currentColor"
+              strokeWidth="1.4"
+              strokeLinecap="round"
+            />
+          </svg>
+        </button>
+
         <ThemeToggle />
 
         {/*
@@ -125,67 +167,24 @@ function TopBar() {
             </p>
 
             {/*
-              Accessible à tout le monde, pas seulement aux administrateurs :
-              c'est l'entrée par laquelle un membre de la famille installe
-              l'application sur son propre téléphone.
+              Une seule entrée de réglage, au lieu des quatre qui s'alignaient
+              ici sans hiérarchie.
+
+              Ce menu répond à « qui suis-je, et comment je sors » ; les
+              espaces de stockage et les comptes n'y répondent pas. Les y
+              lister obligeait à parcourir cinq lignes pour trouver la
+              déconnexion, et mélangeait des réglages d'instance avec des
+              réglages personnels.
             */}
             <button
               onClick={() => {
                 setMenuOpen(false);
-                setMobileOpen(true);
+                setSettingsOpen(true);
               }}
               className="pressable w-full rounded px-2 py-1.5 text-left text-ui text-muted hover:bg-surface-hover hover:text-fg"
             >
-              {t("account.mobileApp")}
+              {t("settings.open")}
             </button>
-
-            {/*
-              Les appareils connectés relèvent du compte, pas de
-              l'administration : chacun révoque les siens, y compris un
-              utilisateur sans droits particuliers.
-            */}
-            <button
-              onClick={() => {
-                setMenuOpen(false);
-                setSessionsOpen(true);
-              }}
-              className="pressable w-full rounded px-2 py-1.5 text-left text-ui text-muted hover:bg-surface-hover hover:text-fg"
-            >
-              {t("account.devices")}
-            </button>
-
-            <button
-              onClick={() => {
-                setMenuOpen(false);
-                setDiscoveryOpen(true);
-              }}
-              className="pressable w-full rounded px-2 py-1.5 text-left text-ui text-muted hover:bg-surface-hover hover:text-fg"
-            >
-              {t("discovery.title")}
-            </button>
-
-            {user?.role === "admin" && (
-              <>
-                <button
-                  onClick={() => {
-                    setMenuOpen(false);
-                    setStorageOpen(true);
-                  }}
-                  className="pressable w-full rounded px-2 py-1.5 text-left text-ui text-muted hover:bg-surface-hover hover:text-fg"
-                >
-                  {t("account.storage")}
-                </button>
-                <button
-                  onClick={() => {
-                    setMenuOpen(false);
-                    setAccountsOpen(true);
-                  }}
-                  className="pressable w-full rounded px-2 py-1.5 text-left text-ui text-muted hover:bg-surface-hover hover:text-fg"
-                >
-                  {t("accounts.title")}
-                </button>
-              </>
-            )}
 
             <LanguagePicker />
 
@@ -200,16 +199,13 @@ function TopBar() {
         </div>
       </div>
 
-      {mobileOpen && <MobileAppDialog onClose={() => setMobileOpen(false)} />}
-      {sessionsOpen && <SessionsPanel onClose={() => setSessionsOpen(false)} />}
-      {storageOpen && <StoragePanel onClose={() => setStorageOpen(false)} />}
-      {discoveryOpen && (
-        <DiscoveryPanel
-          canAdmin={user?.role === "admin"}
-          onClose={() => setDiscoveryOpen(false)}
+      {settingsOpen && (
+        <SettingsHub
+          isAdmin={user?.role === "admin"}
+          onClose={() => setSettingsOpen(false)}
         />
       )}
-      {accountsOpen && <AccountsPanel onClose={() => setAccountsOpen(false)} />}
+      {discoveryOpen && <DiscoverySheet onClose={() => setDiscoveryOpen(false)} />}
     </header>
   );
 }

@@ -215,6 +215,34 @@
   }
 
   /*
+   * Panneau du bas.
+   *
+   * Il monte depuis le bord inférieur plutôt que d'apparaître au centre, et la
+   * distinction n'est pas décorative : le sens d'entrée dit d'où vient le
+   * panneau, donc où il retournera. Deux surfaces qui arrivent du même endroit
+   * se confondent ; celle qui glisse depuis la droite est la recherche locale,
+   * celle qui monte du bas interroge l'extérieur.
+   *
+   * La translation est plus ample que pour les autres entrées — un panneau
+   * plein largeur qui ne parcourt que dix pixels semble sauter plutôt que
+   * monter.
+   */
+  .slide-in-bottom {
+    animation: slide-in-bottom var(--motion-duration-slow) var(--motion-easing-emphasized) backwards;
+  }
+
+  @keyframes slide-in-bottom {
+    from {
+      opacity: 0;
+      transform: translateY(32px);
+    }
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+
+  /*
    * Retour au clic.
    *
    * Un bouton qui ne bouge pas sous le doigt laisse douter que le clic a porté.
@@ -235,7 +263,8 @@
   @media (prefers-reduced-motion: reduce) {
     .rise-in,
     .fade-in,
-    .slide-in-right {
+    .slide-in-right,
+    .slide-in-bottom {
       animation: none;
     }
     .pressable:active:not(:disabled) {

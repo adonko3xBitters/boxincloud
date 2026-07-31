@@ -580,6 +580,18 @@ export const en: Record<MessageKey, string> = {
     "The app is served by this server, not by a third party: nothing leaves your network, and its version matches your instance exactly.",
   "download.size": "{size}",
 
+  // ── Settings ───────────────────────────────────────────────────────────────
+  "settings.title": "Settings",
+  "settings.open": "Settings",
+  "settings.back": "Back",
+  "settings.storage.hint": "Storage backends, libraries and cache",
+  "settings.accounts.hint": "Instance accounts and their permissions",
+  "settings.sources.hint": "OPDS catalogues queried by federated search",
+  "settings.devices.hint": "Open sessions, and how to revoke them",
+  "settings.mobile.hint": "Install the Android app served by this instance",
+  "settings.discover": "Discover",
+  "settings.discoverHint": "Search the federated catalogues",
+
   // ── Federated search ───────────────────────────────────────────────────────
   "discovery.title": "Discover",
   "discovery.dialogLabel": "Federated search",

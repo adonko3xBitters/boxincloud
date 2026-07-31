@@ -584,6 +584,18 @@ export const fr = {
     "L'application est servie par ce serveur, pas par un tiers : rien ne sort de votre réseau, et sa version correspond exactement à celle de votre instance.",
   "download.size": "{size}",
 
+  // ── Configuration ──────────────────────────────────────────────────────────
+  "settings.title": "Configuration",
+  "settings.open": "Configuration",
+  "settings.back": "Retour",
+  "settings.storage.hint": "Espaces de stockage, biblioth\u00e8ques et cache",
+  "settings.accounts.hint": "Comptes de l'instance et leurs droits",
+  "settings.sources.hint": "Catalogues OPDS interrogés par la recherche fédérée",
+  "settings.devices.hint": "Sessions ouvertes, et comment les révoquer",
+  "settings.mobile.hint": "Installer l'application Android servie par cette instance",
+  "settings.discover": "Découvrir",
+  "settings.discoverHint": "Chercher dans les catalogues fédérés",
+
   // ── Recherche fédérée ──────────────────────────────────────────────────────
   "discovery.title": "Découvrir",
   "discovery.dialogLabel": "Recherche fédérée",
