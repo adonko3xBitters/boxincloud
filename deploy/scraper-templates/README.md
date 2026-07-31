@@ -18,13 +18,13 @@ menu « Type de catalogue » propose désormais « Standard Ebooks » à côté 
 Parce qu'on peut ouvrir le site dans son navigateur et comparer avec le gabarit,
 ligne à ligne. C'est ce qui fait un bon exemple.
 
-Le choix est discutable et il l'assume : ce site publie **aussi** un flux OPDS,
-et pour un usage réel c'est la bonne route — un flux structuré ne casse pas
-quand la mise en page change. Un gabarit se justifie quand il n'y a pas
-d'alternative, ce qui est le cas des sites que le moteur vise vraiment.
+Le site publie bien un flux OPDS, mais il est **fermé** — `/feeds/opds` répond
+401, réservé aux souscripteurs. Le gabarit n'est donc pas un exercice de style :
+pour un lecteur sans compte, c'est la seule porte ouverte.
 
-C'est la raison pour laquelle il n'est pas livré dans le binaire : les gabarits
-embarqués sont réservés aux sites sans autre porte d'entrée.
+Il n'est pourtant pas livré dans le binaire. Un gabarit embarqué engage le
+projet à le maintenir et à répondre de ce qu'il ramène ; le catalogue de
+Standard Ebooks est assez bien servi par ailleurs pour ne pas le justifier.
 
 ## Ce qu'il démontre
 

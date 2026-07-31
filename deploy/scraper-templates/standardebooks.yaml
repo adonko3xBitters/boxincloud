@@ -19,13 +19,15 @@
 # Standard Ebooks publie des livres du domaine public, magnifiquement composés,
 # sous licence CC0. Il coche donc le critère d'admission sans discussion.
 #
-# Mais il publie AUSSI un flux OPDS, et pour un usage réel c'est la bonne route :
-# un flux structuré ne casse pas quand le site change de mise en page. Ce gabarit
-# est donc pédagogique, et il l'assume — on apprend mieux sur un site qu'on peut
-# ouvrir dans son navigateur pour comparer.
+# Il publie bien un flux OPDS, mais celui-ci est FERMÉ : `/feeds/opds` répond 401,
+# il est réservé aux souscripteurs. Vérifié plutôt que supposé — la première
+# version de ce commentaire affirmait le contraire et présentait ce gabarit comme
+# purement pédagogique. Il ne l'est pas : pour un lecteur sans compte, c'est la
+# seule porte ouverte du site.
 #
-# C'est aussi la raison pour laquelle il n'est PAS livré dans le binaire : les
-# gabarits embarqués sont réservés aux sites qui n'ont pas d'alternative.
+# Il n'est pourtant pas livré dans le binaire, et cette réserve tient toujours :
+# un gabarit embarqué engage le projet, et le catalogue de Standard Ebooks est
+# assez bien servi par ailleurs pour ne pas justifier cet engagement.
 #
 # ─── Ce que son robots.txt autorise ──────────────────────────────────────────
 #
