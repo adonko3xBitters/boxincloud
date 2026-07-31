@@ -112,7 +112,10 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
           "h-10 rounded-md border bg-surface px-3 text-sm text-fg",
           "placeholder:text-subtle",
           "transition-colors duration-(--motion-duration-fast)",
-          error ? "border-danger" : "border-border focus:border-accent",
+          // `border-strong` et non `border` : un champ dont on ne voit pas le
+          // contour est un champ qu'on ne trouve pas. C'est la seule bordure du
+          // système qui porte de l'information, et la seule tenue à 3:1.
+          error ? "border-danger" : "border-border-strong focus:border-accent",
           className,
         )}
         {...props}

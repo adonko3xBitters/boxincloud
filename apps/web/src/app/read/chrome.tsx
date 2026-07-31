@@ -238,6 +238,7 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
     <div
       ref={ref}
       role="dialog"
+      aria-modal="true"
       aria-label="Réglages de lecture"
       className="absolute right-3 top-12 z-30 w-64 rounded-xl border border-white/10 bg-neutral-900/95 p-4 shadow-2xl backdrop-blur"
     >

@@ -85,3 +85,9 @@ jobs:
       - name: Vérifier la couverture de traduction
         working-directory: apps/web
         run: npm run check:i18n
+
+      # Un contraste insuffisant ne se voit pas sur un bon écran, bien éclairé,
+      # par quelqu'un qui a une bonne vue. Il se voit dans le train.
+      - name: Vérifier les contrastes
+        working-directory: apps/web
+        run: npm run check:contrast
