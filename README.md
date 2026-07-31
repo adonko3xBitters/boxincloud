@@ -15,10 +15,13 @@ qu'on essaie ensuite de faire ressembler à du cloud.
 
 ---
 
-> **⚠️ Alpha.** Le serveur, l'interface web et l'application Android fonctionnent de
-> bout en bout : indexation, lecture, comptes, partage, hors ligne. La v0.1.0 n'est pas
-> encore publiée — attendez-vous à des changements de schéma et à des angles vifs.
-> Voir la [feuille de route](docs/04-roadmap.md).
+> **⚠️ Alpha — v0.1.0.** Le serveur, l'interface web et l'application Android
+> fonctionnent de bout en bout : indexation, lecture, comptes, partage, hors ligne,
+> OPDS. Attendez-vous à des **changements de schéma** d'une version à l'autre :
+> sauvegardez votre base avant de mettre à jour, et n'y confiez pas une bibliothèque
+> dont vous n'avez pas de copie. Ce qui change est dans le
+> [journal](CHANGELOG.md) ; ce qui vient ensuite, dans la
+> [feuille de route](docs/04-roadmap.md).
 
 ## Pourquoi boxincloud
 

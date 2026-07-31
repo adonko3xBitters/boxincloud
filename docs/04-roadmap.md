@@ -240,7 +240,8 @@ page.
 - [x] `docker-compose.yml` unique, avec MinIO inclus, qui fonctionne sans édition préalable.
 - [x] Template Unraid, notes pour TrueNAS et Synology.
 - [x] Documentation publique : installation, configuration, migration depuis Komga/Kavita.
-- README travaillé : captures, GIF du lecteur, positionnement explicite (« stockage objet natif », le point qui vous distingue de Komga et Kavita).
+- [x] README travaillé : positionnement explicite (« stockage objet natif »), OPDS et « Découvrir » annoncés. **Captures et GIF du lecteur restent à produire** — emplacement et cadrage réservés dans le README.
+- [x] `CHANGELOG.md`, avec les limites connues écrites franchement.
 - [x] Passe d'accessibilité (navigation clavier, contrastes, lecteurs d'écran).
 - [x] i18n français et anglais.
 - [x] Passe de sécurité : limitation de débit, en-têtes, protection SSRF sur les URL de backend, `SECURITY.md`.
