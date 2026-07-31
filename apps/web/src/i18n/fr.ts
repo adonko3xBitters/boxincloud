@@ -654,6 +654,8 @@ export const fr = {
   "discovery.sources.name": "Nom",
   "discovery.sources.kind": "Type de catalogue",
   "discovery.sources.kindOpds": "Flux OPDS",
+  "discovery.sources.noTemplates":
+    "Aucun gabarit de site n'est chargé. Les sites sans flux OPDS se lisent \u00e0 partir de gabarits d\u00e9clar\u00e9s dans BOXINCLOUD_SCRAPER_TEMPLATES_DIR — voir docs/06-gabarits-scraper.md.",
   "discovery.sources.url": "Adresse du flux OPDS",
   "discovery.sources.urlHint":
     "Par exemple https://komga.chez-moi.fr/opds/v2 — OPDS 1.2 et 2.0 sont reconnus automatiquement.",

@@ -725,26 +725,39 @@ function SourceForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => 
         <Input value={name} onChange={(event) => setName(event.target.value)} required />
       </label>
 
-      {templates.data && templates.data.items.length > 0 && (
-        <label className="flex flex-col gap-1 text-meta text-muted">
-          {t("discovery.sources.kind")}
-          <select
-            value={kind}
-            onChange={(event) => setKind(event.target.value)}
-            className="h-9 rounded-md border border-border bg-surface px-2 text-ui text-fg"
-          >
-            <option value="">{t("discovery.sources.kindOpds")}</option>
-            {templates.data.items.map((template) => (
-              <option key={template.kind} value={template.kind}>
-                {template.name}
-              </option>
-            ))}
-          </select>
-          {chosen?.license && (
-            <span className="text-subtle">{chosen.license}</span>
-          )}
-        </label>
-      )}
+      {/*
+        Le choix du type est TOUJOURS affiché, même quand aucun gabarit n'est
+        chargé — et c'est le contraire de ce que faisait la première version.
+
+        Elle ne le montrait que si l'instance avait des gabarits, pour éviter un
+        menu à une seule entrée. L'intention était bonne, le résultat mauvais :
+        aucun gabarit n'étant livré par défaut, le menu n'apparaissait jamais,
+        et un administrateur ne pouvait pas deviner que le moteur existait. Une
+        fonctionnalité qu'on ne peut pas découvrir n'existe pas.
+
+        Un menu à une entrée assorti d'une explication vaut mieux que rien du
+        tout : il dit ce qui est possible, et pourquoi ça ne l'est pas encore.
+      */}
+      <label className="flex flex-col gap-1 text-meta text-muted">
+        {t("discovery.sources.kind")}
+        <select
+          value={kind}
+          onChange={(event) => setKind(event.target.value)}
+          className="h-9 rounded-md border border-border bg-surface px-2 text-ui text-fg"
+        >
+          <option value="">{t("discovery.sources.kindOpds")}</option>
+          {(templates.data?.items ?? []).map((template) => (
+            <option key={template.kind} value={template.kind}>
+              {template.name}
+            </option>
+          ))}
+        </select>
+
+        {templates.data?.items.length === 0 && (
+          <span className="text-subtle">{t("discovery.sources.noTemplates")}</span>
+        )}
+        {chosen?.license && <span className="text-subtle">{chosen.license}</span>}
+      </label>
 
       <label className="flex flex-col gap-1 text-meta text-muted">
         {chosen ? t("discovery.sources.mirror") : t("discovery.sources.url")}

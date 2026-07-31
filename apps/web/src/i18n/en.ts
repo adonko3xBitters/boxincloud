@@ -645,6 +645,8 @@ export const en: Record<MessageKey, string> = {
   "discovery.sources.name": "Name",
   "discovery.sources.kind": "Catalogue type",
   "discovery.sources.kindOpds": "OPDS feed",
+  "discovery.sources.noTemplates":
+    "No site template is loaded. Sites without an OPDS feed are read from templates declared in BOXINCLOUD_SCRAPER_TEMPLATES_DIR \u2014 see docs/06-gabarits-scraper.md.",
   "discovery.sources.url": "OPDS feed address",
   "discovery.sources.urlHint":
     "For example https://komga.example.com/opds/v2 \u2014 OPDS 1.2 and 2.0 are detected automatically.",
