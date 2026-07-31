@@ -1,0 +1,141 @@
+package discovery
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"time"
+
+	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
+
+	"github.com/adonko3xBitters/boxincloud/server/internal/platform/sqlc"
+)
+
+// PostgresRepository implémente Repository sur les requêtes générées par sqlc.
+//
+// Comme ailleurs, toute la traduction entre les types de la base et ceux du
+// domaine est confinée ici : le service ne connaît pas pgtype.
+type PostgresRepository struct {
+	q *sqlc.Queries
+}
+
+var _ Repository = (*PostgresRepository)(nil)
+
+func NewPostgresRepository(q *sqlc.Queries) *PostgresRepository {
+	return &PostgresRepository{q: q}
+}
+
+func (r *PostgresRepository) ListSources(ctx context.Context) ([]Source, error) {
+	rows, err := r.q.ListDiscoverySources(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("discovery : liste des catalogues : %w", err)
+	}
+
+	out := make([]Source, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, toSource(row))
+	}
+	return out, nil
+}
+
+func (r *PostgresRepository) GetSource(ctx context.Context, id uuid.UUID) (Source, error) {
+	row, err := r.q.GetDiscoverySource(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Source{}, ErrSourceNotFound
+	}
+	if err != nil {
+		return Source{}, fmt.Errorf("discovery : lecture du catalogue : %w", err)
+	}
+	return toSource(row), nil
+}
+
+func (r *PostgresRepository) SourceSecret(ctx context.Context, id uuid.UUID) ([]byte, error) {
+	secret, err := r.q.GetDiscoverySourceSecret(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, ErrSourceNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("discovery : lecture des identifiants : %w", err)
+	}
+	return secret, nil
+}
+
+func (r *PostgresRepository) CreateSource(
+	ctx context.Context, s Source, secret []byte,
+) (Source, error) {
+	row, err := r.q.CreateDiscoverySource(ctx, sqlc.CreateDiscoverySourceParams{
+		ID:        uuid.New(),
+		Name:      s.Name,
+		URL:       s.URL,
+		Kind:      string(s.Kind),
+		Enabled:   s.Enabled,
+		Username:  s.Username,
+		SecretEnc: secret,
+	})
+	if err != nil {
+		return Source{}, fmt.Errorf("discovery : création du catalogue : %w", err)
+	}
+	return toSource(row), nil
+}
+
+func (r *PostgresRepository) UpdateSource(
+	ctx context.Context, s Source, secret []byte, replaceSecret bool,
+) (Source, error) {
+	row, err := r.q.UpdateDiscoverySource(ctx, sqlc.UpdateDiscoverySourceParams{
+		ID:            s.ID,
+		Name:          s.Name,
+		URL:           s.URL,
+		Enabled:       s.Enabled,
+		Username:      s.Username,
+		ReplaceSecret: replaceSecret,
+		SecretEnc:     secret,
+	})
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Source{}, ErrSourceNotFound
+	}
+	if err != nil {
+		return Source{}, fmt.Errorf("discovery : mise à jour du catalogue : %w", err)
+	}
+	return toSource(row), nil
+}
+
+func (r *PostgresRepository) DeleteSource(ctx context.Context, id uuid.UUID) error {
+	if err := r.q.DeleteDiscoverySource(ctx, id); err != nil {
+		return fmt.Errorf("discovery : suppression du catalogue : %w", err)
+	}
+	return nil
+}
+
+func (r *PostgresRepository) RecordProbe(ctx context.Context, id uuid.UUID, failure string) error {
+	err := r.q.RecordDiscoveryProbe(ctx, sqlc.RecordDiscoveryProbeParams{
+		ID:        id,
+		LastError: failure,
+	})
+	if err != nil {
+		return fmt.Errorf("discovery : enregistrement de l'état : %w", err)
+	}
+	return nil
+}
+
+func toSource(row sqlc.DiscoverySource) Source {
+	source := Source{
+		ID:        row.ID,
+		Name:      row.Name,
+		URL:       row.URL,
+		Kind:      Kind(row.Kind),
+		Enabled:   row.Enabled,
+		Username:  row.Username,
+		LastError: row.LastError,
+	}
+	if row.LastCheckedAt.Valid {
+		checked := row.LastCheckedAt.Time
+		source.LastCheckAt = &checked
+	}
+	if row.CreatedAt.Valid {
+		source.CreatedAt = row.CreatedAt.Time
+	} else {
+		source.CreatedAt = time.Time{}
+	}
+	return source
+}

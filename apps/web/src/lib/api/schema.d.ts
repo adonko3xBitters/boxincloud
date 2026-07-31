@@ -1382,10 +1382,210 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/discovery/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Chercher dans les catalogues fédérés
+         * @description Interroge en parallèle tous les catalogues OPDS activés et agrège leurs
+         *     réponses.
+         *
+         *     **La réponse est toujours 200**, même si aucun catalogue ne répond. Une
+         *     recherche fédérée réussit partiellement par nature : un catalogue éteint
+         *     ou lent est un fait à rapporter, pas une panne du serveur. Le tableau
+         *     `sources` dit ce que chacun a rendu, ce qui permet à l'interface de
+         *     distinguer « ce titre n'existe nulle part » de « la moitié de vos
+         *     catalogues n'a pas répondu ».
+         *
+         *     Les résultats déjà présents dans la bibliothèque de CE lecteur portent
+         *     `inLibrary: true`. La comparaison respecte ses droits : un profil
+         *     restreint n'apprend rien de ce qu'il n'a pas le droit de voir.
+         */
+        get: operations["discoverySearch"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/discovery/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Catalogues fédérés configurés
+         * @description **Réservé aux administrateurs.** Le mot de passe d'un catalogue n'est
+         *     jamais rendu.
+         */
+        get: operations["listDiscoverySources"];
+        put?: never;
+        /**
+         * Déclarer un catalogue
+         * @description **Réservé aux administrateurs**, et pas seulement par habitude :
+         *     l'adresse enregistrée est jointe PAR LE SERVEUR. La laisser à un compte
+         *     ordinaire reviendrait à lui offrir un sondeur du réseau interne.
+         *
+         *     Le catalogue est joint avant d'être enregistré. Une adresse fautive —
+         *     `/opds` au lieu de `/opds/v1.2`, cas le plus fréquent — se signale donc
+         *     à la saisie, et non trois semaines plus tard sous la forme d'une
+         *     recherche qui ne rend rien.
+         */
+        post: operations["createDiscoverySource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/discovery/sources/{sourceId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Retirer un catalogue
+         * @description **Réservé aux administrateurs.**
+         */
+        delete: operations["deleteDiscoverySource"];
+        options?: never;
+        head?: never;
+        /**
+         * Modifier un catalogue
+         * @description **Réservé aux administrateurs.**
+         *
+         *     Omettre `password` conserve le mot de passe enregistré ; l'envoyer vide
+         *     l'efface. Un formulaire qui renvoie tous ses champs ne doit pas effacer
+         *     un secret qu'il n'affiche pas.
+         */
+        patch: operations["updateDiscoverySource"];
+        trace?: never;
+    };
+    "/discovery/sources/{sourceId}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Essayer un catalogue
+         * @description **Réservé aux administrateurs.**
+         *
+         *     Répond 200 que l'essai réussisse ou non : un catalogue injoignable est
+         *     un résultat d'essai, pas une panne du serveur. Le champ `ok` porte le
+         *     verdict.
+         */
+        post: operations["testDiscoverySource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        DiscoverySource: {
+            /** Format: uuid */
+            id: string;
+            name: string;
+            url: string;
+            /**
+             * @description Un seul protocole, et ce n'est pas une étape : fédérer de l'OPDS,
+             *     c'est interroger des catalogues auxquels l'utilisateur a déjà accès,
+             *     publics ou ouverts par des identifiants qu'il fournit lui-même.
+             * @enum {string}
+             */
+            kind: "opds";
+            enabled: boolean;
+            /** @description Vide pour un catalogue public. Le mot de passe ne sort jamais. */
+            username?: string;
+            /**
+             * @description Diagnostic du dernier essai, vide quand le catalogue répond. Un
+             *     catalogue tiers qui change d'adresse est le mode de panne le plus
+             *     courant d'une fédération, et il est silencieux — la recherche rend
+             *     simplement moins. Cette colonne le rend visible.
+             */
+            lastError?: string;
+            /** Format: date-time */
+            lastCheckedAt?: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        DiscoveryResult: {
+            /** Format: uuid */
+            sourceId: string;
+            sourceName: string;
+            title: string;
+            authors?: string[];
+            series?: string;
+            summary?: string;
+            language?: string;
+            published?: string;
+            /**
+             * @description Adresse absolue chez le catalogue d'origine. boxincloud ne
+             *     réhéberge rien : ce qui est affiché vient de la source.
+             */
+            coverUrl?: string;
+            /**
+             * @description Liens de téléchargement annoncés par le catalogue. Plusieurs quand
+             *     des catalogues différents proposent la même œuvre — le choix reste
+             *     à l'utilisateur.
+             */
+            acquisitions?: {
+                href: string;
+                type?: string;
+                rel?: string;
+            }[];
+            pageUrl?: string;
+            /**
+             * @description Déjà présent dans la bibliothèque de ce lecteur. C'est le résultat
+             *     le plus utile d'une recherche fédérée et celui qu'on oublie de
+             *     rendre : quand on interroge ses propres instances, l'issue la plus
+             *     fréquente est « vous l'avez déjà ».
+             */
+            inLibrary: boolean;
+        };
+        DiscoverySourceStatus: {
+            /** Format: uuid */
+            sourceId: string;
+            name: string;
+            count: number;
+            elapsedMs: number;
+            /**
+             * @description Code stable, pas une phrase : l'interface le traduit. Le serveur
+             *     n'a pas à deviner la langue du lecteur — même règle que pour les
+             *     problèmes RFC 7807.
+             * @enum {string}
+             */
+            error?: "unreachable" | "timeout" | "canceled" | "no-search" | "invalid";
+        };
+        DiscoverySearchResult: {
+            results: components["schemas"]["DiscoveryResult"][];
+            /**
+             * @description Un état par catalogue interrogé. C'est ce qui permet de dire à
+             *     l'utilisateur qu'il manque quelque chose plutôt que de lui laisser
+             *     croire que le titre n'existe pas.
+             */
+            sources: components["schemas"]["DiscoverySourceStatus"][];
+        };
         BuildInfo: {
             /** @description Version sémantique, ou "dev" hors release. */
             version: string;
@@ -1876,6 +2076,7 @@ export interface components {
         };
     };
     parameters: {
+        SourceId: string;
         ComicId: string;
         /** @description Jeton du lien public, tel que reçu à sa création. */
         ShareToken: string;
@@ -4246,6 +4447,189 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             422: components["responses"]["ValidationFailed"];
+        };
+    };
+    discoverySearch: {
+        parameters: {
+            query: {
+                q: string;
+                /** @description Borne les résultats retenus par catalogue. */
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Résultats agrégés */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscoverySearchResult"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+        };
+    };
+    listDiscoverySources: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Liste des catalogues */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["DiscoverySource"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    createDiscoverySource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: string;
+                    /**
+                     * @description Adresse du flux OPDS racine, en http:// ou https://.
+                     *     OPDS 1.2 (Atom) et 2.0 (JSON) sont reconnus automatiquement.
+                     */
+                    url: string;
+                    /** @default true */
+                    enabled?: boolean;
+                    /** @description Vide pour un catalogue public. */
+                    username?: string;
+                    password?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Catalogue enregistré */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscoverySource"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    deleteDiscoverySource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sourceId: components["parameters"]["SourceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Retiré */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+        };
+    };
+    updateDiscoverySource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sourceId: components["parameters"]["SourceId"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name: string;
+                    url: string;
+                    enabled?: boolean;
+                    username?: string;
+                    password?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Catalogue modifié */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscoverySource"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    testDiscoverySource: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                sourceId: components["parameters"]["SourceId"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Verdict de l'essai */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        ok: boolean;
+                        /**
+                         * @description Diagnostic BRUT rendu par le catalogue distant, en
+                         *     anglais le plus souvent. C'est la seule chaîne que l'API
+                         *     renvoie sans qu'elle vienne de boxincloud : aucun
+                         *     catalogue de traductions ne peut couvrir ce qu'un serveur
+                         *     inconnu répondra. À afficher comme un détail technique
+                         *     sous un titre traduit, pas comme une phrase à lire.
+                         */
+                        detail?: string;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
         };
     };
 }

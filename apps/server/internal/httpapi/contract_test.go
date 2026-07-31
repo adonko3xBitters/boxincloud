@@ -115,6 +115,7 @@ func newContractHarness(t *testing.T) *contractHarness {
 		Cache:     core.Cache,
 		Reader:    core.Reader,
 		Progress:  core.Progress,
+		Discovery: core.Discovery,
 	})
 
 	spec, err := gen.GetSpec()

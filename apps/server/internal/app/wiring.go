@@ -14,6 +14,7 @@ import (
 	"github.com/adonko3xBitters/boxincloud/server/internal/cache"
 	"github.com/adonko3xBitters/boxincloud/server/internal/catalog"
 	"github.com/adonko3xBitters/boxincloud/server/internal/config"
+	"github.com/adonko3xBitters/boxincloud/server/internal/discovery"
 	"github.com/adonko3xBitters/boxincloud/server/internal/folders"
 	"github.com/adonko3xBitters/boxincloud/server/internal/imaging"
 	"github.com/adonko3xBitters/boxincloud/server/internal/indexer"
@@ -46,6 +47,7 @@ type Core struct {
 	Imaging   imaging.Processor
 	Indexer   indexer.Repository
 	Ingest    *ingest.Service
+	Discovery *discovery.Service
 	Jobs      *jobs.Client
 }
 
@@ -153,7 +155,13 @@ func BuildCore(ctx context.Context, cfg *config.Config, pool *db.Pool, log *slog
 		Indexer:   indexerRepo,
 		Ingest:    ingestService,
 		Folders:   folderService,
-		Jobs:      jobClient,
+		Discovery: discovery.NewService(
+			discovery.NewPostgresRepository(queries),
+			discovery.NewOPDSClient(),
+			sealer,
+			log,
+		),
+		Jobs: jobClient,
 	}, nil
 }
 

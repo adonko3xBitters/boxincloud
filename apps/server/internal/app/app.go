@@ -74,6 +74,7 @@ func Build(ctx context.Context, cfg *config.Config, log *slog.Logger, build hand
 		Catalog:   core.Catalog,
 		Folders:   core.Folders,
 		Libraries: core.Libraries,
+		Discovery: core.Discovery,
 		Ingest:    core.Ingest,
 		Reader:    core.Reader,
 		Progress:  core.Progress,

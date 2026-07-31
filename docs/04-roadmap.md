@@ -329,8 +329,8 @@ Environ **quatre mois** à temps partiel soutenu.
 
 Par ordre de valeur décroissante pour l'adoption :
 
-1. **OPDS** — ouvre l'accès à tous les lecteurs tiers existants ; effort faible, gain immédiat en visibilité.
-2. **Découvrir : recherche fédérée** — voir la section dédiée ci-dessous.
+1. **OPDS sortant** — publier le catalogue de l'instance pour les lecteurs tiers. Le client OPDS existe déjà (recherche fédérée) ; c'est le serveur qui manque.
+2. **Découvrir : import** — la recherche fédérée est faite ; rapatrier un résultat dans une bibliothèque ne l'est pas. Voir la section dédiée ci-dessous.
 3. **Import et téléversement** — déposer un fichier depuis le web ou le mobile vers un backend.
 4. **OIDC** — Authelia, Authentik, Keycloak. Très demandé par le public self-hosted.
 5. **Notifications push** — nouveautés dans une série suivie.
@@ -341,11 +341,42 @@ Par ordre de valeur décroissante pour l'adoption :
 
 ---
 
-## « Découvrir » — recherche fédérée *(post-v0.1.0, ~5,5 semaines)*
+## « Découvrir » — recherche fédérée
 
 Un champ de recherche unique qui interroge en parallèle plusieurs catalogues
-externes, agrège les résultats et permet d'importer directement dans une
-bibliothèque.
+externes et agrège les résultats.
+
+### État : la fédération OPDS est faite
+
+`internal/discovery` interroge des catalogues **OPDS 1.2 (Atom) et 2.0 (JSON)**
+— une autre instance boxincloud, un Komga, un Kavita, un Calibre-Web, Standard
+Ebooks, Gutenberg, une bibliothèque publique numérique. La version du protocole
+est reconnue automatiquement : un administrateur colle l'adresse qu'il a sous
+les yeux, il n'a pas à savoir laquelle elle parle.
+
+Trois décisions valent d'être retenues.
+
+**La recherche réussit partiellement, et le dit.** Un catalogue éteint, lent ou
+qui a changé d'adresse ne fait pas échouer les autres : la réponse porte les
+résultats ET l'état de chaque catalogue. Sans cette seconde moitié, une liste
+courte voudrait dire deux choses opposées — le titre n'existe nulle part, ou la
+moitié des catalogues n'a pas répondu — et l'utilisateur conclurait toujours la
+première.
+
+**Ce qu'on possède déjà est marqué.** Quand on fédère ses propres instances,
+l'issue la plus fréquente d'une recherche est « vous l'avez déjà ». La
+comparaison respecte les droits du lecteur : un profil restreint n'apprend rien
+de ce qu'il n'a pas le droit de voir.
+
+**L'adresse d'un catalogue est jointe par le serveur.** C'est une SSRF, traitée
+comme celle des backends de stockage — même garde-fou, désormais partagé dans
+`internal/platform/netguard`, et le contrôle s'applique aussi aux redirections.
+Déclarer un catalogue est réservé aux administrateurs ; chercher est ouvert à
+tout compte.
+
+Reste à faire : l'**import** d'un résultat vers un backend de stockage. Les
+liens d'acquisition sont rendus et ouvrables ; les rapatrier dans une
+bibliothèque est l'étape suivante (D2).
 
 ### Périmètre des sources
 
@@ -406,10 +437,16 @@ activable ou désactivable depuis l'administration.
 
 | Étape | Contenu | Durée |
 |---|---|---|
-| **D1** | Registre `discovery.Source`, recherche fédérée, interface web | 1 sem |
+| **D1** | Registre `discovery.Source`, recherche fédérée, interface web | **fait** |
+| **D4** | Fédération OPDS (client OPDS 1.2 + 2.0) | **fait** |
 | **D2** | Sources domaine public + import vers un backend de stockage | 1,5 sem |
 | **D3** | Métadonnées + écran de rapprochement manuel | 2 sem |
-| **D4** | Fédération OPDS entrante (réutilise le client OPDS) | 1 sem |
+
+D1 et D4 ont été faits ensemble, et l'ordre initial était le mauvais : le client
+OPDS n'est pas une source parmi d'autres à ajouter à la fin, c'est celui qui
+sert le plus de catalogues d'un coup. Standard Ebooks et Gutenberg publient tous
+deux des flux OPDS, et sont donc déjà interrogeables sans écrire une ligne de
+plus.
 
 D3 a une valeur immédiate même isolé : il corrige rétroactivement les
 métadonnées de toute la collection déjà indexée, là où M1 ne sait que déduire

@@ -61,6 +61,7 @@ type Querier interface {
 	// Sert à l'assistant de première installation : tant qu'il n'y a personne,
 	// l'inscription du premier administrateur est ouverte.
 	CountUsers(ctx context.Context) (int64, error)
+	CreateDiscoverySource(ctx context.Context, arg CreateDiscoverySourceParams) (DiscoverySource, error)
 	CreateLibrary(ctx context.Context, arg CreateLibraryParams) (Library, error)
 	// ─── Sessions ────────────────────────────────────────────────────────────────
 	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
@@ -73,6 +74,7 @@ type Querier interface {
 	// ─── Pages ───────────────────────────────────────────────────────────────────
 	DeleteComicPages(ctx context.Context, comicID uuid.UUID) error
 	DeleteDevice(ctx context.Context, arg DeleteDeviceParams) error
+	DeleteDiscoverySource(ctx context.Context, id uuid.UUID) error
 	DeleteExpiredSessions(ctx context.Context) (int64, error)
 	DeleteFolderTree(ctx context.Context, arg DeleteFolderTreeParams) (int64, error)
 	DeleteLibrary(ctx context.Context, id uuid.UUID) error
@@ -115,6 +117,14 @@ type Querier interface {
 	GetComicPage(ctx context.Context, arg GetComicPageParams) (ComicPage, error)
 	GetDefaultStorageBackend(ctx context.Context) (StorageBackend, error)
 	GetDevice(ctx context.Context, id uuid.UUID) (Device, error)
+	GetDiscoverySource(ctx context.Context, id uuid.UUID) (DiscoverySource, error)
+	// Le secret est lu seul, par une requête distincte.
+	//
+	// Ce n'est pas une contrainte technique : `GetDiscoverySource` le rapporte déjà.
+	// C'est une contrainte de lecture. Un développeur qui écrit un gestionnaire voit
+	// qu'il faut une deuxième requête pour obtenir le mot de passe, ce qui rend
+	// difficile de le laisser filer dans une réponse par distraction.
+	GetDiscoverySourceSecret(ctx context.Context, id uuid.UUID) ([]byte, error)
 	GetFolder(ctx context.Context, arg GetFolderParams) (Folder, error)
 	GetFolderAccessCode(ctx context.Context, arg GetFolderAccessCodeParams) (GetFolderAccessCodeRow, error)
 	GetFolderByID(ctx context.Context, id uuid.UUID) (Folder, error)
@@ -172,6 +182,7 @@ type Querier interface {
 	// conviendrait pas aux deux.
 	ListComicsPage(ctx context.Context, arg ListComicsPageParams) ([]ListComicsPageRow, error)
 	ListDevicesByUser(ctx context.Context, userID uuid.UUID) ([]Device, error)
+	ListDiscoverySources(ctx context.Context) ([]DiscoverySource, error)
 	ListExcludedComics(ctx context.Context, libraryID uuid.UUID) ([]Comic, error)
 	ListFavoriteIDs(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error)
 	ListFavorites(ctx context.Context, arg ListFavoritesParams) ([]ListFavoritesRow, error)
@@ -267,6 +278,7 @@ type Querier interface {
 	PurgeComic(ctx context.Context, id uuid.UUID) error
 	// ─── Cache dérivé ────────────────────────────────────────────────────────────
 	RecordCacheEntry(ctx context.Context, arg RecordCacheEntryParams) error
+	RecordDiscoveryProbe(ctx context.Context, arg RecordDiscoveryProbeParams) error
 	// Recompte les albums d'une bibliothèque.
 	//
 	// Le compteur est une colonne stockée, et il ne l'était rafraîchi qu'en fin de
@@ -361,6 +373,7 @@ type Querier interface {
 	TreeHasAccessCode(ctx context.Context, arg TreeHasAccessCodeParams) (bool, error)
 	UnlockFolder(ctx context.Context, arg UnlockFolderParams) error
 	UnsetFavorite(ctx context.Context, arg UnsetFavoriteParams) error
+	UpdateDiscoverySource(ctx context.Context, arg UpdateDiscoverySourceParams) (DiscoverySource, error)
 	// ─── Administration ──────────────────────────────────────────────────────────
 	UpdateLibrary(ctx context.Context, arg UpdateLibraryParams) (Library, error)
 	UpdateStorageBackend(ctx context.Context, arg UpdateStorageBackendParams) (StorageBackend, error)

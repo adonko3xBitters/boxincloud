@@ -583,6 +583,58 @@ export const fr = {
   "download.servedByInstance":
     "L'application est servie par ce serveur, pas par un tiers : rien ne sort de votre réseau, et sa version correspond exactement à celle de votre instance.",
   "download.size": "{size}",
+
+  // ── Recherche fédérée ──────────────────────────────────────────────────────
+  "discovery.title": "Découvrir",
+  "discovery.dialogLabel": "Recherche fédérée",
+  "discovery.tab.search": "Rechercher",
+  "discovery.tab.sources": "Catalogues",
+  "discovery.placeholder": "Chercher dans les catalogues fédérés\u2026",
+  "discovery.intro":
+    "Interroge en même temps les catalogues OPDS que vous avez déclarés : une autre instance boxincloud, votre Komga ou Kavita, une biblioth\u00e8que publique num\u00e9rique.",
+  "discovery.noSources": "Aucun catalogue déclaré",
+  "discovery.noSourcesHint":
+    "Ajoutez l'adresse d'un flux OPDS auquel vous avez déj\u00e0 acc\u00e8s pour chercher dedans.",
+  "discovery.noResults": "Aucun résultat",
+  "discovery.noResultsPartial":
+    "Aucun résultat — mais tous les catalogues n'ont pas répondu.",
+  "discovery.searching": "Interrogation des catalogues\u2026",
+  "discovery.resultCount": "{count} résultat(s)",
+  "discovery.inLibrary": "Déj\u00e0 dans votre biblioth\u00e8que",
+  "discovery.download": "Télécharger",
+  "discovery.openPage": "Voir la fiche",
+  "discovery.from": "Depuis {source}",
+
+  // États d'un catalogue, traduits ici : le serveur rend un code stable.
+  "discovery.status.ok": "{count} résultat(s) en {ms} ms",
+  "discovery.status.unreachable": "Injoignable",
+  "discovery.status.timeout": "Trop lent, abandonné",
+  "discovery.status.canceled": "Interrompu",
+  "discovery.status.no-search": "N'expose pas de recherche",
+  "discovery.status.invalid": "Adresse invalide",
+  "discovery.partial":
+    "Certains catalogues n'ont pas répondu : la liste est incompl\u00e8te.",
+
+  "discovery.sources.title": "Catalogues fédérés",
+  "discovery.sources.intro":
+    "Les adresses déclarées ici sont jointes par le serveur. R\u00e9serv\u00e9 aux administrateurs.",
+  "discovery.sources.empty": "Aucun catalogue",
+  "discovery.sources.add": "Ajouter un catalogue",
+  "discovery.sources.name": "Nom",
+  "discovery.sources.url": "Adresse du flux OPDS",
+  "discovery.sources.urlHint":
+    "Par exemple https://komga.chez-moi.fr/opds/v2 — OPDS 1.2 et 2.0 sont reconnus automatiquement.",
+  "discovery.sources.username": "Identifiant",
+  "discovery.sources.usernameHint": "Laissez vide pour un catalogue public.",
+  "discovery.sources.password": "Mot de passe",
+  "discovery.sources.passwordKept": "Laissez vide pour conserver le mot de passe enregistré.",
+  "discovery.sources.enabled": "Activé",
+  "discovery.sources.test": "Essayer",
+  "discovery.sources.testOk": "Le catalogue répond",
+  "discovery.sources.testFailed": "Le catalogue n'a pas répondu",
+  "discovery.sources.lastError": "Dernier échec",
+  "discovery.sources.confirmDelete": "Retirer ce catalogue ?",
+  "discovery.sources.checking": "Essai en cours\u2026",
 } as const;
 
 /** Les clés du catalogue. Toute traduction doit les couvrir toutes. */

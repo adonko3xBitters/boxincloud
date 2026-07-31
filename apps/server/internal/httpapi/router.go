@@ -23,6 +23,7 @@ import (
 	"github.com/adonko3xBitters/boxincloud/server/internal/cache"
 	"github.com/adonko3xBitters/boxincloud/server/internal/catalog"
 	"github.com/adonko3xBitters/boxincloud/server/internal/config"
+	"github.com/adonko3xBitters/boxincloud/server/internal/discovery"
 	"github.com/adonko3xBitters/boxincloud/server/internal/folders"
 	"github.com/adonko3xBitters/boxincloud/server/internal/httpapi/handlers"
 	"github.com/adonko3xBitters/boxincloud/server/internal/httpapi/middleware"
@@ -52,6 +53,7 @@ type Deps struct {
 	Progress  *progress.Service
 	Tools     *catalog.Tools
 	Cache     *cache.Cache
+	Discovery *discovery.Service
 	WebFS     fs.FS // application web embarquée ; nil pour ne rien servir
 }
 
@@ -265,6 +267,20 @@ func NewRouter(d Deps) http.Handler {
 			r.Delete("/libraries/{libraryID}/folders", foldersHandler.Delete)
 			r.Put("/comics/{comicID}/folder", adminHandler.MoveComic)
 			r.Post("/comics/manage", adminHandler.BulkManage)
+
+			// ── Recherche fédérée ───────────────────────────────────
+			//
+			// Chercher est ouvert à tout compte. Déclarer un catalogue
+			// ne l'est pas : c'est une adresse que le SERVEUR ira
+			// joindre, ce qui en fait une décision d'administration.
+			discoveryHandler := handlers.NewDiscovery(d.Discovery, d.Catalog)
+
+			r.Get("/discovery/search", discoveryHandler.Search)
+			r.Get("/discovery/sources", discoveryHandler.ListSources)
+			r.Post("/discovery/sources", discoveryHandler.CreateSource)
+			r.Patch("/discovery/sources/{sourceID}", discoveryHandler.UpdateSource)
+			r.Delete("/discovery/sources/{sourceID}", discoveryHandler.DeleteSource)
+			r.Post("/discovery/sources/{sourceID}/test", discoveryHandler.TestSource)
 
 			// ── Comptes ─────────────────────────────────────────────
 			accountsHandler := handlers.NewAccounts(d.Accounts)

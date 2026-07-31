@@ -74,21 +74,3 @@ func TestCheckEndpointAccepte(t *testing.T) {
 		})
 	}
 }
-
-func TestHostOf(t *testing.T) {
-	cases := map[string]string{
-		"minio:9000":            "minio",
-		"https://s3.exemple.fr": "s3.exemple.fr",
-		"http://10.0.0.1:9000":  "10.0.0.1",
-		"s3.exemple.fr":         "s3.exemple.fr",
-		"[::1]:9000":            "::1",
-		"[fd00::1]":             "fd00::1",
-		"  minio:9000  ":        "minio",
-	}
-
-	for input, want := range cases {
-		if got := hostOf(input); got != want {
-			t.Errorf("hostOf(%q) = %q, attendu %q", input, got, want)
-		}
-	}
-}

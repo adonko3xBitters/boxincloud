@@ -11,6 +11,7 @@ import { AccountsPanel } from "@/components/accounts-panel";
 import { useComicMenu } from "@/components/comic-menu";
 import { MobileAppDialog } from "@/components/mobile-app-dialog";
 import { SessionsPanel } from "@/components/sessions-panel";
+import { DiscoveryPanel } from "@/components/discovery-panel";
 import { StoragePanel } from "@/components/storage-panel";
 import { AddContentButton, GlobalDropZone, IngestProvider } from "@/components/ingest";
 import { DetailPanel } from "@/components/detail-panel";
@@ -74,6 +75,7 @@ function TopBar() {
   const logout = useLogout();
   const [accountsOpen, setAccountsOpen] = useState(false);
   const [storageOpen, setStorageOpen] = useState(false);
+  const [discoveryOpen, setDiscoveryOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [sessionsOpen, setSessionsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -152,6 +154,16 @@ function TopBar() {
               {t("account.devices")}
             </button>
 
+            <button
+              onClick={() => {
+                setMenuOpen(false);
+                setDiscoveryOpen(true);
+              }}
+              className="pressable w-full rounded px-2 py-1.5 text-left text-ui text-muted hover:bg-surface-hover hover:text-fg"
+            >
+              {t("discovery.title")}
+            </button>
+
             {user?.role === "admin" && (
               <>
                 <button
@@ -191,6 +203,12 @@ function TopBar() {
       {mobileOpen && <MobileAppDialog onClose={() => setMobileOpen(false)} />}
       {sessionsOpen && <SessionsPanel onClose={() => setSessionsOpen(false)} />}
       {storageOpen && <StoragePanel onClose={() => setStorageOpen(false)} />}
+      {discoveryOpen && (
+        <DiscoveryPanel
+          canAdmin={user?.role === "admin"}
+          onClose={() => setDiscoveryOpen(false)}
+        />
+      )}
       {accountsOpen && <AccountsPanel onClose={() => setAccountsOpen(false)} />}
     </header>
   );

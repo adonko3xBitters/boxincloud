@@ -454,6 +454,19 @@ type Device struct {
 	CreatedAt  pgtype.Timestamptz
 }
 
+type DiscoverySource struct {
+	ID            uuid.UUID
+	Name          string
+	URL           string
+	Kind          string
+	Enabled       bool
+	Username      string
+	SecretEnc     []byte
+	LastError     string
+	LastCheckedAt pgtype.Timestamptz
+	CreatedAt     pgtype.Timestamptz
+}
+
 type Favorite struct {
 	UserID    uuid.UUID
 	ComicID   uuid.UUID

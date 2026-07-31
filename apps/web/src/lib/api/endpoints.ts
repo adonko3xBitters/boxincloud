@@ -576,3 +576,81 @@ export const getCacheStats = () => request<CacheStats>("/cache");
 
 export const purgeCache = () =>
   request<{ entries: number; bytes: number }>("/cache", { method: "DELETE" });
+
+// ─── Recherche fédérée ───────────────────────────────────────────────────────
+
+export type DiscoverySource = {
+  id: string;
+  name: string;
+  url: string;
+  kind: string;
+  enabled: boolean;
+  username?: string;
+  lastError?: string;
+  lastCheckedAt?: string;
+  createdAt: string;
+};
+
+export type DiscoveryResult = {
+  sourceId: string;
+  sourceName: string;
+  title: string;
+  authors?: string[];
+  series?: string;
+  summary?: string;
+  language?: string;
+  published?: string;
+  coverUrl?: string;
+  acquisitions?: Array<{ href: string; type?: string; rel?: string }>;
+  pageUrl?: string;
+  inLibrary: boolean;
+};
+
+/** Ce qu'un catalogue a rendu — ou pourquoi il n'a rien rendu. */
+export type DiscoverySourceStatus = {
+  sourceId: string;
+  name: string;
+  count: number;
+  elapsedMs: number;
+  error?: "unreachable" | "timeout" | "canceled" | "no-search" | "invalid";
+};
+
+export const discoverySearch = (query: string, limit = 40) =>
+  request<{ results: DiscoveryResult[]; sources: DiscoverySourceStatus[] }>(
+    `/discovery/search?q=${encodeURIComponent(query)}&limit=${limit}`,
+  );
+
+export const listDiscoverySources = () =>
+  request<{ items: DiscoverySource[] }>("/discovery/sources");
+
+export const createDiscoverySource = (input: {
+  name: string;
+  url: string;
+  enabled?: boolean;
+  username?: string;
+  password?: string;
+}) => request<DiscoverySource>("/discovery/sources", { method: "POST", body: input });
+
+export const updateDiscoverySource = (
+  sourceId: string,
+  input: {
+    name: string;
+    url: string;
+    enabled?: boolean;
+    username?: string;
+    // Omis, le mot de passe enregistré est conservé.
+    password?: string;
+  },
+) =>
+  request<DiscoverySource>(`/discovery/sources/${sourceId}`, {
+    method: "PATCH",
+    body: input,
+  });
+
+export const deleteDiscoverySource = (sourceId: string) =>
+  request<void>(`/discovery/sources/${sourceId}`, { method: "DELETE" });
+
+export const testDiscoverySource = (sourceId: string) =>
+  request<{ ok: boolean; detail?: string }>(`/discovery/sources/${sourceId}/test`, {
+    method: "POST",
+  });

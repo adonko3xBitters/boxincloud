@@ -57,6 +57,8 @@ tags:
     description: Lecture — manifeste, pages et couvertures
   - name: progress
     description: Progression de lecture et synchronisation
+  - name: discovery
+    description: Recherche fédérée sur des catalogues OPDS extérieurs
 
 security:
   - bearerAuth: []
@@ -2454,6 +2456,213 @@ paths:
         "422":
           $ref: "#/components/responses/ValidationFailed"
 
+  # ─── Recherche fédérée ──────────────────────────────────────────────────────
+
+  /discovery/search:
+    get:
+      operationId: discoverySearch
+      summary: Chercher dans les catalogues fédérés
+      description: |
+        Interroge en parallèle tous les catalogues OPDS activés et agrège leurs
+        réponses.
+
+        **La réponse est toujours 200**, même si aucun catalogue ne répond. Une
+        recherche fédérée réussit partiellement par nature : un catalogue éteint
+        ou lent est un fait à rapporter, pas une panne du serveur. Le tableau
+        `sources` dit ce que chacun a rendu, ce qui permet à l'interface de
+        distinguer « ce titre n'existe nulle part » de « la moitié de vos
+        catalogues n'a pas répondu ».
+
+        Les résultats déjà présents dans la bibliothèque de CE lecteur portent
+        `inLibrary: true`. La comparaison respecte ses droits : un profil
+        restreint n'apprend rien de ce qu'il n'a pas le droit de voir.
+      tags: [discovery]
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: { type: string }
+        - name: limit
+          in: query
+          description: Borne les résultats retenus par catalogue.
+          schema: { type: integer, minimum: 1, maximum: 100 }
+      responses:
+        "200":
+          description: Résultats agrégés
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DiscoverySearchResult" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /discovery/sources:
+    get:
+      operationId: listDiscoverySources
+      summary: Catalogues fédérés configurés
+      description: |
+        **Réservé aux administrateurs.** Le mot de passe d'un catalogue n'est
+        jamais rendu.
+      tags: [discovery]
+      responses:
+        "200":
+          description: Liste des catalogues
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/DiscoverySource" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+    post:
+      operationId: createDiscoverySource
+      summary: Déclarer un catalogue
+      description: |
+        **Réservé aux administrateurs**, et pas seulement par habitude :
+        l'adresse enregistrée est jointe PAR LE SERVEUR. La laisser à un compte
+        ordinaire reviendrait à lui offrir un sondeur du réseau interne.
+
+        Le catalogue est joint avant d'être enregistré. Une adresse fautive —
+        `/opds` au lieu de `/opds/v1.2`, cas le plus fréquent — se signale donc
+        à la saisie, et non trois semaines plus tard sous la forme d'une
+        recherche qui ne rend rien.
+      tags: [discovery]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, url]
+              properties:
+                name: { type: string, minLength: 1 }
+                url:
+                  type: string
+                  description: |
+                    Adresse du flux OPDS racine, en http:// ou https://.
+                    OPDS 1.2 (Atom) et 2.0 (JSON) sont reconnus automatiquement.
+                enabled: { type: boolean, default: true }
+                username:
+                  type: string
+                  description: Vide pour un catalogue public.
+                password: { type: string }
+      responses:
+        "201":
+          description: Catalogue enregistré
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DiscoverySource" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /discovery/sources/{sourceId}:
+    patch:
+      operationId: updateDiscoverySource
+      summary: Modifier un catalogue
+      description: |
+        **Réservé aux administrateurs.**
+
+        Omettre `password` conserve le mot de passe enregistré ; l'envoyer vide
+        l'efface. Un formulaire qui renvoie tous ses champs ne doit pas effacer
+        un secret qu'il n'affiche pas.
+      tags: [discovery]
+      parameters:
+        - $ref: "#/components/parameters/SourceId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, url]
+              properties:
+                name: { type: string, minLength: 1 }
+                url: { type: string }
+                enabled: { type: boolean }
+                username: { type: string }
+                password: { type: string }
+      responses:
+        "200":
+          description: Catalogue modifié
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DiscoverySource" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+    delete:
+      operationId: deleteDiscoverySource
+      summary: Retirer un catalogue
+      description: "**Réservé aux administrateurs.**"
+      tags: [discovery]
+      parameters:
+        - $ref: "#/components/parameters/SourceId"
+      responses:
+        "204":
+          description: Retiré
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /discovery/sources/{sourceId}/test:
+    post:
+      operationId: testDiscoverySource
+      summary: Essayer un catalogue
+      description: |
+        **Réservé aux administrateurs.**
+
+        Répond 200 que l'essai réussisse ou non : un catalogue injoignable est
+        un résultat d'essai, pas une panne du serveur. Le champ `ok` porte le
+        verdict.
+      tags: [discovery]
+      parameters:
+        - $ref: "#/components/parameters/SourceId"
+      responses:
+        "200":
+          description: Verdict de l'essai
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { type: boolean }
+                  detail:
+                    type: string
+                    description: |
+                      Diagnostic BRUT rendu par le catalogue distant, en
+                      anglais le plus souvent. C'est la seule chaîne que l'API
+                      renvoie sans qu'elle vienne de boxincloud : aucun
+                      catalogue de traductions ne peut couvrir ce qu'un serveur
+                      inconnu répondra. À afficher comme un détail technique
+                      sous un titre traduit, pas comme une phrase à lire.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 
 components:
@@ -2467,6 +2676,12 @@ components:
         (15 min par défaut) ; à renouveler avec le refresh token.
 
   parameters:
+    SourceId:
+      name: sourceId
+      in: path
+      required: true
+      schema: { type: string, format: uuid }
+
     ComicId:
       name: comicId
       in: path
@@ -2527,6 +2742,106 @@ components:
         porter d'en-tête `Authorization` — une balise `<img>`, par exemple.
 
   schemas:
+    DiscoverySource:
+      type: object
+      required: [id, name, url, kind, enabled, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        url: { type: string }
+        kind:
+          type: string
+          enum: [opds]
+          description: |
+            Un seul protocole, et ce n'est pas une étape : fédérer de l'OPDS,
+            c'est interroger des catalogues auxquels l'utilisateur a déjà accès,
+            publics ou ouverts par des identifiants qu'il fournit lui-même.
+        enabled: { type: boolean }
+        username:
+          type: string
+          description: Vide pour un catalogue public. Le mot de passe ne sort jamais.
+        lastError:
+          type: string
+          description: |
+            Diagnostic du dernier essai, vide quand le catalogue répond. Un
+            catalogue tiers qui change d'adresse est le mode de panne le plus
+            courant d'une fédération, et il est silencieux — la recherche rend
+            simplement moins. Cette colonne le rend visible.
+        lastCheckedAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+
+    DiscoveryResult:
+      type: object
+      required: [sourceId, sourceName, title, inLibrary]
+      properties:
+        sourceId: { type: string, format: uuid }
+        sourceName: { type: string }
+        title: { type: string }
+        authors:
+          type: array
+          items: { type: string }
+        series: { type: string }
+        summary: { type: string }
+        language: { type: string }
+        published: { type: string }
+        coverUrl:
+          type: string
+          description: |
+            Adresse absolue chez le catalogue d'origine. boxincloud ne
+            réhéberge rien : ce qui est affiché vient de la source.
+        acquisitions:
+          type: array
+          description: |
+            Liens de téléchargement annoncés par le catalogue. Plusieurs quand
+            des catalogues différents proposent la même œuvre — le choix reste
+            à l'utilisateur.
+          items:
+            type: object
+            required: [href]
+            properties:
+              href: { type: string }
+              type: { type: string }
+              rel: { type: string }
+        pageUrl: { type: string }
+        inLibrary:
+          type: boolean
+          description: |
+            Déjà présent dans la bibliothèque de ce lecteur. C'est le résultat
+            le plus utile d'une recherche fédérée et celui qu'on oublie de
+            rendre : quand on interroge ses propres instances, l'issue la plus
+            fréquente est « vous l'avez déjà ».
+
+    DiscoverySourceStatus:
+      type: object
+      required: [sourceId, name, count, elapsedMs]
+      properties:
+        sourceId: { type: string, format: uuid }
+        name: { type: string }
+        count: { type: integer }
+        elapsedMs: { type: integer }
+        error:
+          type: string
+          enum: [unreachable, timeout, canceled, no-search, invalid]
+          description: |
+            Code stable, pas une phrase : l'interface le traduit. Le serveur
+            n'a pas à deviner la langue du lecteur — même règle que pour les
+            problèmes RFC 7807.
+
+    DiscoverySearchResult:
+      type: object
+      required: [results, sources]
+      properties:
+        results:
+          type: array
+          items: { $ref: "#/components/schemas/DiscoveryResult" }
+        sources:
+          type: array
+          description: |
+            Un état par catalogue interrogé. C'est ce qui permet de dire à
+            l'utilisateur qu'il manque quelque chose plutôt que de lui laisser
+            croire que le titre n'existe pas.
+          items: { $ref: "#/components/schemas/DiscoverySourceStatus" }
+
     BuildInfo:
       type: object
       required: [version, commit, goVersion]

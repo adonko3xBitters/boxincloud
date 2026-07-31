@@ -579,4 +579,53 @@ export const en: Record<MessageKey, string> = {
   "download.servedByInstance":
     "The app is served by this server, not by a third party: nothing leaves your network, and its version matches your instance exactly.",
   "download.size": "{size}",
+
+  // ── Federated search ───────────────────────────────────────────────────────
+  "discovery.title": "Discover",
+  "discovery.dialogLabel": "Federated search",
+  "discovery.tab.search": "Search",
+  "discovery.tab.sources": "Catalogues",
+  "discovery.placeholder": "Search the federated catalogues\u2026",
+  "discovery.intro":
+    "Queries the OPDS catalogues you have declared, all at once: another boxincloud instance, your Komga or Kavita, a public digital library.",
+  "discovery.noSources": "No catalogue declared",
+  "discovery.noSourcesHint":
+    "Add the address of an OPDS feed you already have access to in order to search it.",
+  "discovery.noResults": "No results",
+  "discovery.noResultsPartial": "No results \u2014 but not every catalogue answered.",
+  "discovery.searching": "Querying the catalogues\u2026",
+  "discovery.resultCount": "{count} result(s)",
+  "discovery.inLibrary": "Already in your library",
+  "discovery.download": "Download",
+  "discovery.openPage": "Open page",
+  "discovery.from": "From {source}",
+
+  "discovery.status.ok": "{count} result(s) in {ms} ms",
+  "discovery.status.unreachable": "Unreachable",
+  "discovery.status.timeout": "Too slow, gave up",
+  "discovery.status.canceled": "Interrupted",
+  "discovery.status.no-search": "Exposes no search",
+  "discovery.status.invalid": "Invalid address",
+  "discovery.partial": "Some catalogues did not answer: the list is incomplete.",
+
+  "discovery.sources.title": "Federated catalogues",
+  "discovery.sources.intro":
+    "Addresses declared here are fetched by the server. Administrators only.",
+  "discovery.sources.empty": "No catalogue",
+  "discovery.sources.add": "Add a catalogue",
+  "discovery.sources.name": "Name",
+  "discovery.sources.url": "OPDS feed address",
+  "discovery.sources.urlHint":
+    "For example https://komga.example.com/opds/v2 \u2014 OPDS 1.2 and 2.0 are detected automatically.",
+  "discovery.sources.username": "Username",
+  "discovery.sources.usernameHint": "Leave empty for a public catalogue.",
+  "discovery.sources.password": "Password",
+  "discovery.sources.passwordKept": "Leave empty to keep the stored password.",
+  "discovery.sources.enabled": "Enabled",
+  "discovery.sources.test": "Test",
+  "discovery.sources.testOk": "The catalogue answers",
+  "discovery.sources.testFailed": "The catalogue did not answer",
+  "discovery.sources.lastError": "Last failure",
+  "discovery.sources.confirmDelete": "Remove this catalogue?",
+  "discovery.sources.checking": "Testing\u2026",
 };
