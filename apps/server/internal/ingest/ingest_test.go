@@ -1,6 +1,7 @@
 package ingest
 
 import (
+	"errors"
 	"strings"
 	"testing"
 )
@@ -178,7 +179,7 @@ func TestLimitedReaderFailsInsteadOfTruncating(t *testing.T) {
 		n, err := reader.Read(buf)
 		read += n
 		if err != nil {
-			if err != ErrTooLarge {
+			if !errors.Is(err, ErrTooLarge) {
 				t.Fatalf("erreur = %v, attendu ErrTooLarge", err)
 			}
 			break

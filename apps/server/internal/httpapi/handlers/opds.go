@@ -227,6 +227,18 @@ func (h *OPDS) SearchDescription(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	/*
+		L'adresse est ÉCHAPPÉE avant d'entrer dans l'attribut.
+
+		Ce n'est pas une précaution de principe. Sans `baseURL` configurée,
+		`abs` compose l'origine à partir de l'en-tête `Host`, que le client
+		choisit : un guillemet suffirait à sortir de `template="…"` et à
+		injecter du balisage dans un document que des clients OPDS analysent.
+
+		C'est le seul document XML construit à la main de ce fichier — le flux,
+		lui, passe par `encoding/xml`, qui échappe de lui-même. Cette exception
+		est précisément celle qui avait échappé à la relecture.
+	*/
 	document := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/">
   <ShortName>boxincloud</ShortName>
@@ -234,7 +246,7 @@ func (h *OPDS) SearchDescription(w http.ResponseWriter, r *http.Request) {
   <InputEncoding>UTF-8</InputEncoding>
   <OutputEncoding>UTF-8</OutputEncoding>
   <Url type="%s" template="%s?q={searchTerms}"/>
-</OpenSearchDescription>`, opdsAcquisition, h.abs(r, "/opds/search"))
+</OpenSearchDescription>`, opdsAcquisition, escapeXML(h.abs(r, "/opds/search")))
 
 	w.Header().Set("Content-Type", opdsSearchDesc+"; charset=utf-8")
 	w.Header().Set("Cache-Control", "private, max-age=3600")
@@ -525,6 +537,18 @@ nécessairement une adresse qu'il sait joindre. Sans ce repli, une instance dont
 l'opérateur n'a pas renseigné `BOXINCLOUD_PUBLIC_URL` publierait un catalogue
 inutilisable, et rien ne le lui dirait.
 */
+// escapeXML rend une valeur sûre dans un attribut XML.
+//
+// `xml.EscapeText` couvre les cinq entités et les caractères de contrôle, ce
+// qui est exactement ce qu'il faut pour un attribut. Son erreur est ignorée :
+// elle ne peut venir que de l'écrivain, et un `strings.Builder` n'en rend
+// jamais.
+func escapeXML(value string) string {
+	var out strings.Builder
+	_ = xml.EscapeText(&out, []byte(value))
+	return out.String()
+}
+
 func (h *OPDS) abs(r *http.Request, path string) string {
 	if strings.HasPrefix(path, "http://") || strings.HasPrefix(path, "https://") {
 		return path

@@ -364,6 +364,10 @@ func writeAccountError(w http.ResponseWriter, r *http.Request, err error) {
 		problem.Write(w, r, problem.Validation(map[string]string{"role": "one-of"}))
 
 	case errors.Is(err, accounts.ErrWeakPassword):
+		// #nosec G101 -- « password » est le NOM du champ fautif dans un
+		// problème RFC 7807, et « at least 12 characters » la règle qu'il
+		// viole. Aucun secret n'est écrit ici ; l'analyseur ne voit qu'une
+		// chaîne littérale à côté d'une clé nommée « password ».
 		problem.Write(w, r, problem.Validation(map[string]string{
 			"password": "at least 12 characters",
 		}))

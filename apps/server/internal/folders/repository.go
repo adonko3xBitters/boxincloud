@@ -55,10 +55,14 @@ func (r *PostgresRepository) Upsert(ctx context.Context, f Folder) (Folder, erro
 	}
 
 	row, err := r.q.UpsertFolder(ctx, sqlc.UpsertFolderParams{
-		ID:         f.ID,
-		LibraryID:  f.LibraryID,
-		Path:       f.Path,
-		Name:       f.Name,
+		ID:        f.ID,
+		LibraryID: f.LibraryID,
+		Path:      f.Path,
+		Name:      f.Name,
+		// #nosec G115 -- `Depth` est le nombre de segments d'un chemin de
+		// dossier, calculé par depthOf() sur une clé d'objet dont la longueur
+		// est bornée à l'ingestion. Il se compte en dizaines, jamais en
+		// milliards ; l'analyseur ne voit que la conversion, pas l'invariant.
 		Depth:      int32(f.Depth),
 		ParentPath: parent,
 		Explicit:   f.Explicit,
@@ -76,11 +80,13 @@ func (r *PostgresRepository) RenameTree(
 	depthDelta int,
 ) (int64, error) {
 	return r.q.RenameFolderTree(ctx, sqlc.RenameFolderTreeParams{
-		LibraryID:  libraryID,
-		OldPath:    oldPath,
-		NewPath:    newPath,
-		NewName:    newName,
-		NewParent:  newParent,
+		LibraryID: libraryID,
+		OldPath:   oldPath,
+		NewPath:   newPath,
+		NewName:   newName,
+		NewParent: newParent,
+		// #nosec G115 -- écart entre deux profondeurs de dossier, négatif quand
+		// l'arbre remonte. Même invariant que `Depth` dans Upsert.
 		DepthDelta: int32(depthDelta),
 	})
 }

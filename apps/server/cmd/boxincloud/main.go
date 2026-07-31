@@ -65,7 +65,9 @@ func main() {
 }
 
 func usage(w *os.File) {
-	fmt.Fprint(w, `boxincloud — serveur de bibliothèque de bandes dessinées
+	// Le retour est ignoré délibérément : si écrire l'aide sur stdout ou stderr
+	// échoue, il n'existe plus aucun canal pour le signaler.
+	_, _ = fmt.Fprint(w, `boxincloud — serveur de bibliothèque de bandes dessinées
 
 Usage :
   boxincloud [commande]

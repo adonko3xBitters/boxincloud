@@ -36,7 +36,7 @@ func planche(width, height int) image.Image {
 		shade := uint8(20 + i*18)
 		draw.Draw(img,
 			image.Rect(x, y, x+width/4, y+height/6),
-			&image.Uniform{color.RGBA{shade, uint8(255 - shade), shade, 255}},
+			&image.Uniform{color.RGBA{shade, 255 - shade, shade, 255}},
 			image.Point{}, draw.Src)
 	}
 	for y := 0; y < height; y++ {

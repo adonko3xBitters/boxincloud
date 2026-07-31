@@ -30,7 +30,7 @@ donc un lecteur navigable, pas un flux.
 func WalkSevenZip(r io.ReaderAt, size int64, visit func(ExtractedEntry) error) error {
 	reader, err := sevenzip.NewReader(r, size)
 	if err != nil {
-		return fmt.Errorf("%w : %v", ErrCorrupted, err)
+		return fmt.Errorf("%w : %w", ErrCorrupted, err)
 	}
 
 	found := 0
@@ -42,7 +42,7 @@ func WalkSevenZip(r io.ReaderAt, size int64, visit func(ExtractedEntry) error) e
 
 		entry, err := file.Open()
 		if err != nil {
-			return fmt.Errorf("%w : %v", ErrCorrupted, err)
+			return fmt.Errorf("%w : %w", ErrCorrupted, err)
 		}
 
 		err = visit(ExtractedEntry{Name: file.Name, Reader: entry})

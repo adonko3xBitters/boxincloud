@@ -104,6 +104,13 @@ func (h *Discovery) Search(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, result)
 }
 
+// maxLocalMatches borne la comparaison au catalogue local.
+//
+// Elle ne sert qu'à marquer « déjà dans votre bibliothèque » sur une page de
+// résultats : au-delà de quelques centaines de titres, on charge de la mémoire
+// pour des lignes que personne ne verra.
+const maxLocalMatches = 1000
+
 /*
 localView donne au service de quoi marquer ce que l'instance possède déjà.
 
@@ -113,6 +120,22 @@ qu'il n'a pas le droit de voir.
 */
 func (h *Discovery) localView(v catalog.Viewer) discovery.LocalCatalog {
 	return func(ctx context.Context, text string, limit int) ([]string, error) {
+		/*
+			La borne est appliquée ICI plutôt que supposée acquise.
+
+			Le service appelle avec une constante aujourd'hui, mais la clôture
+			traverse une interface — `discovery.LocalCatalog` — et rien
+			n'empêchera un futur appelant d'y faire descendre un paramètre de
+			requête. Convertir en int32 sans borner est exactement ce qu'un
+			analyseur statique signale à raison.
+		*/
+		if limit < 0 {
+			limit = 0
+		}
+		if limit > maxLocalMatches {
+			limit = maxLocalMatches
+		}
+
 		found, err := h.catalog.Search(ctx, v, text, nil, int32(limit))
 		if err != nil {
 			return nil, err

@@ -170,7 +170,23 @@ func (r *PostgresRepository) GetImport(ctx context.Context, id uuid.UUID) (Impor
 	return toImport(row), nil
 }
 
+// maxImportRows borne ce qu'une lecture d'imports peut rapporter.
+//
+// Le service applique déjà sa propre borne, plus basse. Celle-ci est ailleurs
+// et sert à autre chose : le dépôt est exporté, `limit` descend d'un paramètre
+// de requête, et le convertir en int32 sans le borner est exactement ce qu'un
+// analyseur statique signale à raison. Borner ici rend le dépôt sûr quel que
+// soit l'appelant, plutôt que sûr par convention.
+const maxImportRows = 500
+
 func (r *PostgresRepository) ListImports(ctx context.Context, limit int) ([]Import, error) {
+	if limit < 0 {
+		limit = 0
+	}
+	if limit > maxImportRows {
+		limit = maxImportRows
+	}
+
 	rows, err := r.q.ListDiscoveryImports(ctx, int32(limit))
 	if err != nil {
 		return nil, fmt.Errorf("discovery : liste des imports : %w", err)

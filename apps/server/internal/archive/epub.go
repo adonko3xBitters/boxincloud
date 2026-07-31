@@ -59,7 +59,7 @@ des noms.
 func WalkEPUB(r io.ReaderAt, size int64, visit func(ExtractedEntry) error) error {
 	reader, err := zip.NewReader(r, size)
 	if err != nil {
-		return fmt.Errorf("%w : %v", ErrCorrupted, err)
+		return fmt.Errorf("%w : %w", ErrCorrupted, err)
 	}
 
 	files := make(map[string]*zip.File, len(reader.File))
@@ -110,7 +110,7 @@ func WalkEPUB(r io.ReaderAt, size int64, visit func(ExtractedEntry) error) error
 
 		entry, err := file.Open()
 		if err != nil {
-			return fmt.Errorf("%w : %v", ErrCorrupted, err)
+			return fmt.Errorf("%w : %w", ErrCorrupted, err)
 		}
 
 		found++
@@ -217,7 +217,7 @@ func imageInDocument(files map[string]*zip.File, docPath string) (string, bool) 
 func readXML(file *zip.File, into any) error {
 	reader, err := file.Open()
 	if err != nil {
-		return fmt.Errorf("%w : %v", ErrCorrupted, err)
+		return fmt.Errorf("%w : %w", ErrCorrupted, err)
 	}
 	defer func() { _ = reader.Close() }()
 
@@ -227,7 +227,7 @@ func readXML(file *zip.File, into any) error {
 	decoder.Strict = false
 
 	if err := decoder.Decode(into); err != nil {
-		return fmt.Errorf("%w : %v", ErrCorrupted, err)
+		return fmt.Errorf("%w : %w", ErrCorrupted, err)
 	}
 	return nil
 }

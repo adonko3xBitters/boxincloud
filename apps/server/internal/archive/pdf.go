@@ -36,7 +36,7 @@ a écarté ; le prétendre serait pire que de le refuser.
 func WalkPDFImages(rs io.ReadSeeker, visit func(ExtractedEntry) error) error {
 	images, err := api.ExtractImagesRaw(rs, nil, model.NewDefaultConfiguration())
 	if err != nil {
-		return fmt.Errorf("%w : %v", ErrCorrupted, err)
+		return fmt.Errorf("%w : %w", ErrCorrupted, err)
 	}
 
 	found := 0

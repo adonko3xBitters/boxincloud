@@ -50,7 +50,7 @@ stockage dans l'archive n'a aucune raison d'être le bon.
 func WalkRAR(r io.Reader, visit func(ExtractedEntry) error) error {
 	reader, err := rardecode.NewReader(r)
 	if err != nil {
-		return fmt.Errorf("%w : %v", ErrCorrupted, err)
+		return fmt.Errorf("%w : %w", ErrCorrupted, err)
 	}
 
 	found := 0
@@ -64,7 +64,7 @@ func WalkRAR(r io.Reader, visit func(ExtractedEntry) error) error {
 			if errors.Is(err, rardecode.ErrArchivedFileEncrypted) {
 				return ErrEncrypted
 			}
-			return fmt.Errorf("%w : %v", ErrCorrupted, err)
+			return fmt.Errorf("%w : %w", ErrCorrupted, err)
 		}
 
 		if header.IsDir || isJunk(header.Name) || !IsImage(header.Name) {
