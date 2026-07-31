@@ -234,6 +234,17 @@ type Querier interface {
 	// pas détruire la progression de lecture des utilisateurs.
 	MarkMissingComicsDeleted(ctx context.Context, arg MarkMissingComicsDeletedParams) (int64, error)
 	MoveComic(ctx context.Context, arg MoveComicParams) error
+	// Déplace un album vers une autre bibliothèque.
+	//
+	// La bibliothèque change en même temps que la clé, dans la même écriture :
+	// l'album ne doit jamais exister dans un état où il appartient à une
+	// bibliothèque tout en désignant un objet rangé chez une autre.
+	//
+	// La série est détachée. Elle appartient à la bibliothèque d'origine, et rien
+	// ne garantit qu'une série du même nom existe à l'arrivée ; le prochain
+	// parcours la recréera là où il faut. Laisser la référence produirait une série
+	// dont les tomes sont ailleurs.
+	MoveComicToLibrary(ctx context.Context, arg MoveComicToLibraryParams) error
 	// Supprime les dossiers constatés devenus vides.
 	//
 	// Seuls les non-explicites : un dossier créé à la main survit au fait d'être
@@ -256,6 +267,17 @@ type Querier interface {
 	PurgeComic(ctx context.Context, id uuid.UUID) error
 	// ─── Cache dérivé ────────────────────────────────────────────────────────────
 	RecordCacheEntry(ctx context.Context, arg RecordCacheEntryParams) error
+	// Recompte les albums d'une bibliothèque.
+	//
+	// Le compteur est une colonne stockée, et il ne l'était rafraîchi qu'en fin de
+	// parcours. Supprimer un album le laissait donc figé : la barre latérale
+	// annonçait vingt-et-un albums devant une grille vide, jusqu'au prochain scan.
+	//
+	// Les deux dates comptent. `deleted_at` marque un objet disparu du backend,
+	// `excluded_at` un album retiré du catalogue par l'utilisateur. Le premier
+	// filtre était seul, si bien qu'un retrait sans suppression de fichier ne
+	// décrémentait rien — même après un scan.
+	RefreshLibraryCount(ctx context.Context, libraryID uuid.UUID) error
 	RefreshSeriesCounts(ctx context.Context, libraryID uuid.UUID) error
 	RemoveFavorite(ctx context.Context, arg RemoveFavoriteParams) error
 	// Renomme une branche entière en une passe.

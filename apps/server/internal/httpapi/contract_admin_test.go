@@ -239,3 +239,127 @@ func TestIntegrationContractCreateLibrary(t *testing.T) {
 		`validLibraryKind` qui s'en charge, et sa raison d'être est là.
 	*/
 }
+
+/*
+Déplacement d'un album vers une autre bibliothèque.
+
+Le déplacement dans un dossier existait ; celui-ci non. Ce qu'il change tient en
+trois écritures qui doivent aller ensemble : la clé de l'objet, la bibliothèque
+d'appartenance, et la série — détachée, parce qu'elle appartient à la
+bibliothèque d'origine et que rien ne garantit son existence à l'arrivée.
+
+Les deux bibliothèques partagent ici le même backend, donc la copie reste côté
+serveur. Le chemin entre backends DISTINCTS — où les octets transitent par le
+serveur — n'est pas couvert : il demanderait deux stockages dans le harnais.
+C'est une réserve, pas un oubli.
+*/
+func TestIntegrationContractMoveBetweenLibraries(t *testing.T) {
+	h := newContractHarness(t)
+
+	var backendID, targetID string
+
+	t.Run("seconde bibliothèque", func(t *testing.T) {
+		rec := h.expect(t, http.MethodGet, "/api/v1/storage-backends", nil, http.StatusOK)
+
+		var backends struct {
+			Backends []struct {
+				ID string `json:"id"`
+			} `json:"backends"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &backends); err != nil {
+			t.Fatal(err)
+		}
+		backendID = backends.Backends[0].ID
+
+		rec = h.expect(t, http.MethodPost, "/api/v1/libraries", map[string]any{
+			"name":       "Archives",
+			"backendId":  backendID,
+			"rootPrefix": "archives/",
+		}, http.StatusCreated)
+
+		var lib struct {
+			ID string `json:"id"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &lib); err != nil {
+			t.Fatal(err)
+		}
+		targetID = lib.ID
+	})
+
+	t.Run("déplacement", func(t *testing.T) {
+		if targetID == "" {
+			t.Skip("pas de seconde bibliothèque")
+		}
+
+		rec := h.expect(t, http.MethodPost, "/api/v1/comics/manage", map[string]any{
+			"action":    "move",
+			"ids":       []string{h.comicID.String()},
+			"libraryId": targetID,
+			"folder":    "",
+		}, http.StatusOK)
+
+		var result struct {
+			Affected int `json:"affected"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &result); err != nil {
+			t.Fatal(err)
+		}
+		if result.Affected != 1 {
+			t.Fatalf("déplacés = %d, attendu 1", result.Affected)
+		}
+	})
+
+	t.Run("l'album a changé de bibliothèque", func(t *testing.T) {
+		if targetID == "" {
+			t.Skip("pas de seconde bibliothèque")
+		}
+
+		rec := h.expect(t, http.MethodGet, "/api/v1/comics/"+h.comicID.String(), nil, http.StatusOK)
+
+		var comic struct {
+			LibraryID string `json:"libraryId"`
+			SeriesID  string `json:"seriesId"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &comic); err != nil {
+			t.Fatal(err)
+		}
+
+		if comic.LibraryID != targetID {
+			t.Errorf("bibliothèque = %s, attendu %s", comic.LibraryID, targetID)
+		}
+		// La série appartenait à la bibliothèque d'origine : la garder
+		// produirait une série dont les tomes sont ailleurs.
+		if comic.SeriesID != "" {
+			t.Errorf("série = %s, attendu détachée", comic.SeriesID)
+		}
+	})
+
+	t.Run("les compteurs des deux bibliothèques suivent", func(t *testing.T) {
+		if targetID == "" {
+			t.Skip("pas de seconde bibliothèque")
+		}
+
+		rec := h.expect(t, http.MethodGet, "/api/v1/libraries", nil, http.StatusOK)
+
+		var payload struct {
+			Libraries []struct {
+				ID         string `json:"id"`
+				ComicCount int    `json:"comicCount"`
+			} `json:"libraries"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+			t.Fatal(err)
+		}
+
+		for _, lib := range payload.Libraries {
+			if lib.ID != targetID {
+				continue
+			}
+			// Le compteur est une colonne stockée : sans rafraîchissement
+			// explicite, il resterait à zéro jusqu'au prochain parcours.
+			if lib.ComicCount != 1 {
+				t.Errorf("albums dans la destination = %d, attendu 1", lib.ComicCount)
+			}
+		}
+	})
+}

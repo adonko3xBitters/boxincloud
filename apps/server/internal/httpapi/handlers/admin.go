@@ -594,6 +594,7 @@ type bulkManageRequest struct {
 	Action     string   `json:"action"`
 	IDs        []string `json:"ids"`
 	Folder     string   `json:"folder"`
+	LibraryID  string   `json:"libraryId"`
 	DeleteFile bool     `json:"deleteFile"`
 }
 
@@ -648,7 +649,21 @@ func (h *Admin) BulkManage(w http.ResponseWriter, r *http.Request) {
 	if req.Action == "delete" {
 		affected, err = h.ingest.BulkDelete(r.Context(), allowed, req.DeleteFile)
 	} else {
-		affected, err = h.ingest.BulkMove(r.Context(), allowed, req.Folder)
+		// Une bibliothèque de destination est facultative : sans elle, le
+		// déplacement reste dans celle d'origine, qui est le cas courant.
+		var target *uuid.UUID
+		if req.LibraryID != "" {
+			id, parseErr := uuid.Parse(req.LibraryID)
+			if parseErr != nil {
+				problem.Write(w, r, problem.Validation(map[string]string{
+					"libraryId": "must be a valid UUID",
+				}))
+				return
+			}
+			target = &id
+		}
+
+		affected, err = h.ingest.BulkMove(r.Context(), allowed, req.Folder, target)
 	}
 	if err != nil {
 		writeIngestError(w, r, err)

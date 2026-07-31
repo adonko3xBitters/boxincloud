@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 
 	"github.com/adonko3xBitters/boxincloud/server/internal/indexer"
+	"github.com/adonko3xBitters/boxincloud/server/internal/library"
 	"github.com/adonko3xBitters/boxincloud/server/internal/storage"
 )
 
@@ -47,7 +48,16 @@ type ManageRepository interface {
 	// RefreshSeries recalcule les compteurs et élague les séries vidées.
 	RefreshSeries(ctx context.Context, libraryID uuid.UUID) error
 
+	// RefreshLibraryCount recompte les albums visibles d'une bibliothèque.
+	RefreshLibraryCount(ctx context.Context, libraryID uuid.UUID) error
+
 	MoveComic(ctx context.Context, id uuid.UUID, objectKey, folderPath string) error
+
+	// MoveComicToLibrary rattache un album à une autre bibliothèque en même
+	// temps qu'il change de clé. Les deux dans la même écriture : un album ne
+	// doit jamais appartenir à une bibliothèque tout en désignant un objet
+	// rangé chez une autre.
+	MoveComicToLibrary(ctx context.Context, id, libraryID uuid.UUID, objectKey, folderPath string) error
 }
 
 // DeleteParams décrit une suppression.
@@ -159,6 +169,15 @@ func (s *Service) refreshSeries(ctx context.Context, libraryID uuid.UUID) {
 		s.log.Warn("compteurs de séries non rafraîchis",
 			slog.String("library_id", libraryID.String()), slog.Any("err", err))
 	}
+
+	// Le compteur de la bibliothèque est une colonne stockée, et il n'était
+	// rafraîchi qu'en fin de parcours. Supprimer un album le laissait figé : la
+	// barre latérale annonçait vingt-et-un albums devant une grille vide,
+	// jusqu'au prochain scan.
+	if err := s.manage.RefreshLibraryCount(ctx, libraryID); err != nil {
+		s.log.Warn("compteur de bibliothèque non rafraîchi",
+			slog.String("library_id", libraryID.String()), slog.Any("err", err))
+	}
 }
 
 // MoveParams décrit un déplacement.
@@ -168,6 +187,14 @@ type MoveParams struct {
 	// Folder est le dossier de destination, relatif au préfixe de la
 	// bibliothèque. Vide pour la racine.
 	Folder string
+
+	// LibraryID désigne une autre bibliothèque de destination. Nul pour rester
+	// dans la même, qui est le cas courant.
+	//
+	// Changer de bibliothèque peut changer d'espace de stockage : les octets
+	// transitent alors par le serveur, faute de copie possible entre deux
+	// backends distincts.
+	LibraryID *uuid.UUID
 }
 
 /*
@@ -187,43 +214,51 @@ func (s *Service) Move(ctx context.Context, p MoveParams) (string, error) {
 		return "", ErrComicNotFound
 	}
 
-	lib, err := s.libraries.GetLibrary(ctx, comic.LibraryID)
+	source, err := s.libraries.GetLibrary(ctx, comic.LibraryID)
 	if err != nil {
 		return "", err
 	}
 
-	name := path.Base(comic.ObjectKey)
-	target := objectKey(lib.RootPrefix, p.Folder, name)
+	destination := source
+	if p.LibraryID != nil && *p.LibraryID != comic.LibraryID {
+		destination, err = s.libraries.GetLibrary(ctx, *p.LibraryID)
+		if err != nil {
+			return "", err
+		}
+	}
 
-	if target == comic.ObjectKey {
+	name := path.Base(comic.ObjectKey)
+	target := objectKey(destination.RootPrefix, p.Folder, name)
+
+	if destination.ID == source.ID && target == comic.ObjectKey {
 		return "", ErrSameFolder
 	}
 
 	// Source et destination : sortir un album d'un dossier protégé le vide,
-	// l'y faire entrer le modifie.
-	if err := s.ensureWritable(ctx, lib.ID, indexer.FolderOf(comic.ObjectKey, lib.RootPrefix)); err != nil {
+	// l'y faire entrer le modifie. Les deux bibliothèques sont consultées
+	// séparément — un dossier verrouillé chez l'une ne dit rien de l'autre.
+	if err := s.ensureWritable(ctx, source.ID, indexer.FolderOf(comic.ObjectKey, source.RootPrefix)); err != nil {
 		return "", err
 	}
-	if err := s.ensureWritable(ctx, lib.ID, p.Folder); err != nil {
-		return "", err
-	}
-
-	provider, err := s.libraries.ProviderForLibrary(ctx, lib)
-	if err != nil {
+	if err := s.ensureWritable(ctx, destination.ID, p.Folder); err != nil {
 		return "", err
 	}
 
-	if err := provider.Move(ctx, comic.ObjectKey, target); err != nil {
-		if errors.Is(err, storage.ErrAlreadyExists) {
-			return "", fmt.Errorf("%w : %s", ErrAlreadyExists, target)
+	if err := s.relocate(ctx, source, destination, comic.ObjectKey, target); err != nil {
+		return "", err
+	}
+
+	folder := indexer.FolderOf(target, destination.RootPrefix)
+	s.registerFolder(ctx, destination.ID, folder)
+
+	update := func() error {
+		if destination.ID == source.ID {
+			return s.manage.MoveComic(ctx, p.ComicID, target, folder)
 		}
-		return "", err
+		return s.manage.MoveComicToLibrary(ctx, p.ComicID, destination.ID, target, folder)
 	}
 
-	folder := indexer.FolderOf(target, lib.RootPrefix)
-	s.registerFolder(ctx, lib.ID, folder)
-
-	if err := s.manage.MoveComic(ctx, p.ComicID, target, folder); err != nil {
+	if err := update(); err != nil {
 		// L'objet a bougé mais le catalogue l'ignore : il pointe une clé qui
 		// n'existe plus. Un scan rétablira la cohérence ; le signaler permet
 		// d'en informer l'utilisateur plutôt que de laisser un album muet.
@@ -235,7 +270,82 @@ func (s *Service) Move(ctx context.Context, p MoveParams) (string, error) {
 		return "", err
 	}
 
+	// Les compteurs des DEUX bibliothèques bougent : l'une perd un tome, l'autre
+	// en gagne un. N'en rafraîchir qu'une laisserait une série fantôme.
+	if destination.ID != source.ID {
+		s.refreshSeries(ctx, source.ID)
+		s.refreshSeries(ctx, destination.ID)
+	}
+
 	return folder, nil
+}
+
+/*
+relocate déplace les octets, par le chemin le moins coûteux disponible.
+
+Dans un même backend, la copie se fait côté serveur : ranger une intégrale de
+cinq cents méga-octets dans un autre dossier ne doit pas la faire transiter par
+nous. C'est la raison d'être de `Provider.Move`.
+
+Entre deux backends distincts, cette copie n'existe pas — un MinIO ne sait pas
+copier depuis un Backblaze. Les octets passent alors par le serveur, en flux :
+lire, écrire, puis effacer la source. L'ordre compte. Effacer d'abord perdrait
+le fichier si l'écriture échouait ; effacer en dernier laisse au pire un doublon,
+qu'un parcours de la bibliothèque d'origine signalera.
+*/
+func (s *Service) relocate(
+	ctx context.Context,
+	source, destination library.Library,
+	from, to string,
+) error {
+	sourceProvider, err := s.libraries.ProviderForLibrary(ctx, source)
+	if err != nil {
+		return err
+	}
+
+	if source.BackendID == destination.BackendID {
+		if err := sourceProvider.Move(ctx, from, to); err != nil {
+			if errors.Is(err, storage.ErrAlreadyExists) {
+				return fmt.Errorf("%w : %s", ErrAlreadyExists, to)
+			}
+			return err
+		}
+		return nil
+	}
+
+	destinationProvider, err := s.libraries.ProviderForLibrary(ctx, destination)
+	if err != nil {
+		return err
+	}
+
+	info, err := sourceProvider.Stat(ctx, from)
+	if err != nil {
+		return err
+	}
+
+	reader, err := sourceProvider.Open(ctx, from)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = reader.Close() }()
+
+	if err := destinationProvider.Write(ctx, to, reader, info.Size, ""); err != nil {
+		if errors.Is(err, storage.ErrAlreadyExists) {
+			return fmt.Errorf("%w : %s", ErrAlreadyExists, to)
+		}
+		return err
+	}
+
+	if err := sourceProvider.Delete(ctx, from); err != nil {
+		// La copie a réussi : l'album est lisible à sa nouvelle place. La source
+		// restée derrière est un doublon, pas une perte — un parcours de la
+		// bibliothèque d'origine le fera réapparaître, et l'utilisateur pourra
+		// le supprimer. Échouer ici annulerait un déplacement qui a fonctionné.
+		s.log.Warn("source non supprimée après déplacement entre backends",
+			slog.String("from", from), slog.Any("err", err))
+	}
+
+	return nil
 }
 
 // BulkDelete supprime une sélection.
@@ -261,14 +371,20 @@ func (s *Service) BulkDelete(ctx context.Context, ids []uuid.UUID, deleteFile bo
 }
 
 // BulkMove range une sélection dans un dossier.
-func (s *Service) BulkMove(ctx context.Context, ids []uuid.UUID, folder string) (int, error) {
+func (s *Service) BulkMove(
+	ctx context.Context,
+	ids []uuid.UUID,
+	folder string,
+	libraryID *uuid.UUID,
+) (int, error) {
 	if len(ids) > MaxBulkItems {
 		return 0, ErrTooManyItems
 	}
 
 	done := 0
 	for _, id := range ids {
-		if _, err := s.Move(ctx, MoveParams{ComicID: id, Folder: folder}); err != nil {
+		params := MoveParams{ComicID: id, Folder: folder, LibraryID: libraryID}
+		if _, err := s.Move(ctx, params); err != nil {
 			// Un album déjà dans le dossier visé n'est pas un échec : le
 			// résultat demandé est atteint.
 			if errors.Is(err, ErrSameFolder) {

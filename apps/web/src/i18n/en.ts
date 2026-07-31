@@ -516,4 +516,14 @@ export const en: Record<MessageKey, string> = {
   "search.tolerance":
     "Accents and typos are tolerated \u2014 \u201casterics\u201d finds \u201cAst\u00e9rix\u201d.",
   "ingest.formatsShort": "CBZ, CBR, PDF, ZIP, RAR",
+
+  "select.toggle": "Select {title}",
+  "select.hint": "Shift-click for a range, {modifier}-click to add",
+
+  "manage.targetLibrary": "Library",
+  "manage.sameLibrary": "Keep the current one",
+  "manage.crossBackend":
+    "Changing library may change storage backend. The bytes then travel through the server, as no copy is possible between two distinct backends \u2014 slower, and noticeably so on a large volume.",
+  "manage.moveHint":
+    "The file is moved inside your storage. Within one backend the copy happens server-side: the bytes never travel through boxincloud.",
 };

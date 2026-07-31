@@ -66,10 +66,23 @@ export function IngestProvider({ children }: { children: React.ReactNode }) {
   const libraries = useQuery({ queryKey: ["libraries"], queryFn: api.listLibraries });
   const items = useMemo(() => libraries.data?.libraries ?? [], [libraries.data]);
 
-  // La destination par défaut est la première bibliothèque : dans le cas
-  // courant — une seule — il n'y a alors rien à choisir.
+  /*
+    La destination par défaut est la première bibliothèque : dans le cas
+    courant — une seule — il n'y a alors rien à choisir.
+
+    La condition portait sur `!target` seul, et laissait donc une destination
+    qui n'existe plus. Supprimer la bibliothèque sélectionnée gardait son
+    identifiant dans l'état ; le `<select>`, ne trouvant pas cette valeur parmi
+    ses options, affichait la première — si bien que l'interface annonçait
+    « BDX » pendant que l'envoi visait une bibliothèque effacée, et échouait en
+    « library not found ».
+
+    Une destination absente de la liste est donc traitée comme une destination
+    vide.
+  */
   useEffect(() => {
-    if (!target && items.length > 0) setTarget(items[0]!.id);
+    if (items.length === 0) return;
+    if (!items.some((library) => library.id === target)) setTarget(items[0]!.id);
   }, [items, target]);
 
   const open = useCallback((files?: File[]) => {

@@ -398,3 +398,21 @@ WHERE s.library_id = $1
         AND c.deleted_at IS NULL
         AND c.excluded_at IS NULL
   );
+
+-- Déplace un album vers une autre bibliothèque.
+--
+-- La bibliothèque change en même temps que la clé, dans la même écriture :
+-- l'album ne doit jamais exister dans un état où il appartient à une
+-- bibliothèque tout en désignant un objet rangé chez une autre.
+--
+-- La série est détachée. Elle appartient à la bibliothèque d'origine, et rien
+-- ne garantit qu'une série du même nom existe à l'arrivée ; le prochain
+-- parcours la recréera là où il faut. Laisser la référence produirait une série
+-- dont les tomes sont ailleurs.
+-- name: MoveComicToLibrary :exec
+UPDATE comics
+SET library_id  = $2,
+    object_key  = $3,
+    folder_path = $4,
+    series_id   = NULL
+WHERE id = $1;

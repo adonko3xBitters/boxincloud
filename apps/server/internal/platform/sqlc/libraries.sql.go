@@ -331,13 +331,41 @@ func (q *Queries) ListScanRuns(ctx context.Context, arg ListScanRunsParams) ([]S
 	return items, nil
 }
 
+const refreshLibraryCount = `-- name: RefreshLibraryCount :exec
+UPDATE libraries
+SET comic_count = (
+        SELECT count(*) FROM comics
+        WHERE comics.library_id = $1
+          AND comics.deleted_at IS NULL
+          AND comics.excluded_at IS NULL
+    )
+WHERE libraries.id = $1
+`
+
+// Recompte les albums d'une bibliothèque.
+//
+// Le compteur est une colonne stockée, et il ne l'était rafraîchi qu'en fin de
+// parcours. Supprimer un album le laissait donc figé : la barre latérale
+// annonçait vingt-et-un albums devant une grille vide, jusqu'au prochain scan.
+//
+// Les deux dates comptent. `deleted_at` marque un objet disparu du backend,
+// `excluded_at` un album retiré du catalogue par l'utilisateur. Le premier
+// filtre était seul, si bien qu'un retrait sans suppression de fichier ne
+// décrémentait rien — même après un scan.
+func (q *Queries) RefreshLibraryCount(ctx context.Context, libraryID uuid.UUID) error {
+	_, err := q.db.Exec(ctx, refreshLibraryCount, libraryID)
+	return err
+}
+
 const setLibraryScanResult = `-- name: SetLibraryScanResult :exec
 UPDATE libraries
 SET last_scan_at = now(),
     last_scan_status = $2,
     comic_count = (
         SELECT count(*) FROM comics
-        WHERE comics.library_id = $1 AND comics.deleted_at IS NULL
+        WHERE comics.library_id = $1
+          AND comics.deleted_at IS NULL
+          AND comics.excluded_at IS NULL
     )
 WHERE libraries.id = $1
 `

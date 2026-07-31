@@ -1032,6 +1032,42 @@ func (q *Queries) MoveComic(ctx context.Context, arg MoveComicParams) error {
 	return err
 }
 
+const moveComicToLibrary = `-- name: MoveComicToLibrary :exec
+UPDATE comics
+SET library_id  = $2,
+    object_key  = $3,
+    folder_path = $4,
+    series_id   = NULL
+WHERE id = $1
+`
+
+type MoveComicToLibraryParams struct {
+	ID         uuid.UUID
+	LibraryID  uuid.UUID
+	ObjectKey  string
+	FolderPath string
+}
+
+// Déplace un album vers une autre bibliothèque.
+//
+// La bibliothèque change en même temps que la clé, dans la même écriture :
+// l'album ne doit jamais exister dans un état où il appartient à une
+// bibliothèque tout en désignant un objet rangé chez une autre.
+//
+// La série est détachée. Elle appartient à la bibliothèque d'origine, et rien
+// ne garantit qu'une série du même nom existe à l'arrivée ; le prochain
+// parcours la recréera là où il faut. Laisser la référence produirait une série
+// dont les tomes sont ailleurs.
+func (q *Queries) MoveComicToLibrary(ctx context.Context, arg MoveComicToLibraryParams) error {
+	_, err := q.db.Exec(ctx, moveComicToLibrary,
+		arg.ID,
+		arg.LibraryID,
+		arg.ObjectKey,
+		arg.FolderPath,
+	)
+	return err
+}
+
 const pruneEmptyFolders = `-- name: PruneEmptyFolders :execrows
 DELETE FROM folders f
 WHERE f.library_id = $1

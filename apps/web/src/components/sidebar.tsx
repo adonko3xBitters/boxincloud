@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { cx } from "./ui";
@@ -39,6 +39,23 @@ export function Sidebar() {
   // active, la première fait office de défaut, ce qui couvre le cas courant
   // d'une installation à bibliothèque unique.
   const firstLibrary = activeLibrary ?? libraries.data?.libraries[0]?.id;
+
+  /*
+    Une portée qui désigne une bibliothèque supprimée ne montre plus rien, et
+    rien ne le dit : la grille reste vide sans expliquer pourquoi, et les
+    actions visent un identifiant mort. On revient alors à « tous les albums »,
+    qui est la seule portée dont l'existence ne dépend de rien.
+
+    Le contrôle attend que la liste soit chargée : pendant le premier
+    chargement, elle est vide sans qu'aucune bibliothèque ait disparu.
+  */
+  const known = libraries.data?.libraries;
+  useEffect(() => {
+    if (!known || activeLibrary === undefined) return;
+    if (!known.some((library) => library.id === activeLibrary)) {
+      setScope({ kind: "all" });
+    }
+  }, [known, activeLibrary, setScope]);
 
   return (
     <aside className="flex h-full w-[var(--layout-sidebar-width)] shrink-0 flex-col overflow-y-auto border-r border-border bg-surface-sunken">

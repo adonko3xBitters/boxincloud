@@ -3022,6 +3022,16 @@ export interface operations {
             content: {
                 "multipart/form-data": {
                     /**
+                     * Format: uuid
+                     * @description Bibliothèque de destination, pour l'action `move`. Omise,
+                     *     l'album reste dans la sienne.
+                     *
+                     *     Changer de bibliothèque peut changer d'espace de stockage :
+                     *     les octets transitent alors par le serveur, faute de copie
+                     *     possible entre deux backends distincts.
+                     */
+                    libraryId?: string;
+                    /**
                      * @description Dossier de destination, relatif au préfixe de la
                      *     bibliothèque. Vide pour la racine. À envoyer AVANT `file`.
                      */

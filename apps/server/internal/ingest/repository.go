@@ -62,6 +62,23 @@ func (r *PostgresManage) RefreshSeries(ctx context.Context, libraryID uuid.UUID)
 	return err
 }
 
+func (r *PostgresManage) RefreshLibraryCount(ctx context.Context, libraryID uuid.UUID) error {
+	return r.q.RefreshLibraryCount(ctx, libraryID)
+}
+
+func (r *PostgresManage) MoveComicToLibrary(
+	ctx context.Context,
+	id, libraryID uuid.UUID,
+	objectKey, folderPath string,
+) error {
+	return r.q.MoveComicToLibrary(ctx, sqlc.MoveComicToLibraryParams{
+		ID:         id,
+		LibraryID:  libraryID,
+		ObjectKey:  objectKey,
+		FolderPath: folderPath,
+	})
+}
+
 func (r *PostgresManage) MoveComic(ctx context.Context, id uuid.UUID, objectKey, folderPath string) error {
 	return r.q.MoveComic(ctx, sqlc.MoveComicParams{
 		ID:         id,

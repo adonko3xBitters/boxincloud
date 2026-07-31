@@ -165,6 +165,11 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
       clearSelection: () => {
         setSelection([]);
         setAnchor(null);
+
+        // Le panneau de détail suit `focused`, pas la sélection. L'oublier ici
+        // laissait la fiche d'un album supprimé affichée à droite d'une grille
+        // vide — un album qu'on ne pouvait plus ni ouvrir ni faire disparaître.
+        setFocused(null);
       },
       focused,
       setFocused,

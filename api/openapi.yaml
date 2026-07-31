@@ -1171,6 +1171,16 @@ paths:
               type: object
               required: [file]
               properties:
+                libraryId:
+                  type: string
+                  format: uuid
+                  description: |
+                    Bibliothèque de destination, pour l'action `move`. Omise,
+                    l'album reste dans la sienne.
+
+                    Changer de bibliothèque peut changer d'espace de stockage :
+                    les octets transitent alors par le serveur, faute de copie
+                    possible entre deux backends distincts.
                 folder:
                   type: string
                   description: |

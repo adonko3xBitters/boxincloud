@@ -521,6 +521,16 @@ export const fr = {
   "search.tolerance":
     "Les accents et les fautes de frappe sont tolérés — « asterics » trouve « Astérix ».",
   "ingest.formatsShort": "CBZ, CBR, PDF, ZIP, RAR",
+
+  "select.toggle": "Sélectionner {title}",
+  "select.hint": "Maj+clic pour une plage, {modifier}+clic pour ajouter",
+
+  "manage.targetLibrary": "Bibliothèque",
+  "manage.sameLibrary": "Ne pas changer",
+  "manage.crossBackend":
+    "Changer de bibliothèque peut changer d'espace de stockage. Les octets transitent alors par le serveur, faute de copie possible entre deux backends distincts — c'est plus lent, et cela se voit sur une intégrale.",
+  "manage.moveHint":
+    "Le fichier est déplacé dans votre stockage. Au sein d'un même espace de stockage, la copie se fait côté serveur : les octets ne transitent pas par boxincloud.",
 } as const;
 
 /** Les clés du catalogue. Toute traduction doit les couvrir toutes. */

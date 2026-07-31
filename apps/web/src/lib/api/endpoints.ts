@@ -399,7 +399,7 @@ export type ManageAction = "delete" | "move";
 export const manageComics = (
   action: ManageAction,
   ids: string[],
-  options: { folder?: string; deleteFile?: boolean } = {},
+  options: { folder?: string; deleteFile?: boolean; libraryId?: string } = {},
 ) =>
   request<{ affected: number }>("/comics/manage", {
     method: "POST",

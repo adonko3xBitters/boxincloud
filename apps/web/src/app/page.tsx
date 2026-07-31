@@ -378,7 +378,11 @@ function CoverGrid({
   progressByComic: Map<string, { page: number; status: string }>;
 }) {
   const t = useT();
-  const { isSelected, select, favorites, ratings } = useWorkspace();
+  const { isSelected, select, selection, favorites, ratings } = useWorkspace();
+
+  // Une sélection en cours rend toutes les cases visibles : on désigne alors
+  // un ensemble, et chercher au survol la case suivante serait pénible.
+  const anySelected = selection.length > 0;
   const ids = comics.map((c) => c.id);
 
   const titleOf = useMemo(() => {
@@ -445,9 +449,45 @@ function CoverGrid({
                 className="relative size-full object-cover"
               />
 
+              {/*
+                Case à cocher.
+
+                La sélection multiple existait déjà — clic, Cmd+clic, Maj+clic —
+                mais rien ne l'annonçait. Quelqu'un qui voulait supprimer vingt
+                albums les sélectionnait donc un par un, ce qui est exactement
+                ce qu'on cherchait à éviter.
+
+                Elle apparaît au survol et reste visible dès qu'une sélection
+                est en cours : la montrer en permanence encombrerait une grille
+                dont l'objet est de faire voir des couvertures.
+              */}
+              <button
+                onClick={(event) => {
+                  event.stopPropagation();
+                  select(comic.id, "toggle", ids);
+                }}
+                aria-pressed={selected}
+                aria-label={t("select.toggle", { title: comic.title })}
+                className={cx(
+                  "absolute left-2 top-2 z-10 grid size-6 place-items-center rounded-md border",
+                  "transition-opacity duration-(--motion-duration-fast)",
+                  selected
+                    ? "border-accent bg-accent text-inverted opacity-100"
+                    : "border-white/70 bg-black/40 text-transparent backdrop-blur-sm",
+                  selected || anySelected
+                    ? "opacity-100"
+                    : "opacity-0 focus-visible:opacity-100 group-hover:opacity-100",
+                )}
+              >
+                <svg viewBox="0 0 16 16" fill="currentColor" className="size-3.5" aria-hidden="true">
+                  <path d="M13.5 4.5 6.5 11.5 2.5 7.5l1-1 3 3 6-6 1 1Z" />
+                </svg>
+              </button>
+
               {/* Marqueurs posés sur la couverture : ils informent sans coûter
-                  de place sous la vignette. */}
-              <div className="absolute left-2 top-2 flex gap-1">
+                  de place sous la vignette. Décalés à droite quand la case
+                  occupe le coin gauche. */}
+              <div className="absolute left-2 top-10 flex gap-1">
                 {favorites.has(comic.id) && (
                   <span className="grid size-6 place-items-center rounded-full bg-black/60 backdrop-blur-sm">
                     <svg viewBox="0 0 16 16" fill="currentColor" className="size-3.5 text-danger" aria-hidden="true">

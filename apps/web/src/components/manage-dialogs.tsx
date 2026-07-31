@@ -144,12 +144,19 @@ export function MoveDialog({
   const queryClient = useQueryClient();
   const { clearSelection } = useWorkspace();
   const [folder, setFolder] = useState("");
+  const [libraryId, setLibraryId] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEscape(onClose);
 
   const folders = useQuery({ queryKey: ["folders", undefined], queryFn: () => api.listFolders() });
+  const libraries = useQuery({ queryKey: ["libraries"], queryFn: api.listLibraries });
+
+  // Le choix de bibliothèque ne s'affiche que s'il y en a plusieurs : proposer
+  // « déplacer vers » une liste d'un seul élément est du bruit.
+  const targets = libraries.data?.libraries ?? [];
+  const canChangeLibrary = targets.length > 1;
 
   // Les dossiers existants sont proposés : taper un chemin de mémoire est le
   // meilleur moyen d'en créer un deuxième à une lettre près.
@@ -162,10 +169,17 @@ export function MoveDialog({
     setBusy(true);
     setError(null);
     try {
-      if (ids.length === 1) {
+      // Un changement de bibliothèque passe toujours par la route de lot :
+      // `moveComic` ne sait ranger que dans un dossier de la bibliothèque
+      // courante, et lui ajouter un paramètre dupliquerait la même règle à deux
+      // endroits.
+      if (ids.length === 1 && !libraryId) {
         await api.moveComic(ids[0]!, folder);
       } else {
-        await api.manageComics("move", ids, { folder });
+        await api.manageComics("move", ids, {
+          folder,
+          ...(libraryId ? { libraryId } : {}),
+        });
       }
       await refreshCatalog(queryClient);
       clearSelection();
@@ -186,6 +200,31 @@ export function MoveDialog({
     >
       <TargetList titles={titles} count={ids.length} />
 
+      {canChangeLibrary && (
+        <label className="flex flex-col gap-1">
+          <span className="text-micro uppercase tracking-wide text-subtle">
+            {t("manage.targetLibrary")}
+          </span>
+          <select
+            value={libraryId}
+            onChange={(e) => setLibraryId(e.target.value)}
+            className="h-9 rounded-md border border-border bg-surface px-2 text-ui text-fg"
+          >
+            <option value="">{t("manage.sameLibrary")}</option>
+            {targets.map((library) => (
+              <option key={library.id} value={library.id}>
+                {library.name}
+              </option>
+            ))}
+          </select>
+          {libraryId && (
+            <span className="text-meta leading-relaxed text-warning">
+              {t("manage.crossBackend")}
+            </span>
+          )}
+        </label>
+      )}
+
       <label className="flex flex-col gap-1">
         <span className="text-micro uppercase tracking-wide text-subtle">{t("manage.destination")}</span>
         <input
@@ -201,10 +240,7 @@ export function MoveDialog({
             <option key={path} value={path} />
           ))}
         </datalist>
-        <span className="text-meta leading-relaxed text-subtle">
-          Le fichier est déplacé dans votre stockage. Sur un backend S3, la copie
-          se fait côté serveur : les octets ne transitent pas par boxincloud.
-        </span>
+        <span className="text-meta leading-relaxed text-subtle">{t("manage.moveHint")}</span>
       </label>
 
       {error && <ErrorNote>{error}</ErrorNote>}
