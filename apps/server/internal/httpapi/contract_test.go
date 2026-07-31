@@ -16,6 +16,7 @@ import (
 	"github.com/getkin/kin-openapi/routers"
 	"github.com/getkin/kin-openapi/routers/gorillamux"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/adonko3xBitters/boxincloud/server/internal/app"
 	"github.com/adonko3xBitters/boxincloud/server/internal/auth"
@@ -64,6 +65,10 @@ type contractHarness struct {
 	// servies. Ce raccourci laisse un test vérifier ce qui suit l'indexation —
 	// qu'un album déplacé se lit toujours, par exemple.
 	indexNow func(ctx context.Context, comicID uuid.UUID) error
+
+	// pool donne un accès direct à la base, pour les tests qui doivent semer
+	// des données en masse sans passer par l'API.
+	pool *pgxpool.Pool
 }
 
 func newContractHarness(t *testing.T) *contractHarness {
@@ -123,7 +128,7 @@ func newContractHarness(t *testing.T) *contractHarness {
 		t.Fatalf("routeur de validation : %v", err)
 	}
 
-	h := &contractHarness{router: router, router4Spec: specRouter, spec: spec}
+	h := &contractHarness{router: router, router4Spec: specRouter, spec: spec, pool: pool}
 	h.indexNow = newDirectIndexer(core)
 	h.seed(t, core, minio)
 	return h
