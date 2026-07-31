@@ -19,7 +19,16 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.12.2
+  # 3.12.0 et non 3.12.2 : cette contrainte n'a jamais été un besoin, c'est
+  # celle que `dart pub` avait écrite d'après le SDK de la machine au moment du
+  # jalon M5. Deux versions de correctif plus haut que nécessaire, elle rendait
+  # l'image de release inconstructible — `ghcr.io/cirruslabs/flutter:stable`
+  # embarque Dart 3.12.0, et `flutter pub get` refusait d'y résoudre.
+  #
+  # Le défaut était invisible partout ailleurs : la CI mobile passe par
+  # `subosito/flutter-action` sur le canal stable, qui tire un SDK plus récent
+  # que l'image. Seul le chemin de publication le voyait, et seulement au tag.
+  sdk: ^3.12.0
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
