@@ -407,8 +407,12 @@ taille appliquée au flux, signature du contenu vérifiée avant d'écrire, refu
 d'écraser un objet existant, contrôle d'écriture sur le dossier de destination.
 Les redire ici les aurait fait diverger.
 
-Reste à faire : les sources du domaine public en téléchargement direct (D2) et
-l'enrichissement de métadonnées (D3).
+**Le découpage est achevé.** D2 et D3 ont été livrés depuis : l'import dépose
+dans un backend, le moteur de gabarits lit les sites sans API, l'enrichissement
+comble les métadonnées d'un album qui arrive, et l'écran de rapprochement permet
+de corriger à la main. La seule réserve porte sur les gabarits eux-mêmes, et
+elle est documentée plus bas : aucun n'est livré, faute de site admissible qui
+soit lisible aujourd'hui.
 
 ### Périmètre des sources
 
@@ -511,7 +515,7 @@ activable ou désactivable depuis l'administration.
 | **D4** | Fédération OPDS (client OPDS 1.2 + 2.0) | **fait** |
 | **D2a** | Import d'un résultat vers un backend de stockage | **fait** |
 | **D2b** | Moteur de gabarits (scraping) | **fait** — sans gabarit livré, voir ci-dessus |
-| **D3** | Métadonnées + écran de rapprochement manuel | 2 sem |
+| **D3** | Métadonnées + écran de rapprochement manuel | **fait** |
 
 D1 et D4 ont été faits ensemble, et l'ordre initial était le mauvais : le client
 OPDS n'est pas une source parmi d'autres à ajouter à la fin, c'est celui qui
