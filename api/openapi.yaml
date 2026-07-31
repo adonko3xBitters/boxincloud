@@ -357,16 +357,7 @@ paths:
           description: Résultats
           content:
             application/json:
-              schema:
-                type: object
-                required: [comics, series]
-                properties:
-                  comics:
-                    type: array
-                    items: { $ref: "#/components/schemas/Comic" }
-                  series:
-                    type: array
-                    items: { $ref: "#/components/schemas/Series" }
+              schema: { $ref: "#/components/schemas/SearchResults" }
         "401":
           $ref: "#/components/responses/Unauthorized"
 
@@ -2724,6 +2715,22 @@ components:
           type: array
           items: { $ref: "#/components/schemas/Series" }
         nextCursor: { type: string }
+
+    SearchResults:
+      type: object
+      description: |
+        Une recherche retourne deux natures de résultats, jamais fondues en une
+        seule liste : chercher « astérix » veut dire la série pour qui la
+        parcourt, et un tome précis pour qui le cherche. Les mêler classerait
+        l'un devant l'autre au lieu de laisser choisir.
+      required: [comics, series]
+      properties:
+        comics:
+          type: array
+          items: { $ref: "#/components/schemas/Comic" }
+        series:
+          type: array
+          items: { $ref: "#/components/schemas/Series" }
 
     Manifest:
       type: object

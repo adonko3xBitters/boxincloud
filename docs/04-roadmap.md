@@ -136,9 +136,18 @@ plutôt que vite.
 - [x] Écrans bibliothèque, série, détail — même langage visuel que le web via les tokens partagés.
 - [x] Lecteur tactile : `PageView`, zoom, préchargement, plein écran immersif, mode manga.
 - [x] Synchronisation de la progression avec file d'opérations hors ligne.
+- [x] Recherche : serveur d'abord, repli sur le cache local hors ligne.
+- [x] Navigation par séries, en plus des dossiers.
 
 **Sortie :** APK de debug construit et vérifié en intégration continue. Le build
 iOS reste à valider : il demande Xcode, absent de la machine de développement.
+
+La recherche interroge le serveur, qui sait faire mieux — trigrammes, tolérance
+aux fautes de frappe — et retombe sur le cache local quand le réseau manque. Ce
+repli n'est pas un lot de consolation : hors ligne, les albums en cache sont
+exactement ceux qu'on peut lire, donc les seuls qu'il vaille la peine de
+chercher. Il se contente d'un pliage des accents et d'une correspondance par
+sous-chaîne : « asterix » trouve « Astérix », « asterics » ne trouve rien.
 
 Le client Dart est généré par `tools/generate-dart-models.mjs` plutôt que par
 openapi-generator, qui exigerait une machine virtuelle Java — dépendance lourde

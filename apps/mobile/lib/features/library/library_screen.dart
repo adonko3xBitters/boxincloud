@@ -6,8 +6,10 @@ import '../../core/auth/session.dart';
 import '../../core/db/database.dart';
 import '../../shared/theme.dart';
 import '../../shared/tokens.dart';
+import '../search/search_screen.dart';
 import 'comic_detail_screen.dart';
 import 'library_controller.dart';
+import 'series_list_screen.dart';
 
 /// Bibliothèque : la grille de couvertures.
 ///
@@ -28,8 +30,15 @@ class LibraryScreen extends ConsumerWidget {
         title: Text(scope.title),
         actions: [
           IconButton(
+            icon: const Icon(Icons.search),
+            tooltip: 'Rechercher',
+            onPressed: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(builder: (_) => const SearchScreen()),
+            ),
+          ),
+          IconButton(
             icon: const Icon(Icons.folder_outlined),
-            tooltip: 'Dossiers',
+            tooltip: 'Parcourir',
             onPressed: () => _openFolders(context, ref),
           ),
           IconButton(
@@ -252,6 +261,17 @@ class _FolderSheet extends ConsumerWidget {
             onTap: () {
               ref.read(scopeProvider.notifier).state = const LibraryScope();
               Navigator.pop(context);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.collections_bookmark_outlined),
+            title: const Text('Séries'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const SeriesListScreen()),
+              );
             },
           ),
           const Divider(),

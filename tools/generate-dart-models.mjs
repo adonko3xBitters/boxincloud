@@ -195,6 +195,7 @@ const WANTED = [
   "ComicPage",
   "Series",
   "SeriesPage",
+  "SearchResults",
   "Manifest",
   "ManifestPage",
   "Progress",

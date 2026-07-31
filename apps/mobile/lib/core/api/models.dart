@@ -286,6 +286,27 @@ class SeriesPage {
       };
 }
 
+/// SearchResults, tel que décrit par le contrat.
+class SearchResults {
+  final List<Comic> comics;
+  final List<Series> series;
+
+  const SearchResults({
+    required this.comics,
+    required this.series,
+  });
+
+  factory SearchResults.fromJson(Map<String, dynamic> json) => SearchResults(
+        comics: (json['comics'] as List<dynamic>).map((e) => Comic.fromJson(e as Map<String, dynamic>)).toList(),
+        series: (json['series'] as List<dynamic>).map((e) => Series.fromJson(e as Map<String, dynamic>)).toList(),
+      );
+
+  Map<String, dynamic> toJson() => {
+        'comics': comics.map((e) => e.toJson()).toList(),
+        'series': series.map((e) => e.toJson()).toList(),
+      };
+}
+
 /// Manifest, tel que décrit par le contrat.
 class Manifest {
   final String comicId;

@@ -2,8 +2,10 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/api/client.dart';
 import '../../core/auth/session.dart';
 import '../../core/db/database.dart';
+import '../../core/db/mapping.dart';
 import '../../shared/theme.dart';
 import '../../shared/tokens.dart';
 import 'comic_detail_screen.dart';
@@ -107,7 +109,21 @@ final seriesComicsProvider =
   if (session is! SessionActive) return const [];
 
   final db = ref.watch(databaseProvider);
-  final comics = await db.comicsOf(session.server.id, seriesId: seriesId);
+  var comics = await db.comicsOf(session.server.id, seriesId: seriesId);
+
+  // Le cache ne retient qu'une partie de chaque bibliothèque, et une série
+  // atteinte depuis une recherche en ligne peut n'y figurer par aucun tome.
+  // Afficher « aucun album » alors que le serveur répond serait faux.
+  if (comics.isEmpty) {
+    try {
+      final page = await session.client.comics(seriesId: seriesId, limit: 200);
+      comics = page.items.map((c) => cachedFromApi(c, session.server.id)).toList();
+    } on NetworkException {
+      // Hors ligne : la liste vide est alors la réponse honnête.
+    } on ApiException {
+      // Idem — mieux vaut une série vide qu'un écran d'erreur.
+    }
+  }
 
   final sorted = [...comics]..sort((a, b) => compareTome(a.number, b.number));
   return sorted;

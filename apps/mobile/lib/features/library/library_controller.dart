@@ -103,6 +103,24 @@ final libraryProvider = FutureProvider<LibraryView>((ref) async {
           .toList(),
     );
 
+    // Les séries sont mises en cache ici plutôt qu'à l'ouverture de l'écran qui
+    // les liste : elles servent aussi à la recherche hors ligne, qu'on n'a
+    // aucune raison de faire dépendre d'une visite préalable de cet écran.
+    final series = await session.client.series(libraryId: scope.libraryId);
+    await db.replaceSeries(
+      serverId,
+      series.items
+          .map((s) => CachedSeriesCompanion.insert(
+                id: s.id,
+                serverId: serverId,
+                libraryId: s.libraryId,
+                name: s.name,
+                comicCount: Value(s.comicCount),
+                coverPath: Value(s.coverPath ?? ''),
+              ))
+          .toList(),
+    );
+
     // Une bibliothèque à la fois : le cache est remplacé par bibliothèque, et
     // mélanger les deux effacerait ce qu'on vient d'écrire.
     for (final library in libraries) {

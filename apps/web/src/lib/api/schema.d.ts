@@ -1634,6 +1634,16 @@ export interface components {
             items: components["schemas"]["Series"][];
             nextCursor?: string;
         };
+        /**
+         * @description Une recherche retourne deux natures de résultats, jamais fondues en une
+         *     seule liste : chercher « astérix » veut dire la série pour qui la
+         *     parcourt, et un tome précis pour qui le cherche. Les mêler classerait
+         *     l'un devant l'autre au lieu de laisser choisir.
+         */
+        SearchResults: {
+            comics: components["schemas"]["Comic"][];
+            series: components["schemas"]["Series"][];
+        };
         Manifest: {
             /** Format: uuid */
             comicId: string;
@@ -2114,10 +2124,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        comics: components["schemas"]["Comic"][];
-                        series: components["schemas"]["Series"][];
-                    };
+                    "application/json": components["schemas"]["SearchResults"];
                 };
             };
             401: components["responses"]["Unauthorized"];

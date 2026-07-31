@@ -314,6 +314,27 @@ extension BoxincloudApi on ApiClient {
         },
       );
 
+  /// Recherche côté serveur : plein texte, trigrammes, insensible aux accents.
+  ///
+  /// Une requête trop courte est refusée ici plutôt qu'au retour : le serveur
+  /// répondrait des listes vides, et faire l'aller-retour pour l'apprendre
+  /// coûte une latence à chaque frappe.
+  Future<SearchResults> search(String query, {String? libraryId, int limit = 30}) {
+    if (query.trim().length < 2) {
+      return Future.value(const SearchResults(comics: [], series: []));
+    }
+
+    return get(
+      '/search',
+      (json) => SearchResults.fromJson(json as Map<String, dynamic>),
+      query: {
+        'q': query.trim(),
+        'libraryId': ?libraryId,
+        'limit': '$limit',
+      },
+    );
+  }
+
   Future<Manifest> manifest(String comicId) => get(
         '/comics/$comicId/manifest',
         (json) => Manifest.fromJson(json as Map<String, dynamic>),
