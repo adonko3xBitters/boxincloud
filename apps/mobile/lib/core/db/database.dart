@@ -101,8 +101,32 @@ class LocalProgress extends Table {
   Set<Column> get primaryKey => {comicId, serverId};
 }
 
+/// Préférences locales, en clé-valeur.
+///
+/// Pas dans le stockage sécurisé, qui garde les jetons : chiffrer un sens de
+/// lecture n'apporte rien et le rend plus lent à lire. Pas dans une dépendance
+/// de plus non plus — la base est déjà là.
+///
+/// Volontairement sans `serverId` : le sens de lecture est une préférence de
+/// personne, pas de serveur. Quelqu'un qui lit des mangas les lit de droite à
+/// gauche sur toutes ses instances.
+class Preferences extends Table {
+  TextColumn get key => text()();
+  TextColumn get value => text()();
+
+  @override
+  Set<Column> get primaryKey => {key};
+}
+
 @DriftDatabase(
-  tables: [CachedComics, CachedSeries, CachedFolders, CachedLibraries, LocalProgress],
+  tables: [
+    CachedComics,
+    CachedSeries,
+    CachedFolders,
+    CachedLibraries,
+    LocalProgress,
+    Preferences,
+  ],
 )
 class BoxDatabase extends _$BoxDatabase {
   BoxDatabase() : super(_open());
@@ -111,7 +135,37 @@ class BoxDatabase extends _$BoxDatabase {
   BoxDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
+
+  /*
+  Migrations.
+
+  Le cache du catalogue pourrait être jeté à chaque montée de version — il se
+  reconstruit depuis le serveur. La progression de lecture, non : une position
+  jamais synchronisée n'existe qu'ici, et l'effacer perdrait la page où
+  quelqu'un s'est arrêté dans le métro. D'où des migrations réelles plutôt
+  qu'un `deleteEverything`.
+  */
+  @override
+  MigrationStrategy get migration => MigrationStrategy(
+        onCreate: (m) => m.createAll(),
+        onUpgrade: (m, from, to) async {
+          if (from < 2) await m.createTable(preferences);
+        },
+      );
+
+  // ─── Préférences ───────────────────────────────────────────────────────────
+
+  Future<String?> preference(String key) async {
+    final row = await (select(preferences)..where((p) => p.key.equals(key)))
+        .getSingleOrNull();
+    return row?.value;
+  }
+
+  Future<void> setPreference(String key, String value) =>
+      into(preferences).insertOnConflictUpdate(
+        PreferencesCompanion.insert(key: key, value: value),
+      );
 
   // ─── Catalogue ─────────────────────────────────────────────────────────────
 

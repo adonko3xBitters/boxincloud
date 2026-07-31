@@ -15,8 +15,49 @@ import '../../shared/tokens.dart';
 /// Sens de lecture.
 enum ReadingDirection { leftToRight, rightToLeft }
 
+/*
+Sens de lecture, retenu d'une session à l'autre.
+
+Quelqu'un qui lit des mangas en lit rarement un seul. Un réglage oublié à
+chaque lancement l'obligerait à rebasculer avant chaque album — une correction
+manuelle, systématique, d'un défaut de mémoire de l'application.
+
+La préférence n'est pas rattachée à un serveur : c'est une habitude de
+personne, pas de bibliothèque.
+*/
+class ReadingDirectionNotifier extends Notifier<ReadingDirection> {
+  static const _key = 'reader.direction';
+
+  @override
+  ReadingDirection build() => ReadingDirection.leftToRight;
+
+  /// Relit la préférence enregistrée.
+  ///
+  /// Appelée par le lecteur pendant son chargement, donc avant que le sens ne
+  /// serve à quoi que ce soit : la lire dans `build()` ferait rendre une
+  /// première image dans le mauvais sens, puis basculer sous les yeux.
+  Future<void> restore() async {
+    final stored = await ref.read(databaseProvider).preference(_key);
+    if (stored == null) return;
+
+    state = ReadingDirection.values.firstWhere(
+      (d) => d.name == stored,
+      orElse: () => ReadingDirection.leftToRight,
+    );
+  }
+
+  Future<void> toggle() async {
+    state = state == ReadingDirection.leftToRight
+        ? ReadingDirection.rightToLeft
+        : ReadingDirection.leftToRight;
+
+    await ref.read(databaseProvider).setPreference(_key, state.name);
+  }
+}
+
 final directionProvider =
-    StateProvider<ReadingDirection>((ref) => ReadingDirection.leftToRight);
+    NotifierProvider<ReadingDirectionNotifier, ReadingDirection>(
+        ReadingDirectionNotifier.new);
 
 /*
 Lecteur.
@@ -78,6 +119,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   Future<void> _load() async {
     final session = ref.read(sessionProvider);
     if (session is! SessionActive) return;
+
+    // Avant le manifeste : le sens de lecture doit être connu à la première
+    // image, et ce chargement-ci ne touche que la base locale.
+    await ref.read(directionProvider.notifier).restore();
 
     try {
       final manifest = await session.client.manifest(widget.comicId);
@@ -203,12 +248,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
                 _controller!.jumpToPage(value);
               },
               direction: direction,
-              onToggleDirection: () {
-                ref.read(directionProvider.notifier).state =
-                    direction == ReadingDirection.leftToRight
-                        ? ReadingDirection.rightToLeft
-                        : ReadingDirection.leftToRight;
-              },
+              onToggleDirection: () => ref.read(directionProvider.notifier).toggle(),
             ),
           ],
         ],
