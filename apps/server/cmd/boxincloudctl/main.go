@@ -37,6 +37,12 @@ Diagnostic
 Schéma
   migrate                       Applique les migrations en attente
 
+Comptes
+  user list                     Liste les comptes et leur rôle
+  user set-password <compte>    Change un mot de passe et révoque les sessions.
+                                Le mot de passe est lu sur l'entrée standard,
+                                jamais passé en argument.
+
 Stockage
   storage add <nom> <type> [clé=valeur ...]
                                 Enregistre un backend après l'avoir testé.
@@ -140,6 +146,9 @@ func run(args []string) error {
 
 	case "page":
 		return cmd.page(ctx, args[1:])
+
+	case "user":
+		return cmd.user(ctx, args[1:])
 
 	default:
 		fmt.Print(usage)

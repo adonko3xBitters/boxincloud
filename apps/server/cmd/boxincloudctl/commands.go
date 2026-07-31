@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"errors"
 	"fmt"
@@ -434,4 +435,105 @@ func humanBytes(n int64) string {
 		exp++
 	}
 	return fmt.Sprintf("%.1f %co", float64(n)/float64(div), "kMGTP"[exp])
+}
+
+// ─── Comptes ─────────────────────────────────────────────────────────────────
+
+/*
+Gestion des comptes en ligne de commande.
+
+# Pourquoi elle existe
+
+Sans elle, un administrateur qui oublie son mot de passe est enfermé dehors
+DÉFINITIVEMENT. Il n'y a ni courriel de récupération — une instance
+auto-hébergée n'a pas forcément de serveur de messagerie — ni second
+administrateur garanti, puisque l'assistant d'installation n'en crée qu'un.
+
+Le seul recours était d'écrire un hachage argon2id à la main dans PostgreSQL.
+Personne ne fait ça correctement du premier coup, et s'y tromper verrouille le
+compte pour de bon.
+
+# Pourquoi le mot de passe ne s'écrit pas dans la commande
+
+Il est lu sur l'entrée standard, jamais passé en argument. Un argument atterrit
+dans l'historique du shell, dans la sortie de `ps` pendant l'exécution, et dans
+les journaux de tout ce qui enregistre les commandes. Trois fuites pour un
+confort de frappe.
+*/
+func (c *commands) user(ctx context.Context, args []string) error {
+	if len(args) == 0 {
+		return errors.New("usage : boxincloudctl user <list|set-password>")
+	}
+
+	switch args[0] {
+	case "list":
+		return c.userList(ctx)
+	case "set-password":
+		return c.userSetPassword(ctx, args[1:])
+	default:
+		return fmt.Errorf("sous-commande inconnue : %s", args[0])
+	}
+}
+
+func (c *commands) userList(ctx context.Context) error {
+	users, err := c.core.Queries.ListUsers(ctx)
+	if err != nil {
+		return fmt.Errorf("lecture des comptes : %w", err)
+	}
+	if len(users) == 0 {
+		fmt.Println("Aucun compte. Ouvrez l'interface web : l'assistant crée le premier.")
+		return nil
+	}
+
+	fmt.Printf("%-24s %-8s %s\n", "COMPTE", "RÔLE", "DERNIÈRE CONNEXION")
+	for _, u := range users {
+		last := "jamais"
+		if u.LastLoginAt.Valid {
+			last = u.LastLoginAt.Time.Format("2006-01-02 15:04")
+		}
+		fmt.Printf("%-24s %-8s %s\n", u.Username, u.Role, last)
+	}
+	return nil
+}
+
+/*
+userSetPassword change le mot de passe d'un compte.
+
+Les sessions ouvertes sont révoquées. C'est le point : on ne change pas un mot
+de passe pour le plaisir, mais parce qu'on l'a perdu ou qu'il a fuité. Dans le
+second cas, laisser vivre les jetons existants rendrait l'opération inutile —
+celui qui avait l'accès le garderait.
+*/
+func (c *commands) userSetPassword(ctx context.Context, args []string) error {
+	if len(args) != 1 {
+		return errors.New("usage : boxincloudctl user set-password <compte>")
+	}
+	username := args[0]
+
+	account, err := c.core.Queries.GetUserByUsername(ctx, username)
+	if err != nil {
+		return fmt.Errorf("compte introuvable : %s", username)
+	}
+
+	fmt.Fprintf(os.Stderr, "Nouveau mot de passe pour %s (saisie sur l'entrée standard) : ", username)
+
+	reader := bufio.NewReader(os.Stdin)
+	line, err := reader.ReadString('\n')
+	if err != nil && line == "" {
+		return fmt.Errorf("lecture du mot de passe : %w", err)
+	}
+	password := strings.TrimRight(line, "\r\n")
+
+	if err := c.core.Accounts.ResetPassword(ctx, account.ID, password); err != nil {
+		return err
+	}
+
+	revoked, err := c.core.Queries.RevokeAllUserSessions(ctx, account.ID)
+	if err != nil {
+		return fmt.Errorf("mot de passe changé, mais sessions non révoquées : %w", err)
+	}
+	_ = revoked
+
+	fmt.Printf("→ mot de passe de %s changé, sessions révoquées\n", username)
+	return nil
 }
