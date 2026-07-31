@@ -105,6 +105,11 @@ func newContractHarness(t *testing.T) *contractHarness {
 			RefreshTokenTTL: 24 * 60 * 60 * 1e9,
 		},
 		Jobs: config.Jobs{Enabled: false},
+
+		// Aucune sortie vers un service tiers : des tests qui joignent
+		// Internet sont lents, instables, et impolis envers des bases
+		// publiques financées par des dons.
+		Discovery: config.Discovery{Metadata: false},
 	}
 
 	core, err := app.BuildCore(context.Background(), cfg, pool, log)

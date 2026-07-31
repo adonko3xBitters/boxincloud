@@ -277,6 +277,11 @@ func NewRouter(d Deps) http.Handler {
 
 			r.Get("/discovery/search", discoveryHandler.Search)
 
+			// Le rapprochement porte sur UNE œuvre : le débit sortant vers
+			// les bases publiques interdit d'en traiter quarante dans le
+			// temps d'une requête.
+			r.Get("/discovery/describe", discoveryHandler.Describe)
+
 			// L'import ne demande PLUS le délai des opérations longues :
 			// la requête enregistre et enfile, le téléchargement se fait
 			// dans un job. Elle rend en quelques millisecondes.

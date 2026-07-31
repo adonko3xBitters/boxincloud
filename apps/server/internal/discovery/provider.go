@@ -130,24 +130,24 @@ justement pour rendre impossible.
 type Description struct {
 	// ProviderKind dit d'où vient la fiche. Deux bases se contredisent
 	// régulièrement ; l'écran de rapprochement doit pouvoir le montrer.
-	ProviderKind string
-	ProviderName string
+	ProviderKind string `json:"providerKind"`
+	ProviderName string `json:"providerName"`
 
-	Title     string
-	Authors   []string
-	Series    string
-	Number    string
-	Summary   string
-	Language  string
-	Published string
-	Publisher string
-	ISBN      string
-	PageCount int
-	Subjects  []string
-	CoverURL  string
+	Title     string   `json:"title"`
+	Authors   []string `json:"authors,omitempty"`
+	Series    string   `json:"series,omitempty"`
+	Number    string   `json:"number,omitempty"`
+	Summary   string   `json:"summary,omitempty"`
+	Language  string   `json:"language,omitempty"`
+	Published string   `json:"published,omitempty"`
+	Publisher string   `json:"publisher,omitempty"`
+	ISBN      string   `json:"isbn,omitempty"`
+	PageCount int      `json:"pageCount,omitempty"`
+	Subjects  []string `json:"subjects,omitempty"`
+	CoverURL  string   `json:"coverUrl,omitempty"`
 	// PageURL renvoie vers la fiche d'origine, pour que l'utilisateur puisse
 	// vérifier ce qu'on lui propose.
-	PageURL string
+	PageURL string `json:"pageUrl,omitempty"`
 
 	/*
 		Confidence est la force du rapprochement, de 0 à 1.
@@ -160,7 +160,7 @@ type Description struct {
 		Sans elle, la seule politique possible serait « prendre le premier », qui
 		écrase tôt ou tard la fiche d'un album par celle d'un homonyme.
 	*/
-	Confidence float64
+	Confidence float64 `json:"confidence"`
 }
 
 /*

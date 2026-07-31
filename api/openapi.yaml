@@ -2495,6 +2495,70 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /discovery/describe:
+    get:
+      operationId: discoveryDescribe
+      summary: Rapprocher une œuvre de sa fiche
+      description: |
+        Interroge les bases de métadonnées ouvertes — Open Library, Internet
+        Archive, et Google Books si une clé est configurée — pour proposer des
+        fiches correspondant à l'œuvre décrite.
+
+        **Toujours pour UNE œuvre, jamais pour une liste.** Ce n'est pas une
+        limitation de l'API mais une conséquence du débit sortant : interroger
+        une base publique demande d'espacer les appels d'une seconde et demie,
+        ce qui rend impossible d'enrichir quarante résultats de recherche dans
+        le temps d'une requête. Le rapprochement est déclenché sur l'album qu'on
+        corrige, ou sur celui qu'on vient d'importer.
+
+        **Ces bases ne fournissent aucun fichier.** Elles décrivent. Leurs
+        réponses ne sont donc jamais mêlées aux résultats de
+        `GET /discovery/search` : une ligne sans lien d'acquisition est une
+        ligne sur laquelle on ne peut rien faire.
+
+        Chaque candidat porte une confiance de 0 à 1. Un ISBN identique vaut 1 ;
+        le reste est une heuristique sur le titre, l'auteur et l'année. Écraser
+        des métadonnées sans seuil reviendrait à prendre le premier candidat
+        venu, ce qui remplace tôt ou tard une fiche par celle d'un homonyme.
+
+        Répond 200 même si toutes les bases sont injoignables : le tableau
+        `sources` porte l'information.
+      tags: [discovery]
+      parameters:
+        - name: title
+          in: query
+          schema: { type: string }
+          description: Requis si `isbn` est absent.
+        - name: author
+          in: query
+          description: |
+            Répétable. Plusieurs paramètres plutôt qu'une chaîne à découper : un
+            nom peut contenir une virgule — « Doe, John » — et le découpage
+            inventerait un second auteur.
+          schema:
+            type: array
+            items: { type: string }
+        - name: isbn
+          in: query
+          schema: { type: string }
+          description: Quand il est connu, il vaut tous les autres indices réunis.
+        - name: year
+          in: query
+          schema: { type: string }
+        - name: language
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Candidats, du plus probable au moins probable
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/DiscoveryDescribeResult" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
   /discovery/import:
     post:
       operationId: discoveryImport
@@ -2968,6 +3032,65 @@ components:
         createdAt: { type: string, format: date-time }
         startedAt: { type: string, format: date-time }
         finishedAt: { type: string, format: date-time }
+
+    DiscoveryDescription:
+      type: object
+      required: [providerKind, providerName, title, confidence]
+      properties:
+        providerKind:
+          type: string
+          enum: [openlibrary, internetarchive, googlebooks]
+        providerName:
+          type: string
+          description: |
+            Deux bases se contredisent régulièrement. L'écran de correction doit
+            pouvoir montrer d'où vient chaque proposition.
+        title: { type: string }
+        authors:
+          type: array
+          items: { type: string }
+        series: { type: string }
+        number: { type: string }
+        summary: { type: string }
+        language:
+          type: string
+          description: |
+            Code ISO 639-1. Open Library publie du MARC à trois lettres et
+            Internet Archive parfois le nom complet en anglais ; les deux sont
+            ramenés ici, faute de quoi la langue ne se comparerait à rien.
+        published: { type: string }
+        publisher: { type: string }
+        isbn: { type: string }
+        pageCount: { type: integer }
+        subjects:
+          type: array
+          items: { type: string }
+        coverUrl:
+          type: string
+          description: Adresse chez la base d'origine. boxincloud ne réhéberge rien.
+        pageUrl:
+          type: string
+          description: Fiche d'origine, pour vérifier ce qu'on propose.
+        confidence:
+          type: number
+          format: double
+          minimum: 0
+          maximum: 1
+          description: |
+            Force du rapprochement. Un ISBN identique vaut 1 ; deux ISBN connus
+            et différents valent 0, car ils désignent deux éditions distinctes
+            qu'aucun autre indice ne peut rapprocher.
+
+    DiscoveryDescribeResult:
+      type: object
+      required: [candidates, sources]
+      properties:
+        candidates:
+          type: array
+          items: { $ref: "#/components/schemas/DiscoveryDescription" }
+        sources:
+          type: array
+          items: { $ref: "#/components/schemas/DiscoverySourceStatus" }
 
     DiscoverySourceStatus:
       type: object

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/riverqueue/river"
@@ -119,6 +120,7 @@ func BuildCore(ctx context.Context, cfg *config.Config, pool *db.Pool, log *slog
 		sealer,
 		log,
 	)
+	discoveryService.SetMetadata(buildMetadataRegistry(cfg, log))
 
 	jobClient, err := jobs.New(pool, cfg.Jobs, log, func(w *river.Workers) {
 		discovery.Register(w, discoveryService, depositTo(&deferredIngest))
@@ -278,6 +280,55 @@ func depositCode(err error) string {
 	default:
 		return "deposit-failed"
 	}
+}
+
+/*
+buildMetadataRegistry enregistre les bases de métadonnées disponibles.
+
+Le débit et le cache sont construits ICI et partagés par tous les fournisseurs.
+C'est la seule façon qu'ils valent quelque chose : un limiteur par fournisseur
+laisserait passer autant de requêtes qu'on a construit d'objets, et un cache par
+fournisseur ne mémoriserait rien d'un appel à l'autre.
+
+Aucun fournisseur n'est indispensable. Une instance coupée d'Internet — le cas
+d'un serveur familial sur un réseau fermé — voit simplement le rapprochement
+rendre une liste vide, sans que rien d'autre en pâtisse.
+*/
+func buildMetadataRegistry(cfg *config.Config, log *slog.Logger) *discovery.Registry {
+	throttle := discovery.NewThrottle()
+	throttle.SetRate("openlibrary", discovery.RateOpenLibrary)
+	throttle.SetRate("internetarchive", discovery.RateInternetArchive)
+	throttle.SetRate("googlebooks", discovery.RateGoogleBooks)
+	throttle.SetRate("opds", discovery.RateOPDS)
+
+	// Cinq minutes et cinq cents entrées : de quoi absorber les recherches
+	// répétées d'une session sans jamais servir une fiche franchement périmée,
+	// pour moins d'un méga-octet.
+	deps := discovery.MetadataDeps{
+		Throttle: throttle,
+		Memo:     discovery.NewMemo(5*time.Minute, 500),
+	}
+
+	registry := discovery.NewRegistry()
+
+	// Un registre vide est un cas normal, pas dégradé : le rapprochement rend
+	// alors une liste vide et rien d'autre n'en pâtit.
+	if !cfg.Discovery.Metadata {
+		log.Info("bases de métadonnées désactivées")
+		return registry
+	}
+
+	registry.Register(discovery.NewOpenLibrary(deps))
+	registry.Register(discovery.NewInternetArchive(deps))
+
+	// Voir config.Discovery : sans clé, Google Books échoue une fois sur deux,
+	// ce qui vaut moins que son absence.
+	if key := cfg.Discovery.GoogleBooksKey; key != "" {
+		registry.Register(discovery.NewGoogleBooks(key, deps))
+		log.Info("Google Books activé")
+	}
+
+	return registry
 }
 
 // deferredEnqueuer permet de construire le repository avant le client de jobs.

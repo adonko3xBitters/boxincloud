@@ -1414,6 +1414,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/discovery/describe": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Rapprocher une œuvre de sa fiche
+         * @description Interroge les bases de métadonnées ouvertes — Open Library, Internet
+         *     Archive, et Google Books si une clé est configurée — pour proposer des
+         *     fiches correspondant à l'œuvre décrite.
+         *
+         *     **Toujours pour UNE œuvre, jamais pour une liste.** Ce n'est pas une
+         *     limitation de l'API mais une conséquence du débit sortant : interroger
+         *     une base publique demande d'espacer les appels d'une seconde et demie,
+         *     ce qui rend impossible d'enrichir quarante résultats de recherche dans
+         *     le temps d'une requête. Le rapprochement est déclenché sur l'album qu'on
+         *     corrige, ou sur celui qu'on vient d'importer.
+         *
+         *     **Ces bases ne fournissent aucun fichier.** Elles décrivent. Leurs
+         *     réponses ne sont donc jamais mêlées aux résultats de
+         *     `GET /discovery/search` : une ligne sans lien d'acquisition est une
+         *     ligne sur laquelle on ne peut rien faire.
+         *
+         *     Chaque candidat porte une confiance de 0 à 1. Un ISBN identique vaut 1 ;
+         *     le reste est une heuristique sur le titre, l'auteur et l'année. Écraser
+         *     des métadonnées sans seuil reviendrait à prendre le premier candidat
+         *     venu, ce qui remplace tôt ou tard une fiche par celle d'un homonyme.
+         *
+         *     Répond 200 même si toutes les bases sont injoignables : le tableau
+         *     `sources` porte l'information.
+         */
+        get: operations["discoveryDescribe"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/discovery/import": {
         parameters: {
             query?: never;
@@ -1680,6 +1722,46 @@ export interface components {
             startedAt?: string;
             /** Format: date-time */
             finishedAt?: string;
+        };
+        DiscoveryDescription: {
+            /** @enum {string} */
+            providerKind: "openlibrary" | "internetarchive" | "googlebooks";
+            /**
+             * @description Deux bases se contredisent régulièrement. L'écran de correction doit
+             *     pouvoir montrer d'où vient chaque proposition.
+             */
+            providerName: string;
+            title: string;
+            authors?: string[];
+            series?: string;
+            number?: string;
+            summary?: string;
+            /**
+             * @description Code ISO 639-1. Open Library publie du MARC à trois lettres et
+             *     Internet Archive parfois le nom complet en anglais ; les deux sont
+             *     ramenés ici, faute de quoi la langue ne se comparerait à rien.
+             */
+            language?: string;
+            published?: string;
+            publisher?: string;
+            isbn?: string;
+            pageCount?: number;
+            subjects?: string[];
+            /** @description Adresse chez la base d'origine. boxincloud ne réhéberge rien. */
+            coverUrl?: string;
+            /** @description Fiche d'origine, pour vérifier ce qu'on propose. */
+            pageUrl?: string;
+            /**
+             * Format: double
+             * @description Force du rapprochement. Un ISBN identique vaut 1 ; deux ISBN connus
+             *     et différents valent 0, car ils désignent deux éditions distinctes
+             *     qu'aucun autre indice ne peut rapprocher.
+             */
+            confidence: number;
+        };
+        DiscoveryDescribeResult: {
+            candidates: components["schemas"]["DiscoveryDescription"][];
+            sources: components["schemas"]["DiscoverySourceStatus"][];
         };
         DiscoverySourceStatus: {
             /** Format: uuid */
@@ -4590,6 +4672,41 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+        };
+    };
+    discoveryDescribe: {
+        parameters: {
+            query?: {
+                /** @description Requis si `isbn` est absent. */
+                title?: string;
+                /**
+                 * @description Répétable. Plusieurs paramètres plutôt qu'une chaîne à découper : un
+                 *     nom peut contenir une virgule — « Doe, John » — et le découpage
+                 *     inventerait un second auteur.
+                 */
+                author?: string[];
+                /** @description Quand il est connu, il vaut tous les autres indices réunis. */
+                isbn?: string;
+                year?: string;
+                language?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Candidats, du plus probable au moins probable */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscoveryDescribeResult"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            422: components["responses"]["ValidationFailed"];
         };
     };
     discoveryImport: {

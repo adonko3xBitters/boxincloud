@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -126,6 +127,59 @@ func (h *Discovery) localView(v catalog.Viewer) discovery.LocalCatalog {
 		}
 		return titles, nil
 	}
+}
+
+// ─── Rapprochement de métadonnées ────────────────────────────────────────────
+
+/*
+Describe cherche à quelle œuvre correspond ce qu'on lui décrit.
+
+Toujours pour UNE œuvre, jamais pour une liste. Ce n'est pas une limitation de
+l'API mais une conséquence du débit sortant : interroger une base publique
+demande d'espacer les appels d'une seconde et demie, ce qui rend impossible
+d'enrichir quarante résultats de recherche dans le temps d'une requête. Le
+rapprochement est donc déclenché sur l'album qu'on corrige, ou sur celui qu'on
+vient d'importer.
+
+Ouvert à tout compte : c'est une consultation de bases publiques, qui ne révèle
+rien du contenu de l'instance.
+
+Répond 200 même si toutes les bases sont injoignables — même raisonnement que
+pour la recherche fédérée. Le tableau `sources` porte l'information, et la
+traiter comme une panne rendrait la fonctionnalité inutilisable dès qu'un
+service tiers s'arrête.
+*/
+func (h *Discovery) Describe(w http.ResponseWriter, r *http.Request) {
+	if _, ok := viewerFrom(w, r); !ok {
+		return
+	}
+
+	query := r.URL.Query()
+	work := discovery.Work{
+		Title:    strings.TrimSpace(query.Get("title")),
+		ISBN:     strings.TrimSpace(query.Get("isbn")),
+		Year:     strings.TrimSpace(query.Get("year")),
+		Language: strings.TrimSpace(query.Get("language")),
+	}
+	// Plusieurs `author` plutôt qu'une chaîne à découper : un nom peut contenir
+	// une virgule — « Doe, John » — et le découpage inventerait un second auteur.
+	for _, author := range query["author"] {
+		if trimmed := strings.TrimSpace(author); trimmed != "" {
+			work.Authors = append(work.Authors, trimmed)
+		}
+	}
+
+	if work.Title == "" && work.ISBN == "" {
+		problem.Write(w, r, problem.Validation(map[string]string{"title": "required"}))
+		return
+	}
+
+	result, err := h.svc.Describe(r.Context(), work)
+	if err != nil {
+		writeInternal(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, result)
 }
 
 // ─── Import ──────────────────────────────────────────────────────────────────

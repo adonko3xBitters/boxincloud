@@ -515,3 +515,61 @@ func (h *contractHarness) findImport(t *testing.T, id string) importRecord {
 	t.Fatalf("import %s absent du suivi", id)
 	return importRecord{}
 }
+
+/*
+Rapprochement de métadonnées.
+
+Le harnais n'a aucune base enregistrée — les tests d'intégration ne doivent
+joindre aucun service tiers. Ce qui est vérifié ici est donc le contrat de la
+route, pas le contenu des fiches : les fournisseurs ont leurs propres tests,
+contre de vraies réponses HTTP servies localement.
+
+Une instance sans base enregistrée est un cas réel, pas un artefact de test :
+c'est celle d'un serveur familial sur un réseau fermé. Elle doit rendre une
+liste vide, pas une erreur.
+*/
+func TestIntegrationContractDiscoveryDescribe(t *testing.T) {
+	h := newContractHarness(t)
+
+	t.Run("une œuvre sans base enregistrée rend une liste vide", func(t *testing.T) {
+		rec := h.expect(t, http.MethodGet,
+			"/api/v1/discovery/describe?title=L%27Incal&author=Moebius", nil, http.StatusOK)
+
+		var payload struct {
+			Candidates []struct {
+				Title      string  `json:"title"`
+				Confidence float64 `json:"confidence"`
+			} `json:"candidates"`
+			Sources []struct {
+				Name string `json:"name"`
+			} `json:"sources"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+			t.Fatal(err)
+		}
+
+		// Des listes vides plutôt que `null` : l'interface reçoit du JSON, et
+		// `null` n'y est pas une liste vide.
+		if payload.Candidates == nil || payload.Sources == nil {
+			t.Errorf("listes nulles : %s", rec.Body.String())
+		}
+	})
+
+	t.Run("sans titre ni ISBN, la demande est refusée", func(t *testing.T) {
+		// Il n'y a rien à chercher : interroger trois bases publiques avec une
+		// requête vide serait leur faire perdre leur temps et le nôtre.
+		h.expect(t, http.MethodGet, "/api/v1/discovery/describe?year=1981",
+			nil, http.StatusUnprocessableEntity)
+	})
+
+	t.Run("le rapprochement est ouvert à tout compte", func(t *testing.T) {
+		// C'est une consultation de bases publiques : elle ne révèle rien du
+		// contenu de l'instance, et la réserver aux administrateurs priverait
+		// les autres de la correction de leurs propres albums.
+		rec := h.callAs(t, h.userToken, http.MethodGet,
+			"/api/v1/discovery/describe?title=L%27Incal", nil)
+		if rec.Code != http.StatusOK {
+			t.Errorf("statut %d pour un compte ordinaire : %s", rec.Code, rec.Body.String())
+		}
+	})
+}

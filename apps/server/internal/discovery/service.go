@@ -85,6 +85,11 @@ type Service struct {
 	queue  ImportQueue
 	sealer *crypto.Sealer
 	log    *slog.Logger
+
+	// registry porte les bases de métadonnées. Nul tant qu'aucune n'est
+	// enregistrée, auquel cas le rapprochement rend simplement une liste vide —
+	// une instance sans accès Internet reste utilisable.
+	registry *Registry
 }
 
 func NewService(
