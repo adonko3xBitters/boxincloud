@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { Button, Spinner, buttonClass, cx } from "./ui";
+import { Button, Shell, Spinner, buttonClass, cx } from "./ui";
 import * as api from "@/lib/api/endpoints";
 import { describeError } from "@/lib/api/problem";
 import { useLocale, useT, type MessageKey } from "@/i18n";
@@ -16,7 +16,25 @@ import { useLocale, useT, type MessageKey } from "@/i18n";
  * repartir de zéro pour corriger un endpoint mal tapé — et à perdre au passage
  * tout ce qui s'y rattachait.
  */
-export function StoragePanel({ onClose }: { onClose: () => void }) {
+export function StoragePanel({
+  onClose,
+  embedded = false,
+}: {
+  onClose: () => void;
+  /*
+    Le panneau sert deux surfaces : une boîte de dialogue empilée sur la
+    bibliothèque, et une section de la page Configuration.
+
+    `embedded` retire l'enveloppe plein écran et la croix de fermeture — sur une
+    page, on revient par le fil d'Ariane ou le bouton du navigateur, et une
+    croix qui ne fermerait rien serait un piège.
+
+    Un booléen plutôt que deux composants : le corps du panneau est identique,
+    et le dupliquer garantirait qu'une correction n'atteigne qu'une des deux
+    copies.
+  */
+  embedded?: boolean;
+}) {
   const t = useT();
   const [tab, setTab] = useState<"libraries" | "backends" | "cache">("libraries");
 
@@ -32,13 +50,11 @@ export function StoragePanel({ onClose }: { onClose: () => void }) {
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 z-[60] grid place-items-center bg-[var(--overlay)] p-4">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={t("storage.dialogLabel")}
-        className="rise-in flex h-[80vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-2xl"
-      >
+    <Shell
+      embedded={embedded}
+      label={t("storage.dialogLabel")}
+      className="rise-in flex h-[80vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-2xl"
+    >
         <header className="flex items-center gap-3 border-b border-border px-4 py-3">
           <h2 className="text-title font-semibold text-fg">{t("storage.title")}</h2>
 
@@ -60,15 +76,17 @@ export function StoragePanel({ onClose }: { onClose: () => void }) {
             ))}
           </div>
 
-          <button
-            onClick={onClose}
-            aria-label={t("action.close")}
-            className="pressable ml-auto grid size-8 place-items-center rounded text-subtle hover:bg-surface-hover hover:text-fg"
-          >
-            <svg viewBox="0 0 16 16" fill="none" className="size-4" aria-hidden="true">
-              <path d="m4 4 8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-            </svg>
-          </button>
+          {!embedded && (
+            <button
+              onClick={onClose}
+              aria-label={t("action.close")}
+              className="pressable ml-auto grid size-8 place-items-center rounded text-subtle hover:bg-surface-hover hover:text-fg"
+            >
+              <svg viewBox="0 0 16 16" fill="none" className="size-4" aria-hidden="true">
+                <path d="m4 4 8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+              </svg>
+            </button>
+          )}
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-4">
@@ -76,8 +94,7 @@ export function StoragePanel({ onClose }: { onClose: () => void }) {
           {tab === "backends" && <Backends />}
           {tab === "cache" && <CacheSection />}
         </div>
-      </div>
-    </div>
+    </Shell>
   );
 }
 

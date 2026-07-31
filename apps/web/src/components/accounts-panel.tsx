@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { buttonClass, cx } from "./ui";
+import { Shell, buttonClass, cx } from "./ui";
 import * as api from "@/lib/api/endpoints";
 import { describeError } from "@/lib/api/problem";
 import { useT } from "@/i18n";
@@ -17,7 +17,25 @@ import { useCurrentUser } from "@/lib/auth";
  * restreinte. Tout cela n'existait qu'en base, sans aucun moyen d'y toucher.
  */
 
-export function AccountsPanel({ onClose }: { onClose: () => void }) {
+export function AccountsPanel({
+  onClose,
+  embedded = false,
+}: {
+  onClose: () => void;
+  /*
+    Le panneau sert deux surfaces : une boîte de dialogue empilée sur la
+    bibliothèque, et une section de la page Configuration.
+
+    `embedded` retire l'enveloppe plein écran et la croix de fermeture — sur une
+    page, on revient par le fil d'Ariane ou le bouton du navigateur, et une
+    croix qui ne fermerait rien serait un piège.
+
+    Un booléen plutôt que deux composants : le corps du panneau est identique,
+    et le dupliquer garantirait qu'une correction n'atteigne qu'une des deux
+    copies.
+  */
+  embedded?: boolean;
+}) {
   const t = useT();
   const { data: me } = useCurrentUser();
   const [selected, setSelected] = useState<string | null>(null);
@@ -43,13 +61,11 @@ export function AccountsPanel({ onClose }: { onClose: () => void }) {
   );
 
   return (
-    <div className="fixed inset-0 z-[60] grid place-items-center bg-[var(--overlay)] p-4">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={t("accounts.title")}
-        className="rise-in flex h-[80vh] w-full max-w-4xl overflow-hidden rounded-xl border border-border bg-surface shadow-2xl"
-      >
+    <Shell
+      embedded={embedded}
+      label={t("accounts.title")}
+      className="rise-in flex h-[80vh] w-full max-w-4xl overflow-hidden rounded-xl border border-border bg-surface shadow-2xl"
+    >
         {/* Liste des comptes */}
         <div className="flex w-64 shrink-0 flex-col border-r border-border bg-surface-sunken">
           <div className="flex items-center justify-between border-b border-border px-3 py-2.5">
@@ -148,8 +164,7 @@ export function AccountsPanel({ onClose }: { onClose: () => void }) {
             )}
           </div>
         </div>
-      </div>
-    </div>
+    </Shell>
   );
 }
 

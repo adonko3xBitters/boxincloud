@@ -247,3 +247,57 @@ export function Badge({
     </span>
   );
 }
+
+/*
+Shell habille un panneau selon la surface qui l'accueille.
+
+En boîte de dialogue : une enveloppe plein écran, un fond assombri, une carte
+centrée. En page : rien du tout, le panneau remplit ce qu'on lui donne.
+
+Le composant existe pour que la condition soit écrite UNE fois. Répartie dans
+chaque panneau, elle finirait par diverger — l'un garderait une ombre, l'autre
+une hauteur fixe — et la page aurait l'air d'un assemblage de boîtes.
+*/
+export function Shell({
+  embedded,
+  label,
+  className,
+  onDismiss,
+  children,
+}: {
+  embedded: boolean;
+  label: string;
+  /** Classes de la carte. Ignorées en page, où la carte n'existe pas. */
+  className: string;
+  /*
+    Ferme au clic à l'extérieur. Sans effet en page : il n'y a pas d'extérieur,
+    et un clic dans le vide ne doit pas faire quitter un écran de réglages.
+  */
+  onDismiss?: () => void;
+  children: React.ReactNode;
+}) {
+  if (embedded) {
+    return (
+      <section aria-label={label} className="flex min-h-0 flex-1 flex-col">
+        {children}
+      </section>
+    );
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] grid place-items-center bg-[var(--overlay)] p-4"
+      onClick={onDismiss}
+    >
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={label}
+        onClick={(event) => event.stopPropagation()}
+        className={className}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { encodeQR } from "@/lib/qr";
+import { Shell } from "./ui";
 import { useT } from "@/i18n";
 import { ANDROID_APK_URL } from "@/lib/mobile-app";
 
@@ -16,7 +17,25 @@ import { ANDROID_APK_URL } from "@/lib/mobile-app";
  * téléchargerait sans rien expliquer, ce qui est le comportement d'une
  * publicité, pas d'une application.
  */
-export function MobileAppDialog({ onClose }: { onClose: () => void }) {
+export function MobileAppDialog({
+  onClose,
+  embedded = false,
+}: {
+  onClose: () => void;
+  /*
+    Le panneau sert deux surfaces : une boîte de dialogue empilée sur la
+    bibliothèque, et une section de la page Configuration.
+
+    `embedded` retire l'enveloppe plein écran et la croix de fermeture — sur une
+    page, on revient par le fil d'Ariane ou le bouton du navigateur, et une
+    croix qui ne fermerait rien serait un piège.
+
+    Un booléen plutôt que deux composants : le corps du panneau est identique,
+    et le dupliquer garantirait qu'une correction n'atteigne qu'une des deux
+    copies.
+  */
+  embedded?: boolean;
+}) {
   // L'origine n'existe pas au rendu statique : la page est exportée à la
   // construction, bien avant de savoir sous quelle adresse elle sera servie.
   const t = useT();
@@ -36,17 +55,12 @@ export function MobileAppDialog({ onClose }: { onClose: () => void }) {
   }, [onClose]);
 
   return (
-    <div
-      className="fixed inset-0 z-[65] grid place-items-center bg-[var(--overlay)] p-4"
-      onClick={onClose}
+    <Shell
+      embedded={embedded}
+      label={t("mobile.title")}
+      onDismiss={onClose}
+      className="rise-in flex w-full max-w-sm flex-col gap-4 rounded-xl border border-border bg-surface p-5 shadow-2xl"
     >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={t("mobile.title")}
-        onClick={(e) => e.stopPropagation()}
-        className="rise-in flex w-full max-w-sm flex-col gap-4 rounded-xl border border-border bg-surface p-5 shadow-2xl"
-      >
         <div className="flex items-start justify-between gap-3">
           <div>
             <h2 className="text-title font-semibold text-fg">{t("mobile.title")}</h2>
@@ -106,7 +120,6 @@ export function MobileAppDialog({ onClose }: { onClose: () => void }) {
           </a>
           .
         </p>
-      </div>
-    </div>
+    </Shell>
   );
 }

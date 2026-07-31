@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
-import { Button, Spinner, cx } from "./ui";
+import { Button, Shell, Spinner, cx } from "./ui";
 import * as api from "@/lib/api/endpoints";
 import { useLocale, type Locale, type MessageKey } from "@/i18n";
 
@@ -14,7 +14,25 @@ import { useLocale, type Locale, type MessageKey } from "@/i18n";
  * qu'un téléphone a disparu. Tout y est donc orienté vers un geste unique et
  * sans ambiguïté — couper cet appareil-là, tout de suite.
  */
-export function SessionsPanel({ onClose }: { onClose: () => void }) {
+export function SessionsPanel({
+  onClose,
+  embedded = false,
+}: {
+  onClose: () => void;
+  /*
+    Le panneau sert deux surfaces : une boîte de dialogue empilée sur la
+    bibliothèque, et une section de la page Configuration.
+
+    `embedded` retire l'enveloppe plein écran et la croix de fermeture — sur une
+    page, on revient par le fil d'Ariane ou le bouton du navigateur, et une
+    croix qui ne fermerait rien serait un piège.
+
+    Un booléen plutôt que deux composants : le corps du panneau est identique,
+    et le dupliquer garantirait qu'une correction n'atteigne qu'une des deux
+    copies.
+  */
+  embedded?: boolean;
+}) {
   const { locale, t } = useLocale();
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
@@ -49,24 +67,24 @@ export function SessionsPanel({ onClose }: { onClose: () => void }) {
   });
 
   return (
-    <div className="fixed inset-0 z-[60] grid place-items-center bg-[var(--overlay)] p-4">
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={t("devices.title")}
-        className="rise-in flex max-h-[80vh] w-full max-w-lg flex-col gap-4 rounded-xl border border-border bg-surface p-4 shadow-2xl"
-      >
+    <Shell
+      embedded={embedded}
+      label={t("devices.title")}
+      className="rise-in flex max-h-[80vh] w-full max-w-lg flex-col gap-4 rounded-xl border border-border bg-surface p-4 shadow-2xl"
+    >
         <div className="flex items-center justify-between">
           <h2 className="text-title font-semibold text-fg">{t("devices.title")}</h2>
-          <button
-            onClick={onClose}
-            aria-label={t("action.close")}
-            className="pressable grid size-8 place-items-center rounded text-subtle hover:bg-surface-hover hover:text-fg"
-          >
-            <svg viewBox="0 0 16 16" fill="none" className="size-4" aria-hidden="true">
-              <path d="m4 4 8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-            </svg>
-          </button>
+          {!embedded && (
+            <button
+              onClick={onClose}
+              aria-label={t("action.close")}
+              className="pressable grid size-8 place-items-center rounded text-subtle hover:bg-surface-hover hover:text-fg"
+            >
+              <svg viewBox="0 0 16 16" fill="none" className="size-4" aria-hidden="true">
+                <path d="m4 4 8 8M12 4l-8 8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+              </svg>
+            </button>
+          )}
         </div>
 
         {error && (
@@ -131,8 +149,7 @@ export function SessionsPanel({ onClose }: { onClose: () => void }) {
             {t("devices.revokeAll")}
           </Button>
         </div>
-      </div>
-    </div>
+    </Shell>
   );
 }
 

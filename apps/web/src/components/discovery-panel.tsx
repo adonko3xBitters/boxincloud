@@ -66,43 +66,58 @@ export function DiscoverySheet({ onClose }: { onClose: () => void }) {
       `items-end` plutôt qu'un centrage : le panneau est ancré au bas de
       l'écran, d'où il vient. Le centrer annulerait le sens de son entrée.
     */
-    <div className="fixed inset-0 z-[60] flex items-end justify-center bg-[var(--overlay)]">
+    <div className="fixed inset-0 z-[60] flex items-end bg-[var(--overlay)]">
       <div
         role="dialog"
         aria-modal="true"
         aria-label={t("discovery.dialogLabel")}
-        className="slide-in-bottom flex max-h-[85vh] w-full max-w-4xl flex-col overflow-hidden rounded-t-xl border border-b-0 border-border bg-surface shadow-2xl"
+        /*
+          Pleine largeur, sans arrondi ni bordure latérale : la feuille est
+          ancrée au bord inférieur de la fenêtre, pas posée dessus. Une carte
+          centrée aux angles arrondis se lit comme une boîte de dialogue — ce
+          qu'elle n'est pas — et gaspille la largeur dont une liste de
+          résultats a besoin.
+        */
+        className="slide-in-bottom flex max-h-[85vh] w-full flex-col overflow-hidden border-t border-border bg-surface shadow-2xl"
       >
-        <header className="flex items-center gap-3 border-b border-border px-4 py-3">
-          {/*
-            Une poignée, comme sur les feuilles du bas des systèmes mobiles :
-            elle dit que la surface est ancrée en bas et qu'elle s'en ira par là.
-          */}
-          <span
-            aria-hidden="true"
-            className="absolute left-1/2 top-1.5 h-1 w-10 -translate-x-1/2 rounded-full bg-border-strong"
-          />
+        {/*
+          L'en-tête suit la même colonne que le contenu : un titre collé au
+          bord gauche de l'écran et une croix collée au bord droit, avec le
+          formulaire centré entre les deux, se liraient comme trois éléments
+          sans rapport.
+        */}
+        <header className="border-b border-border px-4 py-3">
+          <div className="mx-auto flex w-full max-w-5xl items-center gap-3">
+            <h2 className="text-title font-semibold text-fg">{t("discovery.title")}</h2>
 
-          <h2 className="text-title font-semibold text-fg">{t("discovery.title")}</h2>
+            <span className="text-meta text-subtle">⌘⇧F</span>
 
-          <button
-            onClick={onClose}
-            aria-label={t("action.close")}
-            className="pressable ml-auto grid size-8 place-items-center rounded text-subtle hover:bg-surface-hover hover:text-fg"
-          >
-            <svg viewBox="0 0 16 16" fill="none" className="size-4" aria-hidden="true">
-              <path
-                d="m4 4 8 8M12 4l-8 8"
-                stroke="currentColor"
-                strokeWidth="1.6"
-                strokeLinecap="round"
-              />
-            </svg>
-          </button>
+            <button
+              onClick={onClose}
+              aria-label={t("action.close")}
+              className="pressable ml-auto grid size-8 place-items-center rounded text-subtle hover:bg-surface-hover hover:text-fg"
+            >
+              <svg viewBox="0 0 16 16" fill="none" className="size-4" aria-hidden="true">
+                <path
+                  d="m4 4 8 8M12 4l-8 8"
+                  stroke="currentColor"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                />
+              </svg>
+            </button>
+          </div>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto p-4">
-          <SearchSection />
+        <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+          {/*
+            La feuille prend toute la largeur, son CONTENU non : une ligne de
+            texte qui traverse un écran large ne se lit pas — l'œil perd le
+            début de la ligne suivante. La colonne est centrée et bornée.
+          */}
+          <div className="mx-auto w-full max-w-5xl">
+            <SearchSection />
+          </div>
         </div>
       </div>
     </div>

@@ -9,7 +9,6 @@ import { ComicTable } from "@/components/comic-table";
 import { Coverflow } from "@/components/coverflow";
 import { useComicMenu } from "@/components/comic-menu";
 import { DiscoverySheet } from "@/components/discovery-panel";
-import { SettingsHub } from "@/components/settings-hub";
 import { AddContentButton, GlobalDropZone, IngestProvider } from "@/components/ingest";
 import { DetailPanel } from "@/components/detail-panel";
 import { SearchOverlay } from "@/components/search-overlay";
@@ -70,7 +69,6 @@ function TopBar() {
   const t = useT();
   const { data: user } = useCurrentUser();
   const logout = useLogout();
-  const [settingsOpen, setSettingsOpen] = useState(false);
   const [discoveryOpen, setDiscoveryOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -176,15 +174,13 @@ function TopBar() {
               déconnexion, et mélangeait des réglages d'instance avec des
               réglages personnels.
             */}
-            <button
-              onClick={() => {
-                setMenuOpen(false);
-                setSettingsOpen(true);
-              }}
-              className="pressable w-full rounded px-2 py-1.5 text-left text-ui text-muted hover:bg-surface-hover hover:text-fg"
+            <Link
+              href="/configuration"
+              onClick={() => setMenuOpen(false)}
+              className="pressable block w-full rounded px-2 py-1.5 text-left text-ui text-muted hover:bg-surface-hover hover:text-fg"
             >
               {t("settings.open")}
-            </button>
+            </Link>
 
             <LanguagePicker />
 
@@ -199,12 +195,6 @@ function TopBar() {
         </div>
       </div>
 
-      {settingsOpen && (
-        <SettingsHub
-          isAdmin={user?.role === "admin"}
-          onClose={() => setSettingsOpen(false)}
-        />
-      )}
       {discoveryOpen && <DiscoverySheet onClose={() => setDiscoveryOpen(false)} />}
     </header>
   );
