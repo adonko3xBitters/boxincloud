@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -95,6 +96,10 @@ func BuildCore(ctx context.Context, cfg *config.Config, pool *db.Pool, log *slog
 	enqueuer := &deferredEnqueuer{}
 	indexerRepo := indexer.NewPostgresRepository(queries, pool, enqueuer)
 
+	// Même indirection que ci-dessus, pour la même raison : le worker d'import
+	// écrit par l'ingestion, et l'ingestion est construite plus bas.
+	var deferredIngest *ingest.Service
+
 	processor := imaging.NewPureGo()
 	catalogService := catalog.NewService(catalog.NewPostgresRepository(queries))
 
@@ -108,7 +113,16 @@ func BuildCore(ctx context.Context, cfg *config.Config, pool *db.Pool, log *slog
 	// dépendre du paquet folders créerait un cycle.
 	catalogService.SetLockResolver(folderService.HiddenPaths)
 
+	discoveryService := discovery.NewService(
+		discovery.NewPostgresRepository(queries),
+		discovery.NewOPDSClient(),
+		sealer,
+		log,
+	)
+
 	jobClient, err := jobs.New(pool, cfg.Jobs, log, func(w *river.Workers) {
+		discovery.Register(w, discoveryService, depositTo(&deferredIngest))
+
 		indexer.Register(w, indexer.Deps{
 			Libraries: libraries,
 			Repo:      indexerRepo,
@@ -122,6 +136,7 @@ func BuildCore(ctx context.Context, cfg *config.Config, pool *db.Pool, log *slog
 		return nil, err
 	}
 	enqueuer.client = jobClient
+	discoveryService.SetImportQueue(&importQueue{client: jobClient})
 
 	ingestService := ingest.NewService(
 		libraries,
@@ -136,6 +151,8 @@ func BuildCore(ctx context.Context, cfg *config.Config, pool *db.Pool, log *slog
 	// Supprimer un dossier peut emporter les albums qu'il contient. La règle de
 	// suppression — exclusion ou effacement, dans le bon ordre — appartient à
 	// l'ingestion : elle est empruntée plutôt que réécrite.
+	deferredIngest = ingestService
+
 	folderService.SetComicRemover(ingestService.BulkDelete)
 	ingestService.SetFolderRegistrar(folderService.Ensure)
 	ingestService.SetWriteGuard(folderService.EnsureWritable)
@@ -155,13 +172,8 @@ func BuildCore(ctx context.Context, cfg *config.Config, pool *db.Pool, log *slog
 		Indexer:   indexerRepo,
 		Ingest:    ingestService,
 		Folders:   folderService,
-		Discovery: discovery.NewService(
-			discovery.NewPostgresRepository(queries),
-			discovery.NewOPDSClient(),
-			sealer,
-			log,
-		),
-		Jobs: jobClient,
+		Discovery: discoveryService,
+		Jobs:      jobClient,
 	}, nil
 }
 
@@ -177,9 +189,95 @@ func (s *jobScanner) EnqueueScanLibrary(ctx context.Context, libraryID uuid.UUID
 	return s.client.Insert(ctx, indexer.ScanLibraryArgs{LibraryID: libraryID})
 }
 
+/*
+RunImport exécute un import sans passer par la file.
+
+Même intention que `ScanLibrary` côté direct : permettre au harnais de tests et
+à la ligne de commande de dérouler le travail sans démarrer de workers. Le
+chemin exécuté est exactement celui du worker — c'est ce qui donne au test sa
+valeur.
+*/
+func (c *Core) RunImport(ctx context.Context, importID uuid.UUID) error {
+	return c.Discovery.RunImport(ctx, importID, depositTo(&c.Ingest))
+}
+
 // ScanLibrary enfile un scan de bibliothèque.
 func (c *Core) ScanLibrary(ctx context.Context, libraryID uuid.UUID) error {
 	return c.Jobs.Insert(ctx, indexer.ScanLibraryArgs{LibraryID: libraryID})
+}
+
+/*
+importQueue enfile un import, et rien d'autre.
+
+Comme `jobScanner` : le service de découverte ne connaît que cette opération de
+la file, et lui passer le client entier lui donnerait le pouvoir d'enfiler
+n'importe quoi.
+*/
+type importQueue struct {
+	client *jobs.Client
+}
+
+func (q *importQueue) EnqueueImport(ctx context.Context, importID uuid.UUID) error {
+	return q.client.Insert(ctx, discovery.ImportArgs{ImportID: importID})
+}
+
+/*
+depositTo branche l'import sur l'ingestion.
+
+L'adaptateur vaut mieux qu'une dépendance directe : le paquet `discovery`
+décrit ce dont il a besoin, l'ingestion garde ses types, et les règles
+d'écriture — borne de taille sur le flux, signature vérifiée avant d'écrire,
+refus d'écraser, contrôle du dossier de destination — ne sont pas réécrites une
+seconde fois.
+
+C'est aussi ici, et nulle part ailleurs, que les deux vocabulaires d'erreur se
+rencontrent : les échecs d'ingestion en ressortent porteurs d'un code stable que
+l'interface saura traduire.
+
+Le pointeur est indirect parce que le worker est déclaré avant l'ingestion.
+*/
+func depositTo(service **ingest.Service) discovery.Deposit {
+	return func(ctx context.Context, p discovery.DepositParams) (discovery.Deposited, error) {
+		result, err := (*service).Upload(ctx, ingest.UploadParams{
+			LibraryID: p.LibraryID,
+			Folder:    p.Folder,
+			Filename:  p.Filename,
+			Size:      p.Size,
+			Content:   p.Content,
+		})
+		if err != nil {
+			return discovery.Deposited{}, discovery.ErrDeposit{
+				Code:   depositCode(err),
+				Detail: err.Error(),
+			}
+		}
+		return discovery.Deposited{
+			ComicID:   result.ComicID,
+			ObjectKey: result.ObjectKey,
+			Title:     result.Title,
+			Format:    result.Format,
+			Size:      result.Size,
+		}, nil
+	}
+}
+
+// depositCode nomme un échec d'ingestion pour l'interface.
+//
+// Le code, pas la phrase : le serveur ne devine pas la langue du lecteur, ici
+// pas plus qu'ailleurs.
+func depositCode(err error) string {
+	switch {
+	case errors.Is(err, ingest.ErrUnsupportedFormat):
+		return "unsupported-format"
+	case errors.Is(err, ingest.ErrContentMismatch):
+		return "content-mismatch"
+	case errors.Is(err, ingest.ErrAlreadyExists):
+		return "exists"
+	case errors.Is(err, ingest.ErrTooLarge):
+		return "too-large"
+	default:
+		return "deposit-failed"
+	}
 }
 
 // deferredEnqueuer permet de construire le repository avant le client de jobs.

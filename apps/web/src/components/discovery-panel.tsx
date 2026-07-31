@@ -370,12 +370,9 @@ function ImportForm({
     return <p className="mt-2 text-meta text-danger">{t("discovery.import.noLibrary")}</p>;
   }
 
+  // La demande a été acceptée : ce n'est plus un formulaire, c'est un suivi.
   if (run.isSuccess) {
-    return (
-      <p className="mt-2 text-meta text-muted">
-        {t("discovery.import.done")} — {run.data.objectKey}
-      </p>
-    );
+    return <ImportProgress importId={run.data.id} />;
   }
 
   return (
@@ -425,6 +422,93 @@ function ImportForm({
 }
 
 // ─── Catalogues ──────────────────────────────────────────────────────────────
+
+/**
+ * Suivi d'un import lancé.
+ *
+ * L'import est une tâche de fond : la réponse ne dit plus s'il a abouti, elle
+ * dit qu'il est parti. Sans ce suivi, le passage en arrière-plan reviendrait à
+ * faire disparaître l'action — l'utilisateur cliquerait sans jamais savoir.
+ */
+function ImportProgress({ importId }: { importId: string }) {
+  const t = useT();
+
+  const imports = useQuery({
+    queryKey: ["discovery", "imports"],
+    queryFn: () => api.listDiscoveryImports(),
+    // On n'interroge que tant que quelque chose bouge. Un intervalle qui
+    // continue après la fin ferait battre une requête toutes les deux secondes
+    // pendant que la fenêtre reste ouverte, pour rien.
+    refetchInterval: (query) => {
+      const mine = query.state.data?.items.find((entry) => entry.id === importId);
+      return mine && (mine.status === "queued" || mine.status === "running")
+        ? 2000
+        : false;
+    },
+  });
+
+  const record = imports.data?.items.find((entry) => entry.id === importId);
+
+  if (!record || record.status === "queued" || record.status === "running") {
+    return (
+      <div className="mt-2 flex flex-col gap-1">
+        <p className="flex items-center gap-2 text-meta text-muted">
+          <Spinner className="size-4" />
+          {record?.status === "running"
+            ? t("discovery.import.running")
+            : t("discovery.import.queued")}
+        </p>
+        <p className="text-meta text-subtle">{t("discovery.import.background")}</p>
+      </div>
+    );
+  }
+
+  if (record.status === "failed") {
+    return (
+      <p className="mt-2 text-meta text-danger">
+        {t("discovery.import.failed")}
+        {" — "}
+        {t(importErrorKey(record.errorCode))}
+        {record.errorDetail && (
+          <code className="ml-2 font-mono text-subtle">{record.errorDetail}</code>
+        )}
+      </p>
+    );
+  }
+
+  return (
+    <p className="mt-2 text-meta text-muted">
+      {t("discovery.import.done")}
+      {record.objectKey ? ` — ${record.objectKey}` : ""}
+    </p>
+  );
+}
+
+/**
+ * Traduit le code d'échec rendu par le serveur.
+ *
+ * Un code inconnu — un serveur plus récent que l'interface qu'il sert — retombe
+ * sur « le catalogue n'a pas répondu » plutôt que d'afficher le code brut, qui
+ * ne renseignerait personne.
+ */
+function importErrorKey(code: string | undefined): MessageKey {
+  const key = `discovery.import.err.${code ?? ""}`;
+  return (IMPORT_ERROR_KEYS.has(key) ? key : "discovery.import.err.unreachable") as MessageKey;
+}
+
+const IMPORT_ERROR_KEYS = new Set([
+  "discovery.import.err.unreachable",
+  "discovery.import.err.timeout",
+  "discovery.import.err.foreign-host",
+  "discovery.import.err.invalid",
+  "discovery.import.err.source-gone",
+  "discovery.import.err.queue",
+  "discovery.import.err.unsupported-format",
+  "discovery.import.err.content-mismatch",
+  "discovery.import.err.exists",
+  "discovery.import.err.too-large",
+  "discovery.import.err.deposit-failed",
+]);
 
 function SourcesSection() {
   const t = useT();

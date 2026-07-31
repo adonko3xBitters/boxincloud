@@ -2498,12 +2498,31 @@ paths:
   /discovery/import:
     post:
       operationId: discoveryImport
-      summary: Rapatrier un résultat dans une bibliothèque
+      summary: Demander le rapatriement d'un résultat
       description: |
+        Enregistre la demande et l'enfile. **Répond 202**, pas 201 : le
+        téléchargement se fait en tâche de fond.
+
+        Ce n'est pas un détail de mise en œuvre. Un import dure le temps d'un
+        téléchargement — quelques secondes pour un album, plusieurs minutes pour
+        une intégrale servie par un catalogue lointain. Le tenir dans la requête
+        obligeait le navigateur à garder une connexion ouverte tout du long, et
+        faisait perdre l'import à qui fermait son onglet.
+
         Le serveur télécharge chez le catalogue et écrit directement dans le
-        backend de stockage. Le fichier ne transite **pas** par le navigateur,
-        ce qui compte quand l'instance a une bien meilleure liaison que le
-        téléphone qui la pilote.
+        backend : le fichier ne transite **pas** par le navigateur.
+
+        ### Ce qui est vérifié tout de suite, et ce qui ne peut pas l'être
+
+        Tout ce qui ne demande pas le réseau est vérifié avant de rendre 202 :
+        catalogue inconnu, adresse étrangère, bibliothèque inaccessible. Ces
+        refus-là portent un statut HTTP, parce qu'ils sont dus à la demande.
+
+        Ce qui dépend du catalogue distant — il ne répond pas, il sert un format
+        refusé, le fichier existe déjà — ne se découvre qu'en essayant, et
+        atterrit dans la ligne de suivi rendue par `GET /discovery/imports`.
+
+        ### La règle qui gouverne cette route
 
         **`href` doit appartenir au catalogue désigné par `sourceId`** — même
         schéma, même hôte, même port. Ce n'est pas une vérification de forme :
@@ -2515,14 +2534,6 @@ paths:
         L'accès suit celui du téléversement — qui peut consulter une
         bibliothèque peut l'alimenter — et non celui de l'administration des
         catalogues.
-
-        Les règles d'écriture sont celles de l'ingestion : taille bornée,
-        signature du contenu vérifiée avant d'écrire, refus d'écraser un objet
-        existant, contrôle d'écriture sur le dossier de destination.
-
-        Comme le téléversement, cette route n'a pas le délai des requêtes
-        ordinaires : un import de plusieurs centaines de méga-octets dépasse
-        largement trente secondes.
       tags: [discovery]
       requestBody:
         required: true
@@ -2552,25 +2563,48 @@ paths:
                     Kavita servent des liens comme `/api/v1/books/42/file`, qui
                     ne disent rien.
       responses:
-        "201":
-          description: Album importé et inscrit au catalogue
+        "202":
+          description: Demande enregistrée et enfilée
           content:
             application/json:
-              schema:
-                type: object
-                required: [comicId, objectKey, title, format, fileSize]
-                properties:
-                  comicId: { type: string, format: uuid }
-                  objectKey: { type: string }
-                  title: { type: string }
-                  format: { type: string }
-                  fileSize: { type: integer, format: int64 }
+              schema: { $ref: "#/components/schemas/DiscoveryImport" }
         "401":
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
         "422":
           $ref: "#/components/responses/ValidationFailed"
+
+  /discovery/imports:
+    get:
+      operationId: listDiscoveryImports
+      summary: Imports récents
+      description: |
+        La contrepartie du 202. Une action qu'on ne peut plus suivre dans sa
+        réponse doit pouvoir être suivie ailleurs, sinon la passer en tâche de
+        fond revient à la faire disparaître.
+
+        L'interface interroge cette route tant qu'un import est `queued` ou
+        `running`.
+      tags: [discovery]
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 200 }
+      responses:
+        "200":
+          description: Imports, du plus récent au plus ancien
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/DiscoveryImport" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
 
   /discovery/sources:
     get:
@@ -2887,6 +2921,53 @@ components:
             le plus utile d'une recherche fédérée et celui qu'on oublie de
             rendre : quand on interroge ses propres instances, l'issue la plus
             fréquente est « vous l'avez déjà ».
+
+    DiscoveryImport:
+      type: object
+      required: [id, libraryId, status, createdAt]
+      properties:
+        id: { type: string, format: uuid }
+        sourceId: { type: string, format: uuid }
+        sourceName: { type: string }
+        libraryId: { type: string, format: uuid }
+        folder: { type: string }
+        title: { type: string }
+        status:
+          type: string
+          enum: [queued, running, done, failed]
+        errorCode:
+          type: string
+          enum:
+            - unreachable
+            - timeout
+            - foreign-host
+            - invalid
+            - source-gone
+            - queue
+            - unsupported-format
+            - content-mismatch
+            - exists
+            - too-large
+            - deposit-failed
+          description: |
+            Code stable, pas une phrase : l'interface le traduit. Le serveur n'a
+            pas à deviner la langue du lecteur — même règle que pour les
+            problèmes RFC 7807 et les états de catalogue.
+        errorDetail:
+          type: string
+          description: |
+            Diagnostic BRUT, souvent celui du catalogue distant et donc souvent
+            en anglais. À afficher comme un détail technique sous un titre
+            traduit, jamais comme une phrase à lire.
+        comicId:
+          type: string
+          format: uuid
+          description: Renseigné quand l'import a abouti.
+        objectKey: { type: string }
+        fileSize: { type: integer, format: int64 }
+        createdAt: { type: string, format: date-time }
+        startedAt: { type: string, format: date-time }
+        finishedAt: { type: string, format: date-time }
 
     DiscoverySourceStatus:
       type: object

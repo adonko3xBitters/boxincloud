@@ -655,12 +655,37 @@ export const testDiscoverySource = (sourceId: string) =>
     method: "POST",
   });
 
+/** Ligne de suivi d'un import. */
+export type DiscoveryImport = {
+  id: string;
+  sourceId?: string;
+  sourceName?: string;
+  libraryId: string;
+  folder?: string;
+  title?: string;
+  status: "queued" | "running" | "done" | "failed";
+  /** Code stable, traduit par l'interface. */
+  errorCode?: string;
+  /** Diagnostic brut, souvent celui du catalogue distant. */
+  errorDetail?: string;
+  comicId?: string;
+  objectKey?: string;
+  fileSize?: number;
+  createdAt: string;
+  startedAt?: string;
+  finishedAt?: string;
+};
+
 /**
- * Rapatrie un résultat dans une bibliothèque.
+ * Demande le rapatriement d'un résultat.
+ *
+ * Répond 202 : le téléchargement se fait en tâche de fond, et survit à la
+ * fermeture de l'onglet. Ce qui revient est une ligne de suivi, pas un album —
+ * il faut interroger `listDiscoveryImports` pour connaître la suite.
  *
  * `href` doit appartenir au catalogue désigné par `sourceId` : le serveur le
- * vérifie et refuse tout le reste. Sans cette règle, la route ferait
- * télécharger n'importe quoi par l'instance.
+ * vérifie et refuse tout le reste, immédiatement. Sans cette règle, la route
+ * ferait télécharger n'importe quoi par l'instance.
  */
 export const discoveryImport = (input: {
   sourceId: string;
@@ -668,11 +693,7 @@ export const discoveryImport = (input: {
   libraryId: string;
   folder?: string;
   title?: string;
-}) =>
-  request<{
-    comicId: string;
-    objectKey: string;
-    title: string;
-    format: string;
-    fileSize: number;
-  }>("/discovery/import", { method: "POST", body: input });
+}) => request<DiscoveryImport>("/discovery/import", { method: "POST", body: input });
+
+export const listDiscoveryImports = (limit = 50) =>
+  request<{ items: DiscoveryImport[] }>(`/discovery/imports?limit=${limit}`);

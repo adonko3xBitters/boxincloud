@@ -55,6 +55,10 @@ type contractHarness struct {
 	// adminID est le compte créé à l'installation.
 	adminID uuid.UUID
 
+	// core donne accès aux services, pour dérouler un job sans démarrer de
+	// workers — le contrat porte sur l'API, pas sur l'ordonnancement.
+	core *app.Core
+
 	// userToken ouvre une session sur un compte ORDINAIRE.
 	//
 	// Sans lui, toute la suite de tests s'exécute en administrateur et ne peut
@@ -137,7 +141,9 @@ func newContractHarness(t *testing.T) *contractHarness {
 		t.Fatalf("routeur de validation : %v", err)
 	}
 
-	h := &contractHarness{router: router, router4Spec: specRouter, spec: spec, pool: pool}
+	h := &contractHarness{
+		router: router, router4Spec: specRouter, spec: spec, pool: pool, core: core,
+	}
 	h.indexNow = newDirectIndexer(core)
 	h.seed(t, core, minio)
 	return h

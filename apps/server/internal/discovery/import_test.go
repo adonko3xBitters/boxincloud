@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"path"
 	"testing"
 
 	"github.com/google/uuid"
@@ -21,8 +22,44 @@ Le reste vérifie le nom de fichier, qui n'est pas cosmétique : il devient la c
 de l'objet, et c'est lui que l'indexation analyse pour en tirer série et tome.
 */
 
-func importService(source Source, client *fakeClient) *Service {
-	return quietService(&fakeRepo{sources: []Source{source}}, client)
+// importService monte un service prêt à enfiler et à exécuter des imports.
+func importService(source Source, client *fakeClient) (*Service, *fakeQueue) {
+	queue := &fakeQueue{}
+	service := quietService(&fakeRepo{sources: []Source{source}}, client)
+	service.SetImportQueue(queue)
+	return service, queue
+}
+
+/*
+runOne enchaîne la demande et son exécution.
+
+Le worker le fait en deux temps, séparés par la file ; les tests qui portent sur
+le RÉSULTAT de l'import n'ont pas besoin de cette séparation, et la rejouer à
+chaque cas noierait ce qu'ils vérifient. Ceux qui portent sur la file, eux,
+appellent RequestImport directement.
+*/
+func runOne(
+	t *testing.T, service *Service, queue *fakeQueue, p ImportParams, deposit Deposit,
+) Import {
+	t.Helper()
+
+	record, err := service.RequestImport(context.Background(), p)
+	if err != nil {
+		t.Fatalf("demande d'import : %v", err)
+	}
+	if len(queue.enqueued) == 0 {
+		t.Fatal("rien n'a été enfilé")
+	}
+
+	if err := service.RunImport(context.Background(), record.ID, deposit); err != nil {
+		t.Fatalf("exécution de l'import : %v", err)
+	}
+
+	done, err := service.repo.GetImport(context.Background(), record.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return done
 }
 
 // capture retient ce que l'import a voulu déposer, sans backend de stockage.
@@ -34,7 +71,13 @@ func capture(into *DepositParams, body *string) Deposit {
 		}
 		*body = string(raw)
 		*into = p
-		return Deposited{ComicID: uuid.New(), Title: p.Filename}, nil
+		return Deposited{
+			ComicID:   uuid.New(),
+			ObjectKey: path.Join(p.Folder, p.Filename),
+			Title:     p.Filename,
+			Format:    "cbz",
+			Size:      int64(len(raw)),
+		}, nil
 	}
 }
 
@@ -49,16 +92,14 @@ func TestImportDeposits(t *testing.T) {
 	var got DepositParams
 	var body string
 
-	result, err := importService(source, client).Import(context.Background(), ImportParams{
+	service, queue := importService(source, client)
+	done := runOne(t, service, queue, ImportParams{
 		SourceID:  source.ID,
 		Href:      href,
 		LibraryID: uuid.New(),
 		Folder:    "Mœbius",
 		Title:     "Le Garage hermétique",
 	}, capture(&got, &body))
-	if err != nil {
-		t.Fatalf("import : %v", err)
-	}
 
 	if body != "PK\x03\x04 contenu" {
 		t.Errorf("contenu déposé = %q", body)
@@ -69,8 +110,14 @@ func TestImportDeposits(t *testing.T) {
 	if got.Filename != "garage.cbz" {
 		t.Errorf("nom = %q, attendu celui de l'adresse", got.Filename)
 	}
-	if result.ComicID == uuid.Nil {
-		t.Error("aucun album rendu")
+	if done.Status != ImportDone {
+		t.Errorf("statut = %q, attendu done (%s)", done.Status, done.ErrorCode)
+	}
+	if done.ComicID == nil {
+		t.Error("aucun album rattaché à l'import")
+	}
+	if done.ObjectKey == "" {
+		t.Error("la clé de l'objet doit être consignée : c'est ce que l'interface montre")
 	}
 }
 
@@ -102,23 +149,25 @@ func TestImportRefusesForeignHost(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			client := &fakeClient{files: map[string]string{href: "contenu"}}
 
-			var got DepositParams
-			var body string
+			service, queue := importService(source, client)
 
-			_, err := importService(source, client).Import(context.Background(), ImportParams{
+			_, err := service.RequestImport(context.Background(), ImportParams{
 				SourceID:  source.ID,
 				Href:      href,
 				LibraryID: uuid.New(),
-			}, capture(&got, &body))
+			})
 
+			// Le refus est IMMÉDIAT, pas différé dans une ligne de suivi :
+			// l'adresse est une propriété de la demande, et rien ne justifie
+			// de faire croire à l'utilisateur que son import est parti.
 			if err == nil {
 				t.Fatalf("l'import de %s a été accepté", href)
 			}
 			if !errors.Is(err, ErrForeignHost) && !errors.Is(err, ErrInvalidSource) {
 				t.Errorf("err = %v, attendu un refus d'adresse", err)
 			}
-			if body != "" {
-				t.Error("un contenu a été déposé malgré le refus")
+			if len(queue.enqueued) != 0 {
+				t.Error("un job a été enfilé malgré le refus")
 			}
 		})
 	}
@@ -131,22 +180,165 @@ func TestImportUnknownSource(t *testing.T) {
 	}
 	client := &fakeClient{files: map[string]string{"https://voisin.test/x.cbz": "x"}}
 
-	var got DepositParams
-	var body string
+	service, queue := importService(source, client)
 
-	_, err := importService(source, client).Import(context.Background(), ImportParams{
+	_, err := service.RequestImport(context.Background(), ImportParams{
 		// Un identifiant que la base ne connaît pas : sans catalogue, il n'y a
 		// pas d'hôte autorisé, donc pas d'import.
 		SourceID:  uuid.New(),
 		Href:      "https://voisin.test/x.cbz",
 		LibraryID: uuid.New(),
-	}, capture(&got, &body))
+	})
 
 	if !errors.Is(err, ErrSourceNotFound) {
 		t.Fatalf("err = %v, attendu ErrSourceNotFound", err)
 	}
+	if len(queue.enqueued) != 0 {
+		t.Error("un job a été enfilé pour un catalogue inconnu")
+	}
+}
+
+/*
+TestImportFailureIsRecordedNotRetried couvre le cœur du passage en tâche de fond.
+
+Un import qui échoue ne rend pas d'erreur à River, et c'est délibéré : ses
+échecs sont déterministes — catalogue éteint, format refusé, fichier déjà
+présent — et les retenter trois fois à intervalles croissants ferait patienter
+l'utilisateur devant un « en cours » qui ne peut pas aboutir.
+
+L'échec doit donc atterrir dans la ligne de suivi, avec un code que l'interface
+sait traduire. Sans cela, un import de fond serait une action qu'on lance et qui
+disparaît.
+*/
+func TestImportFailureIsRecordedNotRetried(t *testing.T) {
+	source := Source{
+		ID: uuid.New(), Name: "Voisin", URL: "https://voisin.test/opds", Enabled: true,
+	}
+
+	// Aucun fichier servi à cette adresse : le catalogue répondra 404.
+	client := &fakeClient{files: map[string]string{}}
+
+	service, queue := importService(source, client)
+
+	record, err := service.RequestImport(context.Background(), ImportParams{
+		SourceID:  source.ID,
+		Href:      "https://voisin.test/dl/absent.cbz",
+		LibraryID: uuid.New(),
+	})
+	if err != nil {
+		t.Fatalf("la demande doit être acceptée : l'échec ne se voit qu'en essayant (%v)", err)
+	}
+	if record.Status != ImportQueued {
+		t.Errorf("statut initial = %q, attendu queued", record.Status)
+	}
+	if len(queue.enqueued) != 1 {
+		t.Fatalf("%d jobs enfilés, attendu 1", len(queue.enqueued))
+	}
+
+	var got DepositParams
+	var body string
+
+	if err := service.RunImport(
+		context.Background(), record.ID, capture(&got, &body),
+	); err != nil {
+		t.Fatalf("l'échec a été rendu à la file : %v — il serait retenté en vain", err)
+	}
+
+	done, err := service.repo.GetImport(context.Background(), record.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if done.Status != ImportFailed {
+		t.Errorf("statut = %q, attendu failed", done.Status)
+	}
+	if done.ErrorCode == "" {
+		t.Error("un échec doit porter un code : l'interface le traduit")
+	}
+	if done.ErrorDetail == "" {
+		t.Error("un échec doit porter un diagnostic : c'est ce qui permet de comprendre")
+	}
 	if body != "" {
-		t.Error("un contenu a été déposé pour un catalogue inconnu")
+		t.Error("un contenu a été déposé malgré l'échec")
+	}
+}
+
+/*
+TestImportIsNotReplayed protège contre la double écriture.
+
+River peut relancer un job dont la réussite n'a pas été enregistrée à temps.
+Sans garde, la seconde tentative se heurterait au refus d'écraser et
+marquerait en échec un import qui a parfaitement fonctionné.
+*/
+func TestImportIsNotReplayed(t *testing.T) {
+	source := Source{
+		ID: uuid.New(), Name: "Voisin", URL: "https://voisin.test/opds", Enabled: true,
+	}
+	href := "https://voisin.test/dl/garage.cbz"
+	client := &fakeClient{files: map[string]string{href: "contenu"}}
+
+	service, queue := importService(source, client)
+
+	var got DepositParams
+	var body string
+	done := runOne(t, service, queue, ImportParams{
+		SourceID: source.ID, Href: href, LibraryID: uuid.New(),
+	}, capture(&got, &body))
+
+	deposits := 0
+	counting := func(ctx context.Context, p DepositParams) (Deposited, error) {
+		deposits++
+		return capture(&got, &body)(ctx, p)
+	}
+
+	if err := service.RunImport(context.Background(), done.ID, counting); err != nil {
+		t.Fatalf("rejeu : %v", err)
+	}
+	if deposits != 0 {
+		t.Errorf("%d dépôts au rejeu : un import abouti ne doit pas se rejouer", deposits)
+	}
+
+	after, err := service.repo.GetImport(context.Background(), done.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if after.Status != ImportDone {
+		t.Errorf("statut après rejeu = %q, attendu done", after.Status)
+	}
+}
+
+/*
+TestImportQueueFailureIsVisible : une file en panne doit se voir.
+
+Sans ce traitement, la ligne resterait « en attente » indéfiniment, ce qui est
+indiscernable d'un simple retard pour qui la regarde — le pire des deux mondes.
+*/
+func TestImportQueueFailureIsVisible(t *testing.T) {
+	source := Source{
+		ID: uuid.New(), Name: "Voisin", URL: "https://voisin.test/opds", Enabled: true,
+	}
+	client := &fakeClient{files: map[string]string{}}
+
+	service, queue := importService(source, client)
+	queue.err = errors.New("file indisponible")
+
+	_, err := service.RequestImport(context.Background(), ImportParams{
+		SourceID:  source.ID,
+		Href:      "https://voisin.test/dl/x.cbz",
+		LibraryID: uuid.New(),
+	})
+	if err == nil {
+		t.Fatal("une file en panne doit faire échouer la demande")
+	}
+
+	records, err := service.ListImports(context.Background(), 10)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(records) != 1 {
+		t.Fatalf("%d lignes de suivi, attendu 1", len(records))
+	}
+	if records[0].Status != ImportFailed || records[0].ErrorCode != "queue" {
+		t.Errorf("ligne = %+v, attendue en échec avec le code queue", records[0])
 	}
 }
 

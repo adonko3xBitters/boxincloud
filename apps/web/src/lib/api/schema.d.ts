@@ -1424,11 +1424,30 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Rapatrier un résultat dans une bibliothèque
-         * @description Le serveur télécharge chez le catalogue et écrit directement dans le
-         *     backend de stockage. Le fichier ne transite **pas** par le navigateur,
-         *     ce qui compte quand l'instance a une bien meilleure liaison que le
-         *     téléphone qui la pilote.
+         * Demander le rapatriement d'un résultat
+         * @description Enregistre la demande et l'enfile. **Répond 202**, pas 201 : le
+         *     téléchargement se fait en tâche de fond.
+         *
+         *     Ce n'est pas un détail de mise en œuvre. Un import dure le temps d'un
+         *     téléchargement — quelques secondes pour un album, plusieurs minutes pour
+         *     une intégrale servie par un catalogue lointain. Le tenir dans la requête
+         *     obligeait le navigateur à garder une connexion ouverte tout du long, et
+         *     faisait perdre l'import à qui fermait son onglet.
+         *
+         *     Le serveur télécharge chez le catalogue et écrit directement dans le
+         *     backend : le fichier ne transite **pas** par le navigateur.
+         *
+         *     ### Ce qui est vérifié tout de suite, et ce qui ne peut pas l'être
+         *
+         *     Tout ce qui ne demande pas le réseau est vérifié avant de rendre 202 :
+         *     catalogue inconnu, adresse étrangère, bibliothèque inaccessible. Ces
+         *     refus-là portent un statut HTTP, parce qu'ils sont dus à la demande.
+         *
+         *     Ce qui dépend du catalogue distant — il ne répond pas, il sert un format
+         *     refusé, le fichier existe déjà — ne se découvre qu'en essayant, et
+         *     atterrit dans la ligne de suivi rendue par `GET /discovery/imports`.
+         *
+         *     ### La règle qui gouverne cette route
          *
          *     **`href` doit appartenir au catalogue désigné par `sourceId`** — même
          *     schéma, même hôte, même port. Ce n'est pas une vérification de forme :
@@ -1440,16 +1459,33 @@ export interface paths {
          *     L'accès suit celui du téléversement — qui peut consulter une
          *     bibliothèque peut l'alimenter — et non celui de l'administration des
          *     catalogues.
-         *
-         *     Les règles d'écriture sont celles de l'ingestion : taille bornée,
-         *     signature du contenu vérifiée avant d'écrire, refus d'écraser un objet
-         *     existant, contrôle d'écriture sur le dossier de destination.
-         *
-         *     Comme le téléversement, cette route n'a pas le délai des requêtes
-         *     ordinaires : un import de plusieurs centaines de méga-octets dépasse
-         *     largement trente secondes.
          */
         post: operations["discoveryImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/discovery/imports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Imports récents
+         * @description La contrepartie du 202. Une action qu'on ne peut plus suivre dans sa
+         *     réponse doit pouvoir être suivie ailleurs, sinon la passer en tâche de
+         *     fond revient à la faire disparaître.
+         *
+         *     L'interface interroge cette route tant qu'un import est `queued` ou
+         *     `running`.
+         */
+        get: operations["listDiscoveryImports"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1604,6 +1640,46 @@ export interface components {
              *     fréquente est « vous l'avez déjà ».
              */
             inLibrary: boolean;
+        };
+        DiscoveryImport: {
+            /** Format: uuid */
+            id: string;
+            /** Format: uuid */
+            sourceId?: string;
+            sourceName?: string;
+            /** Format: uuid */
+            libraryId: string;
+            folder?: string;
+            title?: string;
+            /** @enum {string} */
+            status: "queued" | "running" | "done" | "failed";
+            /**
+             * @description Code stable, pas une phrase : l'interface le traduit. Le serveur n'a
+             *     pas à deviner la langue du lecteur — même règle que pour les
+             *     problèmes RFC 7807 et les états de catalogue.
+             * @enum {string}
+             */
+            errorCode?: "unreachable" | "timeout" | "foreign-host" | "invalid" | "source-gone" | "queue" | "unsupported-format" | "content-mismatch" | "exists" | "too-large" | "deposit-failed";
+            /**
+             * @description Diagnostic BRUT, souvent celui du catalogue distant et donc souvent
+             *     en anglais. À afficher comme un détail technique sous un titre
+             *     traduit, jamais comme une phrase à lire.
+             */
+            errorDetail?: string;
+            /**
+             * Format: uuid
+             * @description Renseigné quand l'import a abouti.
+             */
+            comicId?: string;
+            objectKey?: string;
+            /** Format: int64 */
+            fileSize?: number;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            startedAt?: string;
+            /** Format: date-time */
+            finishedAt?: string;
         };
         DiscoverySourceStatus: {
             /** Format: uuid */
@@ -4549,26 +4625,43 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Album importé et inscrit au catalogue */
-            201: {
+            /** @description Demande enregistrée et enfilée */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** Format: uuid */
-                        comicId: string;
-                        objectKey: string;
-                        title: string;
-                        format: string;
-                        /** Format: int64 */
-                        fileSize: number;
-                    };
+                    "application/json": components["schemas"]["DiscoveryImport"];
                 };
             };
             401: components["responses"]["Unauthorized"];
             404: components["responses"]["NotFound"];
             422: components["responses"]["ValidationFailed"];
+        };
+    };
+    listDiscoveryImports: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Imports, du plus récent au plus ancien */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["DiscoveryImport"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
         };
     };
     listDiscoverySources: {

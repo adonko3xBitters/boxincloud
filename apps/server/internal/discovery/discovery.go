@@ -44,6 +44,8 @@ var (
 	ErrInvalidSource = errors.New("discovery : configuration de catalogue invalide")
 	// ErrNoSearch signale un catalogue qui n'expose pas de recherche.
 	ErrNoSearch = errors.New("discovery : ce catalogue n'expose pas de recherche")
+	// ErrImportNotFound signale une demande d'import introuvable.
+	ErrImportNotFound = errors.New("discovery : import introuvable")
 )
 
 // Kind identifie le protocole d'un catalogue.

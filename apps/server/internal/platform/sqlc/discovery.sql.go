@@ -11,6 +11,61 @@ import (
 	"github.com/google/uuid"
 )
 
+const createDiscoveryImport = `-- name: CreateDiscoveryImport :one
+
+INSERT INTO discovery_imports (
+    id, source_id, source_name, href, library_id, folder, title, requested_by
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING id, source_id, source_name, href, library_id, folder, title, status, error_code, error_detail, comic_id, object_key, file_size, requested_by, created_at, started_at, finished_at
+`
+
+type CreateDiscoveryImportParams struct {
+	ID          uuid.UUID
+	SourceID    uuid.NullUUID
+	SourceName  string
+	Href        string
+	LibraryID   uuid.UUID
+	Folder      string
+	Title       string
+	RequestedBy uuid.NullUUID
+}
+
+// ─── Imports ─────────────────────────────────────────────────────────────────
+func (q *Queries) CreateDiscoveryImport(ctx context.Context, arg CreateDiscoveryImportParams) (DiscoveryImport, error) {
+	row := q.db.QueryRow(ctx, createDiscoveryImport,
+		arg.ID,
+		arg.SourceID,
+		arg.SourceName,
+		arg.Href,
+		arg.LibraryID,
+		arg.Folder,
+		arg.Title,
+		arg.RequestedBy,
+	)
+	var i DiscoveryImport
+	err := row.Scan(
+		&i.ID,
+		&i.SourceID,
+		&i.SourceName,
+		&i.Href,
+		&i.LibraryID,
+		&i.Folder,
+		&i.Title,
+		&i.Status,
+		&i.ErrorCode,
+		&i.ErrorDetail,
+		&i.ComicID,
+		&i.ObjectKey,
+		&i.FileSize,
+		&i.RequestedBy,
+		&i.CreatedAt,
+		&i.StartedAt,
+		&i.FinishedAt,
+	)
+	return i, err
+}
+
 const createDiscoverySource = `-- name: CreateDiscoverySource :one
 INSERT INTO discovery_sources (id, name, url, kind, enabled, username, secret_enc)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -62,6 +117,84 @@ func (q *Queries) DeleteDiscoverySource(ctx context.Context, id uuid.UUID) error
 	return err
 }
 
+const failDiscoveryImport = `-- name: FailDiscoveryImport :exec
+UPDATE discovery_imports
+SET status = 'failed',
+    error_code = $2,
+    error_detail = $3,
+    finished_at = now()
+WHERE id = $1
+`
+
+type FailDiscoveryImportParams struct {
+	ID          uuid.UUID
+	ErrorCode   string
+	ErrorDetail string
+}
+
+func (q *Queries) FailDiscoveryImport(ctx context.Context, arg FailDiscoveryImportParams) error {
+	_, err := q.db.Exec(ctx, failDiscoveryImport, arg.ID, arg.ErrorCode, arg.ErrorDetail)
+	return err
+}
+
+const finishDiscoveryImport = `-- name: FinishDiscoveryImport :exec
+UPDATE discovery_imports
+SET status = 'done',
+    comic_id = $2,
+    object_key = $3,
+    file_size = $4,
+    error_code = '',
+    error_detail = '',
+    finished_at = now()
+WHERE id = $1
+`
+
+type FinishDiscoveryImportParams struct {
+	ID        uuid.UUID
+	ComicID   uuid.NullUUID
+	ObjectKey string
+	FileSize  int64
+}
+
+func (q *Queries) FinishDiscoveryImport(ctx context.Context, arg FinishDiscoveryImportParams) error {
+	_, err := q.db.Exec(ctx, finishDiscoveryImport,
+		arg.ID,
+		arg.ComicID,
+		arg.ObjectKey,
+		arg.FileSize,
+	)
+	return err
+}
+
+const getDiscoveryImport = `-- name: GetDiscoveryImport :one
+SELECT id, source_id, source_name, href, library_id, folder, title, status, error_code, error_detail, comic_id, object_key, file_size, requested_by, created_at, started_at, finished_at FROM discovery_imports WHERE id = $1
+`
+
+func (q *Queries) GetDiscoveryImport(ctx context.Context, id uuid.UUID) (DiscoveryImport, error) {
+	row := q.db.QueryRow(ctx, getDiscoveryImport, id)
+	var i DiscoveryImport
+	err := row.Scan(
+		&i.ID,
+		&i.SourceID,
+		&i.SourceName,
+		&i.Href,
+		&i.LibraryID,
+		&i.Folder,
+		&i.Title,
+		&i.Status,
+		&i.ErrorCode,
+		&i.ErrorDetail,
+		&i.ComicID,
+		&i.ObjectKey,
+		&i.FileSize,
+		&i.RequestedBy,
+		&i.CreatedAt,
+		&i.StartedAt,
+		&i.FinishedAt,
+	)
+	return i, err
+}
+
 const getDiscoverySource = `-- name: GetDiscoverySource :one
 SELECT id, name, url, kind, enabled, username, secret_enc, last_error, last_checked_at, created_at FROM discovery_sources WHERE id = $1
 `
@@ -99,6 +232,50 @@ func (q *Queries) GetDiscoverySourceSecret(ctx context.Context, id uuid.UUID) ([
 	var secret_enc []byte
 	err := row.Scan(&secret_enc)
 	return secret_enc, err
+}
+
+const listDiscoveryImports = `-- name: ListDiscoveryImports :many
+SELECT id, source_id, source_name, href, library_id, folder, title, status, error_code, error_detail, comic_id, object_key, file_size, requested_by, created_at, started_at, finished_at FROM discovery_imports
+ORDER BY created_at DESC
+LIMIT $1
+`
+
+func (q *Queries) ListDiscoveryImports(ctx context.Context, limit int32) ([]DiscoveryImport, error) {
+	rows, err := q.db.Query(ctx, listDiscoveryImports, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []DiscoveryImport{}
+	for rows.Next() {
+		var i DiscoveryImport
+		if err := rows.Scan(
+			&i.ID,
+			&i.SourceID,
+			&i.SourceName,
+			&i.Href,
+			&i.LibraryID,
+			&i.Folder,
+			&i.Title,
+			&i.Status,
+			&i.ErrorCode,
+			&i.ErrorDetail,
+			&i.ComicID,
+			&i.ObjectKey,
+			&i.FileSize,
+			&i.RequestedBy,
+			&i.CreatedAt,
+			&i.StartedAt,
+			&i.FinishedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listDiscoverySources = `-- name: ListDiscoverySources :many
@@ -150,6 +327,17 @@ type RecordDiscoveryProbeParams struct {
 
 func (q *Queries) RecordDiscoveryProbe(ctx context.Context, arg RecordDiscoveryProbeParams) error {
 	_, err := q.db.Exec(ctx, recordDiscoveryProbe, arg.ID, arg.LastError)
+	return err
+}
+
+const startDiscoveryImport = `-- name: StartDiscoveryImport :exec
+UPDATE discovery_imports
+SET status = 'running', started_at = now()
+WHERE id = $1
+`
+
+func (q *Queries) StartDiscoveryImport(ctx context.Context, id uuid.UUID) error {
+	_, err := q.db.Exec(ctx, startDiscoveryImport, id)
 	return err
 }
 

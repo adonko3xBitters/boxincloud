@@ -12,7 +12,6 @@ import (
 	"github.com/adonko3xBitters/boxincloud/server/internal/catalog"
 	"github.com/adonko3xBitters/boxincloud/server/internal/discovery"
 	"github.com/adonko3xBitters/boxincloud/server/internal/httpapi/problem"
-	"github.com/adonko3xBitters/boxincloud/server/internal/ingest"
 )
 
 /*
@@ -30,16 +29,17 @@ une reviendrait à lui offrir un sondeur de réseau interne.
 */
 
 // Discovery expose la recherche fédérée.
+//
+// L'ingestion n'y figure plus : depuis que l'import est une tâche de fond, c'est
+// le worker qui écrit dans la bibliothèque, et ce gestionnaire ne fait
+// qu'enregistrer une demande.
 type Discovery struct {
 	svc     *discovery.Service
 	catalog *catalog.Service
-	ingest  *ingest.Service
 }
 
-func NewDiscovery(
-	svc *discovery.Service, cat *catalog.Service, ing *ingest.Service,
-) *Discovery {
-	return &Discovery{svc: svc, catalog: cat, ingest: ing}
+func NewDiscovery(svc *discovery.Service, cat *catalog.Service) *Discovery {
+	return &Discovery{svc: svc, catalog: cat}
 }
 
 // ─── Représentations ─────────────────────────────────────────────────────────
@@ -138,12 +138,65 @@ type importRequest struct {
 	Title     string `json:"title"`
 }
 
-/*
-Import rapatrie un résultat dans une bibliothèque.
+type importDTO struct {
+	ID         uuid.UUID  `json:"id"`
+	SourceID   *uuid.UUID `json:"sourceId,omitempty"`
+	SourceName string     `json:"sourceName,omitempty"`
+	LibraryID  uuid.UUID  `json:"libraryId"`
+	Folder     string     `json:"folder,omitempty"`
+	Title      string     `json:"title,omitempty"`
 
-Le fichier ne passe pas par le navigateur : le serveur télécharge chez le
-catalogue et écrit directement dans le backend. C'est ce qui compte quand
-l'instance a une bien meilleure liaison que le téléphone qui la pilote.
+	Status string `json:"status"`
+	// ErrorCode est un code stable, traduit par l'interface.
+	ErrorCode string `json:"errorCode,omitempty"`
+	// ErrorDetail est le diagnostic brut, souvent celui du catalogue distant.
+	// À afficher comme un détail technique, pas comme une phrase à lire.
+	ErrorDetail string `json:"errorDetail,omitempty"`
+
+	ComicID   *uuid.UUID `json:"comicId,omitempty"`
+	ObjectKey string     `json:"objectKey,omitempty"`
+	FileSize  int64      `json:"fileSize,omitempty"`
+
+	CreatedAt  time.Time  `json:"createdAt"`
+	StartedAt  *time.Time `json:"startedAt,omitempty"`
+	FinishedAt *time.Time `json:"finishedAt,omitempty"`
+}
+
+func toImportDTO(i discovery.Import) importDTO {
+	return importDTO{
+		ID:          i.ID,
+		SourceID:    i.SourceID,
+		SourceName:  i.SourceName,
+		LibraryID:   i.LibraryID,
+		Folder:      i.Folder,
+		Title:       i.Title,
+		Status:      string(i.Status),
+		ErrorCode:   i.ErrorCode,
+		ErrorDetail: i.ErrorDetail,
+		ComicID:     i.ComicID,
+		ObjectKey:   i.ObjectKey,
+		FileSize:    i.FileSize,
+		CreatedAt:   i.CreatedAt,
+		StartedAt:   i.StartedAt,
+		FinishedAt:  i.FinishedAt,
+	}
+}
+
+/*
+Import demande le rapatriement d'un résultat dans une bibliothèque.
+
+La réponse est 202 : la demande est enregistrée et enfilée, le téléchargement
+se fait en tâche de fond. Il survit ainsi à la fermeture de l'onglet, et n'oblige
+plus le navigateur à garder une connexion ouverte pendant plusieurs minutes.
+
+Ce qui est vérifié ICI l'est parce que ce sont des propriétés de la demande, et
+qu'un refus immédiat vaut mieux qu'une ligne de suivi en échec deux secondes
+plus tard : identifiants lisibles, catalogue existant, adresse lui appartenant,
+bibliothèque accessible.
+
+Le reste — le catalogue répond-il, le format est-il accepté, le fichier
+existe-t-il déjà — ne peut être su qu'en essayant, et atterrit dans la ligne de
+suivi.
 
 L'accès suit celui du téléversement — qui peut consulter une bibliothèque peut
 l'alimenter — et non celui de l'administration des catalogues. Déclarer un
@@ -184,56 +237,46 @@ func (h *Discovery) Import(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	deposited, err := h.svc.Import(r.Context(), discovery.ImportParams{
-		SourceID:  sourceID,
-		Href:      req.Href,
-		LibraryID: libraryID,
-		Folder:    req.Folder,
-		Title:     req.Title,
-	}, h.deposit)
+	requester := v.UserID
+	record, err := h.svc.RequestImport(r.Context(), discovery.ImportParams{
+		SourceID:    sourceID,
+		Href:        req.Href,
+		LibraryID:   libraryID,
+		Folder:      req.Folder,
+		Title:       req.Title,
+		RequestedBy: &requester,
+	})
 	if err != nil {
 		writeImportError(w, r, err)
 		return
 	}
 
-	writeJSON(w, http.StatusCreated, map[string]any{
-		"comicId":   deposited.ComicID,
-		"objectKey": deposited.ObjectKey,
-		"title":     deposited.Title,
-		"format":    deposited.Format,
-		"fileSize":  deposited.Size,
-	})
+	writeJSON(w, http.StatusAccepted, toImportDTO(record))
 }
 
 /*
-deposit branche l'import sur l'ingestion.
+Imports rend les imports récents.
 
-L'adaptateur tient en dix lignes et vaut mieux qu'une dépendance directe : le
-paquet `discovery` décrit ce dont il a besoin, l'ingestion garde ses types, et
-les règles d'écriture — borne de taille sur le flux, signature vérifiée avant
-d'écrire, refus d'écraser, contrôle du dossier de destination — ne sont pas
-réécrites une seconde fois.
+C'est la contrepartie du 202 : une action qu'on ne peut plus suivre dans sa
+réponse doit pouvoir être suivie ailleurs, sinon la faire passer en tâche de
+fond revient à la faire disparaître.
 */
-func (h *Discovery) deposit(
-	ctx context.Context, p discovery.DepositParams,
-) (discovery.Deposited, error) {
-	result, err := h.ingest.Upload(ctx, ingest.UploadParams{
-		LibraryID: p.LibraryID,
-		Folder:    p.Folder,
-		Filename:  p.Filename,
-		Size:      p.Size,
-		Content:   p.Content,
-	})
-	if err != nil {
-		return discovery.Deposited{}, err
+func (h *Discovery) Imports(w http.ResponseWriter, r *http.Request) {
+	if _, ok := viewerFrom(w, r); !ok {
+		return
 	}
-	return discovery.Deposited{
-		ComicID:   result.ComicID,
-		ObjectKey: result.ObjectKey,
-		Title:     result.Title,
-		Format:    result.Format,
-		Size:      result.Size,
-	}, nil
+
+	records, err := h.svc.ListImports(r.Context(), int(intParam(r, "limit", 50)))
+	if err != nil {
+		writeInternal(w, r, err)
+		return
+	}
+
+	items := make([]importDTO, 0, len(records))
+	for _, record := range records {
+		items = append(items, toImportDTO(record))
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 
 func writeImportError(w http.ResponseWriter, r *http.Request, err error) {
@@ -247,9 +290,7 @@ func writeImportError(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, discovery.ErrInvalidSource):
 		problem.Write(w, r, problem.Validation(map[string]string{"href": "invalid"}))
 	default:
-		// Tout ce qui vient de l'ingestion garde sa traduction : format refusé,
-		// contenu qui dément l'extension, objet déjà présent, dossier protégé.
-		writeIngestError(w, r, err)
+		writeInternal(w, r, err)
 	}
 }
 

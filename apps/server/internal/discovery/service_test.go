@@ -22,7 +22,9 @@ elle réussit partiellement, et doit le dire.
 */
 
 type fakeRepo struct {
+	mu      sync.Mutex
 	sources []Source
+	imports map[uuid.UUID]Import
 }
 
 func (r *fakeRepo) ListSources(context.Context) ([]Source, error) { return r.sources, nil }
@@ -48,6 +50,95 @@ func (r *fakeRepo) UpdateSource(_ context.Context, s Source, _ []byte, _ bool) (
 
 func (r *fakeRepo) DeleteSource(context.Context, uuid.UUID) error        { return nil }
 func (r *fakeRepo) RecordProbe(context.Context, uuid.UUID, string) error { return nil }
+
+// ─── Imports ─────────────────────────────────────────────────────────────────
+
+func (r *fakeRepo) CreateImport(_ context.Context, i Import) (Import, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	i.ID = uuid.New()
+	if r.imports == nil {
+		r.imports = map[uuid.UUID]Import{}
+	}
+	r.imports[i.ID] = i
+	return i, nil
+}
+
+func (r *fakeRepo) GetImport(_ context.Context, id uuid.UUID) (Import, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	record, ok := r.imports[id]
+	if !ok {
+		return Import{}, ErrImportNotFound
+	}
+	return record, nil
+}
+
+func (r *fakeRepo) ListImports(_ context.Context, _ int) ([]Import, error) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	out := make([]Import, 0, len(r.imports))
+	for _, record := range r.imports {
+		out = append(out, record)
+	}
+	return out, nil
+}
+
+func (r *fakeRepo) StartImport(_ context.Context, id uuid.UUID) error {
+	return r.patchImport(id, func(i *Import) { i.Status = ImportRunning })
+}
+
+func (r *fakeRepo) FinishImport(_ context.Context, id uuid.UUID, d Deposited) error {
+	return r.patchImport(id, func(i *Import) {
+		i.Status = ImportDone
+		i.ComicID = &d.ComicID
+		i.ObjectKey = d.ObjectKey
+		i.FileSize = d.Size
+		i.ErrorCode = ""
+	})
+}
+
+func (r *fakeRepo) FailImport(_ context.Context, id uuid.UUID, code, detail string) error {
+	return r.patchImport(id, func(i *Import) {
+		i.Status = ImportFailed
+		i.ErrorCode = code
+		i.ErrorDetail = detail
+	})
+}
+
+func (r *fakeRepo) patchImport(id uuid.UUID, apply func(*Import)) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	record, ok := r.imports[id]
+	if !ok {
+		return ErrImportNotFound
+	}
+	apply(&record)
+	r.imports[id] = record
+	return nil
+}
+
+// fakeQueue retient ce qui a été enfilé, sans rien exécuter.
+type fakeQueue struct {
+	mu       sync.Mutex
+	enqueued []uuid.UUID
+	err      error
+}
+
+func (q *fakeQueue) EnqueueImport(_ context.Context, id uuid.UUID) error {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	if q.err != nil {
+		return q.err
+	}
+	q.enqueued = append(q.enqueued, id)
+	return nil
+}
 
 // fakeClient rend ce qu'on lui a dit de rendre, par catalogue.
 type fakeClient struct {

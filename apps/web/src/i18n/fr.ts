@@ -646,6 +646,24 @@ export const fr = {
     "Le serveur télécharge depuis le catalogue et écrit directement dans votre stockage : le fichier ne passe pas par ce navigateur.",
   "discovery.import.done": "Importé",
   "discovery.import.noLibrary": "Aucune biblioth\u00e8que o\u00f9 importer",
+  "discovery.import.queued": "En attente",
+  "discovery.import.failed": "Échec de l'import",
+  "discovery.import.background":
+    "L'import continue en arri\u00e8re-plan : vous pouvez fermer cette fen\u00eatre.",
+  "discovery.import.open": "Ouvrir l'album",
+
+  // Codes d'échec rendus par le serveur, traduits ici.
+  "discovery.import.err.unreachable": "Le catalogue n'a pas répondu",
+  "discovery.import.err.timeout": "Le téléchargement a expiré",
+  "discovery.import.err.foreign-host": "Adresse étrang\u00e8re au catalogue",
+  "discovery.import.err.invalid": "Adresse refusée",
+  "discovery.import.err.source-gone": "Le catalogue a été retiré",
+  "discovery.import.err.queue": "La file de tâches n'a pas accepté l'import",
+  "discovery.import.err.unsupported-format": "Format non pris en charge",
+  "discovery.import.err.content-mismatch": "Le contenu ne correspond pas \u00e0 son extension",
+  "discovery.import.err.exists": "Un fichier de ce nom existe déj\u00e0",
+  "discovery.import.err.too-large": "Fichier trop volumineux",
+  "discovery.import.err.deposit-failed": "L'écriture dans la biblioth\u00e8que a échoué",
 } as const;
 
 /** Les clés du catalogue. Toute traduction doit les couvrir toutes. */

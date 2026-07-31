@@ -454,6 +454,26 @@ type Device struct {
 	CreatedAt  pgtype.Timestamptz
 }
 
+type DiscoveryImport struct {
+	ID          uuid.UUID
+	SourceID    uuid.NullUUID
+	SourceName  string
+	Href        string
+	LibraryID   uuid.UUID
+	Folder      string
+	Title       string
+	Status      string
+	ErrorCode   string
+	ErrorDetail string
+	ComicID     uuid.NullUUID
+	ObjectKey   string
+	FileSize    int64
+	RequestedBy uuid.NullUUID
+	CreatedAt   pgtype.Timestamptz
+	StartedAt   pgtype.Timestamptz
+	FinishedAt  pgtype.Timestamptz
+}
+
 type DiscoverySource struct {
 	ID            uuid.UUID
 	Name          string

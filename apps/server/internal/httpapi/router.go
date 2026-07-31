@@ -273,9 +273,15 @@ func NewRouter(d Deps) http.Handler {
 			// Chercher est ouvert à tout compte. Déclarer un catalogue
 			// ne l'est pas : c'est une adresse que le SERVEUR ira
 			// joindre, ce qui en fait une décision d'administration.
-			discoveryHandler := handlers.NewDiscovery(d.Discovery, d.Catalog, d.Ingest)
+			discoveryHandler := handlers.NewDiscovery(d.Discovery, d.Catalog)
 
 			r.Get("/discovery/search", discoveryHandler.Search)
+
+			// L'import ne demande PLUS le délai des opérations longues :
+			// la requête enregistre et enfile, le téléchargement se fait
+			// dans un job. Elle rend en quelques millisecondes.
+			r.Post("/discovery/import", discoveryHandler.Import)
+			r.Get("/discovery/imports", discoveryHandler.Imports)
 			r.Get("/discovery/sources", discoveryHandler.ListSources)
 			r.Post("/discovery/sources", discoveryHandler.CreateSource)
 			r.Patch("/discovery/sources/{sourceID}", discoveryHandler.UpdateSource)
@@ -327,12 +333,6 @@ func NewRouter(d Deps) http.Handler {
 
 			adminHandler := handlers.NewAdmin(d.Libraries, d.Catalog, d.Ingest, d.Cache)
 			r.Post("/libraries/{libraryID}/upload", adminHandler.Upload)
-
-			// L'import a exactement le même profil : un téléversement dont
-			// la source est distante. Il ne peut donc pas plus que lui
-			// tenir dans le délai des requêtes ordinaires.
-			discoveryHandler := handlers.NewDiscovery(d.Discovery, d.Catalog, d.Ingest)
-			r.Post("/discovery/import", discoveryHandler.Import)
 		})
 
 		/*

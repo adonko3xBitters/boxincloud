@@ -1,11 +1,14 @@
 package httpapi_test
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/google/uuid"
 
 	"github.com/adonko3xBitters/boxincloud/server/internal/testsupport/comicfixture"
 )
@@ -308,69 +311,126 @@ func TestIntegrationContractDiscoveryImport(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	// request demande un import et rend sa ligne de suivi, encore en attente.
+	request := func(t *testing.T, body map[string]any) importRecord {
+		t.Helper()
+		rec := h.expect(t, http.MethodPost, "/api/v1/discovery/import", body,
+			http.StatusAccepted)
+
+		var record importRecord
+		if err := json.Unmarshal(rec.Body.Bytes(), &record); err != nil {
+			t.Fatal(err)
+		}
+		if record.Status != "queued" {
+			t.Fatalf("statut initial = %q, attendu queued", record.Status)
+		}
+		return record
+	}
+
 	t.Run("l'album arrive dans la bibliothèque", func(t *testing.T) {
-		rec := h.expect(t, http.MethodPost, "/api/v1/discovery/import", map[string]any{
+		record := request(t, map[string]any{
 			"sourceId":  source.ID,
 			"href":      catalogue.URL + "/dl/garage.cbz",
 			"libraryId": h.libraryID.String(),
 			"folder":    "Importés",
 			"title":     "Le Garage hermétique",
-		}, http.StatusCreated)
+		})
 
-		var imported struct {
-			ComicID   string `json:"comicId"`
-			ObjectKey string `json:"objectKey"`
-			Format    string `json:"format"`
-			FileSize  int64  `json:"fileSize"`
-		}
-		if err := json.Unmarshal(rec.Body.Bytes(), &imported); err != nil {
-			t.Fatal(err)
+		// Rien n'est encore arrivé : la requête a rendu 202, pas le fichier.
+		// C'est tout l'objet du passage en tâche de fond.
+		if record.ComicID != "" {
+			t.Error("un album existe déjà alors que le job n'a pas tourné")
 		}
 
-		if imported.ComicID == "" {
-			t.Fatal("aucun album créé")
+		h.runImport(t, record.ID)
+
+		done := h.findImport(t, record.ID)
+		if done.Status != "done" {
+			t.Fatalf("statut = %q (%s : %s)", done.Status, done.ErrorCode, done.ErrorDetail)
 		}
-		if imported.Format != "cbz" {
-			t.Errorf("format = %q", imported.Format)
-		}
-		if imported.FileSize != int64(len(importableCBZ)) {
-			t.Errorf("taille = %d, attendu %d", imported.FileSize, len(importableCBZ))
+		if done.FileSize != int64(len(importableCBZ)) {
+			t.Errorf("taille = %d, attendu %d", done.FileSize, len(importableCBZ))
 		}
 		// Le nom vient de l'adresse, et le dossier demandé est respecté : c'est
 		// ce que l'indexation analysera ensuite.
-		if !strings.Contains(imported.ObjectKey, "Importés/garage.cbz") {
-			t.Errorf("clé = %q, attendue dans le dossier demandé", imported.ObjectKey)
+		if !strings.Contains(done.ObjectKey, "Importés/garage.cbz") {
+			t.Errorf("clé = %q, attendue dans le dossier demandé", done.ObjectKey)
 		}
 
-		// L'album est réellement consultable, pas seulement rendu par la
-		// réponse de l'import.
-		h.expect(t, http.MethodGet, "/api/v1/comics/"+imported.ComicID, nil, http.StatusOK)
+		// L'album est réellement consultable, pas seulement consigné.
+		h.expect(t, http.MethodGet, "/api/v1/comics/"+done.ComicID, nil, http.StatusOK)
 	})
 
 	t.Run("un lien sans nom est nommé par son titre", func(t *testing.T) {
-		rec := h.expect(t, http.MethodPost, "/api/v1/discovery/import", map[string]any{
+		record := request(t, map[string]any{
 			"sourceId":  source.ID,
 			"href":      catalogue.URL + "/api/v1/books/42/file",
 			"libraryId": h.libraryID.String(),
 			"title":     "Arzach",
-		}, http.StatusCreated)
+		})
+		h.runImport(t, record.ID)
 
-		var imported struct {
-			ObjectKey string `json:"objectKey"`
-		}
-		if err := json.Unmarshal(rec.Body.Bytes(), &imported); err != nil {
-			t.Fatal(err)
-		}
-		if !strings.Contains(imported.ObjectKey, "Arzach.cbz") {
+		done := h.findImport(t, record.ID)
+		if !strings.Contains(done.ObjectKey, "Arzach.cbz") {
 			t.Errorf("clé = %q : un lien muet doit être nommé par son titre",
-				imported.ObjectKey)
+				done.ObjectKey)
 		}
 	})
 
-	t.Run("une adresse étrangère au catalogue est refusée", func(t *testing.T) {
-		// Le refus le plus important du module. Sans lui, cette route ferait
-		// télécharger n'importe quoi par l'instance, depuis l'intérieur de son
-		// réseau.
+	t.Run("un catalogue éteint est consigné, pas rendu en erreur HTTP", func(t *testing.T) {
+		/*
+			Le cœur du passage en tâche de fond. La demande est acceptée —
+			personne ne peut savoir avant d'essayer que le catalogue ne répondra
+			pas — et l'échec atterrit dans la ligne de suivi, avec un code que
+			l'interface traduit.
+
+			Sans cela, un import de fond serait une action qu'on lance et qui
+			disparaît.
+		*/
+		mortel := opdsCatalogue(t)
+		autre := h.expect(t, http.MethodPost, "/api/v1/discovery/sources", map[string]any{
+			"name": "Bientôt éteint",
+			"url":  mortel.URL + "/opds",
+		}, http.StatusCreated)
+
+		var mortelSource struct {
+			ID string `json:"id"`
+		}
+		if err := json.Unmarshal(autre.Body.Bytes(), &mortelSource); err != nil {
+			t.Fatal(err)
+		}
+
+		record := request(t, map[string]any{
+			"sourceId":  mortelSource.ID,
+			"href":      mortel.URL + "/dl/garage.cbz",
+			"libraryId": h.libraryID.String(),
+			"title":     "Jamais arrivé",
+		})
+
+		mortel.Close()
+		h.runImport(t, record.ID)
+
+		done := h.findImport(t, record.ID)
+		if done.Status != "failed" {
+			t.Fatalf("statut = %q, attendu failed", done.Status)
+		}
+		if done.ErrorCode == "" {
+			t.Error("un échec doit porter un code : l'interface le traduit")
+		}
+		if done.ErrorDetail == "" {
+			t.Error("un échec doit porter un diagnostic : c'est ce qui permet de comprendre")
+		}
+	})
+
+	t.Run("une adresse étrangère est refusée tout de suite", func(t *testing.T) {
+		/*
+			Le refus le plus important du module, et il reste SYNCHRONE malgré
+			le passage en tâche de fond : l'adresse est une propriété de la
+			demande, pas une découverte du téléchargement.
+
+			Le différer ferait croire à l'utilisateur que son import est parti,
+			et transformerait un refus de sécurité en ligne d'historique.
+		*/
 		autre := opdsCatalogue(t)
 
 		h.expect(t, http.MethodPost, "/api/v1/discovery/import", map[string]any{
@@ -386,16 +446,72 @@ func TestIntegrationContractDiscoveryImport(t *testing.T) {
 		}, http.StatusUnprocessableEntity)
 	})
 
-	t.Run("importer deux fois le même fichier est refusé", func(t *testing.T) {
+	t.Run("importer deux fois le même fichier échoue à l'exécution", func(t *testing.T) {
 		// L'objet existe déjà : l'écraser remplacerait une édition par une
 		// autre et rendrait fausse la progression de lecture qui y est
-		// attachée.
-		h.expect(t, http.MethodPost, "/api/v1/discovery/import", map[string]any{
+		// attachée. Le savoir demande d'interroger le stockage, donc le refus
+		// ne peut venir qu'au moment du dépôt.
+		record := request(t, map[string]any{
 			"sourceId":  source.ID,
 			"href":      catalogue.URL + "/dl/garage.cbz",
 			"libraryId": h.libraryID.String(),
 			"folder":    "Importés",
 			"title":     "Le Garage hermétique",
-		}, http.StatusUnprocessableEntity)
+		})
+		h.runImport(t, record.ID)
+
+		done := h.findImport(t, record.ID)
+		if done.Status != "failed" || done.ErrorCode != "exists" {
+			t.Errorf("import = %+v, attendu un échec avec le code exists", done)
+		}
 	})
+}
+
+// importRecord est la ligne de suivi d'un import, telle que l'API la rend.
+type importRecord struct {
+	ID          string `json:"id"`
+	Status      string `json:"status"`
+	ErrorCode   string `json:"errorCode"`
+	ErrorDetail string `json:"errorDetail"`
+	ComicID     string `json:"comicId"`
+	ObjectKey   string `json:"objectKey"`
+	FileSize    int64  `json:"fileSize"`
+}
+
+// runImport déroule le job sans démarrer de workers.
+//
+// Le harnais tourne avec la file désactivée — le contrat porte sur l'API, pas
+// sur l'ordonnancement — mais le chemin exécuté ici est exactement celui du
+// worker, ce qui est ce qui donne au test sa valeur.
+func (h *contractHarness) runImport(t *testing.T, id string) {
+	t.Helper()
+
+	importID, err := uuid.Parse(id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := h.core.RunImport(context.Background(), importID); err != nil {
+		t.Fatalf("exécution de l'import : %v", err)
+	}
+}
+
+// findImport relit une ligne de suivi via l'API, comme le fait l'interface.
+func (h *contractHarness) findImport(t *testing.T, id string) importRecord {
+	t.Helper()
+
+	rec := h.expect(t, http.MethodGet, "/api/v1/discovery/imports", nil, http.StatusOK)
+
+	var payload struct {
+		Items []importRecord `json:"items"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+	for _, item := range payload.Items {
+		if item.ID == id {
+			return item
+		}
+	}
+	t.Fatalf("import %s absent du suivi", id)
+	return importRecord{}
 }

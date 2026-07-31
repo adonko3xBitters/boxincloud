@@ -139,3 +139,139 @@ func toSource(row sqlc.DiscoverySource) Source {
 	}
 	return source
 }
+
+// ─── Imports ─────────────────────────────────────────────────────────────────
+
+func (r *PostgresRepository) CreateImport(ctx context.Context, i Import) (Import, error) {
+	row, err := r.q.CreateDiscoveryImport(ctx, sqlc.CreateDiscoveryImportParams{
+		ID:          uuid.New(),
+		SourceID:    nullUUID(i.SourceID),
+		SourceName:  i.SourceName,
+		Href:        i.Href,
+		LibraryID:   i.LibraryID,
+		Folder:      i.Folder,
+		Title:       i.Title,
+		RequestedBy: nullUUID(i.RequestedBy),
+	})
+	if err != nil {
+		return Import{}, fmt.Errorf("discovery : création de l'import : %w", err)
+	}
+	return toImport(row), nil
+}
+
+func (r *PostgresRepository) GetImport(ctx context.Context, id uuid.UUID) (Import, error) {
+	row, err := r.q.GetDiscoveryImport(ctx, id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return Import{}, ErrImportNotFound
+	}
+	if err != nil {
+		return Import{}, fmt.Errorf("discovery : lecture de l'import : %w", err)
+	}
+	return toImport(row), nil
+}
+
+func (r *PostgresRepository) ListImports(ctx context.Context, limit int) ([]Import, error) {
+	rows, err := r.q.ListDiscoveryImports(ctx, int32(limit))
+	if err != nil {
+		return nil, fmt.Errorf("discovery : liste des imports : %w", err)
+	}
+
+	out := make([]Import, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, toImport(row))
+	}
+	return out, nil
+}
+
+func (r *PostgresRepository) StartImport(ctx context.Context, id uuid.UUID) error {
+	if err := r.q.StartDiscoveryImport(ctx, id); err != nil {
+		return fmt.Errorf("discovery : démarrage de l'import : %w", err)
+	}
+	return nil
+}
+
+func (r *PostgresRepository) FinishImport(
+	ctx context.Context, id uuid.UUID, d Deposited,
+) error {
+	err := r.q.FinishDiscoveryImport(ctx, sqlc.FinishDiscoveryImportParams{
+		ID:        id,
+		ComicID:   uuid.NullUUID{UUID: d.ComicID, Valid: d.ComicID != uuid.Nil},
+		ObjectKey: d.ObjectKey,
+		FileSize:  d.Size,
+	})
+	if err != nil {
+		return fmt.Errorf("discovery : clôture de l'import : %w", err)
+	}
+	return nil
+}
+
+func (r *PostgresRepository) FailImport(
+	ctx context.Context, id uuid.UUID, code, detail string,
+) error {
+	err := r.q.FailDiscoveryImport(ctx, sqlc.FailDiscoveryImportParams{
+		ID:        id,
+		ErrorCode: code,
+		// Le diagnostic vient d'un serveur tiers : sa longueur n'est pas sous
+		// notre contrôle, et une colonne de texte n'a pas à recevoir la page
+		// d'erreur HTML de quelqu'un d'autre.
+		ErrorDetail: truncate(detail, 2000),
+	})
+	if err != nil {
+		return fmt.Errorf("discovery : échec de l'import non enregistré : %w", err)
+	}
+	return nil
+}
+
+func toImport(row sqlc.DiscoveryImport) Import {
+	out := Import{
+		ID:          row.ID,
+		SourceName:  row.SourceName,
+		Href:        row.Href,
+		LibraryID:   row.LibraryID,
+		Folder:      row.Folder,
+		Title:       row.Title,
+		Status:      ImportStatus(row.Status),
+		ErrorCode:   row.ErrorCode,
+		ErrorDetail: row.ErrorDetail,
+		ObjectKey:   row.ObjectKey,
+		FileSize:    row.FileSize,
+	}
+	if row.SourceID.Valid {
+		id := row.SourceID.UUID
+		out.SourceID = &id
+	}
+	if row.ComicID.Valid {
+		id := row.ComicID.UUID
+		out.ComicID = &id
+	}
+	if row.RequestedBy.Valid {
+		id := row.RequestedBy.UUID
+		out.RequestedBy = &id
+	}
+	if row.CreatedAt.Valid {
+		out.CreatedAt = row.CreatedAt.Time
+	}
+	if row.StartedAt.Valid {
+		at := row.StartedAt.Time
+		out.StartedAt = &at
+	}
+	if row.FinishedAt.Valid {
+		at := row.FinishedAt.Time
+		out.FinishedAt = &at
+	}
+	return out
+}
+
+func nullUUID(id *uuid.UUID) uuid.NullUUID {
+	if id == nil {
+		return uuid.NullUUID{}
+	}
+	return uuid.NullUUID{UUID: *id, Valid: true}
+}
+
+func truncate(value string, max int) string {
+	if len(value) <= max {
+		return value
+	}
+	return value[:max]
+}

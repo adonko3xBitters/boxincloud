@@ -639,4 +639,21 @@ export const en: Record<MessageKey, string> = {
     "The server downloads from the catalogue and writes straight into your storage: the file does not pass through this browser.",
   "discovery.import.done": "Imported",
   "discovery.import.noLibrary": "No library to import into",
+  "discovery.import.queued": "Queued",
+  "discovery.import.failed": "Import failed",
+  "discovery.import.background":
+    "The import continues in the background: you can close this window.",
+  "discovery.import.open": "Open album",
+
+  "discovery.import.err.unreachable": "The catalogue did not answer",
+  "discovery.import.err.timeout": "The download timed out",
+  "discovery.import.err.foreign-host": "Address foreign to the catalogue",
+  "discovery.import.err.invalid": "Address refused",
+  "discovery.import.err.source-gone": "The catalogue was removed",
+  "discovery.import.err.queue": "The job queue did not accept the import",
+  "discovery.import.err.unsupported-format": "Unsupported format",
+  "discovery.import.err.content-mismatch": "The content does not match its extension",
+  "discovery.import.err.exists": "A file with this name already exists",
+  "discovery.import.err.too-large": "File too large",
+  "discovery.import.err.deposit-failed": "Writing into the library failed",
 };

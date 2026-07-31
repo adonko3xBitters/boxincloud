@@ -374,10 +374,27 @@ comme celle des backends de stockage — même garde-fou, désormais partagé da
 Déclarer un catalogue est réservé aux administrateurs ; chercher est ouvert à
 tout compte.
 
-**L'import est fait aussi.** Le serveur télécharge chez le catalogue et écrit
-directement dans le backend de stockage : le fichier ne transite pas par le
-navigateur, ce qui compte quand l'instance a une bien meilleure liaison que le
-téléphone qui la pilote.
+**L'import est fait aussi**, et il est asynchrone. Le serveur télécharge chez le
+catalogue et écrit directement dans le backend de stockage : le fichier ne
+transite pas par le navigateur, ce qui compte quand l'instance a une bien
+meilleure liaison que le téléphone qui la pilote.
+
+La requête enregistre la demande, l'enfile et rend 202. Le téléchargement
+survit donc à la fermeture de l'onglet, et n'oblige plus le navigateur à garder
+une connexion ouverte pendant plusieurs minutes.
+
+Ce découpage impose de trancher ce qui est vérifié tout de suite et ce qui ne
+peut l'être qu'en essayant. La règle : **tout ce qui ne demande pas le réseau
+est refusé avant le 202** — catalogue inconnu, adresse étrangère, bibliothèque
+inaccessible. Ce qui dépend du catalogue distant atterrit dans une ligne de
+suivi que l'interface interroge, avec un code d'échec stable qu'elle traduit.
+
+Le job ne retente pas. Les échecs d'un import sont déterministes dans leur
+immense majorité — catalogue éteint, format refusé, fichier déjà présent — et
+les rejouer trois fois à intervalles croissants ferait patienter l'utilisateur
+devant un « en cours » qui ne peut pas aboutir, tout en martelant un serveur
+tiers. Il relance lui-même s'il pense que la cause a disparu ; il sait, lui,
+s'il vient de rallumer son Komga.
 
 Une règle gouverne cette route : **l'adresse téléchargée doit appartenir au
 catalogue annoncé** — même schéma, même hôte, même port. Ce n'est pas une

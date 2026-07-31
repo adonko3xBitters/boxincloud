@@ -44,6 +44,13 @@ type Repository interface {
 	UpdateSource(ctx context.Context, s Source, secret []byte, replaceSecret bool) (Source, error)
 	DeleteSource(ctx context.Context, id uuid.UUID) error
 	RecordProbe(ctx context.Context, id uuid.UUID, failure string) error
+
+	CreateImport(ctx context.Context, i Import) (Import, error)
+	GetImport(ctx context.Context, id uuid.UUID) (Import, error)
+	ListImports(ctx context.Context, limit int) ([]Import, error)
+	StartImport(ctx context.Context, id uuid.UUID) error
+	FinishImport(ctx context.Context, id uuid.UUID, d Deposited) error
+	FailImport(ctx context.Context, id uuid.UUID, code, detail string) error
 }
 
 /*
@@ -61,9 +68,21 @@ Passer la vue en paramètre rend l'oubli impossible.
 */
 type LocalCatalog func(ctx context.Context, text string, limit int) ([]string, error)
 
+/*
+ImportQueue enfile un import.
+
+Une seule opération, plutôt que le client de jobs entier : ce service n'a aucune
+raison de pouvoir enfiler autre chose, et une interface d'une méthode se double
+en trois lignes dans un test.
+*/
+type ImportQueue interface {
+	EnqueueImport(ctx context.Context, importID uuid.UUID) error
+}
+
 type Service struct {
 	repo   Repository
 	client Client
+	queue  ImportQueue
 	sealer *crypto.Sealer
 	log    *slog.Logger
 }
@@ -76,6 +95,15 @@ func NewService(
 ) *Service {
 	return &Service{repo: repo, client: client, sealer: sealer, log: log}
 }
+
+/*
+SetImportQueue renseigne la file, après coup.
+
+Le service et la file se connaissent mutuellement — la file exécute un worker
+qui appelle le service, le service enfile dans la file. La même indirection que
+pour l'indexeur casse le cycle au câblage.
+*/
+func (s *Service) SetImportQueue(queue ImportQueue) { s.queue = queue }
 
 // ─── Administration des catalogues ───────────────────────────────────────────
 

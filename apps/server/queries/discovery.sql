@@ -40,3 +40,44 @@ UPDATE discovery_sources
 SET last_error = $2,
     last_checked_at = now()
 WHERE id = $1;
+
+-- ─── Imports ─────────────────────────────────────────────────────────────────
+
+-- name: CreateDiscoveryImport :one
+INSERT INTO discovery_imports (
+    id, source_id, source_name, href, library_id, folder, title, requested_by
+)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING *;
+
+-- name: GetDiscoveryImport :one
+SELECT * FROM discovery_imports WHERE id = $1;
+
+-- name: ListDiscoveryImports :many
+SELECT * FROM discovery_imports
+ORDER BY created_at DESC
+LIMIT $1;
+
+-- name: StartDiscoveryImport :exec
+UPDATE discovery_imports
+SET status = 'running', started_at = now()
+WHERE id = $1;
+
+-- name: FinishDiscoveryImport :exec
+UPDATE discovery_imports
+SET status = 'done',
+    comic_id = $2,
+    object_key = $3,
+    file_size = $4,
+    error_code = '',
+    error_detail = '',
+    finished_at = now()
+WHERE id = $1;
+
+-- name: FailDiscoveryImport :exec
+UPDATE discovery_imports
+SET status = 'failed',
+    error_code = $2,
+    error_detail = $3,
+    finished_at = now()
+WHERE id = $1;

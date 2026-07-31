@@ -61,6 +61,8 @@ type Querier interface {
 	// Sert à l'assistant de première installation : tant qu'il n'y a personne,
 	// l'inscription du premier administrateur est ouverte.
 	CountUsers(ctx context.Context) (int64, error)
+	// ─── Imports ─────────────────────────────────────────────────────────────────
+	CreateDiscoveryImport(ctx context.Context, arg CreateDiscoveryImportParams) (DiscoveryImport, error)
 	CreateDiscoverySource(ctx context.Context, arg CreateDiscoverySourceParams) (DiscoverySource, error)
 	CreateLibrary(ctx context.Context, arg CreateLibraryParams) (Library, error)
 	// ─── Sessions ────────────────────────────────────────────────────────────────
@@ -101,6 +103,8 @@ type Querier interface {
 	// La progression de lecture, les favoris et les notes y sont rattachés : les
 	// détruire priverait d'historique quelqu'un qui remettrait le fichier en place.
 	ExcludeComic(ctx context.Context, id uuid.UUID) error
+	FailDiscoveryImport(ctx context.Context, arg FailDiscoveryImportParams) error
+	FinishDiscoveryImport(ctx context.Context, arg FinishDiscoveryImportParams) error
 	FinishScanRun(ctx context.Context, arg FinishScanRunParams) error
 	GetComic(ctx context.Context, id uuid.UUID) (Comic, error)
 	GetComicByObjectKey(ctx context.Context, arg GetComicByObjectKeyParams) (Comic, error)
@@ -117,6 +121,7 @@ type Querier interface {
 	GetComicPage(ctx context.Context, arg GetComicPageParams) (ComicPage, error)
 	GetDefaultStorageBackend(ctx context.Context) (StorageBackend, error)
 	GetDevice(ctx context.Context, id uuid.UUID) (Device, error)
+	GetDiscoveryImport(ctx context.Context, id uuid.UUID) (DiscoveryImport, error)
 	GetDiscoverySource(ctx context.Context, id uuid.UUID) (DiscoverySource, error)
 	// Le secret est lu seul, par une requête distincte.
 	//
@@ -182,6 +187,7 @@ type Querier interface {
 	// conviendrait pas aux deux.
 	ListComicsPage(ctx context.Context, arg ListComicsPageParams) ([]ListComicsPageRow, error)
 	ListDevicesByUser(ctx context.Context, userID uuid.UUID) ([]Device, error)
+	ListDiscoveryImports(ctx context.Context, limit int32) ([]DiscoveryImport, error)
 	ListDiscoverySources(ctx context.Context) ([]DiscoverySource, error)
 	ListExcludedComics(ctx context.Context, libraryID uuid.UUID) ([]Comic, error)
 	ListFavoriteIDs(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error)
@@ -358,6 +364,7 @@ type Querier interface {
 	SetUserRole(ctx context.Context, arg SetUserRoleParams) error
 	SetUserRoleReturning(ctx context.Context, arg SetUserRoleReturningParams) (User, error)
 	SoftDeleteUser(ctx context.Context, id uuid.UUID) error
+	StartDiscoveryImport(ctx context.Context, id uuid.UUID) error
 	// ─── Scans ───────────────────────────────────────────────────────────────────
 	StartScanRun(ctx context.Context, arg StartScanRunParams) (ScanRun, error)
 	TotalCacheSize(ctx context.Context) (int64, error)
