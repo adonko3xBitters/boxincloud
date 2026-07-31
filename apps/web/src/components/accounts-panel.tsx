@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { buttonClass, cx } from "./ui";
 import { ApiError } from "@/lib/api/client";
 import * as api from "@/lib/api/endpoints";
+import { useT } from "@/i18n";
 import { useCurrentUser } from "@/lib/auth";
 
 /**
@@ -17,6 +18,7 @@ import { useCurrentUser } from "@/lib/auth";
  */
 
 export function AccountsPanel({ onClose }: { onClose: () => void }) {
+  const t = useT();
   const { data: me } = useCurrentUser();
   const [selected, setSelected] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -45,7 +47,7 @@ export function AccountsPanel({ onClose }: { onClose: () => void }) {
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Comptes"
+        aria-label={t("accounts.title")}
         className="rise-in flex h-[80vh] w-full max-w-4xl overflow-hidden rounded-xl border border-border bg-surface shadow-2xl"
       >
         {/* Liste des comptes */}
@@ -57,7 +59,7 @@ export function AccountsPanel({ onClose }: { onClose: () => void }) {
 
           <div className="min-h-0 flex-1 overflow-y-auto p-1.5">
             {accounts.isLoading ? (
-              <p className="px-2 py-3 text-meta text-subtle">Chargement…</p>
+              <p className="px-2 py-3 text-meta text-subtle">{t("state.loading")}</p>
             ) : (
               list.map((account) => (
                 <button
@@ -87,7 +89,7 @@ export function AccountsPanel({ onClose }: { onClose: () => void }) {
                       )}
                     >
                       {account.role === "admin" ? "administrateur" : "lecteur"}
-                      {account.restricted ? " · restreint" : ""}
+                      {account.restricted ? t("accounts.suffixRestricted") : ""}
                     </span>
                   </span>
                 </button>
@@ -103,7 +105,7 @@ export function AccountsPanel({ onClose }: { onClose: () => void }) {
               }}
               className={cx(buttonClass("secondary", "sm"), "w-full")}
             >
-              Nouveau compte
+              {t("accounts.new")}
             </button>
           </div>
         </div>
@@ -112,11 +114,11 @@ export function AccountsPanel({ onClose }: { onClose: () => void }) {
         <div className="flex min-w-0 flex-1 flex-col">
           <header className="flex items-center justify-between border-b border-border px-4 py-2.5">
             <h3 className="text-ui font-semibold text-fg">
-              {creating ? "Nouveau compte" : (current?.username ?? "Sélectionnez un compte")}
+              {creating ? t("accounts.new") : (current?.username ?? t("accounts.pickOne"))}
             </h3>
             <button
               onClick={onClose}
-              aria-label="Fermer"
+              aria-label={t("action.close")}
               className="pressable grid size-8 place-items-center rounded text-subtle hover:bg-surface-hover hover:text-fg"
             >
               <svg viewBox="0 0 16 16" fill="none" className="size-4" aria-hidden="true">
@@ -154,6 +156,7 @@ export function AccountsPanel({ onClose }: { onClose: () => void }) {
 // ─── Création ────────────────────────────────────────────────────────────────
 
 function CreateForm({ onDone }: { onDone: (id: string) => void }) {
+  const t = useT();
   const queryClient = useQueryClient();
   const [username, setUsername] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -187,16 +190,22 @@ function CreateForm({ onDone }: { onDone: (id: string) => void }) {
       }}
       className="flex max-w-md flex-col gap-3"
     >
-      <TextField label="Identifiant" value={username} onChange={setUsername} required autoFocus />
-      <TextField label="Nom affiché" value={displayName} onChange={setDisplayName} />
-      <TextField label="Adresse e-mail" value={email} onChange={setEmail} type="email" />
       <TextField
-        label="Mot de passe"
+        label={t("auth.username")}
+        value={username}
+        onChange={setUsername}
+        required
+        autoFocus
+      />
+      <TextField label={t("auth.displayName")} value={displayName} onChange={setDisplayName} />
+      <TextField label={t("auth.email")} value={email} onChange={setEmail} type="email" />
+      <TextField
+        label={t("auth.password")}
         value={password}
         onChange={setPassword}
         type="password"
         required
-        hint="Douze caractères minimum. La longueur protège mieux qu'une exigence de majuscules et de chiffres, qui pousse surtout à des variantes prévisibles du même mot."
+        hint={t("accounts.passwordHint")}
       />
 
       <RoleField value={role} onChange={setRole} />
@@ -204,7 +213,7 @@ function CreateForm({ onDone }: { onDone: (id: string) => void }) {
       {error && <ErrorNote>{error}</ErrorNote>}
 
       <button type="submit" disabled={create.isPending} className={buttonClass("primary", "md")}>
-        {create.isPending ? "Création…" : "Créer le compte"}
+        {create.isPending ? t("storage.creating") : t("accounts.create")}
       </button>
     </form>
   );
@@ -221,6 +230,7 @@ function AccountForm({
   isSelf: boolean;
   onDeleted: () => void;
 }) {
+  const t = useT();
   const queryClient = useQueryClient();
   const [displayName, setDisplayName] = useState(account.displayName ?? "");
   const [email, setEmail] = useState(account.email ?? "");
@@ -290,7 +300,7 @@ function AccountForm({
           disabled={isSelf}
           hint={
             isSelf
-              ? "Vous ne pouvez pas modifier votre propre rôle : une erreur de ligne vous coûterait l'accès à l'administration."
+              ? t("accounts.selfRoleHint")
               : undefined
           }
         />
@@ -304,16 +314,16 @@ function AccountForm({
               className="mt-0.5 size-4 accent-[var(--accent)]"
             />
             <span>
-              <span className="block text-ui font-medium text-fg">Profil restreint</span>
+              <span className="block text-ui font-medium text-fg">{t("accounts.restricted")}</span>
               <span className="block text-meta leading-relaxed text-muted">
-                Masque les albums dont la classification dépasse la limite.
+{t("accounts.restrictedHint")}
               </span>
             </span>
           </label>
 
           {restricted && (
             <label className="mt-3 flex items-center gap-2 pl-6.5">
-              <span className="text-meta text-muted">Classification maximale</span>
+              <span className="text-meta text-muted">{t("accounts.maxRating")}</span>
               <input
                 type="number"
                 min={0}
@@ -323,17 +333,17 @@ function AccountForm({
                 placeholder="12"
                 className="h-8 w-20 rounded-md border border-border bg-surface px-2 text-ui tabular-nums text-fg"
               />
-              <span className="text-meta text-subtle">ans</span>
+              <span className="text-meta text-subtle">{t("accounts.years")}</span>
             </label>
           )}
         </div>
 
         <TextField
-          label="Nouveau mot de passe"
+          label={t("accounts.newPassword")}
           value={password}
           onChange={setPassword}
           type="password"
-          hint="Laissez vide pour ne pas le changer. Les sessions ouvertes ne sont pas fermées : c'est une action distincte, pour ne pas déconnecter partout quelqu'un qui a simplement oublié son mot de passe."
+          hint={t("accounts.newPasswordHint")}
         />
 
         {error && <ErrorNote>{error}</ErrorNote>}
@@ -344,7 +354,7 @@ function AccountForm({
         )}
 
         <button type="submit" disabled={save.isPending} className={buttonClass("primary", "md")}>
-          {save.isPending ? "Enregistrement…" : "Enregistrer"}
+          {save.isPending ? t("storage.saving") : t("action.save")}
         </button>
       </form>
 
@@ -359,12 +369,12 @@ function AccountForm({
             "hover:bg-danger/10 disabled:opacity-40 disabled:hover:bg-transparent",
           )}
         >
-          {remove.isPending ? "Désactivation…" : "Désactiver ce compte"}
+          {remove.isPending ? t("accounts.disabling") : t("accounts.disable")}
         </button>
         <p className="mt-1.5 text-meta leading-relaxed text-subtle">
           {isSelf
-            ? "Vous ne pouvez pas désactiver votre propre compte."
-            : "La progression de lecture, les favoris et les notes sont conservés. Les sessions ouvertes sont fermées."}
+            ? t("accounts.cannotDisableSelf")
+            : t("accounts.disableHint")}
         </p>
       </div>
     </div>
@@ -382,6 +392,7 @@ function AccountForm({
  * pour une simple ouverture, alors qu'il restreint.
  */
 function LibraryAccess({ userId }: { userId: string }) {
+  const t = useT();
   const queryClient = useQueryClient();
 
   const libraries = useQuery({ queryKey: ["libraries"], queryFn: api.listLibraries });
@@ -412,10 +423,9 @@ function LibraryAccess({ userId }: { userId: string }) {
 
   return (
     <div className="border-t border-border pt-4">
-      <h4 className="text-ui font-semibold text-fg">Accès aux bibliothèques</h4>
+      <h4 className="text-ui font-semibold text-fg">{t("accounts.libraryAccess")}</h4>
       <p className="mt-1 text-meta leading-relaxed text-muted">
-        Une bibliothèque sans aucun accès explicite est visible de tous. En
-        accorder un ici la referme pour tous les autres comptes.
+{t("accounts.libraryAccessHint")}
       </p>
 
       <ul className="mt-2.5 flex flex-col gap-1">
@@ -432,7 +442,7 @@ function LibraryAccess({ userId }: { userId: string }) {
                 type="checkbox"
                 checked={granted}
                 onChange={(e) => void toggle(library.id, e.target.checked, canWrite)}
-                aria-label={`Accès à ${library.name}`}
+                aria-label={t("accounts.accessTo", { name: library.name })}
                 className="size-4 accent-[var(--accent)]"
               />
               <span className="min-w-0 flex-1 truncate text-ui text-fg">{library.name}</span>
@@ -450,13 +460,13 @@ function LibraryAccess({ userId }: { userId: string }) {
                   onChange={(e) => void toggle(library.id, true, e.target.checked)}
                   className="size-3.5 accent-[var(--accent)]"
                 />
-                écriture
+                {t("share.write")}
               </label>
             </li>
           );
         })}
         {items.length === 0 && (
-          <li className="text-meta text-subtle">Aucune bibliothèque.</li>
+          <li className="text-meta text-subtle">{t("accounts.noLibrary")}</li>
         )}
       </ul>
     </div>
@@ -510,9 +520,10 @@ function RoleField({
   disabled?: boolean;
   hint?: string;
 }) {
+  const t = useT();
   return (
     <div className="flex flex-col gap-1">
-      <span className="text-micro uppercase tracking-wide text-subtle">Rôle</span>
+      <span className="text-micro uppercase tracking-wide text-subtle">{t("auth.role")}</span>
       <div className="flex gap-1.5">
         {(["user", "admin"] as const).map((option) => (
           <button
@@ -528,7 +539,7 @@ function RoleField({
                 : "border-border text-muted hover:bg-surface-hover hover:text-fg",
             )}
           >
-            {option === "admin" ? "Administrateur" : "Lecteur"}
+            {option === "admin" ? t("auth.roleAdmin") : t("accounts.roleReader")}
           </button>
         ))}
       </div>

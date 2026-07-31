@@ -23,6 +23,7 @@ import type { Comic } from "@/lib/api/client";
 import * as api from "@/lib/api/endpoints";
 import { useCurrentUser, useLogout, useRequireAuth } from "@/lib/auth";
 import { useDismissOnOutside } from "@/lib/dismiss";
+import { useT } from "@/i18n";
 import { WorkspaceProvider, scopeLabel, scopeToQuery, useWorkspace } from "@/lib/workspace";
 
 /**
@@ -68,6 +69,7 @@ function Workspace() {
 }
 
 function TopBar() {
+  const t = useT();
   const { data: user } = useCurrentUser();
   const logout = useLogout();
   const [accountsOpen, setAccountsOpen] = useState(false);
@@ -106,7 +108,7 @@ function TopBar() {
             aria-expanded={menuOpen}
             aria-haspopup="menu"
             className="pressable grid size-8 place-items-center rounded-full bg-accent-subtle text-ui font-semibold text-accent-text"
-            aria-label="Compte"
+            aria-label={t("account.label")}
           >
             {(user?.displayName || user?.username || "?").charAt(0).toUpperCase()}
           </button>
@@ -132,7 +134,7 @@ function TopBar() {
               }}
               className="pressable w-full rounded px-2 py-1.5 text-left text-ui text-muted hover:bg-surface-hover hover:text-fg"
             >
-              Application mobile
+              {t("account.mobileApp")}
             </button>
 
             {/*
@@ -147,7 +149,7 @@ function TopBar() {
               }}
               className="pressable w-full rounded px-2 py-1.5 text-left text-ui text-muted hover:bg-surface-hover hover:text-fg"
             >
-              Appareils connectés
+              {t("account.devices")}
             </button>
 
             {user?.role === "admin" && (
@@ -159,7 +161,7 @@ function TopBar() {
                   }}
                   className="pressable w-full rounded px-2 py-1.5 text-left text-ui text-muted hover:bg-surface-hover hover:text-fg"
                 >
-                  Stockage
+                  {t("account.storage")}
                 </button>
                 <button
                   onClick={() => {
@@ -168,7 +170,7 @@ function TopBar() {
                   }}
                   className="pressable w-full rounded px-2 py-1.5 text-left text-ui text-muted hover:bg-surface-hover hover:text-fg"
                 >
-                  Comptes
+                  {t("accounts.title")}
                 </button>
               </>
             )}
@@ -177,7 +179,7 @@ function TopBar() {
               onClick={() => void logout()}
               className="pressable w-full rounded px-2 py-1.5 text-left text-ui text-muted hover:bg-surface-hover hover:text-fg"
             >
-              Se déconnecter
+              {t("auth.signOut")}
             </button>
           </div>
           )}
@@ -193,6 +195,8 @@ function TopBar() {
 }
 
 function ThemeToggle() {
+  const t = useT();
+
   return (
     <button
       onClick={() => {
@@ -202,8 +206,8 @@ function ThemeToggle() {
         root.dataset.theme = next;
         localStorage.setItem("boxincloud.theme", next);
       }}
-      aria-label="Changer de thème"
-      title="Changer de thème"
+      aria-label={t("account.theme")}
+      title={t("account.theme")}
       className="pressable grid size-8 place-items-center rounded text-subtle hover:bg-surface-hover hover:text-fg"
     >
       <svg viewBox="0 0 16 16" fill="currentColor" className="size-4" aria-hidden="true">
@@ -217,6 +221,7 @@ function ThemeToggle() {
 // ─── Zone principale ─────────────────────────────────────────────────────────
 
 function MainArea() {
+  const t = useT();
   const { scope, readStatus, sort, view } = useWorkspace();
 
   const query = useMemo(() => scopeToQuery(scope, readStatus, sort), [scope, readStatus, sort]);
@@ -286,8 +291,8 @@ function MainArea() {
           </div>
         ) : all.length === 0 ? (
           <EmptyState
-            title="Aucun album ici"
-            description="Changez de dossier ou élargissez les filtres."
+            title={t("workspace.emptyTitle")}
+            description={t("workspace.emptyDetail")}
           />
         ) : view === "list" || view === "coverflow" ? (
           <ComicTable comics={all} progressByComic={progressByComic} />
@@ -302,7 +307,7 @@ function MainArea() {
               disabled={comics.isFetchingNextPage}
               className="pressable rounded-md border border-border px-4 py-2 text-ui text-muted hover:bg-surface-hover hover:text-fg disabled:opacity-50"
             >
-              {comics.isFetchingNextPage ? "Chargement…" : "Charger la suite"}
+              {comics.isFetchingNextPage ? t("state.loading") : t("workspace.loadMore")}
             </button>
           </div>
         )}
@@ -325,6 +330,7 @@ function CoverGrid({
   comics: Comic[];
   progressByComic: Map<string, { page: number; status: string }>;
 }) {
+  const t = useT();
   const { isSelected, select, favorites, ratings } = useWorkspace();
   const ids = comics.map((c) => c.id);
 
@@ -428,7 +434,7 @@ function CoverGrid({
                   "absolute inset-0 grid place-items-center bg-black/45 opacity-0",
                   "transition-opacity duration-(--motion-duration-normal) group-hover:opacity-100",
                 )}
-                aria-label={`Lire ${comic.title}`}
+                aria-label={t("workspace.readNamed", { title: comic.title })}
               >
                 <span
                   className={cx(

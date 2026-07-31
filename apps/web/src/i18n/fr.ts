@@ -292,6 +292,158 @@ export const fr = {
   "share.thirtyDays": "30 jours",
   "share.oneYear": "1 an",
   "share.createLink": "Créer un lien",
+
+  // ── Comptes ────────────────────────────────────────────────────────────
+  "accounts.title": "Comptes",
+  "accounts.new": "Nouveau compte",
+  "accounts.pickOne": "Sélectionnez un compte",
+  "accounts.passwordHint":
+    "Douze caractères minimum. La longueur protège mieux qu'une exigence de majuscules et de chiffres, qui pousse surtout à des variantes prévisibles du même mot.",
+  "accounts.create": "Créer le compte",
+  "accounts.selfRoleHint":
+    "Vous ne pouvez pas modifier votre propre rôle : une erreur de ligne vous coûterait l'accès à l'administration.",
+  "accounts.restricted": "Profil restreint",
+  "accounts.restrictedHint": "Masque les albums dont la classification dépasse la limite.",
+  "accounts.maxRating": "Classification maximale",
+  "accounts.years": "ans",
+  "accounts.newPassword": "Nouveau mot de passe",
+  "accounts.newPasswordHint":
+    "Laissez vide pour ne pas le changer. Les sessions ouvertes ne sont pas fermées : c'est une action distincte, pour ne pas déconnecter partout quelqu'un qui a simplement oublié son mot de passe.",
+  "accounts.disabling": "Désactivation…",
+  "accounts.disable": "Désactiver ce compte",
+  "accounts.cannotDisableSelf": "Vous ne pouvez pas désactiver votre propre compte.",
+  "accounts.disableHint":
+    "La progression de lecture, les favoris et les notes sont conservés. Les sessions ouvertes sont fermées.",
+  "accounts.libraryAccess": "Accès aux bibliothèques",
+  "accounts.libraryAccessHint":
+    "Une bibliothèque sans aucun accès explicite est visible de tous. En accorder un ici la referme pour tous les autres comptes.",
+  "accounts.accessTo": "Accès à {name}",
+  "accounts.noLibrary": "Aucune bibliothèque.",
+  "accounts.roleReader": "Lecteur",
+  "accounts.suffixRestricted": " · restreint",
+
+  // ── Barre d'outils ─────────────────────────────────────────────────────
+  "toolbar.read": "Lire",
+  "toolbar.markRead": "Marquer lu",
+  "toolbar.markUnread": "Marquer non lu",
+  "toolbar.unfavorite": "Retirer des favoris",
+  "toolbar.favorite": "Ajouter aux favoris",
+  "toolbar.moveToFolder": "Ranger dans un dossier",
+  "toolbar.removeFromLibrary": "Retirer de la bibliothèque",
+  "toolbar.readStatus": "Lecture",
+  "toolbar.all": "Tous",
+  "toolbar.unread": "Non lus",
+  "toolbar.inProgress": "En cours",
+  "toolbar.done": "Lus",
+  "toolbar.sort": "Tri",
+  "toolbar.sortAdded": "Ajout",
+  "toolbar.sortTitle": "Titre",
+  "toolbar.sortReleased": "Parution",
+  "toolbar.viewGrid": "Grille",
+  "toolbar.viewList": "Liste",
+  "toolbar.viewCoverflow": "Carrousel",
+  "toolbar.selectedOne": "{count} sélectionné",
+  "toolbar.selectedOther": "{count} sélectionnés",
+  "toolbar.clearSelection": "annuler",
+  "toolbar.selectAll": "tout sélectionner",
+
+  // ── Fiche d'album ──────────────────────────────────────────────────────
+  "detail.resume": "Reprendre p. {page}",
+  "detail.editMetadata": "Modifier les métadonnées",
+  "detail.pageOf": "Page {page} / {total}",
+  "detail.rate": "Noter {step} sur 5",
+  "detail.rating": "Note",
+  "detail.number": "Numéro",
+  "detail.pages": "Pages",
+  "detail.format": "Format",
+  "detail.size": "Taille",
+  "detail.released": "Parution",
+  "detail.language": "Langue",
+  "detail.file": "Fichier",
+  "detail.title": "Titre",
+  "detail.summary": "Résumé",
+
+  // ── Retirer / ranger ───────────────────────────────────────────────────
+  "manage.removeOne": "Retirer l'album",
+  "manage.removeMany": "Retirer {count} albums",
+  "manage.fromCatalog": "Retirer du catalogue",
+  "manage.fromCatalogHint":
+    "Le fichier reste dans votre stockage. La progression de lecture, les favoris et les notes sont conservés. Un nouveau parcours ne le fera pas réapparaître.",
+  "manage.deleteFile": "Supprimer aussi le fichier",
+  "manage.deleteFileHint":
+    "Le fichier est effacé du stockage. Irréversible : boxincloud ne conserve aucune copie.",
+  "manage.working": "En cours…",
+  "manage.remove": "Retirer",
+  "manage.moveOne": "Ranger l'album",
+  "manage.moveMany": "Ranger {count} albums",
+  "manage.rootPlaceholder": "Laisser vide pour la racine",
+  "manage.moving": "Déplacement…",
+  "manage.move": "Ranger",
+
+  // ── Recherche ──────────────────────────────────────────────────────────
+  "search.action": "Rechercher",
+  "search.shortcut": "Rechercher (/)",
+  "search.center": "Centre de recherche",
+  "search.placeholder": "Titre, série, numéro…",
+  "search.series": "Séries",
+  "search.albums": "Albums",
+
+  // ── Tableau ────────────────────────────────────────────────────────────
+  "table.title": "Titre",
+  "table.series": "Série",
+  "table.number": "N°",
+  "table.progress": "Page",
+  "table.pages": "Feuilles",
+  "table.size": "Taille",
+  "table.released": "Parution",
+  "table.read": "Lu",
+  "table.rating": "Note",
+  "table.selectAll": "Tout sélectionner",
+  "table.select": "Sélectionner {title}",
+
+  // ── Carrousel ──────────────────────────────────────────────────────────
+  "coverflow.label": "Carrousel de couvertures",
+  "coverflow.previous": "Couverture précédente",
+  "coverflow.next": "Couverture suivante",
+
+  // ── Menu d'un album ────────────────────────────────────────────────────
+  "comicMenu.readNamed": "Lire « {title} »",
+  "comicMenu.markRead": "Marquer comme lu",
+  "comicMenu.markReadCount": "Marquer comme lu ({count})",
+  "comicMenu.markUnread": "Marquer comme non lu",
+  "comicMenu.move": "Ranger dans un dossier…",
+  "comicMenu.moveCount": "Ranger dans un dossier… ({count})",
+  "comicMenu.remove": "Retirer de la bibliothèque…",
+  "comicMenu.removeCount": "Retirer de la bibliothèque… ({count})",
+
+  // ── Lecteur ────────────────────────────────────────────────────────────
+  "reader.hideChrome": "Masquer l'interface",
+  "reader.showChrome": "Afficher l'interface",
+  "reader.close": "Fermer le lecteur",
+  "reader.settings": "Réglages de lecture",
+  "reader.position": "Position dans l'album",
+  "reader.thumbnails": "Pages de l'album (t)",
+  "reader.mode": "Mode",
+  "reader.modeSingle": "Page simple",
+  "reader.modeDouble": "Double page",
+  "reader.modeScroll": "Défilement",
+  "reader.fit": "Ajustement",
+  "reader.fitWidth": "Largeur",
+  "reader.fitHeight": "Hauteur",
+  "reader.fitPage": "Page entière",
+  "reader.direction": "Sens de lecture",
+  "reader.ltr": "Gauche → droite",
+  "reader.rtl": "Droite → gauche",
+  "reader.shortcuts":
+    "Flèches ou espace pour tourner · Début et Fin pour les extrémités · t pour les vignettes · + − 0 pour le zoom · double-clic ou pincement pour agrandir · Échap pour sortir",
+  "reader.previousPage": "Page précédente",
+  "reader.nextPage": "Page suivante",
+
+  // ── Espace de travail ──────────────────────────────────────────────────
+  "workspace.emptyTitle": "Aucun album ici",
+  "workspace.emptyDetail": "Changez de dossier ou élargissez les filtres.",
+  "workspace.loadMore": "Charger la suite",
+  "workspace.readNamed": "Lire {title}",
 } as const;
 
 /** Les clés du catalogue. Toute traduction doit les couvrir toutes. */

@@ -7,6 +7,7 @@ import { useState } from "react";
 import { cx } from "./ui";
 import { DeleteDialog, MoveDialog } from "./manage-dialogs";
 import * as api from "@/lib/api/endpoints";
+import { useT, type MessageKey } from "@/i18n";
 import { useWorkspace, type ReadStatus, type SortOrder, type ViewMode } from "@/lib/workspace";
 
 /**
@@ -24,6 +25,7 @@ export function Toolbar({
   visibleIds: string[];
   titleOf: (id: string) => string;
 }) {
+  const t = useT();
   const router = useRouter();
   const queryClient = useQueryClient();
   const {
@@ -63,17 +65,27 @@ export function Toolbar({
       {/* Actions sur la sélection */}
       <div className="flex items-center gap-0.5">
         <Tool
-          label="Lire"
+          label={t("toolbar.read")}
           disabled={count !== 1}
           onClick={() => selection[0] && router.push(`/read?id=${selection[0]}`)}
           icon={<PlayIcon />}
         />
         <Divider />
-        <Tool label="Marquer lu" disabled={!has || busy} onClick={() => void run("read")} icon={<CheckIcon />} />
-        <Tool label="Marquer non lu" disabled={!has || busy} onClick={() => void run("unread")} icon={<UndoIcon />} />
+        <Tool
+          label={t("toolbar.markRead")}
+          disabled={!has || busy}
+          onClick={() => void run("read")}
+          icon={<CheckIcon />}
+        />
+        <Tool
+          label={t("toolbar.markUnread")}
+          disabled={!has || busy}
+          onClick={() => void run("unread")}
+          icon={<UndoIcon />}
+        />
         <Divider />
         <Tool
-          label={allFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
+          label={allFavorite ? t("toolbar.unfavorite") : t("toolbar.favorite")}
           disabled={!has || busy}
           onClick={() => void run(allFavorite ? "unfavorite" : "favorite")}
           icon={<HeartIcon filled={allFavorite} />}
@@ -81,13 +93,13 @@ export function Toolbar({
         />
         <Divider />
         <Tool
-          label="Ranger dans un dossier"
+          label={t("toolbar.moveToFolder")}
           disabled={!has || busy}
           onClick={() => setDialog("move")}
           icon={<FolderMoveIcon />}
         />
         <Tool
-          label="Retirer de la bibliothèque"
+          label={t("toolbar.removeFromLibrary")}
           disabled={!has || busy}
           onClick={() => setDialog("delete")}
           icon={<TrashIcon />}
@@ -99,10 +111,10 @@ export function Toolbar({
         {has ? (
           <>
             <span className="tabular-nums">
-              {count} sélectionné{count > 1 ? "s" : ""}
+              {t(count > 1 ? "toolbar.selectedOther" : "toolbar.selectedOne", { count })}
             </span>
             <button onClick={clearSelection} className="text-accent-text transition-colors hover:underline">
-              annuler
+              {t("toolbar.clearSelection")}
             </button>
           </>
         ) : (
@@ -111,7 +123,7 @@ export function Toolbar({
             disabled={visibleIds.length === 0}
             className="text-subtle hover:text-fg disabled:opacity-40"
           >
-            tout sélectionner
+            {t("toolbar.selectAll")}
           </button>
         )}
       </div>
@@ -119,25 +131,25 @@ export function Toolbar({
       {/* Filtres et vue, poussés à droite */}
       <div className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-2">
         <SegmentedControl
-          label="Lecture"
+          label={t("toolbar.readStatus")}
           value={readStatus}
           onChange={(v) => setReadStatus(v as ReadStatus)}
           options={[
-            { value: "", label: "Tous" },
-            { value: "unread", label: "Non lus" },
-            { value: "in_progress", label: "En cours" },
-            { value: "read", label: "Lus" },
+            { value: "", label: t("toolbar.all") },
+            { value: "unread", label: t("toolbar.unread") },
+            { value: "in_progress", label: t("toolbar.inProgress") },
+            { value: "read", label: t("toolbar.done") },
           ]}
         />
 
         <SegmentedControl
-          label="Tri"
+          label={t("toolbar.sort")}
           value={sort}
           onChange={(v) => setSort(v as SortOrder)}
           options={[
-            { value: "recent", label: "Ajout" },
-            { value: "title", label: "Titre" },
-            { value: "released", label: "Parution" },
+            { value: "recent", label: t("toolbar.sortAdded") },
+            { value: "title", label: t("toolbar.sortTitle") },
+            { value: "released", label: t("toolbar.sortReleased") },
           ]}
         />
 
@@ -147,8 +159,8 @@ export function Toolbar({
               key={mode}
               onClick={() => setView(mode)}
               aria-pressed={view === mode}
-              aria-label={VIEW_LABELS[mode]}
-              title={VIEW_LABELS[mode]}
+              aria-label={t(VIEW_KEYS[mode])}
+              title={t(VIEW_KEYS[mode])}
               className={cx(
                 "pressable grid size-7 place-items-center rounded",
                 view === mode
@@ -172,10 +184,10 @@ export function Toolbar({
   );
 }
 
-const VIEW_LABELS: Record<ViewMode, string> = {
-  grid: "Grille",
-  list: "Liste",
-  coverflow: "Carrousel",
+const VIEW_KEYS: Record<ViewMode, MessageKey> = {
+  grid: "toolbar.viewGrid",
+  list: "toolbar.viewList",
+  coverflow: "toolbar.viewCoverflow",
 };
 
 // ─── Éléments ────────────────────────────────────────────────────────────────

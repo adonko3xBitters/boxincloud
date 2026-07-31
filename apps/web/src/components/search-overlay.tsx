@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { cx } from "./ui";
 import { imageURL } from "@/lib/api/client";
 import * as api from "@/lib/api/endpoints";
+import { useT } from "@/i18n";
 import { useWorkspace } from "@/lib/workspace";
 
 const MIN_QUERY = 2;
@@ -23,6 +24,7 @@ const DEBOUNCE_MS = 180;
  * parcourir, Entrée pour ouvrir le résultat.
  */
 export function SearchOverlay() {
+  const t = useT();
   const router = useRouter();
   const { setScope } = useWorkspace();
 
@@ -125,8 +127,8 @@ export function SearchOverlay() {
           factice occupait la place d'une barre d'outils sans rien apporter. */}
       <button
         onClick={() => setOpen(true)}
-        aria-label="Rechercher"
-        title="Rechercher (/)"
+        aria-label={t("search.action")}
+        title={t("search.shortcut")}
         className="pressable grid size-8 place-items-center rounded text-subtle hover:bg-surface-hover hover:text-fg"
       >
         <SearchIcon className="size-[18px]" />
@@ -156,7 +158,7 @@ export function SearchOverlay() {
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Centre de recherche"
+        aria-label={t("search.center")}
         inert={!open}
         className={cx(
           "fixed inset-y-0 right-0 z-50 flex w-full max-w-[480px] flex-col border-l border-border bg-surface shadow-2xl",
@@ -172,13 +174,13 @@ export function SearchOverlay() {
             value={value}
             onChange={(e) => setValue(e.target.value)}
             onKeyDown={onInputKeyDown}
-            placeholder="Titre, série, numéro…"
-            aria-label="Rechercher"
+            placeholder={t("search.placeholder")}
+            aria-label={t("search.action")}
             className="min-w-0 flex-1 bg-transparent text-title text-fg outline-none placeholder:text-subtle"
           />
           <button
             onClick={() => setOpen(false)}
-            aria-label="Fermer"
+            aria-label={t("action.close")}
             className="pressable grid size-8 shrink-0 place-items-center rounded text-subtle hover:bg-surface-hover hover:text-fg"
           >
             <kbd className="font-mono text-micro">esc</kbd>
@@ -195,7 +197,7 @@ export function SearchOverlay() {
           ) : (
             <>
               {series.length > 0 && (
-                <Group label="Séries">
+                <Group label={t("search.series")}>
                   {series.map((item, index) => (
                     <button
                       key={item.id}
@@ -223,7 +225,7 @@ export function SearchOverlay() {
               )}
 
               {comics.length > 0 && (
-                <Group label="Albums">
+                <Group label={t("search.albums")}>
                   {comics.map((comic, i) => {
                     const index = series.length + i;
                     return (

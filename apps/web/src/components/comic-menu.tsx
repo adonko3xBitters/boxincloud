@@ -7,6 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ContextMenu, useContextMenu, type MenuItem } from "./context-menu";
 import { DeleteDialog, MoveDialog } from "./manage-dialogs";
 import * as api from "@/lib/api/endpoints";
+import { useT } from "@/i18n";
 import { useWorkspace } from "@/lib/workspace";
 
 /**
@@ -21,6 +22,7 @@ import { useWorkspace } from "@/lib/workspace";
  * comportement de tous les gestionnaires de fichiers.
  */
 export function useComicMenu(titleOf: (id: string) => string) {
+  const t = useT();
   const router = useRouter();
   const queryClient = useQueryClient();
   const { selection, isSelected, select, favorites, refreshMarks } = useWorkspace();
@@ -48,29 +50,41 @@ export function useComicMenu(titleOf: (id: string) => string) {
   const items: MenuItem[] = menu.target
     ? [
         {
-          label: targets.length > 1 ? `Lire « ${titleOf(menu.target.id)} »` : "Lire",
+          label:
+            targets.length > 1
+              ? t("comicMenu.readNamed", { title: titleOf(menu.target.id) })
+              : t("toolbar.read"),
           onSelect: () => router.push(`/read?id=${menu.target!.id}`),
         },
         { kind: "separator" },
         {
-          label: `Marquer comme lu${targets.length > 1 ? ` (${targets.length})` : ""}`,
+          label:
+            targets.length > 1
+              ? t("comicMenu.markReadCount", { count: targets.length })
+              : t("comicMenu.markRead"),
           onSelect: () => void mark("read"),
         },
         {
-          label: "Marquer comme non lu",
+          label: t("comicMenu.markUnread"),
           onSelect: () => void mark("unread"),
         },
         {
-          label: allFavorite ? "Retirer des favoris" : "Ajouter aux favoris",
+          label: allFavorite ? t("toolbar.unfavorite") : t("toolbar.favorite"),
           onSelect: () => void mark(allFavorite ? "unfavorite" : "favorite"),
         },
         { kind: "separator" },
         {
-          label: `Ranger dans un dossier…${targets.length > 1 ? ` (${targets.length})` : ""}`,
+          label:
+            targets.length > 1
+              ? t("comicMenu.moveCount", { count: targets.length })
+              : t("comicMenu.move"),
           onSelect: () => setDialog("move"),
         },
         {
-          label: `Retirer de la bibliothèque…${targets.length > 1 ? ` (${targets.length})` : ""}`,
+          label:
+            targets.length > 1
+              ? t("comicMenu.removeCount", { count: targets.length })
+              : t("comicMenu.remove"),
           destructive: true,
           onSelect: () => setDialog("delete"),
         },

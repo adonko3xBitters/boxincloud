@@ -1,4 +1,6 @@
 "use client";
+import type { MessageKey } from "@/i18n";
+
 
 /**
  * État du lecteur.
@@ -83,14 +85,14 @@ export function useReaderSettings(): ReaderSettings {
 
 // ─── Libellés ────────────────────────────────────────────────────────────────
 
-export const MODE_LABELS: Record<ReadingMode, string> = {
-  single: "Page simple",
-  double: "Double page",
-  scroll: "Défilement",
+export const MODE_KEYS: Record<ReadingMode, MessageKey> = {
+  single: "reader.modeSingle",
+  double: "reader.modeDouble",
+  scroll: "reader.modeScroll",
 };
 
-export const FIT_LABELS: Record<FitMode, string> = {
-  width: "Largeur",
-  height: "Hauteur",
-  page: "Page entière",
+export const FIT_KEYS: Record<FitMode, MessageKey> = {
+  width: "reader.fitWidth",
+  height: "reader.fitHeight",
+  page: "reader.fitPage",
 };

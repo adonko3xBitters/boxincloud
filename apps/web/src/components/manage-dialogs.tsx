@@ -1,5 +1,6 @@
 "use client";
 
+import { useT } from "@/i18n";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -28,6 +29,7 @@ export function DeleteDialog({
   titles: string[];
   onClose: () => void;
 }) {
+  const t = useT();
   const queryClient = useQueryClient();
   const { clearSelection } = useWorkspace();
   const [deleteFile, setDeleteFile] = useState(false);
@@ -62,22 +64,29 @@ export function DeleteDialog({
   }
 
   return (
-    <Dialog title={ids.length > 1 ? `Retirer ${ids.length} albums` : "Retirer l'album"} onClose={onClose}>
+    <Dialog
+      title={
+        ids.length > 1
+          ? t("manage.removeMany", { count: ids.length })
+          : t("manage.removeOne")
+      }
+      onClose={onClose}
+    >
       <TargetList titles={titles} count={ids.length} />
 
       <div className="flex flex-col gap-2">
         <Choice
           selected={!deleteFile}
           onSelect={() => setDeleteFile(false)}
-          title="Retirer du catalogue"
-          description="Le fichier reste dans votre stockage. La progression de lecture, les favoris et les notes sont conservés. Un nouveau parcours ne le fera pas réapparaître."
+          title={t("manage.fromCatalog")}
+          description={t("manage.fromCatalogHint")}
         />
         <Choice
           selected={deleteFile}
           onSelect={() => setDeleteFile(true)}
           danger
-          title="Supprimer aussi le fichier"
-          description="Le fichier est effacé du stockage. Irréversible : boxincloud ne conserve aucune copie."
+          title={t("manage.deleteFile")}
+          description={t("manage.deleteFileHint")}
         />
       </div>
 
@@ -109,7 +118,11 @@ export function DeleteDialog({
             deleteFile ? "bg-danger hover:opacity-90" : "bg-accent hover:bg-accent-hover",
           )}
         >
-          {busy ? "En cours…" : deleteFile ? "Supprimer définitivement" : "Retirer"}
+          {busy
+            ? t("manage.working")
+            : deleteFile
+              ? t("storage.deleteForever")
+              : t("manage.remove")}
         </button>
       </div>
     </Dialog>
@@ -127,6 +140,7 @@ export function MoveDialog({
   titles: string[];
   onClose: () => void;
 }) {
+  const t = useT();
   const queryClient = useQueryClient();
   const { clearSelection } = useWorkspace();
   const [folder, setFolder] = useState("");
@@ -164,7 +178,12 @@ export function MoveDialog({
   }
 
   return (
-    <Dialog title={ids.length > 1 ? `Ranger ${ids.length} albums` : "Ranger l'album"} onClose={onClose}>
+    <Dialog
+      title={
+        ids.length > 1 ? t("manage.moveMany", { count: ids.length }) : t("manage.moveOne")
+      }
+      onClose={onClose}
+    >
       <TargetList titles={titles} count={ids.length} />
 
       <label className="flex flex-col gap-1">
@@ -173,7 +192,7 @@ export function MoveDialog({
           value={folder}
           onChange={(e) => setFolder(e.target.value)}
           list="dossiers-existants"
-          placeholder="Laisser vide pour la racine"
+          placeholder={t("manage.rootPlaceholder")}
           autoFocus
           className="h-9 rounded-md border border-border bg-surface px-2.5 text-ui text-fg placeholder:text-subtle"
         />
@@ -195,7 +214,7 @@ export function MoveDialog({
           Annuler
         </button>
         <button onClick={() => void run()} disabled={busy} className={buttonClass("primary", "sm")}>
-          {busy ? "Déplacement…" : "Ranger"}
+          {busy ? t("manage.moving") : t("manage.move")}
         </button>
       </div>
     </Dialog>
@@ -213,6 +232,7 @@ function Dialog({
   onClose: () => void;
   children: React.ReactNode;
 }) {
+  const t = useT();
   return (
     <div className="fixed inset-0 z-[65] grid place-items-center bg-[var(--overlay)] p-4">
       <div
@@ -225,7 +245,7 @@ function Dialog({
           <h2 className="text-title font-semibold text-fg">{title}</h2>
           <button
             onClick={onClose}
-            aria-label="Fermer"
+            aria-label={t("action.close")}
             className="pressable grid size-8 place-items-center rounded text-subtle hover:bg-surface-hover hover:text-fg"
           >
             <svg viewBox="0 0 16 16" fill="none" className="size-4" aria-hidden="true">

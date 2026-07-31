@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef } from "react";
 
 import { cx } from "./ui";
 import { useComicMenu } from "./comic-menu";
+import { useT, type MessageKey } from "@/i18n";
 import { imageURL } from "@/lib/api/client";
 import type { Comic } from "@/lib/api/client";
 import { useWorkspace } from "@/lib/workspace";
@@ -19,22 +20,26 @@ import { useWorkspace } from "@/lib/workspace";
 
 type Column = {
   key: string;
-  label: string;
+  /**
+   * Clé de traduction de l'en-tête, ou `null` pour la colonne d'index — son
+   * « # » ne se traduit pas et n'a pas à occuper une entrée du catalogue.
+   */
+  label: MessageKey | null;
   width: string;
   align?: "left" | "right" | "center";
 };
 
 const COLUMNS: Column[] = [
-  { key: "index", label: "#", width: "48px", align: "right" },
-  { key: "title", label: "Titre", width: "minmax(220px, 2fr)" },
-  { key: "series", label: "Série", width: "minmax(140px, 1fr)" },
-  { key: "number", label: "N°", width: "62px", align: "right" },
-  { key: "progress", label: "Page", width: "86px", align: "right" },
-  { key: "pages", label: "Feuilles", width: "84px", align: "right" },
-  { key: "size", label: "Taille", width: "92px", align: "right" },
-  { key: "released", label: "Parution", width: "100px", align: "right" },
-  { key: "read", label: "Lu", width: "52px", align: "center" },
-  { key: "rating", label: "Note", width: "96px" },
+  { key: "index", label: null, width: "48px", align: "right" },
+  { key: "title", label: "table.title", width: "minmax(220px, 2fr)" },
+  { key: "series", label: "table.series", width: "minmax(140px, 1fr)" },
+  { key: "number", label: "table.number", width: "62px", align: "right" },
+  { key: "progress", label: "table.progress", width: "86px", align: "right" },
+  { key: "pages", label: "table.pages", width: "84px", align: "right" },
+  { key: "size", label: "table.size", width: "92px", align: "right" },
+  { key: "released", label: "table.released", width: "100px", align: "right" },
+  { key: "read", label: "table.read", width: "52px", align: "center" },
+  { key: "rating", label: "table.rating", width: "96px" },
 ];
 
 export function ComicTable({
@@ -44,6 +49,7 @@ export function ComicTable({
   comics: Comic[];
   progressByComic: Map<string, { page: number; status: string }>;
 }) {
+  const t = useT();
   const router = useRouter();
   const { isSelected, select, selection, selectAll, clearSelection, favorites, ratings, focused } =
     useWorkspace();
@@ -81,7 +87,7 @@ export function ComicTable({
             type="checkbox"
             checked={allSelected}
             onChange={() => (allSelected ? clearSelection() : selectAll(visible))}
-            aria-label="Tout sélectionner"
+            aria-label={t("table.selectAll")}
             className="size-4 accent-[var(--accent)]"
           />
           {COLUMNS.map((column) => (
@@ -93,7 +99,7 @@ export function ComicTable({
                 column.align === "center" && "text-center",
               )}
             >
-              {column.label}
+              {column.label ? t(column.label) : "#"}
             </span>
           ))}
         </div>
@@ -131,7 +137,7 @@ export function ComicTable({
                 checked={selected}
                 onChange={() => select(comic.id, "toggle", visible)}
                 onClick={(e) => e.stopPropagation()}
-                aria-label={`Sélectionner ${comic.title}`}
+                aria-label={t("table.select", { title: comic.title })}
                 className="size-4 accent-[var(--accent)]"
               />
 
@@ -205,6 +211,7 @@ function ReadMark({ status }: { status?: string }) {
  * posée par erreur serait impossible à défaire.
  */
 function Rating({ value, comicId }: { value: number; comicId: string }) {
+  const t = useT();
   const { refreshMarks } = useWorkspace();
 
   async function set(next: number) {
@@ -219,7 +226,7 @@ function Rating({ value, comicId }: { value: number; comicId: string }) {
         <button
           key={step}
           onClick={() => void set(step)}
-          aria-label={`Noter ${step} sur 5`}
+          aria-label={t("detail.rate", { step })}
           className={cx(
             "pressable size-3 rounded-full",
             step <= value ? "bg-warning" : "bg-border hover:bg-border-strong",

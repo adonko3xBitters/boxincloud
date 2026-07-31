@@ -4,11 +4,12 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { cx } from "@/components/ui";
 import { useDismissOnOutside } from "@/lib/dismiss";
+import { useT } from "@/i18n";
 import type { ManifestPage } from "@/lib/reader/pages";
 import { Filmstrip } from "./filmstrip";
 import {
-  FIT_LABELS,
-  MODE_LABELS,
+  FIT_KEYS,
+  MODE_KEYS,
   setSettings,
   useReaderSettings,
   type FitMode,
@@ -44,6 +45,7 @@ export function ReaderChrome({
   onSeek: (page: number) => void;
   children: React.ReactNode;
 }) {
+  const t = useT();
   const [visible, setVisible] = useState(true);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [stripOpen, setStripOpen] = useState(false);
@@ -108,7 +110,7 @@ export function ReaderChrome({
           les deux autres tiers servant à tourner les pages. */}
       <button
         onClick={() => (visible ? setVisible(false) : show())}
-        aria-label={visible ? "Masquer l'interface" : "Afficher l'interface"}
+        aria-label={visible ? t("reader.hideChrome") : t("reader.showChrome")}
         className="absolute inset-y-0 left-[35%] w-[30%]"
       />
 
@@ -147,6 +149,7 @@ function TopBar({
   onClose: () => void;
   onToggleSettings: () => void;
 }) {
+  const t = useT();
   return (
     <div
       className={cx(
@@ -156,7 +159,7 @@ function TopBar({
         visible ? "opacity-100" : "pointer-events-none opacity-0",
       )}
     >
-      <IconButton onClick={onClose} label="Fermer le lecteur">
+      <IconButton onClick={onClose} label={t("reader.close")}>
         <svg viewBox="0 0 20 20" fill="none" className="size-5" aria-hidden="true">
           <path d="M12 4 6 10l6 6" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
@@ -164,7 +167,7 @@ function TopBar({
 
       <p className="min-w-0 flex-1 truncate text-ui font-medium text-white/90">{title}</p>
 
-      <IconButton onClick={onToggleSettings} label="Réglages de lecture">
+      <IconButton onClick={onToggleSettings} label={t("reader.settings")}>
         <svg viewBox="0 0 20 20" fill="none" className="size-5" aria-hidden="true">
           <path d="M4 6h12M4 10h12M4 14h12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
         </svg>
@@ -186,6 +189,7 @@ function BottomBar({
   onSeek: (page: number) => void;
   onToggleStrip: () => void;
 }) {
+  const t = useT();
   return (
     <div
       className={cx(
@@ -212,11 +216,11 @@ function BottomBar({
           max={Math.max(0, pageCount - 1)}
           value={page}
           onChange={(e) => onSeek(Number(e.target.value))}
-          aria-label="Position dans l'album"
+          aria-label={t("reader.position")}
           className="h-1 flex-1 cursor-pointer appearance-none rounded-full bg-white/25 accent-[var(--accent)]"
         />
 
-        <IconButton onClick={onToggleStrip} label="Pages de l'album (t)">
+        <IconButton onClick={onToggleStrip} label={t("reader.thumbnails")}>
           <svg viewBox="0 0 20 20" fill="none" className="size-5" aria-hidden="true">
             <rect x="2.5" y="5" width="4" height="10" rx="1" stroke="currentColor" strokeWidth="1.5" />
             <rect x="8" y="5" width="4" height="10" rx="1" stroke="currentColor" strokeWidth="1.5" />
@@ -229,6 +233,7 @@ function BottomBar({
 }
 
 function SettingsPanel({ onClose }: { onClose: () => void }) {
+  const t = useT();
   const settings = useReaderSettings();
   const ref = useRef<HTMLDivElement>(null);
 
@@ -239,17 +244,17 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
       ref={ref}
       role="dialog"
       aria-modal="true"
-      aria-label="Réglages de lecture"
+      aria-label={t("reader.settings")}
       className="absolute right-3 top-12 z-30 w-64 rounded-xl border border-white/10 bg-neutral-900/95 p-4 shadow-2xl backdrop-blur"
     >
-      <Setting label="Mode">
-        {(Object.keys(MODE_LABELS) as ReadingMode[]).map((mode) => (
+      <Setting label={t("reader.mode")}>
+        {(Object.keys(MODE_KEYS) as ReadingMode[]).map((mode) => (
           <Option
             key={mode}
             active={settings.mode === mode}
             onClick={() => setSettings({ mode })}
           >
-            {MODE_LABELS[mode]}
+            {t(MODE_KEYS[mode])}
           </Option>
         ))}
       </Setting>
@@ -257,35 +262,32 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
       {/* L'ajustement n'a pas de sens en défilement continu : la largeur y est
           imposée par la colonne. */}
       {settings.mode !== "scroll" && (
-        <Setting label="Ajustement">
-          {(Object.keys(FIT_LABELS) as FitMode[]).map((fit) => (
+        <Setting label={t("reader.fit")}>
+          {(Object.keys(FIT_KEYS) as FitMode[]).map((fit) => (
             <Option key={fit} active={settings.fit === fit} onClick={() => setSettings({ fit })}>
-              {FIT_LABELS[fit]}
+              {t(FIT_KEYS[fit])}
             </Option>
           ))}
         </Setting>
       )}
 
-      <Setting label="Sens de lecture">
+      <Setting label={t("reader.direction")}>
         <Option
           active={settings.direction === "ltr"}
           onClick={() => setSettings({ direction: "ltr" })}
         >
-          Gauche → droite
+          {t("reader.ltr")}
         </Option>
         <Option
           active={settings.direction === "rtl"}
           onClick={() => setSettings({ direction: "rtl" })}
         >
-          Droite → gauche
+          {t("reader.rtl")}
         </Option>
       </Setting>
 
       <p className="mt-3 border-t border-white/10 pt-3 text-micro leading-relaxed text-white/40">
-        Flèches ou espace pour tourner · Début et Fin pour les extrémités ·
-        <span className="text-white/55"> t </span> pour les vignettes ·
-        <span className="text-white/55"> + − 0 </span> pour le zoom ·
-        double-clic ou pincement pour agrandir · Échap pour sortir
+{t("reader.shortcuts")}
       </p>
     </div>
   );

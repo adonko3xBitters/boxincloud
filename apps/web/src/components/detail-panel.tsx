@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { buttonClass, cx } from "./ui";
 import { imageURL } from "@/lib/api/client";
 import * as api from "@/lib/api/endpoints";
+import { useT } from "@/i18n";
 import { useWorkspace } from "@/lib/workspace";
 
 /**
@@ -17,6 +18,7 @@ import { useWorkspace } from "@/lib/workspace";
  * consulte et on édite au même endroit.
  */
 export function DetailPanel() {
+  const t = useT();
   const { focused, favorites, ratings, refreshMarks } = useWorkspace();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
@@ -92,12 +94,12 @@ export function DetailPanel() {
             href={started ? `/read?id=${item.id}&page=${progress.data!.page}` : `/read?id=${item.id}`}
             className={cx(buttonClass("primary", "sm"), "flex-1")}
           >
-            {started ? `Reprendre p. ${progress.data!.page + 1}` : "Lire"}
+            {started ? t("detail.resume", { page: progress.data!.page + 1 }) : t("toolbar.read")}
           </Link>
 
           <button
             onClick={() => void toggleFavorite()}
-            title={isFavorite ? "Retirer des favoris" : "Ajouter aux favoris"}
+            title={isFavorite ? t("toolbar.unfavorite") : t("toolbar.favorite")}
             aria-pressed={isFavorite}
             className={cx(
               "pressable grid size-9 shrink-0 place-items-center rounded-md border border-border",
@@ -112,7 +114,7 @@ export function DetailPanel() {
 
           <button
             onClick={() => setEditing((v) => !v)}
-            title="Modifier les métadonnées"
+            title={t("detail.editMetadata")}
             aria-pressed={editing}
             className={cx(
               "pressable grid size-9 shrink-0 place-items-center rounded-md border border-border",
@@ -128,7 +130,12 @@ export function DetailPanel() {
         {started && (
           <div>
             <div className="mb-1 flex justify-between text-meta text-muted">
-              <span>Page {progress.data!.page + 1} / {progress.data!.pageCount || item.pageCount}</span>
+              <span>
+                {t("detail.pageOf", {
+                  page: progress.data!.page + 1,
+                  total: progress.data!.pageCount || item.pageCount,
+                })}
+              </span>
               <span>{Math.round(progress.data!.percent)} %</span>
             </div>
             <div className="h-1 overflow-hidden rounded-full bg-border">
@@ -158,16 +165,16 @@ export function DetailPanel() {
             )}
 
             <dl className="grid grid-cols-2 gap-x-3 gap-y-2.5 text-meta">
-              <Field label="Numéro" value={item.number || "—"} />
-              <Field label="Pages" value={String(item.pageCount)} />
-              <Field label="Format" value={item.format.toUpperCase()} />
-              <Field label="Taille" value={formatBytes(item.fileSize)} />
-              {item.releasedAt && <Field label="Parution" value={item.releasedAt} />}
-              {item.language && <Field label="Langue" value={item.language.toUpperCase()} />}
+              <Field label={t("detail.number")} value={item.number || "—"} />
+              <Field label={t("detail.pages")} value={String(item.pageCount)} />
+              <Field label={t("detail.format")} value={item.format.toUpperCase()} />
+              <Field label={t("detail.size")} value={formatBytes(item.fileSize)} />
+              {item.releasedAt && <Field label={t("detail.released")} value={item.releasedAt} />}
+              {item.language && <Field label={t("detail.language")} value={item.language.toUpperCase()} />}
             </dl>
 
             <div className="border-t border-border pt-2">
-              <p className="mb-1 text-micro uppercase tracking-wide text-subtle">Fichier</p>
+              <p className="mb-1 text-micro uppercase tracking-wide text-subtle">{t("detail.file")}</p>
               <p className="break-all text-meta text-muted">{item.fileName}</p>
               {item.folderPath && (
                 <p className="mt-1 break-all text-meta text-subtle">{item.folderPath}/</p>
@@ -194,15 +201,16 @@ function RatingRow({
     onChange();
   }
 
+  const t = useT();
   return (
     <div className="flex items-center gap-2">
-      <span className="text-micro uppercase tracking-wide text-subtle">Note</span>
+      <span className="text-micro uppercase tracking-wide text-subtle">{t("detail.rating")}</span>
       <div className="flex gap-1">
         {[1, 2, 3, 4, 5].map((step) => (
           <button
             key={step}
             onClick={() => void set(step)}
-            aria-label={`Noter ${step} sur 5`}
+            aria-label={t("detail.rate", { step })}
             className={cx(
               "pressable size-3.5 rounded-full",
               step <= value ? "bg-warning" : "bg-border hover:bg-border-strong",
@@ -233,6 +241,7 @@ function EditForm({
   comic: { id: string; title: string; number?: string; summary?: string; language?: string };
   onDone: () => void;
 }) {
+  const t = useT();
   const [title, setTitle] = useState(comic.title);
   const [number, setNumber] = useState(comic.number ?? "");
   const [summary, setSummary] = useState(comic.summary ?? "");
@@ -255,11 +264,11 @@ function EditForm({
 
   return (
     <form onSubmit={save} className="flex flex-col gap-2">
-      <SmallField label="Titre" value={title} onChange={setTitle} />
-      <SmallField label="Numéro" value={number} onChange={setNumber} />
+      <SmallField label={t("detail.title")} value={title} onChange={setTitle} />
+      <SmallField label={t("detail.number")} value={number} onChange={setNumber} />
 
       <label className="flex flex-col gap-1">
-        <span className="text-micro uppercase tracking-wide text-subtle">Résumé</span>
+        <span className="text-micro uppercase tracking-wide text-subtle">{t("detail.summary")}</span>
         <textarea
           value={summary}
           onChange={(e) => setSummary(e.target.value)}
@@ -274,7 +283,7 @@ function EditForm({
 
       <div className="flex gap-1.5">
         <button type="submit" disabled={saving} className={cx(buttonClass("primary", "sm"), "flex-1")}>
-          {saving ? "Enregistrement…" : "Enregistrer"}
+          {saving ? t("storage.saving") : t("action.save")}
         </button>
         <button type="button" onClick={onDone} className={buttonClass("secondary", "sm")}>
           Annuler

@@ -4,6 +4,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
+import { useT } from "@/i18n";
 import { imageURL } from "@/lib/api/client";
 import * as api from "@/lib/api/endpoints";
 import {
@@ -214,6 +215,7 @@ function SpreadReader({
   onForward: () => void;
   onBackward: () => void;
 }) {
+  const t = useT();
   const key = spread?.pages.join("-") ?? "";
   const zoom = useZoom(key);
 
@@ -276,12 +278,12 @@ function SpreadReader({
         <>
           <button
             onClick={onBackward}
-            aria-label="Page précédente"
+            aria-label={t("reader.previousPage")}
             className="absolute inset-y-0 left-0 w-[30%] cursor-w-resize focus-visible:bg-white/5"
           />
           <button
             onClick={onForward}
-            aria-label="Page suivante"
+            aria-label={t("reader.nextPage")}
             className="absolute inset-y-0 right-0 w-[30%] cursor-e-resize focus-visible:bg-white/5"
           />
         </>

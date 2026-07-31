@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 
 import { cx } from "./ui";
+import { useT } from "@/i18n";
 import { imageURL } from "@/lib/api/client";
 import type { Comic } from "@/lib/api/client";
 import { useWorkspace } from "@/lib/workspace";
@@ -45,6 +46,7 @@ const ANGLE = 56;
 const DEPTH = 120;
 
 export function Coverflow({ comics }: { comics: Comic[] }) {
+  const t = useT();
   const router = useRouter();
   const { focused, select, favorites } = useWorkspace();
   const trackRef = useRef<HTMLDivElement>(null);
@@ -128,7 +130,7 @@ export function Coverflow({ comics }: { comics: Comic[] }) {
       ref={trackRef}
       tabIndex={0}
       onKeyDown={onKeyDown}
-      aria-label="Carrousel de couvertures"
+      aria-label={t("coverflow.label")}
       aria-roledescription="carrousel"
       className={cx(
         "relative shrink-0 select-none border-b border-border outline-none",
@@ -310,12 +312,13 @@ function Arrow({
   disabled: boolean;
   onClick: () => void;
 }) {
+  const t = useT();
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      aria-label={side === "left" ? "Couverture précédente" : "Couverture suivante"}
+      aria-label={side === "left" ? t("coverflow.previous") : t("coverflow.next")}
       className={cx(
         "pressable absolute top-1/2 z-[200] grid size-9 -translate-y-1/2 place-items-center rounded-full",
         "border border-border bg-surface/80 text-muted backdrop-blur",
