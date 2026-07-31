@@ -32,7 +32,7 @@ import { useCurrentUser } from "@/lib/auth";
  *  - des fichiers sont arrivés autrement — on relance un parcours.
  */
 
-const ACCEPTED = ".cbz,.zip,.cbr,.rar,.pdf";
+const ACCEPTED = ".cbz,.zip,.cbr,.rar,.cb7,.7z,.pdf,.epub";
 
 type QueueItem = {
   id: string;
@@ -805,7 +805,7 @@ function toQueueItem(file: File): QueueItem {
   return { id: `${file.name}-${counter}`, file, progress: 0, status: "pending" };
 }
 
-const EXTENSIONS = [".cbz", ".zip", ".cbr", ".rar", ".pdf"];
+const EXTENSIONS = [".cbz", ".zip", ".cbr", ".rar", ".cb7", ".7z", ".pdf", ".epub"];
 
 /**
  * Ne retient que les fichiers que le serveur accepterait.

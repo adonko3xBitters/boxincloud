@@ -165,7 +165,7 @@ export const fr = {
   // ── Dépôt de contenu ───────────────────────────────────────────────────
   "ingest.title": "Ajouter du contenu",
   "ingest.dropHere": "Glissez vos albums ici, ou cliquez pour choisir",
-  "ingest.formats": "CBZ, CBR, PDF — et leurs équivalents ZIP et RAR",
+  "ingest.formats": "CBZ, CBR, CB7, PDF, EPUB — et leurs équivalents ZIP, RAR et 7z",
   "ingest.library": "Bibliothèque",
   "ingest.folder": "Dossier",
   "ingest.optional": "(optionnel)",
@@ -520,7 +520,7 @@ export const fr = {
   "search.hint": "Cherchez dans toute la bibliothèque",
   "search.tolerance":
     "Les accents et les fautes de frappe sont tolérés — « asterics » trouve « Astérix ».",
-  "ingest.formatsShort": "CBZ, CBR, PDF, ZIP, RAR",
+  "ingest.formatsShort": "CBZ, CBR, CB7, PDF, EPUB",
 
   "select.toggle": "Sélectionner {title}",
   "select.hint": "Maj+clic pour une plage, {modifier}+clic pour ajouter",

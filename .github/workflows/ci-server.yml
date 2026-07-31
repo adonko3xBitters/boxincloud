@@ -62,6 +62,12 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache-dependency-path: apps/server/go.sum
 
+      # p7zip est libre, contrairement à `rar` : le test du CB7 s'exécute donc
+      # réellement ici, là où il se saute sur une machine de développement qui
+      # ne l'a pas.
+      - name: Outils d'archive
+        run: sudo apt-get update && sudo apt-get install -y p7zip-full
+
       - name: Tests
         working-directory: apps/server
         run: go test ./... -race -short -coverprofile=coverage.out

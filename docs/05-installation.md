@@ -175,8 +175,9 @@ recommandée d'essayer.
 | --- | --- |
 | **CBZ / ZIP** | Lu directement. Une page = une requête Range sur l'archive distante. |
 | **CBR / RAR** | Converti en CBZ à l'indexation, dans le cache. Ensuite identique au CBZ. |
+| **CB7 / 7z** | Idem. |
 | **PDF** | Idem, par extraction des images de chaque page. |
-| CB7, EPUB | Détectés, non traités. L'album est marqué en erreur explicitement. |
+| **EPUB** | Idem, **dans l'ordre du *spine*** — voir ci-dessous. |
 
 ### Pourquoi une conversion
 
@@ -202,9 +203,24 @@ vignettes et les pages transcodées, **pas** les archives converties — les
 
 Supprimer un album emporte sa version convertie.
 
-### Une limite nommée
+### L'EPUB et son piège
+
+Un EPUB **est** un ZIP, et on pourrait croire qu'il relève du chemin direct du
+CBZ. C'est faux, et le piège mérite d'être nommé : **l'ordre de lecture d'un
+EPUB n'est pas celui de ses noms de fichiers.** Il est défini par le `spine` du
+document OPF, et rien n'oblige un éditeur à nommer ses images dans cet ordre —
+beaucoup ne le font pas.
+
+L'indexer comme un CBZ donnerait donc un album complet, lisible, et dans le
+désordre. C'est la pire des pannes : elle ne ressemble pas à une panne.
+L'hydratation suit le spine et renomme les images dans l'ordre qu'il prescrit.
+
+### Deux limites nommées
 
 Un PDF de bande dessinée **native** — du texte et des vecteurs, sans image de
 fond — ne donne rien à extraire, et l'album est marqué en erreur. Le cas existe
-chez les éditions numériques natives. Le traiter demanderait le moteur de rendu
-qu'on a écarté ; le prétendre serait pire que de le refuser.
+chez les éditions numériques natives. Le traiter demanderait un moteur de rendu
+écrit en C, qu'on a écarté ; le prétendre serait pire que de le refuser.
+
+Un EPUB de **texte** — un roman — se solde de même par un refus explicite. Ce
+lecteur sert les bandes dessinées, pas les livres.

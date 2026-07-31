@@ -166,6 +166,21 @@ func writeNormalized(
 	case archive.FormatCBR:
 		err = archive.WalkRAR(original, add)
 
+	case archive.FormatCB7, archive.FormatEPUB:
+		// Les deux exigent un lecteur navigable : l'index d'un 7z comme celui
+		// d'un ZIP est en fin de fichier et renvoie à des blocs situés n'importe
+		// où. Un flux ne suffit donc pas.
+		var seeker io.ReadSeeker
+		seeker, err = spool(original)
+		if err == nil {
+			at, size := seeker.(io.ReaderAt), spooledSize(seeker)
+			if format == archive.FormatCB7 {
+				err = archive.WalkSevenZip(at, size, add)
+			} else {
+				err = archive.WalkEPUB(at, size, add)
+			}
+		}
+
 	case archive.FormatPDF:
 		// pdfcpu exige de pouvoir revenir en arrière dans le fichier : la table
 		// de références croisées d'un PDF est en fin de document et renvoie à
@@ -178,9 +193,8 @@ func writeNormalized(
 		}
 
 	default:
-		// Un format sans accès aléatoire que personne n'a appris à lire : le
-		// CB7 et l'EPUB sont dans ce cas. Refusé nommément plutôt que traité
-		// comme une archive vide.
+		// Un format sans accès aléatoire que personne n'a appris à lire.
+		// Refusé nommément plutôt que traité comme une archive vide.
 		err = fmt.Errorf("%w : hydratation de %s non implémentée",
 			archive.ErrUnsupportedFormat, format)
 	}
@@ -225,4 +239,19 @@ func spool(r io.Reader) (io.ReadSeeker, error) {
 		return nil, err
 	}
 	return f, nil
+}
+
+// spooledSize donne la taille d'un fichier temporaire navigable.
+//
+// Les lecteurs de 7z et de ZIP la demandent : leur index vit en fin de fichier,
+// et il faut savoir où se trouve cette fin pour le lire.
+func spooledSize(r io.ReadSeeker) int64 {
+	size, err := r.Seek(0, io.SeekEnd)
+	if err != nil {
+		return 0
+	}
+	if _, err := r.Seek(0, io.SeekStart); err != nil {
+		return 0
+	}
+	return size
 }

@@ -1,8 +1,10 @@
 package indexer_test
 
 import (
+	"archive/zip"
 	"bytes"
 	"context"
+	"fmt"
 	"image"
 	"image/color"
 	"image/jpeg"
@@ -239,4 +241,162 @@ func pageJPEG(t *testing.T, index int) []byte {
 		t.Fatal(err)
 	}
 	return buf.Bytes()
+}
+
+/*
+EPUB : l'ordre du spine, pas celui des noms.
+
+Le piège que ce test verrouille : un EPUB est un ZIP, et l'indexer comme un CBZ
+donnerait un album complet, lisible, et DANS LE DÉSORDRE. C'est la pire des
+pannes — elle ne ressemble pas à une panne.
+
+Les images y sont donc nommées à contre-sens de leur ordre de lecture : la
+première page du spine s'appelle « z-image.jpg », la dernière « a-image.jpg ».
+Un tri par nom les inverserait ; le spine les remet d'aplomb.
+*/
+func TestHydrateEPUBSuitLeSpine(t *testing.T) {
+	ctx := context.Background()
+
+	source, cache := providers(t)
+	writeEPUB(t, ctx, source, "album.epub")
+
+	comicID := uuid.Must(uuid.NewV7())
+	hydrated, err := indexer.Hydrate(ctx, source, cache, comicID, "album.epub", archive.FormatEPUB)
+	if err != nil {
+		t.Fatalf("Hydrate : %v", err)
+	}
+
+	info, _ := cache.Stat(ctx, hydrated)
+	idx, err := archive.ReadZipIndex(ctx, cache, hydrated, info.Size)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(idx.Pages) != 3 {
+		t.Fatalf("pages = %d, attendu 3", len(idx.Pages))
+	}
+
+	// Les pages sont renommées dans l'ordre du spine : le tri par nom du CBZ
+	// produit reproduit donc l'ordre de lecture voulu par l'éditeur.
+	for i, page := range idx.Pages {
+		want := fmt.Sprintf("page-%04d.jpg", i+1)
+		if page.Name != want {
+			t.Errorf("page %d = %q, attendu %q", i, page.Name, want)
+		}
+	}
+
+	// La teinte encode le rang dans le spine : elle prouve que c'est bien la
+	// bonne image qui a été renommée, pas seulement le bon nombre.
+	for i, page := range idx.Pages {
+		r, err := archive.OpenEntry(ctx, cache, hydrated, page)
+		if err != nil {
+			t.Fatal(err)
+		}
+		img, _, err := image.Decode(r)
+		_ = r.Close()
+		if err != nil {
+			t.Fatalf("page %d illisible : %v", i, err)
+		}
+
+		// La teinte suit `pageJPEG` : 40, 100, 160. La tolérance absorbe la
+		// perte du JPEG, qui décale une couleur unie de quelques niveaux.
+		got, _, _, _ := img.At(1, 1).RGBA()
+		want := uint32(40+i*60) << 8
+		if diff := int(got) - int(want); diff > 1024 || diff < -1024 {
+			t.Errorf("page %d : teinte %d, attendu ~%d — ordre du spine non respecté",
+				i, got>>8, want>>8)
+		}
+	}
+}
+
+func TestHydrateEPUBSansImage(t *testing.T) {
+	// Un roman : rien à extraire, et le dire vaut mieux qu'un album vide.
+	ctx := context.Background()
+	source, cache := providers(t)
+
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	writeZipFile(t, zw, "META-INF/container.xml", containerXML)
+	writeZipFile(t, zw, "OEBPS/content.opf", `<?xml version="1.0"?>
+<package><manifest><item id="c1" href="chap1.xhtml" media-type="application/xhtml+xml"/></manifest>
+<spine><itemref idref="c1"/></spine></package>`)
+	writeZipFile(t, zw, "OEBPS/chap1.xhtml", "<html><body><p>Du texte, pas d'images.</p></body></html>")
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := source.Write(ctx, "roman.epub", bytes.NewReader(buf.Bytes()),
+		int64(buf.Len()), "application/epub+zip"); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := indexer.Hydrate(ctx, source, cache,
+		uuid.Must(uuid.NewV7()), "roman.epub", archive.FormatEPUB)
+
+	if err == nil {
+		t.Fatal("Hydrate = nil sur un EPUB de texte")
+	}
+	if !strings.Contains(err.Error(), "aucune image") {
+		t.Errorf("erreur = %v, attendu un refus explicite", err)
+	}
+}
+
+const containerXML = `<?xml version="1.0"?>
+<container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0">
+  <rootfiles><rootfile full-path="OEBPS/content.opf"
+    media-type="application/oebps-package+xml"/></rootfiles>
+</container>`
+
+// writeEPUB fabrique un EPUB dont les noms d'images contredisent le spine.
+func writeEPUB(t *testing.T, ctx context.Context, p storage.Provider, key string) {
+	t.Helper()
+
+	// Ordre du spine : z, m, a. Ordre alphabétique : a, m, z. Les deux sont
+	// délibérément opposés.
+	order := []string{"z", "m", "a"}
+
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+
+	writeZipFile(t, zw, "META-INF/container.xml", containerXML)
+
+	manifest, spine := "", ""
+	for i, name := range order {
+		manifest += fmt.Sprintf(
+			`<item id="p%d" href="%s.jpg" media-type="image/jpeg"/>`, i, name)
+		spine += fmt.Sprintf(`<itemref idref="p%d"/>`, i)
+	}
+
+	writeZipFile(t, zw, "OEBPS/content.opf", fmt.Sprintf(
+		`<?xml version="1.0"?><package><manifest>%s</manifest><spine>%s</spine></package>`,
+		manifest, spine))
+
+	for i, name := range order {
+		writeZipBytes(t, zw, "OEBPS/"+name+".jpg", pageJPEG(t, i))
+	}
+
+	if err := zw.Close(); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := p.Write(ctx, key, bytes.NewReader(buf.Bytes()),
+		int64(buf.Len()), "application/epub+zip"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func writeZipFile(t *testing.T, zw *zip.Writer, name, content string) {
+	t.Helper()
+	writeZipBytes(t, zw, name, []byte(content))
+}
+
+func writeZipBytes(t *testing.T, zw *zip.Writer, name string, content []byte) {
+	t.Helper()
+	w, err := zw.Create(name)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := w.Write(content); err != nil {
+		t.Fatal(err)
+	}
 }

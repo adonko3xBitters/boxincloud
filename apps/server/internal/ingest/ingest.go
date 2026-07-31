@@ -290,9 +290,11 @@ const magicPeek = 8
 type Format string
 
 const (
-	FormatCBZ Format = "cbz"
-	FormatCBR Format = "cbr"
-	FormatPDF Format = "pdf"
+	FormatCBZ  Format = "cbz"
+	FormatCBR  Format = "cbr"
+	FormatCB7  Format = "cb7"
+	FormatPDF  Format = "pdf"
+	FormatEPUB Format = "epub"
 )
 
 // extensions associe une extension à son format.
@@ -301,11 +303,14 @@ const (
 // sans l'extension dédiée, et refuser un fichier parfaitement lisible sur ce
 // seul motif serait absurde.
 var extensions = map[string]Format{
-	".cbz": FormatCBZ,
-	".zip": FormatCBZ,
-	".cbr": FormatCBR,
-	".rar": FormatCBR,
-	".pdf": FormatPDF,
+	".cbz":  FormatCBZ,
+	".zip":  FormatCBZ,
+	".cbr":  FormatCBR,
+	".rar":  FormatCBR,
+	".cb7":  FormatCB7,
+	".7z":   FormatCB7,
+	".pdf":  FormatPDF,
+	".epub": FormatEPUB,
 }
 
 // DetectFormat déduit le format d'un nom de fichier.
@@ -317,7 +322,7 @@ func DetectFormat(name string) (Format, bool) {
 // SupportedExtensions liste les extensions acceptées, pour l'affichage côté
 // client et la documentation du contrat.
 func SupportedExtensions() []string {
-	return []string{".cbz", ".zip", ".cbr", ".rar", ".pdf"}
+	return []string{".cbz", ".zip", ".cbr", ".rar", ".cb7", ".7z", ".pdf", ".epub"}
 }
 
 // signatures donne les en-têtes possibles de chaque format.
@@ -334,8 +339,19 @@ var signatures = map[Format][][]byte{
 		{'R', 'a', 'r', '!', 0x1a, 0x07, 0x00},       // RAR 1.5 à 4.x
 		{'R', 'a', 'r', '!', 0x1a, 0x07, 0x01, 0x00}, // RAR 5.0
 	},
+	FormatCB7: {
+		{'7', 'z', 0xbc, 0xaf, 0x27, 0x1c},
+	},
 	FormatPDF: {
 		{'%', 'P', 'D', 'F', '-'},
+	},
+	// Un EPUB EST un ZIP : il en porte la signature, et rien d'autre ne le
+	// distingue à cette profondeur. Ce que l'extension annonce et ce que les
+	// octets disent restent donc cohérents — c'est tout ce que ce contrôle
+	// cherche à établir.
+	FormatEPUB: {
+		{'P', 'K', 0x03, 0x04},
+		{'P', 'K', 0x05, 0x06},
 	},
 }
 

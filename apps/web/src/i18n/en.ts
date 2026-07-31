@@ -160,7 +160,7 @@ export const en: Record<MessageKey, string> = {
   // ── Adding content ─────────────────────────────────────────────────────
   "ingest.title": "Add content",
   "ingest.dropHere": "Drop your albums here, or click to pick them",
-  "ingest.formats": "CBZ, CBR, PDF \u2014 and their ZIP and RAR equivalents",
+  "ingest.formats": "CBZ, CBR, CB7, PDF, EPUB \u2014 and their ZIP, RAR and 7z equivalents",
   "ingest.library": "Library",
   "ingest.folder": "Folder",
   "ingest.optional": "(optional)",
@@ -515,7 +515,7 @@ export const en: Record<MessageKey, string> = {
   "search.hint": "Search the whole library",
   "search.tolerance":
     "Accents and typos are tolerated \u2014 \u201casterics\u201d finds \u201cAst\u00e9rix\u201d.",
-  "ingest.formatsShort": "CBZ, CBR, PDF, ZIP, RAR",
+  "ingest.formatsShort": "CBZ, CBR, CB7, PDF, EPUB",
 
   "select.toggle": "Select {title}",
   "select.hint": "Shift-click for a range, {modifier}-click to add",

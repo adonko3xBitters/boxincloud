@@ -146,3 +146,112 @@ func readAll(e archive.ExtractedEntry) ([]byte, error) {
 	_, err := buf.ReadFrom(e.Reader)
 	return buf.Bytes(), err
 }
+
+/*
+Archive 7z.
+
+Comme le RAR, elle demande un outil pour être fabriquée. Contrairement à lui,
+cet outil est libre : `p7zip` est installé dans l'intégration continue, si bien
+que ce test s'exécute réellement quelque part — et se saute proprement sur une
+machine de développement qui ne l'a pas.
+*/
+func TestWalkSevenZipIgnoreLesNonImages(t *testing.T) {
+	path := buildSevenZip(t, map[string][]byte{
+		"page-01.jpg":   jpegBytes(t),
+		"page-02.jpg":   jpegBytes(t),
+		"ComicInfo.xml": []byte("<ComicInfo/>"),
+		"notes.txt":     []byte("rien à voir"),
+	})
+
+	file, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = file.Close() }()
+
+	info, err := file.Stat()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var names []string
+	err = archive.WalkSevenZip(file, info.Size(), func(e archive.ExtractedEntry) error {
+		names = append(names, e.Name)
+		_, err := readAll(e)
+		return err
+	})
+	if err != nil {
+		t.Fatalf("WalkSevenZip : %v", err)
+	}
+
+	if len(names) != 2 {
+		t.Errorf("entrées = %v, attendu les deux seules images", names)
+	}
+}
+
+func TestWalkSevenZipSansImage(t *testing.T) {
+	path := buildSevenZip(t, map[string][]byte{"notes.txt": []byte("rien")})
+
+	file, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = file.Close() }()
+
+	info, _ := file.Stat()
+	err = archive.WalkSevenZip(file, info.Size(),
+		func(archive.ExtractedEntry) error { return nil })
+
+	if err == nil {
+		t.Fatal("WalkSevenZip = nil sur une archive sans image")
+	}
+	if !strings.Contains(err.Error(), "aucune page") {
+		t.Errorf("erreur = %v, attendu ErrNoPages", err)
+	}
+}
+
+func TestWalkSevenZipCorrompu(t *testing.T) {
+	data := []byte("ceci n'est pas une archive 7z")
+	err := archive.WalkSevenZip(bytes.NewReader(data), int64(len(data)),
+		func(archive.ExtractedEntry) error { return nil })
+
+	if err == nil {
+		t.Fatal("WalkSevenZip = nil sur des octets arbitraires")
+	}
+}
+
+// buildSevenZip fabrique une archive 7z avec l'outil du système.
+func buildSevenZip(t *testing.T, files map[string][]byte) string {
+	t.Helper()
+
+	tool := ""
+	for _, candidate := range []string{"7zz", "7z", "7za"} {
+		if found, err := exec.LookPath(candidate); err == nil {
+			tool = found
+			break
+		}
+	}
+	if tool == "" {
+		t.Skip("aucun outil 7z (`brew install sevenzip`, `apt install p7zip-full`) : test sauté")
+	}
+
+	dir := t.TempDir()
+	source := filepath.Join(dir, "source")
+	if err := os.MkdirAll(source, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	for name, content := range files {
+		if err := os.WriteFile(filepath.Join(source, name), content, 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	target := filepath.Join(dir, "album.cb7")
+	cmd := exec.Command(tool, "a", target, ".")
+	cmd.Dir = source
+	if out, err := cmd.CombinedOutput(); err != nil {
+		t.Fatalf("création de l'archive : %v\n%s", err, out)
+	}
+	return target
+}
