@@ -1,0 +1,75 @@
+<?xml version="1.0"?>
+<!--
+  Template Unraid pour boxincloud.
+
+  Unraid ne connaît pas Compose : chaque service y est un conteneur autonome,
+  configuré par l'interface. Ce template décrit donc boxincloud SEUL, et
+  suppose une base PostgreSQL déjà installée — ce qui est la situation
+  habituelle sur un serveur Unraid, où le plugin officiel PostgreSQL sert
+  souvent trois ou quatre applications à la fois.
+
+  Le stockage objet est optionnel : boxincloud lit aussi un répertoire, ce qui
+  correspond mieux à un NAS où les fichiers sont déjà rangés sur un share.
+-->
+<Container version="2">
+  <Name>boxincloud</Name>
+  <Repository>ghcr.io/adonko3xbitters/boxincloud:latest</Repository>
+  <Registry>https://ghcr.io/adonko3xbitters/boxincloud</Registry>
+  <Network>bridge</Network>
+  <Shell>sh</Shell>
+  <Privileged>false</Privileged>
+  <Support>https://github.com/adonko3xBitters/boxincloud/issues</Support>
+  <Project>https://github.com/adonko3xBitters/boxincloud</Project>
+  <Overview>
+    Bibliothèque de bandes dessinées, comics et mangas auto-hébergée.
+
+    Lit les archives CBZ, CBR et les PDF depuis un stockage objet compatible S3
+    ou depuis un répertoire local. Les pages sont extraites à la demande par
+    requêtes Range : un album de 500 Mo ne descend jamais en entier pour servir
+    une page.
+
+    Interface web incluse, application Android disponible, lecture hors ligne
+    avec synchronisation de la progression.
+
+    Nécessite une base PostgreSQL 16 ou plus.
+  </Overview>
+  <Category>MediaApp:Books MediaServer:Books</Category>
+  <WebUI>http://[IP]:[PORT:8080]/</WebUI>
+  <Icon>https://raw.githubusercontent.com/adonko3xBitters/boxincloud/main/apps/web/public/icon.svg</Icon>
+  <ExtraParams>--restart=unless-stopped</ExtraParams>
+
+  <Config Name="Port" Target="8080" Default="8080" Mode="tcp"
+          Description="Port de l'interface web et de l'API."
+          Type="Port" Display="always" Required="true">8080</Config>
+
+  <Config Name="Données" Target="/var/lib/boxincloud" Default="/mnt/user/appdata/boxincloud"
+          Mode="rw"
+          Description="Cache dérivé — vignettes et pages transcodées. Entièrement reconstructible : le supprimer ne perd aucune donnée."
+          Type="Path" Display="always" Required="true">/mnt/user/appdata/boxincloud</Config>
+
+  <Config Name="Bibliothèque" Target="/comics" Default="/mnt/user/comics" Mode="rw"
+          Description="Vos albums, si vous utilisez le stockage local plutôt qu'un S3. À déclarer ensuite dans l'interface, sous Stockage."
+          Type="Path" Display="always" Required="false">/mnt/user/comics</Config>
+
+  <Config Name="DATABASE_URL" Target="DATABASE_URL"
+          Default="postgres://boxincloud:motdepasse@192.168.1.10:5432/boxincloud?sslmode=disable"
+          Description="Connexion PostgreSQL. La base doit exister ; boxincloud applique ses migrations au démarrage."
+          Type="Variable" Display="always" Required="true"></Config>
+
+  <Config Name="BOXINCLOUD_SECRET_KEY" Target="BOXINCLOUD_SECRET_KEY" Default=""
+          Description="Chiffre les identifiants des backends de stockage. 32 octets en hexadécimal — générer avec : openssl rand -hex 32&#13;&#10;&#13;&#10;ATTENTION : sa perte rend les backends illisibles. À sauvegarder séparément de la base."
+          Type="Variable" Display="always" Required="true" Mask="true"></Config>
+
+  <Config Name="BOXINCLOUD_PUBLIC_URL" Target="BOXINCLOUD_PUBLIC_URL"
+          Default="http://192.168.1.10:8080"
+          Description="Adresse par laquelle l'instance est jointe. Sert aux liens de partage et au code QR d'installation mobile."
+          Type="Variable" Display="always" Required="false"></Config>
+
+  <Config Name="BOXINCLOUD_CACHE_MAX_SIZE" Target="BOXINCLOUD_CACHE_MAX_SIZE" Default="10GB"
+          Description="Taille du cache dérivé avant éviction des entrées les moins récemment lues."
+          Type="Variable" Display="advanced" Required="false">10GB</Config>
+
+  <Config Name="TZ" Target="TZ" Default="Europe/Paris"
+          Description="Fuseau horaire, pour les dates affichées."
+          Type="Variable" Display="advanced" Required="false">Europe/Paris</Config>
+</Container>

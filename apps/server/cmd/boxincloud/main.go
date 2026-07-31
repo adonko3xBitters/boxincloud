@@ -26,11 +26,57 @@ var (
 	commit  = "unknown"
 )
 
+/*
+Deux sous-commandes, et c'est assez.
+
+`serve` est le défaut : l'invoquer sans argument doit démarrer le serveur,
+parce que c'est ce que fait ce binaire quatre-vingt-dix-neuf fois sur cent.
+
+`version` existe pour une raison précise : elle doit répondre SANS
+configuration. C'est ce qui permet de vérifier qu'une image publiée démarre —
+un contrôle qui, sans elle, exigerait une base de données rien que pour savoir
+si le binaire s'exécute.
+*/
 func main() {
-	if err := run(); err != nil {
-		fmt.Fprintf(os.Stderr, "\nboxincloud : %v\n", err)
-		os.Exit(1)
+	command := "serve"
+	if len(os.Args) > 1 {
+		command = os.Args[1]
 	}
+
+	switch command {
+	case "version", "--version", "-v":
+		fmt.Printf("boxincloud %s (%s, %s)\n", version, commit, runtime.Version())
+		return
+
+	case "serve":
+		if err := run(); err != nil {
+			fmt.Fprintf(os.Stderr, "\nboxincloud : %v\n", err)
+			os.Exit(1)
+		}
+
+	case "help", "--help", "-h":
+		usage(os.Stdout)
+
+	default:
+		fmt.Fprintf(os.Stderr, "boxincloud : commande inconnue « %s »\n\n", command)
+		usage(os.Stderr)
+		os.Exit(2)
+	}
+}
+
+func usage(w *os.File) {
+	fmt.Fprint(w, `boxincloud — serveur de bibliothèque de bandes dessinées
+
+Usage :
+  boxincloud [commande]
+
+Commandes :
+  serve      Démarre le serveur (défaut)
+  version    Affiche la version, sans lire la configuration
+  help       Affiche ce message
+
+La configuration passe par l'environnement. Voir .env.example.
+`)
 }
 
 func run() error {

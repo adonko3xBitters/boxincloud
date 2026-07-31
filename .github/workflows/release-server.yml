@@ -1,0 +1,79 @@
+name: Publication serveur
+
+# Image du serveur sur GHCR, amd64 et arm64.
+#
+# arm64 n'est pas une coquetterie : le self-hosting vit sur des Raspberry Pi,
+# des NAS Synology récents et des Mac. Publier amd64 seul écarterait une bonne
+# part du public visé, et l'émulation QEMU au démarrage est trop lente pour
+# servir des images.
+#
+# Rien ne part sans un tag. Une publication est irréversible dans les faits —
+# un tag d'image qu'on a laissé tirer ne se reprend plus — et ne doit donc
+# jamais être un effet de bord d'un `git push` ordinaire.
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE: ${{ github.repository }}
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  image:
+    name: Image multi-architecture
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # QEMU sert au conteneur final, pas à la compilation : le Dockerfile
+      # croise-compile depuis l'architecture du constructeur.
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Étiquettes
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE }}
+          # `latest` ne suit que les versions stables : une préversion
+          # `v0.2.0-rc1` ne doit pas devenir ce que tire une instance qui
+          # n'a rien demandé de particulier.
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest,enable=${{ !contains(github.ref_name, '-') }}
+
+      - name: Construire et publier
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/docker/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ github.ref_name }}
+            COMMIT=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # Une image qui se construit n'est pas une image qui démarre. Le contrôle
+      # ne coûte que quelques secondes et attrape la classe de panne la plus
+      # embarrassante : une release publiée qui ne se lance pas.
+      - name: Vérifier que l'image démarre
+        run: |
+          IMAGE=$(echo "${{ steps.meta.outputs.tags }}" | head -1)
+          docker run --rm --entrypoint boxincloud "$IMAGE" version

@@ -9,14 +9,16 @@ pour **MinIO, S3, Backblaze B2, Cloudflare R2 et Wasabi** — pas pour un disque
 qu'on essaie ensuite de faire ressembler à du cloud.
 
 [![Licence: AGPL v3](https://img.shields.io/badge/licence-AGPL--3.0-blue.svg)](LICENSE)
-[![Statut](https://img.shields.io/badge/statut-pré--alpha-orange.svg)](docs/04-roadmap.md)
+[![Statut](https://img.shields.io/badge/statut-alpha-orange.svg)](docs/04-roadmap.md)
 
 </div>
 
 ---
 
-> **⚠️ Pré-alpha.** Le projet est en cours de construction initiale. Rien n'est utilisable
-> aujourd'hui. Voir la [feuille de route](docs/04-roadmap.md) pour l'état d'avancement.
+> **⚠️ Alpha.** Le serveur, l'interface web et l'application Android fonctionnent de
+> bout en bout : indexation, lecture, comptes, partage, hors ligne. La v0.1.0 n'est pas
+> encore publiée — attendez-vous à des changements de schéma et à des angles vifs.
+> Voir la [feuille de route](docs/04-roadmap.md).
 
 ## Pourquoi boxincloud
 
@@ -38,15 +40,41 @@ boxincloud prend le problème dans l'autre sens.
 
 ## Démarrage rapide
 
-> Disponible à la v0.1.0. En attendant, voir [le guide de développement](CONTRIBUTING.md).
-
 ```bash
-curl -O https://raw.githubusercontent.com/adonko3xBitters/boxincloud/main/docker-compose.yml
+curl -O https://raw.githubusercontent.com/adonko3xBitters/boxincloud/main/deploy/compose/docker-compose.yml
 docker compose up -d
 ```
 
 Puis ouvrez `http://localhost:8080` — l'assistant de première installation vous guide
 pour créer le compte administrateur, connecter un backend de stockage et lancer un scan.
+
+Rien à éditer avant de démarrer : PostgreSQL et MinIO sont inclus, le bucket est créé,
+les migrations s'appliquent. Les valeurs par défaut conviennent à un essai sur une
+machine personnelle et **pas** à une instance exposée — la section
+[« Avant d'exposer »](docs/05-installation.md#avant-dexposer-sur-internet) dit lesquelles
+changer, et pourquoi.
+
+**Unraid, TrueNAS, Synology, sources** → [guide d'installation](docs/05-installation.md).
+
+### Sur téléphone
+
+Depuis l'interface web : menu du compte → **Application mobile**. Un code QR mène à une
+page qui propose l'APK Android et rappelle l'adresse du serveur, à saisir au premier
+lancement. iOS n'est pas encore publié.
+
+## Ce qui marche aujourd'hui
+
+| | |
+|---|---|
+| **Indexation** | CBZ, CBR, PDF · index ZIP par requêtes Range · `ComicInfo.xml` et analyse du nom de fichier · détection des séries |
+| **Lecture web** | page simple, double page, défilement continu · ajustements · sens manga · clavier complet · progression synchronisée |
+| **Bibliothèque** | grille virtualisée · recherche insensible aux accents et tolérante aux fautes · dossiers, séries, listes de lecture |
+| **Gestion** | téléversement par glisser-déposer · dossiers avec verrouillage par code · liens de partage publics · édition des métadonnées |
+| **Comptes** | rôles · bibliothèques restreintes · profils enfants filtrés par classification d'âge · révocation d'appareil |
+| **Android** | lecture en ligne et hors ligne · téléchargement d'un album ou d'une série · budget disque · réconciliation au retour du réseau |
+
+Ce qui n'y est pas encore : iOS, OPDS, applications de bureau, i18n autre que le
+français. Voir la [feuille de route](docs/04-roadmap.md#après-la-v010).
 
 ## Documentation
 
@@ -56,12 +84,13 @@ pour créer le compte administrateur, connecter un backend de stockage et lancer
 | [Modèle de données](docs/02-data-model.md) | Schéma PostgreSQL et justifications |
 | [Structure du dépôt](docs/03-repo-structure.md) | Arborescence et conventions |
 | [Feuille de route](docs/04-roadmap.md) | Jalons jusqu'à la v0.1.0 et au-delà |
+| [Installation](docs/05-installation.md) | Compose, Unraid, TrueNAS, Synology, sources, migration |
 | [Contribuer](CONTRIBUTING.md) | Installer l'environnement, conventions, workflow |
 
 ## Stack
 
-**Serveur** Go · Chi · PostgreSQL · [River](https://riverqueue.com) · sqlc · goose · libvips
-**Web** Next.js (export statique, embarqué dans le binaire) · React · TypeScript · Tailwind · shadcn/ui
+**Serveur** Go · Chi · PostgreSQL · [River](https://riverqueue.com) · sqlc · goose
+**Web** Next.js (export statique, embarqué dans le binaire) · React · TypeScript · Tailwind
 **Mobile** Flutter · Riverpod · Drift
 **Contrat** OpenAPI 3.1 — clients Go, TypeScript et Dart générés depuis une source unique
 

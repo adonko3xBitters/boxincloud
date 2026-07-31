@@ -1,0 +1,109 @@
+# boxincloud — installation complète.
+#
+#   docker compose up -d
+#
+# Rien à éditer avant de démarrer, et c'est le point le plus important de ce
+# fichier. Un self-hosted qu'on découvre se juge en cinq minutes ; demander de
+# générer une clé, de créer un bucket et de choisir un mot de passe avant même
+# de voir l'écran d'accueil fait perdre la moitié des gens à la première étape.
+#
+# Les valeurs par défaut ci-dessous conviennent à un essai sur une machine
+# personnelle. Elles NE conviennent PAS à une instance exposée sur Internet :
+# la section « Avant d'exposer » du README dit lesquelles changer, et pourquoi.
+
+name: boxincloud
+
+services:
+  boxincloud:
+    image: ${BOXINCLOUD_IMAGE:-ghcr.io/adonko3xbitters/boxincloud:latest}
+    restart: unless-stopped
+    ports:
+      - "${BOXINCLOUD_PORT:-8080}:8080"
+    environment:
+      DATABASE_URL: postgres://boxincloud:${POSTGRES_PASSWORD:-boxincloud}@postgres:5432/boxincloud?sslmode=disable
+
+      # Chiffre les identifiants des backends de stockage en base.
+      #
+      # La valeur par défaut est publique — elle est écrite ici. Elle permet de
+      # démarrer sans préparation ; elle ne protège rien. En produire une vraie :
+      #   openssl rand -hex 32
+      BOXINCLOUD_SECRET_KEY: ${BOXINCLOUD_SECRET_KEY:-0000000000000000000000000000000000000000000000000000000000000000}
+
+      BOXINCLOUD_ENV: production
+      BOXINCLOUD_PUBLIC_URL: ${BOXINCLOUD_PUBLIC_URL:-http://localhost:8080}
+      BOXINCLOUD_LOG_LEVEL: ${BOXINCLOUD_LOG_LEVEL:-info}
+      BOXINCLOUD_CACHE_MAX_SIZE: ${BOXINCLOUD_CACHE_MAX_SIZE:-10GB}
+    volumes:
+      - boxincloud-data:/var/lib/boxincloud
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: boxincloud
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-boxincloud}
+      POSTGRES_DB: boxincloud
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      # `pg_isready` accepte les connexions avant que la base soit vraiment
+      # prête à servir : le `-d` force une vraie requête sur la bonne base.
+      test: ["CMD-SHELL", "pg_isready -U boxincloud -d boxincloud"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  # MinIO est inclus pour que le stockage objet soit démontrable tout de suite.
+  #
+  # Ce n'est pas une obligation : boxincloud sait aussi lire un répertoire
+  # local, et une instance qui pointe vers un S3 existant peut supprimer ce
+  # service. Mais le stockage objet EST le sujet du projet, et le proposer par
+  # défaut évite d'avoir à y croire sur parole.
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-boxincloud}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-boxincloud}
+    volumes:
+      - minio-data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  # Crée le bucket, puis s'arrête.
+  #
+  # Un conteneur à usage unique plutôt qu'une étape manuelle : sans lui, la
+  # première chose demandée à quelqu'un qui découvre le projet serait d'ouvrir
+  # une console MinIO pour cliquer sur « Create bucket ».
+  minio-init:
+    image: minio/mc:latest
+    depends_on:
+      minio:
+        condition: service_healthy
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:-boxincloud}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:-boxincloud}
+      MINIO_BUCKET: ${MINIO_BUCKET:-comics}
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 $$MINIO_ROOT_USER $$MINIO_ROOT_PASSWORD &&
+      mc mb --ignore-existing local/$$MINIO_BUCKET &&
+      echo 'bucket ' $$MINIO_BUCKET ' prêt'
+      "
+
+volumes:
+  boxincloud-data:
+  postgres-data:
+  minio-data:
