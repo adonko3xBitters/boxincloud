@@ -119,6 +119,32 @@ class ApiClient {
   Future<void> delete(String path) => _send<void>('DELETE', path, (_) {});
 
   /*
+    Récupère des octets bruts — une image, pas du JSON.
+
+    Ne passe pas par `_send`, qui décode systématiquement le corps : une page de
+    bande dessinée n'est pas de l'UTF-8, et la décoder la détruirait. Le
+    rafraîchissement de jeton est en revanche le même, à un essai près, pour la
+    même raison qu'ailleurs.
+  */
+  Future<List<int>> bytes(String path, {Map<String, String>? query}) async {
+    var response = await _perform('GET', path, null, query, false);
+
+    if (response.statusCode == 401 && _refresher != null) {
+      final fresh = await _refresher!();
+      if (fresh != null) {
+        _tokens = fresh;
+        response = await _perform('GET', path, null, query, false);
+      }
+    }
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return response.bodyBytes;
+    }
+
+    throw _problemFrom(response);
+  }
+
+  /*
     Exécute la requête, en rafraîchissant le jeton une fois si besoin.
 
     Le rejeu est limité à un essai : si le jeton fraîchement obtenu est refusé
@@ -351,6 +377,14 @@ extension BoxincloudApi on ApiClient {
       },
     );
   }
+
+  /// Octets d'une page, à la largeur demandée.
+  ///
+  /// Largeur nulle : l'image d'origine, telle qu'elle est dans l'archive.
+  Future<List<int>> pageBytes(String comicId, int index, {int width = 0}) => bytes(
+        '/comics/$comicId/pages/$index',
+        query: width > 0 ? {'width': '$width'} : null,
+      );
 
   Future<Manifest> manifest(String comicId) => get(
         '/comics/$comicId/manifest',

@@ -6,6 +6,7 @@ import '../../core/auth/session.dart';
 import '../../core/db/database.dart';
 import '../../shared/theme.dart';
 import '../../shared/tokens.dart';
+import '../offline/downloads_screen.dart';
 import '../search/search_screen.dart';
 import 'comic_detail_screen.dart';
 import 'library_controller.dart';
@@ -271,6 +272,18 @@ class _FolderSheet extends ConsumerWidget {
               Navigator.pop(context);
               Navigator.of(context).push(
                 MaterialPageRoute<void>(builder: (_) => const SeriesListScreen()),
+              );
+            },
+          ),
+
+          ListTile(
+            leading: const Icon(Icons.download_outlined),
+            title: const Text('Téléchargements'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.pop(context);
+              Navigator.of(context).push(
+                MaterialPageRoute<void>(builder: (_) => const DownloadsScreen()),
               );
             },
           ),

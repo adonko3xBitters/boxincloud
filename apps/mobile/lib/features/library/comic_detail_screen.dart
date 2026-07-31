@@ -8,6 +8,7 @@ import '../../core/db/database.dart';
 import '../../core/sync/progress_sync.dart';
 import '../../shared/theme.dart';
 import '../../shared/tokens.dart';
+import '../offline/download_button.dart';
 import '../reader/reader_screen.dart';
 import 'library_controller.dart';
 import 'series_screen.dart';
@@ -120,6 +121,9 @@ class ComicDetailScreen extends ConsumerWidget {
               ],
             ),
           ),
+
+          const SizedBox(height: BoxSpace.s4),
+          DownloadButton(comic: comic),
 
           const SizedBox(height: BoxSpace.s6),
           _Facts(comic: comic),

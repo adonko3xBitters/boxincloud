@@ -2620,6 +2620,824 @@ class FavoritesCompanion extends UpdateCompanion<Favorite> {
   }
 }
 
+class $DownloadsTable extends Downloads
+    with TableInfo<$DownloadsTable, Download> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $DownloadsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _serverIdMeta = const VerificationMeta(
+    'serverId',
+  );
+  @override
+  late final GeneratedColumn<String> serverId = GeneratedColumn<String>(
+    'server_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _comicIdMeta = const VerificationMeta(
+    'comicId',
+  );
+  @override
+  late final GeneratedColumn<String> comicId = GeneratedColumn<String>(
+    'comic_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _titleMeta = const VerificationMeta('title');
+  @override
+  late final GeneratedColumn<String> title = GeneratedColumn<String>(
+    'title',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _seriesNameMeta = const VerificationMeta(
+    'seriesName',
+  );
+  @override
+  late final GeneratedColumn<String> seriesName = GeneratedColumn<String>(
+    'series_name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _coverPathMeta = const VerificationMeta(
+    'coverPath',
+  );
+  @override
+  late final GeneratedColumn<String> coverPath = GeneratedColumn<String>(
+    'cover_path',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(''),
+  );
+  static const VerificationMeta _pageCountMeta = const VerificationMeta(
+    'pageCount',
+  );
+  @override
+  late final GeneratedColumn<int> pageCount = GeneratedColumn<int>(
+    'page_count',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _pagesDoneMeta = const VerificationMeta(
+    'pagesDone',
+  );
+  @override
+  late final GeneratedColumn<int> pagesDone = GeneratedColumn<int>(
+    'pages_done',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _bytesMeta = const VerificationMeta('bytes');
+  @override
+  late final GeneratedColumn<int> bytes = GeneratedColumn<int>(
+    'bytes',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _widthMeta = const VerificationMeta('width');
+  @override
+  late final GeneratedColumn<int> width = GeneratedColumn<int>(
+    'width',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
+  static const VerificationMeta _stateMeta = const VerificationMeta('state');
+  @override
+  late final GeneratedColumn<String> state = GeneratedColumn<String>(
+    'state',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _errorMeta = const VerificationMeta('error');
+  @override
+  late final GeneratedColumn<String> error = GeneratedColumn<String>(
+    'error',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _requestedAtMeta = const VerificationMeta(
+    'requestedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> requestedAt = GeneratedColumn<DateTime>(
+    'requested_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _completedAtMeta = const VerificationMeta(
+    'completedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> completedAt = GeneratedColumn<DateTime>(
+    'completed_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  static const VerificationMeta _lastReadAtMeta = const VerificationMeta(
+    'lastReadAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> lastReadAt = GeneratedColumn<DateTime>(
+    'last_read_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    serverId,
+    comicId,
+    title,
+    seriesName,
+    coverPath,
+    pageCount,
+    pagesDone,
+    bytes,
+    width,
+    state,
+    error,
+    requestedAt,
+    completedAt,
+    lastReadAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'downloads';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Download> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('server_id')) {
+      context.handle(
+        _serverIdMeta,
+        serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_serverIdMeta);
+    }
+    if (data.containsKey('comic_id')) {
+      context.handle(
+        _comicIdMeta,
+        comicId.isAcceptableOrUnknown(data['comic_id']!, _comicIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_comicIdMeta);
+    }
+    if (data.containsKey('title')) {
+      context.handle(
+        _titleMeta,
+        title.isAcceptableOrUnknown(data['title']!, _titleMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_titleMeta);
+    }
+    if (data.containsKey('series_name')) {
+      context.handle(
+        _seriesNameMeta,
+        seriesName.isAcceptableOrUnknown(data['series_name']!, _seriesNameMeta),
+      );
+    }
+    if (data.containsKey('cover_path')) {
+      context.handle(
+        _coverPathMeta,
+        coverPath.isAcceptableOrUnknown(data['cover_path']!, _coverPathMeta),
+      );
+    }
+    if (data.containsKey('page_count')) {
+      context.handle(
+        _pageCountMeta,
+        pageCount.isAcceptableOrUnknown(data['page_count']!, _pageCountMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_pageCountMeta);
+    }
+    if (data.containsKey('pages_done')) {
+      context.handle(
+        _pagesDoneMeta,
+        pagesDone.isAcceptableOrUnknown(data['pages_done']!, _pagesDoneMeta),
+      );
+    }
+    if (data.containsKey('bytes')) {
+      context.handle(
+        _bytesMeta,
+        bytes.isAcceptableOrUnknown(data['bytes']!, _bytesMeta),
+      );
+    }
+    if (data.containsKey('width')) {
+      context.handle(
+        _widthMeta,
+        width.isAcceptableOrUnknown(data['width']!, _widthMeta),
+      );
+    }
+    if (data.containsKey('state')) {
+      context.handle(
+        _stateMeta,
+        state.isAcceptableOrUnknown(data['state']!, _stateMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_stateMeta);
+    }
+    if (data.containsKey('error')) {
+      context.handle(
+        _errorMeta,
+        error.isAcceptableOrUnknown(data['error']!, _errorMeta),
+      );
+    }
+    if (data.containsKey('requested_at')) {
+      context.handle(
+        _requestedAtMeta,
+        requestedAt.isAcceptableOrUnknown(
+          data['requested_at']!,
+          _requestedAtMeta,
+        ),
+      );
+    } else if (isInserting) {
+      context.missing(_requestedAtMeta);
+    }
+    if (data.containsKey('completed_at')) {
+      context.handle(
+        _completedAtMeta,
+        completedAt.isAcceptableOrUnknown(
+          data['completed_at']!,
+          _completedAtMeta,
+        ),
+      );
+    }
+    if (data.containsKey('last_read_at')) {
+      context.handle(
+        _lastReadAtMeta,
+        lastReadAt.isAcceptableOrUnknown(
+          data['last_read_at']!,
+          _lastReadAtMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {serverId, comicId};
+  @override
+  Download map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Download(
+      serverId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}server_id'],
+      )!,
+      comicId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}comic_id'],
+      )!,
+      title: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}title'],
+      )!,
+      seriesName: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}series_name'],
+      )!,
+      coverPath: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}cover_path'],
+      )!,
+      pageCount: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}page_count'],
+      )!,
+      pagesDone: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}pages_done'],
+      )!,
+      bytes: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}bytes'],
+      )!,
+      width: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}width'],
+      )!,
+      state: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}state'],
+      )!,
+      error: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}error'],
+      ),
+      requestedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}requested_at'],
+      )!,
+      completedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}completed_at'],
+      ),
+      lastReadAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}last_read_at'],
+      ),
+    );
+  }
+
+  @override
+  $DownloadsTable createAlias(String alias) {
+    return $DownloadsTable(attachedDatabase, alias);
+  }
+}
+
+class Download extends DataClass implements Insertable<Download> {
+  final String serverId;
+  final String comicId;
+  final String title;
+  final String seriesName;
+  final String coverPath;
+  final int pageCount;
+
+  /// Pages écrites sur le disque, dans l'ordre.
+  ///
+  /// Le téléchargement est séquentiel : cette valeur EST le point de reprise.
+  /// Les fichiers 0 à `pagesDone - 1` existent et sont complets — chacun est
+  /// écrit sous un nom temporaire puis renommé, ce qui rend l'écriture atomique
+  /// et interdit qu'une interruption laisse un fichier tronqué.
+  final int pagesDone;
+  final int bytes;
+
+  /// Largeur demandée aux pages. Zéro signifie l'image d'origine.
+  final int width;
+
+  /// `queued`, `running`, `paused`, `complete`, `failed`.
+  final String state;
+  final String? error;
+  final DateTime requestedAt;
+  final DateTime? completedAt;
+
+  /// Dernière ouverture dans le lecteur, pour l'éviction.
+  final DateTime? lastReadAt;
+  const Download({
+    required this.serverId,
+    required this.comicId,
+    required this.title,
+    required this.seriesName,
+    required this.coverPath,
+    required this.pageCount,
+    required this.pagesDone,
+    required this.bytes,
+    required this.width,
+    required this.state,
+    this.error,
+    required this.requestedAt,
+    this.completedAt,
+    this.lastReadAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['server_id'] = Variable<String>(serverId);
+    map['comic_id'] = Variable<String>(comicId);
+    map['title'] = Variable<String>(title);
+    map['series_name'] = Variable<String>(seriesName);
+    map['cover_path'] = Variable<String>(coverPath);
+    map['page_count'] = Variable<int>(pageCount);
+    map['pages_done'] = Variable<int>(pagesDone);
+    map['bytes'] = Variable<int>(bytes);
+    map['width'] = Variable<int>(width);
+    map['state'] = Variable<String>(state);
+    if (!nullToAbsent || error != null) {
+      map['error'] = Variable<String>(error);
+    }
+    map['requested_at'] = Variable<DateTime>(requestedAt);
+    if (!nullToAbsent || completedAt != null) {
+      map['completed_at'] = Variable<DateTime>(completedAt);
+    }
+    if (!nullToAbsent || lastReadAt != null) {
+      map['last_read_at'] = Variable<DateTime>(lastReadAt);
+    }
+    return map;
+  }
+
+  DownloadsCompanion toCompanion(bool nullToAbsent) {
+    return DownloadsCompanion(
+      serverId: Value(serverId),
+      comicId: Value(comicId),
+      title: Value(title),
+      seriesName: Value(seriesName),
+      coverPath: Value(coverPath),
+      pageCount: Value(pageCount),
+      pagesDone: Value(pagesDone),
+      bytes: Value(bytes),
+      width: Value(width),
+      state: Value(state),
+      error: error == null && nullToAbsent
+          ? const Value.absent()
+          : Value(error),
+      requestedAt: Value(requestedAt),
+      completedAt: completedAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(completedAt),
+      lastReadAt: lastReadAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(lastReadAt),
+    );
+  }
+
+  factory Download.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Download(
+      serverId: serializer.fromJson<String>(json['serverId']),
+      comicId: serializer.fromJson<String>(json['comicId']),
+      title: serializer.fromJson<String>(json['title']),
+      seriesName: serializer.fromJson<String>(json['seriesName']),
+      coverPath: serializer.fromJson<String>(json['coverPath']),
+      pageCount: serializer.fromJson<int>(json['pageCount']),
+      pagesDone: serializer.fromJson<int>(json['pagesDone']),
+      bytes: serializer.fromJson<int>(json['bytes']),
+      width: serializer.fromJson<int>(json['width']),
+      state: serializer.fromJson<String>(json['state']),
+      error: serializer.fromJson<String?>(json['error']),
+      requestedAt: serializer.fromJson<DateTime>(json['requestedAt']),
+      completedAt: serializer.fromJson<DateTime?>(json['completedAt']),
+      lastReadAt: serializer.fromJson<DateTime?>(json['lastReadAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'serverId': serializer.toJson<String>(serverId),
+      'comicId': serializer.toJson<String>(comicId),
+      'title': serializer.toJson<String>(title),
+      'seriesName': serializer.toJson<String>(seriesName),
+      'coverPath': serializer.toJson<String>(coverPath),
+      'pageCount': serializer.toJson<int>(pageCount),
+      'pagesDone': serializer.toJson<int>(pagesDone),
+      'bytes': serializer.toJson<int>(bytes),
+      'width': serializer.toJson<int>(width),
+      'state': serializer.toJson<String>(state),
+      'error': serializer.toJson<String?>(error),
+      'requestedAt': serializer.toJson<DateTime>(requestedAt),
+      'completedAt': serializer.toJson<DateTime?>(completedAt),
+      'lastReadAt': serializer.toJson<DateTime?>(lastReadAt),
+    };
+  }
+
+  Download copyWith({
+    String? serverId,
+    String? comicId,
+    String? title,
+    String? seriesName,
+    String? coverPath,
+    int? pageCount,
+    int? pagesDone,
+    int? bytes,
+    int? width,
+    String? state,
+    Value<String?> error = const Value.absent(),
+    DateTime? requestedAt,
+    Value<DateTime?> completedAt = const Value.absent(),
+    Value<DateTime?> lastReadAt = const Value.absent(),
+  }) => Download(
+    serverId: serverId ?? this.serverId,
+    comicId: comicId ?? this.comicId,
+    title: title ?? this.title,
+    seriesName: seriesName ?? this.seriesName,
+    coverPath: coverPath ?? this.coverPath,
+    pageCount: pageCount ?? this.pageCount,
+    pagesDone: pagesDone ?? this.pagesDone,
+    bytes: bytes ?? this.bytes,
+    width: width ?? this.width,
+    state: state ?? this.state,
+    error: error.present ? error.value : this.error,
+    requestedAt: requestedAt ?? this.requestedAt,
+    completedAt: completedAt.present ? completedAt.value : this.completedAt,
+    lastReadAt: lastReadAt.present ? lastReadAt.value : this.lastReadAt,
+  );
+  Download copyWithCompanion(DownloadsCompanion data) {
+    return Download(
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
+      comicId: data.comicId.present ? data.comicId.value : this.comicId,
+      title: data.title.present ? data.title.value : this.title,
+      seriesName: data.seriesName.present
+          ? data.seriesName.value
+          : this.seriesName,
+      coverPath: data.coverPath.present ? data.coverPath.value : this.coverPath,
+      pageCount: data.pageCount.present ? data.pageCount.value : this.pageCount,
+      pagesDone: data.pagesDone.present ? data.pagesDone.value : this.pagesDone,
+      bytes: data.bytes.present ? data.bytes.value : this.bytes,
+      width: data.width.present ? data.width.value : this.width,
+      state: data.state.present ? data.state.value : this.state,
+      error: data.error.present ? data.error.value : this.error,
+      requestedAt: data.requestedAt.present
+          ? data.requestedAt.value
+          : this.requestedAt,
+      completedAt: data.completedAt.present
+          ? data.completedAt.value
+          : this.completedAt,
+      lastReadAt: data.lastReadAt.present
+          ? data.lastReadAt.value
+          : this.lastReadAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Download(')
+          ..write('serverId: $serverId, ')
+          ..write('comicId: $comicId, ')
+          ..write('title: $title, ')
+          ..write('seriesName: $seriesName, ')
+          ..write('coverPath: $coverPath, ')
+          ..write('pageCount: $pageCount, ')
+          ..write('pagesDone: $pagesDone, ')
+          ..write('bytes: $bytes, ')
+          ..write('width: $width, ')
+          ..write('state: $state, ')
+          ..write('error: $error, ')
+          ..write('requestedAt: $requestedAt, ')
+          ..write('completedAt: $completedAt, ')
+          ..write('lastReadAt: $lastReadAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    serverId,
+    comicId,
+    title,
+    seriesName,
+    coverPath,
+    pageCount,
+    pagesDone,
+    bytes,
+    width,
+    state,
+    error,
+    requestedAt,
+    completedAt,
+    lastReadAt,
+  );
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Download &&
+          other.serverId == this.serverId &&
+          other.comicId == this.comicId &&
+          other.title == this.title &&
+          other.seriesName == this.seriesName &&
+          other.coverPath == this.coverPath &&
+          other.pageCount == this.pageCount &&
+          other.pagesDone == this.pagesDone &&
+          other.bytes == this.bytes &&
+          other.width == this.width &&
+          other.state == this.state &&
+          other.error == this.error &&
+          other.requestedAt == this.requestedAt &&
+          other.completedAt == this.completedAt &&
+          other.lastReadAt == this.lastReadAt);
+}
+
+class DownloadsCompanion extends UpdateCompanion<Download> {
+  final Value<String> serverId;
+  final Value<String> comicId;
+  final Value<String> title;
+  final Value<String> seriesName;
+  final Value<String> coverPath;
+  final Value<int> pageCount;
+  final Value<int> pagesDone;
+  final Value<int> bytes;
+  final Value<int> width;
+  final Value<String> state;
+  final Value<String?> error;
+  final Value<DateTime> requestedAt;
+  final Value<DateTime?> completedAt;
+  final Value<DateTime?> lastReadAt;
+  final Value<int> rowid;
+  const DownloadsCompanion({
+    this.serverId = const Value.absent(),
+    this.comicId = const Value.absent(),
+    this.title = const Value.absent(),
+    this.seriesName = const Value.absent(),
+    this.coverPath = const Value.absent(),
+    this.pageCount = const Value.absent(),
+    this.pagesDone = const Value.absent(),
+    this.bytes = const Value.absent(),
+    this.width = const Value.absent(),
+    this.state = const Value.absent(),
+    this.error = const Value.absent(),
+    this.requestedAt = const Value.absent(),
+    this.completedAt = const Value.absent(),
+    this.lastReadAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  DownloadsCompanion.insert({
+    required String serverId,
+    required String comicId,
+    required String title,
+    this.seriesName = const Value.absent(),
+    this.coverPath = const Value.absent(),
+    required int pageCount,
+    this.pagesDone = const Value.absent(),
+    this.bytes = const Value.absent(),
+    this.width = const Value.absent(),
+    required String state,
+    this.error = const Value.absent(),
+    required DateTime requestedAt,
+    this.completedAt = const Value.absent(),
+    this.lastReadAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  }) : serverId = Value(serverId),
+       comicId = Value(comicId),
+       title = Value(title),
+       pageCount = Value(pageCount),
+       state = Value(state),
+       requestedAt = Value(requestedAt);
+  static Insertable<Download> custom({
+    Expression<String>? serverId,
+    Expression<String>? comicId,
+    Expression<String>? title,
+    Expression<String>? seriesName,
+    Expression<String>? coverPath,
+    Expression<int>? pageCount,
+    Expression<int>? pagesDone,
+    Expression<int>? bytes,
+    Expression<int>? width,
+    Expression<String>? state,
+    Expression<String>? error,
+    Expression<DateTime>? requestedAt,
+    Expression<DateTime>? completedAt,
+    Expression<DateTime>? lastReadAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (serverId != null) 'server_id': serverId,
+      if (comicId != null) 'comic_id': comicId,
+      if (title != null) 'title': title,
+      if (seriesName != null) 'series_name': seriesName,
+      if (coverPath != null) 'cover_path': coverPath,
+      if (pageCount != null) 'page_count': pageCount,
+      if (pagesDone != null) 'pages_done': pagesDone,
+      if (bytes != null) 'bytes': bytes,
+      if (width != null) 'width': width,
+      if (state != null) 'state': state,
+      if (error != null) 'error': error,
+      if (requestedAt != null) 'requested_at': requestedAt,
+      if (completedAt != null) 'completed_at': completedAt,
+      if (lastReadAt != null) 'last_read_at': lastReadAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  DownloadsCompanion copyWith({
+    Value<String>? serverId,
+    Value<String>? comicId,
+    Value<String>? title,
+    Value<String>? seriesName,
+    Value<String>? coverPath,
+    Value<int>? pageCount,
+    Value<int>? pagesDone,
+    Value<int>? bytes,
+    Value<int>? width,
+    Value<String>? state,
+    Value<String?>? error,
+    Value<DateTime>? requestedAt,
+    Value<DateTime?>? completedAt,
+    Value<DateTime?>? lastReadAt,
+    Value<int>? rowid,
+  }) {
+    return DownloadsCompanion(
+      serverId: serverId ?? this.serverId,
+      comicId: comicId ?? this.comicId,
+      title: title ?? this.title,
+      seriesName: seriesName ?? this.seriesName,
+      coverPath: coverPath ?? this.coverPath,
+      pageCount: pageCount ?? this.pageCount,
+      pagesDone: pagesDone ?? this.pagesDone,
+      bytes: bytes ?? this.bytes,
+      width: width ?? this.width,
+      state: state ?? this.state,
+      error: error ?? this.error,
+      requestedAt: requestedAt ?? this.requestedAt,
+      completedAt: completedAt ?? this.completedAt,
+      lastReadAt: lastReadAt ?? this.lastReadAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (serverId.present) {
+      map['server_id'] = Variable<String>(serverId.value);
+    }
+    if (comicId.present) {
+      map['comic_id'] = Variable<String>(comicId.value);
+    }
+    if (title.present) {
+      map['title'] = Variable<String>(title.value);
+    }
+    if (seriesName.present) {
+      map['series_name'] = Variable<String>(seriesName.value);
+    }
+    if (coverPath.present) {
+      map['cover_path'] = Variable<String>(coverPath.value);
+    }
+    if (pageCount.present) {
+      map['page_count'] = Variable<int>(pageCount.value);
+    }
+    if (pagesDone.present) {
+      map['pages_done'] = Variable<int>(pagesDone.value);
+    }
+    if (bytes.present) {
+      map['bytes'] = Variable<int>(bytes.value);
+    }
+    if (width.present) {
+      map['width'] = Variable<int>(width.value);
+    }
+    if (state.present) {
+      map['state'] = Variable<String>(state.value);
+    }
+    if (error.present) {
+      map['error'] = Variable<String>(error.value);
+    }
+    if (requestedAt.present) {
+      map['requested_at'] = Variable<DateTime>(requestedAt.value);
+    }
+    if (completedAt.present) {
+      map['completed_at'] = Variable<DateTime>(completedAt.value);
+    }
+    if (lastReadAt.present) {
+      map['last_read_at'] = Variable<DateTime>(lastReadAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('DownloadsCompanion(')
+          ..write('serverId: $serverId, ')
+          ..write('comicId: $comicId, ')
+          ..write('title: $title, ')
+          ..write('seriesName: $seriesName, ')
+          ..write('coverPath: $coverPath, ')
+          ..write('pageCount: $pageCount, ')
+          ..write('pagesDone: $pagesDone, ')
+          ..write('bytes: $bytes, ')
+          ..write('width: $width, ')
+          ..write('state: $state, ')
+          ..write('error: $error, ')
+          ..write('requestedAt: $requestedAt, ')
+          ..write('completedAt: $completedAt, ')
+          ..write('lastReadAt: $lastReadAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $PreferencesTable extends Preferences
     with TableInfo<$PreferencesTable, Preference> {
   @override
@@ -2839,6 +3657,7 @@ abstract class _$BoxDatabase extends GeneratedDatabase {
   );
   late final $LocalProgressTable localProgress = $LocalProgressTable(this);
   late final $FavoritesTable favorites = $FavoritesTable(this);
+  late final $DownloadsTable downloads = $DownloadsTable(this);
   late final $PreferencesTable preferences = $PreferencesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
@@ -2851,6 +3670,7 @@ abstract class _$BoxDatabase extends GeneratedDatabase {
     cachedLibraries,
     localProgress,
     favorites,
+    downloads,
     preferences,
   ];
 }
@@ -4238,6 +5058,379 @@ typedef $$FavoritesTableProcessedTableManager =
       Favorite,
       PrefetchHooks Function()
     >;
+typedef $$DownloadsTableCreateCompanionBuilder =
+    DownloadsCompanion Function({
+      required String serverId,
+      required String comicId,
+      required String title,
+      Value<String> seriesName,
+      Value<String> coverPath,
+      required int pageCount,
+      Value<int> pagesDone,
+      Value<int> bytes,
+      Value<int> width,
+      required String state,
+      Value<String?> error,
+      required DateTime requestedAt,
+      Value<DateTime?> completedAt,
+      Value<DateTime?> lastReadAt,
+      Value<int> rowid,
+    });
+typedef $$DownloadsTableUpdateCompanionBuilder =
+    DownloadsCompanion Function({
+      Value<String> serverId,
+      Value<String> comicId,
+      Value<String> title,
+      Value<String> seriesName,
+      Value<String> coverPath,
+      Value<int> pageCount,
+      Value<int> pagesDone,
+      Value<int> bytes,
+      Value<int> width,
+      Value<String> state,
+      Value<String?> error,
+      Value<DateTime> requestedAt,
+      Value<DateTime?> completedAt,
+      Value<DateTime?> lastReadAt,
+      Value<int> rowid,
+    });
+
+class $$DownloadsTableFilterComposer
+    extends Composer<_$BoxDatabase, $DownloadsTable> {
+  $$DownloadsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get comicId => $composableBuilder(
+    column: $table.comicId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get seriesName => $composableBuilder(
+    column: $table.seriesName,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get coverPath => $composableBuilder(
+    column: $table.coverPath,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get pageCount => $composableBuilder(
+    column: $table.pageCount,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get pagesDone => $composableBuilder(
+    column: $table.pagesDone,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get bytes => $composableBuilder(
+    column: $table.bytes,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get width => $composableBuilder(
+    column: $table.width,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get error => $composableBuilder(
+    column: $table.error,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get requestedAt => $composableBuilder(
+    column: $table.requestedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get lastReadAt => $composableBuilder(
+    column: $table.lastReadAt,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$DownloadsTableOrderingComposer
+    extends Composer<_$BoxDatabase, $DownloadsTable> {
+  $$DownloadsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get comicId => $composableBuilder(
+    column: $table.comicId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get title => $composableBuilder(
+    column: $table.title,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get seriesName => $composableBuilder(
+    column: $table.seriesName,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get coverPath => $composableBuilder(
+    column: $table.coverPath,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get pageCount => $composableBuilder(
+    column: $table.pageCount,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get pagesDone => $composableBuilder(
+    column: $table.pagesDone,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get bytes => $composableBuilder(
+    column: $table.bytes,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get width => $composableBuilder(
+    column: $table.width,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get state => $composableBuilder(
+    column: $table.state,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get error => $composableBuilder(
+    column: $table.error,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get requestedAt => $composableBuilder(
+    column: $table.requestedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get lastReadAt => $composableBuilder(
+    column: $table.lastReadAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$DownloadsTableAnnotationComposer
+    extends Composer<_$BoxDatabase, $DownloadsTable> {
+  $$DownloadsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
+
+  GeneratedColumn<String> get comicId =>
+      $composableBuilder(column: $table.comicId, builder: (column) => column);
+
+  GeneratedColumn<String> get title =>
+      $composableBuilder(column: $table.title, builder: (column) => column);
+
+  GeneratedColumn<String> get seriesName => $composableBuilder(
+    column: $table.seriesName,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get coverPath =>
+      $composableBuilder(column: $table.coverPath, builder: (column) => column);
+
+  GeneratedColumn<int> get pageCount =>
+      $composableBuilder(column: $table.pageCount, builder: (column) => column);
+
+  GeneratedColumn<int> get pagesDone =>
+      $composableBuilder(column: $table.pagesDone, builder: (column) => column);
+
+  GeneratedColumn<int> get bytes =>
+      $composableBuilder(column: $table.bytes, builder: (column) => column);
+
+  GeneratedColumn<int> get width =>
+      $composableBuilder(column: $table.width, builder: (column) => column);
+
+  GeneratedColumn<String> get state =>
+      $composableBuilder(column: $table.state, builder: (column) => column);
+
+  GeneratedColumn<String> get error =>
+      $composableBuilder(column: $table.error, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get requestedAt => $composableBuilder(
+    column: $table.requestedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get completedAt => $composableBuilder(
+    column: $table.completedAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get lastReadAt => $composableBuilder(
+    column: $table.lastReadAt,
+    builder: (column) => column,
+  );
+}
+
+class $$DownloadsTableTableManager
+    extends
+        RootTableManager<
+          _$BoxDatabase,
+          $DownloadsTable,
+          Download,
+          $$DownloadsTableFilterComposer,
+          $$DownloadsTableOrderingComposer,
+          $$DownloadsTableAnnotationComposer,
+          $$DownloadsTableCreateCompanionBuilder,
+          $$DownloadsTableUpdateCompanionBuilder,
+          (Download, BaseReferences<_$BoxDatabase, $DownloadsTable, Download>),
+          Download,
+          PrefetchHooks Function()
+        > {
+  $$DownloadsTableTableManager(_$BoxDatabase db, $DownloadsTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$DownloadsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$DownloadsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$DownloadsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> serverId = const Value.absent(),
+                Value<String> comicId = const Value.absent(),
+                Value<String> title = const Value.absent(),
+                Value<String> seriesName = const Value.absent(),
+                Value<String> coverPath = const Value.absent(),
+                Value<int> pageCount = const Value.absent(),
+                Value<int> pagesDone = const Value.absent(),
+                Value<int> bytes = const Value.absent(),
+                Value<int> width = const Value.absent(),
+                Value<String> state = const Value.absent(),
+                Value<String?> error = const Value.absent(),
+                Value<DateTime> requestedAt = const Value.absent(),
+                Value<DateTime?> completedAt = const Value.absent(),
+                Value<DateTime?> lastReadAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DownloadsCompanion(
+                serverId: serverId,
+                comicId: comicId,
+                title: title,
+                seriesName: seriesName,
+                coverPath: coverPath,
+                pageCount: pageCount,
+                pagesDone: pagesDone,
+                bytes: bytes,
+                width: width,
+                state: state,
+                error: error,
+                requestedAt: requestedAt,
+                completedAt: completedAt,
+                lastReadAt: lastReadAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String serverId,
+                required String comicId,
+                required String title,
+                Value<String> seriesName = const Value.absent(),
+                Value<String> coverPath = const Value.absent(),
+                required int pageCount,
+                Value<int> pagesDone = const Value.absent(),
+                Value<int> bytes = const Value.absent(),
+                Value<int> width = const Value.absent(),
+                required String state,
+                Value<String?> error = const Value.absent(),
+                required DateTime requestedAt,
+                Value<DateTime?> completedAt = const Value.absent(),
+                Value<DateTime?> lastReadAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => DownloadsCompanion.insert(
+                serverId: serverId,
+                comicId: comicId,
+                title: title,
+                seriesName: seriesName,
+                coverPath: coverPath,
+                pageCount: pageCount,
+                pagesDone: pagesDone,
+                bytes: bytes,
+                width: width,
+                state: state,
+                error: error,
+                requestedAt: requestedAt,
+                completedAt: completedAt,
+                lastReadAt: lastReadAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$DownloadsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$BoxDatabase,
+      $DownloadsTable,
+      Download,
+      $$DownloadsTableFilterComposer,
+      $$DownloadsTableOrderingComposer,
+      $$DownloadsTableAnnotationComposer,
+      $$DownloadsTableCreateCompanionBuilder,
+      $$DownloadsTableUpdateCompanionBuilder,
+      (Download, BaseReferences<_$BoxDatabase, $DownloadsTable, Download>),
+      Download,
+      PrefetchHooks Function()
+    >;
 typedef $$PreferencesTableCreateCompanionBuilder =
     PreferencesCompanion Function({
       required String key,
@@ -4393,6 +5586,8 @@ class $BoxDatabaseManager {
       $$LocalProgressTableTableManager(_db, _db.localProgress);
   $$FavoritesTableTableManager get favorites =>
       $$FavoritesTableTableManager(_db, _db.favorites);
+  $$DownloadsTableTableManager get downloads =>
+      $$DownloadsTableTableManager(_db, _db.downloads);
   $$PreferencesTableTableManager get preferences =>
       $$PreferencesTableTableManager(_db, _db.preferences);
 }

@@ -157,18 +157,34 @@ silencieusement faux.
 
 ---
 
-## M6 — Flutter : hors ligne *(~1,5 semaine)*
+## M6 — Flutter : hors ligne — **atteint**
 
 **But :** ce qui distingue une vraie application mobile d'une page web.
 
-- Téléchargement d'un album ou d'une série entière, en arrière-plan, avec reprise.
-- Stockage local (archive CBZ telle quelle, ou pages transcodées), budget disque configurable.
-- Éviction automatique (lu d'abord, puis plus ancien), indicateurs d'occupation.
-- Lecture 100 % hors ligne, y compris serveur injoignable.
-- Réconciliation au retour du réseau, avec la règle « page la plus avancée gagne ».
-- Écran de gestion des téléchargements.
+- [x] Téléchargement d'un album ou d'une série entière, avec reprise.
+- [x] Stockage local en pages transcodées, budget disque configurable.
+- [x] Éviction automatique (lu d'abord, puis plus ancien), indicateurs d'occupation.
+- [x] Lecture 100 % hors ligne, y compris serveur injoignable.
+- [x] Réconciliation au retour du réseau, avec la règle « page la plus avancée gagne ».
+- [x] Écran de gestion des téléchargements.
 
-**Sortie :** mode avion pendant un trajet complet : navigation, lecture, progression — puis synchronisation correcte à la reconnexion.
+Les pages sont téléchargées une par une, redimensionnées, plutôt que l'archive
+d'origine. Ce n'est pas un détail de mise en œuvre : l'application ne sait
+décompresser ni un RAR ni un PDF, et embarquer les deux décodeurs pour lire un
+album dans un train reviendrait à payer très cher une conversion que le serveur
+fait déjà. Le corollaire est heureux — un album de soixante mégaoctets de
+planches scannées en pèse une quinzaine à la définition d'un téléphone.
+
+La reprise ne demande aucun protocole. Les pages sont des unités indépendantes
+écrites dans l'ordre : le nombre de pages écrites EST le point de reprise, et
+une interruption ne coûte au pire qu'une page. Chacune est écrite sous un nom
+temporaire puis renommée, ce qui interdit qu'une coupure laisse un fichier
+tronqué qu'on prendrait ensuite pour une page valide.
+
+**Réserve :** le téléchargement ne survit pas à la fermeture de l'application.
+Un vrai téléchargement d'arrière-plan demande WorkManager côté Android et une
+extension côté iOS ; il reprend au retour au premier plan, et l'écran des
+téléchargements le dit plutôt que de le laisser croire.
 
 ---
 

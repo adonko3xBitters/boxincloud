@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/api/client.dart';
 import '../../core/auth/session.dart';
 import '../../core/db/database.dart';
+import '../../core/sync/progress_sync.dart';
 
 /// Base locale, partagée par toute l'application.
 final databaseProvider = Provider<BoxDatabase>((ref) {
@@ -97,6 +98,27 @@ final libraryProvider = FutureProvider<LibraryView>((ref) async {
         folders: await db.foldersOf(serverId),
         offline: offline,
       );
+
+  /*
+  Réconciliation.
+
+  Ici plutôt que dans un minuteur ou un écouteur de connectivité : ce chargement
+  est la preuve que le réseau répond, et il se produit exactement quand il faut
+  — au lancement, et à chaque fois qu'on tire pour rafraîchir, c'est-à-dire au
+  premier geste de quelqu'un qui retrouve du réseau.
+
+  L'envoi précède le reste. La progression accumulée hors ligne est la seule
+  donnée que l'appareil détient et que le serveur ignore ; tout le reste se
+  retéléchargerait. La perdre pour avoir voulu rafraîchir des couvertures
+  d'abord serait un mauvais échange.
+  */
+  try {
+    await ProgressSync(db: db, serverId: serverId).push(session.client);
+  } on NetworkException {
+    // Sans réseau, rien à réconcilier : la file attendra le prochain passage.
+  } on ApiException {
+    // Le serveur a refusé le lot ; les lignes restent marquées à envoyer.
+  }
 
   try {
     final libraries = await session.client.libraries();

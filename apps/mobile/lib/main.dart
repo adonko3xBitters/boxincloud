@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/auth/session.dart';
 import 'features/library/library_screen.dart';
+import 'features/offline/downloads_controller.dart';
 import 'features/servers/sign_in_screen.dart';
 import 'shared/theme.dart';
 
@@ -36,12 +37,48 @@ class BoxincloudApp extends StatelessWidget {
 /// Un seul point de décision, dérivé de l'état de session : disséminer ce choix
 /// dans plusieurs écrans finirait par produire deux vérités sur « suis-je
 /// connecté ».
-class _Root extends ConsumerWidget {
+class _Root extends ConsumerStatefulWidget {
   const _Root();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_Root> createState() => _RootState();
+}
+
+class _RootState extends ConsumerState<_Root> with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  /*
+    Retour au premier plan.
+
+    Le téléchargement ne survit pas à la mise en arrière-plan — il faudrait
+    WorkManager côté Android et une extension côté iOS, qui ne sont pas faits.
+    Il reprend donc ici, au moment exact où l'application redevient capable de
+    travailler, et là où il s'était arrêté : la file conserve son point de
+    reprise, il n'y a rien à réparer.
+  */
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    ref.read(downloadManagerProvider)?.start();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final session = ref.watch(sessionProvider);
+
+    // Au lancement comme après une bascule de serveur : ce qui restait en file
+    // repart sans qu'on ait à le redemander.
+    ref.listen(downloadManagerProvider, (_, manager) => manager?.start());
 
     return switch (session) {
       SessionLoading() => const Scaffold(

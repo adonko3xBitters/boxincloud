@@ -124,6 +124,50 @@ class Favorites extends Table {
   Set<Column> get primaryKey => {serverId, comicId};
 }
 
+/// Albums téléchargés, ou en cours de l'être.
+///
+/// Le titre et le nombre de pages y sont recopiés depuis le catalogue. C'est
+/// une dénormalisation assumée : l'écran des téléchargements doit rester juste
+/// quand le cache du catalogue a été remplacé, ou quand l'album a disparu du
+/// serveur alors qu'il est encore lisible sur l'appareil.
+class Downloads extends Table {
+  TextColumn get serverId => text()();
+  TextColumn get comicId => text()();
+
+  TextColumn get title => text()();
+  TextColumn get seriesName => text().withDefault(const Constant(''))();
+  TextColumn get coverPath => text().withDefault(const Constant(''))();
+
+  IntColumn get pageCount => integer()();
+
+  /// Pages écrites sur le disque, dans l'ordre.
+  ///
+  /// Le téléchargement est séquentiel : cette valeur EST le point de reprise.
+  /// Les fichiers 0 à `pagesDone - 1` existent et sont complets — chacun est
+  /// écrit sous un nom temporaire puis renommé, ce qui rend l'écriture atomique
+  /// et interdit qu'une interruption laisse un fichier tronqué.
+  IntColumn get pagesDone => integer().withDefault(const Constant(0))();
+
+  IntColumn get bytes => integer().withDefault(const Constant(0))();
+
+  /// Largeur demandée aux pages. Zéro signifie l'image d'origine.
+  IntColumn get width => integer().withDefault(const Constant(0))();
+
+  /// `queued`, `running`, `paused`, `complete`, `failed`.
+  TextColumn get state => text()();
+
+  TextColumn get error => text().nullable()();
+
+  DateTimeColumn get requestedAt => dateTime()();
+  DateTimeColumn get completedAt => dateTime().nullable()();
+
+  /// Dernière ouverture dans le lecteur, pour l'éviction.
+  DateTimeColumn get lastReadAt => dateTime().nullable()();
+
+  @override
+  Set<Column> get primaryKey => {serverId, comicId};
+}
+
 /// Préférences locales, en clé-valeur.
 ///
 /// Pas dans le stockage sécurisé, qui garde les jetons : chiffrer un sens de
@@ -149,6 +193,7 @@ class Preferences extends Table {
     CachedLibraries,
     LocalProgress,
     Favorites,
+    Downloads,
     Preferences,
   ],
 )
@@ -159,7 +204,7 @@ class BoxDatabase extends _$BoxDatabase {
   BoxDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   /*
   Migrations.
@@ -179,8 +224,115 @@ class BoxDatabase extends _$BoxDatabase {
             await m.createTable(favorites);
             await m.addColumn(cachedComics, cachedComics.createdAt);
           }
+          if (from < 4) await m.createTable(downloads);
         },
       );
+
+  // ─── Téléchargements ───────────────────────────────────────────────────────
+
+  Future<Download?> download(String serverId, String comicId) =>
+      (select(downloads)
+            ..where((d) => d.serverId.equals(serverId) & d.comicId.equals(comicId)))
+          .getSingleOrNull();
+
+  Stream<Download?> watchDownload(String serverId, String comicId) =>
+      (select(downloads)
+            ..where((d) => d.serverId.equals(serverId) & d.comicId.equals(comicId)))
+          .watchSingleOrNull();
+
+  /// Tous les téléchargements d'un serveur, les plus récents d'abord.
+  Stream<List<Download>> watchDownloads(String serverId) => (select(downloads)
+        ..where((d) => d.serverId.equals(serverId))
+        ..orderBy([(d) => OrderingTerm.desc(d.requestedAt)]))
+      .watch();
+
+  Future<List<Download>> downloadsOf(String serverId) => (select(downloads)
+        ..where((d) => d.serverId.equals(serverId))
+        ..orderBy([(d) => OrderingTerm.desc(d.requestedAt)]))
+      .get();
+
+  /*
+  Le prochain à traiter : la file se vide dans l'ordre où on l'a remplie.
+
+  Trois états y entrent, et l'omission du troisième a coûté la reprise.
+  `queued` est l'attente normale. `running` couvre la fermeture brutale, qui
+  laisse la ligne telle quelle. `paused` couvre l'interruption — réseau coupé
+  ou geste de l'utilisateur — et doit revenir, sans quoi « Reprendre » ne
+  reprendrait rien.
+
+  `failed` n'y est pas : le serveur a refusé, réessayer donnerait le même
+  refus. Il faut une action explicite.
+  */
+  Future<Download?> nextQueuedDownload(String serverId) => (select(downloads)
+        ..where((d) =>
+            d.serverId.equals(serverId) &
+            d.state.isIn(['queued', 'running', 'paused']))
+        ..orderBy([(d) => OrderingTerm(expression: d.requestedAt)])
+        ..limit(1))
+      .getSingleOrNull();
+
+  Future<void> upsertDownload(DownloadsCompanion download) =>
+      into(downloads).insertOnConflictUpdate(download);
+
+  Future<void> updateDownload(
+    String serverId,
+    String comicId,
+    DownloadsCompanion changes,
+  ) =>
+      (update(downloads)
+            ..where((d) => d.serverId.equals(serverId) & d.comicId.equals(comicId)))
+          .write(changes);
+
+  Future<void> deleteDownload(String serverId, String comicId) =>
+      (delete(downloads)
+            ..where((d) => d.serverId.equals(serverId) & d.comicId.equals(comicId)))
+          .go();
+
+  /// Octets occupés par les téléchargements d'un serveur.
+  Future<int> downloadedBytes(String serverId) async {
+    final rows = await (select(downloads)..where((d) => d.serverId.equals(serverId)))
+        .get();
+    return rows.fold<int>(0, (sum, d) => sum + d.bytes);
+  }
+
+  /*
+  Candidats à l'éviction, du plus sacrifiable au moins.
+
+  L'ordre traduit ce qu'on regrette le moins de perdre. Un album lu jusqu'au
+  bout d'abord : il a rendu son service, et le retélécharger ne coûte qu'au
+  moment où l'on choisirait de le relire. Ensuite le plus anciennement ouvert,
+  faute d'un meilleur signal — un album qu'on n'a pas rouvert depuis trois mois
+  a peu de chances de l'être demain dans le train.
+
+  Un téléchargement inachevé n'est jamais candidat : l'évincer libérerait peu
+  et détruirait un travail en cours.
+  */
+  Future<List<Download>> evictionCandidates(String serverId) async {
+    final query = select(downloads).join([
+      leftOuterJoin(
+        localProgress,
+        localProgress.comicId.equalsExp(downloads.comicId) &
+            localProgress.serverId.equalsExp(downloads.serverId),
+      ),
+    ])
+      ..where(downloads.serverId.equals(serverId) & downloads.state.equals('complete'));
+
+    final rows = await query.get();
+
+    final scored = rows.map((row) {
+      final download = row.readTable(downloads);
+      final read = row.readTableOrNull(localProgress)?.status == 'read';
+      final seen = download.lastReadAt ?? download.completedAt ?? download.requestedAt;
+      return (download: download, read: read, seen: seen);
+    }).toList();
+
+    scored.sort((a, b) {
+      if (a.read != b.read) return a.read ? -1 : 1;
+      return a.seen.compareTo(b.seen);
+    });
+
+    return scored.map((e) => e.download).toList();
+  }
 
   // ─── Préférences ───────────────────────────────────────────────────────────
 
@@ -437,6 +589,7 @@ class BoxDatabase extends _$BoxDatabase {
       await (delete(cachedLibraries)..where((l) => l.serverId.equals(serverId))).go();
       await (delete(localProgress)..where((p) => p.serverId.equals(serverId))).go();
       await (delete(favorites)..where((f) => f.serverId.equals(serverId))).go();
+      await (delete(downloads)..where((d) => d.serverId.equals(serverId))).go();
     });
   }
 }

@@ -7,6 +7,7 @@ import '../../core/auth/session.dart';
 import '../../core/db/database.dart';
 import '../../core/db/mapping.dart';
 import '../../shared/theme.dart';
+import '../offline/downloads_controller.dart';
 import '../../shared/tokens.dart';
 import 'comic_detail_screen.dart';
 import 'library_controller.dart';
@@ -22,6 +23,37 @@ class SeriesScreen extends ConsumerWidget {
 
   const SeriesScreen({super.key, required this.seriesId, required this.name});
 
+  /// Met toute la série en file, dans l'ordre des tomes.
+  ///
+  /// L'ordre compte : la file se vide séquentiellement, et quelqu'un qui
+  /// télécharge une série veut commencer par le tome 1 pendant que le reste
+  /// arrive.
+  Future<void> _downloadAll(BuildContext context, WidgetRef ref) async {
+    final manager = ref.read(downloadManagerProvider);
+    final comics = ref.read(seriesComicsProvider(seriesId)).valueOrNull;
+    if (manager == null || comics == null || comics.isEmpty) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+
+    for (final comic in comics) {
+      await manager.enqueue(
+        comicId: comic.id,
+        title: comic.title,
+        seriesName: comic.seriesName,
+        coverPath: comic.coverPath,
+        pageCount: comic.pageCount,
+      );
+    }
+
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(comics.length == 1
+            ? '1 album en file de téléchargement.'
+            : '${comics.length} albums en file de téléchargement.'),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final session = ref.watch(sessionProvider);
@@ -31,7 +63,18 @@ class SeriesScreen extends ConsumerWidget {
     final comics = ref.watch(seriesComicsProvider(seriesId));
 
     return Scaffold(
-      appBar: AppBar(title: Text(name)),
+      appBar: AppBar(
+        title: Text(name),
+        actions: [
+          // Télécharger une série entière, parce que c'est ainsi qu'on lit :
+          // on n'emporte pas le tome 4 en vacances, on emporte Blacksad.
+          IconButton(
+            tooltip: 'Tout télécharger',
+            icon: const Icon(Icons.download_outlined),
+            onPressed: () => _downloadAll(context, ref),
+          ),
+        ],
+      ),
       body: comics.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, _) => Center(
