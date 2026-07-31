@@ -418,6 +418,8 @@ type Comic struct {
 	FolderPath string
 	// Retiré du catalogue à la demande. Le scan ne le fait pas réapparaître.
 	ExcludedAt pgtype.Timestamptz
+	// Clé, dans le cache dérivé, de l'archive CBZ normalisée. NULL pour un album à accès aléatoire natif.
+	HydratedKey *string
 }
 
 type ComicPage struct {

@@ -285,7 +285,7 @@ SET title       = coalesce($1, title),
         ) AS f
     )
 WHERE id = $6
-RETURNING id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector, cover_placeholder, folder_path, excluded_at
+RETURNING id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector, cover_placeholder, folder_path, excluded_at, hydrated_key
 `
 
 type EditComicParams struct {
@@ -345,6 +345,7 @@ func (q *Queries) EditComic(ctx context.Context, arg EditComicParams) (Comic, er
 		&i.CoverPlaceholder,
 		&i.FolderPath,
 		&i.ExcludedAt,
+		&i.HydratedKey,
 	)
 	return i, err
 }
@@ -554,7 +555,7 @@ func (q *Queries) ListComicsInFolderTree(ctx context.Context, arg ListComicsInFo
 }
 
 const listExcludedComics = `-- name: ListExcludedComics :many
-SELECT id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector, cover_placeholder, folder_path, excluded_at FROM comics
+SELECT id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector, cover_placeholder, folder_path, excluded_at, hydrated_key FROM comics
 WHERE library_id = $1 AND excluded_at IS NOT NULL
 ORDER BY title
 `
@@ -600,6 +601,7 @@ func (q *Queries) ListExcludedComics(ctx context.Context, libraryID uuid.UUID) (
 			&i.CoverPlaceholder,
 			&i.FolderPath,
 			&i.ExcludedAt,
+			&i.HydratedKey,
 		); err != nil {
 			return nil, err
 		}
@@ -922,7 +924,7 @@ func (q *Queries) ListShareLinks(ctx context.Context, libraryIds []uuid.UUID) ([
 }
 
 const listSharedComics = `-- name: ListSharedComics :many
-SELECT c.id, c.library_id, c.series_id, c.object_key, c.file_size, c.file_etag, c.content_hash, c.format, c.title, c.number, c.number_sort, c.volume, c.summary, c.released_at, c.age_rating, c.language, c.page_count, c.cover_page, c.state, c.state_detail, c.hydrated_at, c.indexed_at, c.metadata, c.locked_fields, c.created_at, c.updated_at, c.deleted_at, c.search_vector, c.cover_placeholder, c.folder_path, c.excluded_at, COALESCE(s.name, '')::text AS series_name
+SELECT c.id, c.library_id, c.series_id, c.object_key, c.file_size, c.file_etag, c.content_hash, c.format, c.title, c.number, c.number_sort, c.volume, c.summary, c.released_at, c.age_rating, c.language, c.page_count, c.cover_page, c.state, c.state_detail, c.hydrated_at, c.indexed_at, c.metadata, c.locked_fields, c.created_at, c.updated_at, c.deleted_at, c.search_vector, c.cover_placeholder, c.folder_path, c.excluded_at, c.hydrated_key, COALESCE(s.name, '')::text AS series_name
 FROM comics c
 LEFT JOIN series s ON s.id = c.series_id
 WHERE c.library_id = $1
@@ -985,6 +987,7 @@ func (q *Queries) ListSharedComics(ctx context.Context, arg ListSharedComicsPara
 			&i.Comic.CoverPlaceholder,
 			&i.Comic.FolderPath,
 			&i.Comic.ExcludedAt,
+			&i.Comic.HydratedKey,
 			&i.SeriesName,
 		); err != nil {
 			return nil, err

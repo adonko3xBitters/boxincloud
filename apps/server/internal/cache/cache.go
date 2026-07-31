@@ -162,6 +162,20 @@ func (c *Cache) Put(ctx context.Context, key string, comicID uuid.UUID, data []b
 	return nil
 }
 
+/*
+Provider expose le stockage sous-jacent du cache.
+
+Réservé à l'hydratation, qui y dépose une archive normalisée de plusieurs
+centaines de méga-octets. `Put` prendrait cette archive en tranche d'octets et
+la chargerait donc entière en mémoire ; le provider, lui, écrit en flux.
+
+L'inventaire n'est pas alimenté par ce chemin, et c'est voulu : une archive
+hydratée n'est PAS évinçable comme une vignette. La perdre rendrait l'album
+illisible jusqu'à une réindexation, alors que perdre une vignette ne coûte
+qu'une régénération à la volée.
+*/
+func (c *Cache) Provider() storage.Provider { return c.provider }
+
 // Delete retire une entrée.
 func (c *Cache) Delete(ctx context.Context, key string) error {
 	if err := c.provider.Delete(ctx, key); err != nil && !errors.Is(err, storage.ErrNotFound) {

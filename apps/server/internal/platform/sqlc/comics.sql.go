@@ -148,7 +148,7 @@ func (q *Queries) DeleteComicPages(ctx context.Context, comicID uuid.UUID) error
 }
 
 const getComic = `-- name: GetComic :one
-SELECT id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector, cover_placeholder, folder_path, excluded_at FROM comics WHERE id = $1
+SELECT id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector, cover_placeholder, folder_path, excluded_at, hydrated_key FROM comics WHERE id = $1
 `
 
 func (q *Queries) GetComic(ctx context.Context, id uuid.UUID) (Comic, error) {
@@ -186,12 +186,13 @@ func (q *Queries) GetComic(ctx context.Context, id uuid.UUID) (Comic, error) {
 		&i.CoverPlaceholder,
 		&i.FolderPath,
 		&i.ExcludedAt,
+		&i.HydratedKey,
 	)
 	return i, err
 }
 
 const getComicByObjectKey = `-- name: GetComicByObjectKey :one
-SELECT id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector, cover_placeholder, folder_path, excluded_at FROM comics WHERE library_id = $1 AND object_key = $2
+SELECT id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector, cover_placeholder, folder_path, excluded_at, hydrated_key FROM comics WHERE library_id = $1 AND object_key = $2
 `
 
 type GetComicByObjectKeyParams struct {
@@ -234,6 +235,7 @@ func (q *Queries) GetComicByObjectKey(ctx context.Context, arg GetComicByObjectK
 		&i.CoverPlaceholder,
 		&i.FolderPath,
 		&i.ExcludedAt,
+		&i.HydratedKey,
 	)
 	return i, err
 }
@@ -400,7 +402,7 @@ func (q *Queries) ListComicPages(ctx context.Context, comicID uuid.UUID) ([]Comi
 }
 
 const listComicsByLibrary = `-- name: ListComicsByLibrary :many
-SELECT id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector, cover_placeholder, folder_path, excluded_at FROM comics
+SELECT id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector, cover_placeholder, folder_path, excluded_at, hydrated_key FROM comics
 WHERE library_id = $1 AND deleted_at IS NULL
 ORDER BY title
 LIMIT $2 OFFSET $3
@@ -453,6 +455,7 @@ func (q *Queries) ListComicsByLibrary(ctx context.Context, arg ListComicsByLibra
 			&i.CoverPlaceholder,
 			&i.FolderPath,
 			&i.ExcludedAt,
+			&i.HydratedKey,
 		); err != nil {
 			return nil, err
 		}
@@ -609,6 +612,25 @@ func (q *Queries) RefreshSeriesCounts(ctx context.Context, libraryID uuid.UUID) 
 	return err
 }
 
+const setComicHydrated = `-- name: SetComicHydrated :exec
+UPDATE comics SET hydrated_key = $2 WHERE id = $1
+`
+
+type SetComicHydratedParams struct {
+	ID          uuid.UUID
+	HydratedKey *string
+}
+
+// Enregistre l'archive normalisée d'un album hydraté.
+//
+// Écrite AVANT l'indexation des pages : les offsets qui suivront désignent
+// cette archive, et l'ordre inverse laisserait, en cas d'interruption, des
+// pages pointant vers une archive que rien ne référence.
+func (q *Queries) SetComicHydrated(ctx context.Context, arg SetComicHydratedParams) error {
+	_, err := q.db.Exec(ctx, setComicHydrated, arg.ID, arg.HydratedKey)
+	return err
+}
+
 const setComicIndexed = `-- name: SetComicIndexed :exec
 UPDATE comics
 SET state = 'ready',
@@ -702,7 +724,7 @@ SET file_size  = EXCLUDED.file_size,
         THEN 'pending'::comic_state
         ELSE comics.state
     END
-RETURNING id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector, cover_placeholder, folder_path, excluded_at, (xmax = 0) AS inserted
+RETURNING id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector, cover_placeholder, folder_path, excluded_at, hydrated_key, (xmax = 0) AS inserted
 `
 
 type UpsertComicParams struct {
@@ -747,6 +769,7 @@ type UpsertComicRow struct {
 	CoverPlaceholder *string
 	FolderPath       string
 	ExcludedAt       pgtype.Timestamptz
+	HydratedKey      *string
 	Inserted         bool
 }
 
@@ -795,6 +818,7 @@ func (q *Queries) UpsertComic(ctx context.Context, arg UpsertComicParams) (Upser
 		&i.CoverPlaceholder,
 		&i.FolderPath,
 		&i.ExcludedAt,
+		&i.HydratedKey,
 		&i.Inserted,
 	)
 	return i, err

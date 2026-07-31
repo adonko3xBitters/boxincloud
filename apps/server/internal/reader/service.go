@@ -38,6 +38,14 @@ type Comic struct {
 	State     string
 	PageCount int32
 	CoverPage int32
+
+	// HydratedKey désigne, dans le cache dérivé, l'archive CBZ normalisée d'un
+	// album dont le format n'a pas d'accès aléatoire natif — un CBR, un PDF.
+	// Vide pour un CBZ, qui est le cas courant.
+	//
+	// Quand elle est renseignée, les offsets de `comic_pages` s'appliquent à
+	// cette archive et non à l'objet de l'utilisateur.
+	HydratedKey string
 }
 
 // Page est une entrée de comic_pages : les coordonnées d'accès aléatoire.
@@ -238,22 +246,44 @@ func (s *Service) GetPage(ctx context.Context, req PageRequest) (PageContent, er
 // ★ Le point où se tient la promesse du projet : un seul ReadRange, sur les
 // coordonnées lues en base. L'index de l'archive n'est jamais relu.
 func (s *Service) openOriginal(ctx context.Context, comic Comic, page Page) (io.ReadCloser, error) {
-	lib, err := s.libraries.GetLibrary(ctx, comic.LibraryID)
-	if err != nil {
-		return nil, err
-	}
-	provider, err := s.libraries.ProviderForLibrary(ctx, lib)
+	provider, key, err := s.sourceOf(ctx, comic)
 	if err != nil {
 		return nil, err
 	}
 
-	return archive.OpenEntry(ctx, provider, comic.ObjectKey, archive.Entry{
+	return archive.OpenEntry(ctx, provider, key, archive.Entry{
 		Name:        page.EntryName,
 		DataOffset:  page.DataOffset,
 		DataSize:    page.DataSize,
 		Size:        page.Size,
 		Compression: compressionOf(page.Compression),
 	})
+}
+
+/*
+sourceOf désigne l'archive dont les offsets d'un album sont issus.
+
+Un CBZ est lu chez l'utilisateur. Un CBR ou un PDF est lu dans le cache dérivé,
+où l'indexation a déposé sa version normalisée — l'original n'a jamais permis
+l'accès aléatoire et ne le permettra jamais.
+
+Le reste du chemin de lecture ignore la distinction, et c'est l'intérêt : il n'y
+a qu'un seul code de service de page, pas un par format.
+*/
+func (s *Service) sourceOf(ctx context.Context, comic Comic) (storage.Provider, string, error) {
+	if comic.HydratedKey != "" {
+		return s.cache.Provider(), comic.HydratedKey, nil
+	}
+
+	lib, err := s.libraries.GetLibrary(ctx, comic.LibraryID)
+	if err != nil {
+		return nil, "", err
+	}
+	provider, err := s.libraries.ProviderForLibrary(ctx, lib)
+	if err != nil {
+		return nil, "", err
+	}
+	return provider, comic.ObjectKey, nil
 }
 
 // compressionOf convertit la méthode de compression persistée.

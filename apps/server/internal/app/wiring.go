@@ -126,6 +126,7 @@ func BuildCore(ctx context.Context, cfg *config.Config, pool *db.Pool, log *slog
 		indexerRepo,
 		ingest.NewPostgresManage(queries),
 		&jobScanner{client: jobClient},
+		cacheProvider,
 		cfg.Upload.MaxSize,
 		log,
 	)

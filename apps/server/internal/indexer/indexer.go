@@ -267,27 +267,71 @@ func (w *IndexComicWorker) Work(ctx context.Context, job *river.Job[IndexComicAr
 		return fail(err)
 	}
 
-	// M1 traite le CBZ, seul format à permettre l'accès aléatoire. Les autres
-	// relèvent de l'hydratation au premier accès, prévue pour un jalon
-	// ultérieur : on les marque explicitement plutôt que de les laisser
-	// silencieusement en attente.
-	if !format.SupportsRandomAccess() {
-		msg := fmt.Sprintf("le format %s demande une hydratation (non implémentée en M1)", format)
-		if err := w.deps.Repo.SetComicState(ctx, comic.ID, "error", msg); err != nil {
-			return err
-		}
-		log.Info("format différé", slog.String("format", string(format)), slog.String("key", comic.ObjectKey))
-		return nil
-	}
-
 	start := time.Now()
 
-	idx, err := archive.ReadZipIndex(ctx, provider, comic.ObjectKey, comic.FileSize)
-	if err != nil {
-		return fail(fmt.Errorf("indexation de %q : %w", comic.ObjectKey, err))
+	/*
+		Les formats sans accès aléatoire sont convertis avant d'être indexés.
+
+		Le RAR ne permettra jamais de servir une page par une requête Range —
+		ses archives solides compressent les fichiers comme un flux continu — et
+		le PDF demanderait un moteur de rendu qu'on ne veut pas embarquer. On
+		les réécrit donc une fois en CBZ dans le cache dérivé, et tout ce qui
+		suit ne connaît plus qu'un CBZ.
+
+		L'archive hydratée devient la source des offsets : `indexKey` et
+		`indexProvider` désignent à partir d'ici l'objet réellement indexé, qui
+		n'est plus celui de l'utilisateur.
+	*/
+	indexKey, indexSize, indexProvider := comic.ObjectKey, comic.FileSize, provider
+
+	if !format.SupportsRandomAccess() {
+		if err := w.deps.Repo.SetComicState(ctx, comic.ID, "hydrating", ""); err != nil {
+			return err
+		}
+
+		log.Info("hydratation",
+			slog.String("format", string(format)),
+			slog.String("key", comic.ObjectKey))
+
+		cacheProvider := w.deps.Cache.Provider()
+
+		hydrated, err := Hydrate(ctx, provider, cacheProvider, comic.ID, comic.ObjectKey, format)
+		if err != nil {
+			return fail(fmt.Errorf("hydratation de %q : %w", comic.ObjectKey, err))
+		}
+
+		info, err := cacheProvider.Stat(ctx, hydrated)
+		if err != nil {
+			return fail(fmt.Errorf("archive hydratée illisible : %w", err))
+		}
+
+		// Enregistrée AVANT l'indexation des pages : les offsets qui suivent
+		// désignent cette archive, et l'ordre inverse laisserait, en cas
+		// d'interruption, des pages pointant vers une archive que rien ne
+		// référence.
+		if err := w.deps.Repo.SetComicHydrated(ctx, comic.ID, hydrated); err != nil {
+			return fail(err)
+		}
+
+		indexKey, indexSize, indexProvider = hydrated, info.Size, cacheProvider
+
+		log.Info("album hydraté",
+			slog.String("key", comic.ObjectKey),
+			slog.String("archive", hydrated),
+			slog.Int64("octets", info.Size),
+			slog.Duration("durée", time.Since(start)))
 	}
 
-	pages, err := w.buildPages(ctx, provider, comic.ObjectKey, idx)
+	idx, err := archive.ReadZipIndex(ctx, indexProvider, indexKey, indexSize)
+	if err != nil {
+		return fail(fmt.Errorf("indexation de %q : %w", indexKey, err))
+	}
+
+	// Tout ce qui suit lit des pages, donc l'archive indexée — l'originale pour
+	// un CBZ, l'hydratée sinon. Passer `provider` et `comic.ObjectKey` ici
+	// donnerait des offsets valides appliqués au mauvais fichier : la lecture
+	// rendrait des octets arbitraires plutôt qu'une erreur.
+	pages, err := w.buildPages(ctx, indexProvider, indexKey, idx)
 	if err != nil {
 		return fail(err)
 	}
@@ -296,13 +340,13 @@ func (w *IndexComicWorker) Work(ctx context.Context, job *river.Job[IndexComicAr
 		return fail(err)
 	}
 
-	if err := w.applyMetadata(ctx, provider, comic, lib, idx); err != nil {
+	if err := w.applyMetadata(ctx, indexProvider, comic, lib, idx); err != nil {
 		// Des métadonnées manquantes ne rendent pas l'album illisible : on
 		// signale sans faire échouer l'indexation.
 		log.Warn("métadonnées non appliquées", slog.Any("err", err))
 	}
 
-	if err := w.generateCover(ctx, provider, comic, idx); err != nil {
+	if err := w.generateCover(ctx, indexProvider, comic, idx); err != nil {
 		log.Warn("couverture non générée", slog.Any("err", err))
 	}
 

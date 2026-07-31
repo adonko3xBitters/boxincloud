@@ -166,3 +166,45 @@ non.
 Rien n'oblige à choisir tout de suite : les deux applications peuvent lire le
 même répertoire en même temps, en lecture seule. C'est même la façon
 recommandée d'essayer.
+
+---
+
+## Formats
+
+| Format | Traitement |
+| --- | --- |
+| **CBZ / ZIP** | Lu directement. Une page = une requête Range sur l'archive distante. |
+| **CBR / RAR** | Converti en CBZ à l'indexation, dans le cache. Ensuite identique au CBZ. |
+| **PDF** | Idem, par extraction des images de chaque page. |
+| CB7, EPUB | Détectés, non traités. L'album est marqué en erreur explicitement. |
+
+### Pourquoi une conversion
+
+Le RAR ne permettra jamais de servir une page sans lire ce qui la précède : ses
+archives « solides » compressent les fichiers comme un flux continu. Et un PDF
+demanderait un moteur de rendu écrit en C, incompatible avec le binaire statique
+que le projet livre.
+
+Plutôt que d'exclure ces formats ou de prétendre les supporter, boxincloud les
+lit **une fois**, à l'indexation, et en dépose une version CBZ dans son cache.
+Toute lecture ultérieure suit exactement le chemin d'un CBZ.
+
+**Vos fichiers ne sont jamais touchés.** La version convertie vit dans le cache
+dérivé — le seul emplacement dont boxincloud est propriétaire. L'original n'est
+ni modifié, ni déplacé, ni dupliqué chez vous.
+
+### Ce que cela coûte
+
+Le cache grossit d'un volume proche de celui des CBR et PDF indexés. Prévoyez-le
+si votre bibliothèque en compte beaucoup : `BOXINCLOUD_CACHE_MAX_SIZE` borne les
+vignettes et les pages transcodées, **pas** les archives converties — les
+évincer rendrait des albums illisibles jusqu'à une réindexation.
+
+Supprimer un album emporte sa version convertie.
+
+### Une limite nommée
+
+Un PDF de bande dessinée **native** — du texte et des vecteurs, sans image de
+fond — ne donne rien à extraire, et l'album est marqué en erreur. Le cas existe
+chez les éditions numériques natives. Le traiter demanderait le moteur de rendu
+qu'on a écarté ; le prétendre serait pire que de le refuser.

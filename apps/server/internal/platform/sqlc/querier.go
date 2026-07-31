@@ -299,6 +299,12 @@ type Querier interface {
 	SearchComics(ctx context.Context, arg SearchComicsParams) ([]SearchComicsRow, error)
 	SearchSeries(ctx context.Context, arg SearchSeriesParams) ([]SearchSeriesRow, error)
 	SetComicFolder(ctx context.Context, arg SetComicFolderParams) error
+	// Enregistre l'archive normalisée d'un album hydraté.
+	//
+	// Écrite AVANT l'indexation des pages : les offsets qui suivront désignent
+	// cette archive, et l'ordre inverse laisserait, en cas d'interruption, des
+	// pages pointant vers une archive que rien ne référence.
+	SetComicHydrated(ctx context.Context, arg SetComicHydratedParams) error
 	SetComicIndexed(ctx context.Context, arg SetComicIndexedParams) error
 	SetComicPlaceholder(ctx context.Context, arg SetComicPlaceholderParams) error
 	SetComicState(ctx context.Context, arg SetComicStateParams) error

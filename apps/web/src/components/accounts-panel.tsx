@@ -24,7 +24,7 @@ export function AccountsPanel({ onClose }: { onClose: () => void }) {
   const [creating, setCreating] = useState(false);
 
   const accounts = useQuery({ queryKey: ["accounts"], queryFn: api.listAccounts });
-  const list = accounts.data?.accounts ?? [];
+  const list = useMemo(() => accounts.data?.accounts ?? [], [accounts.data]);
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {

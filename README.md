@@ -30,6 +30,8 @@ boxincloud prend le problème dans l'autre sens.
 
 - **Stockage objet natif.** Une page se sert par une **requête HTTP Range unique** sur
   l'archive distante. Pas de téléchargement complet, pas de montage, pas de copie locale.
+  Le CBR et le PDF, qui ne permettent pas l'accès aléatoire, sont convertis une seule fois
+  à l'indexation — après quoi ils coûtent exactement ce que coûte un CBZ.
 - **Plusieurs backends simultanément.** Une bibliothèque sur votre MinIO, une autre sur
   Backblaze B2, une troisième sur un disque local. Dans la même instance.
 - **Une UX qui compte.** Un lecteur fluide et une bibliothèque agréable sont l'objectif,
@@ -66,15 +68,15 @@ lancement. iOS n'est pas encore publié.
 
 | | |
 |---|---|
-| **Indexation** | CBZ, CBR, PDF · index ZIP par requêtes Range · `ComicInfo.xml` et analyse du nom de fichier · détection des séries |
+| **Indexation** | CBZ en accès direct · CBR et PDF convertis à l'indexation · `ComicInfo.xml` et analyse du nom de fichier · détection des séries |
 | **Lecture web** | page simple, double page, défilement continu · ajustements · sens manga · clavier complet · progression synchronisée |
 | **Bibliothèque** | grille virtualisée · recherche insensible aux accents et tolérante aux fautes · dossiers, séries, listes de lecture |
 | **Gestion** | téléversement par glisser-déposer · dossiers avec verrouillage par code · liens de partage publics · édition des métadonnées |
 | **Comptes** | rôles · bibliothèques restreintes · profils enfants filtrés par classification d'âge · révocation d'appareil |
 | **Android** | lecture en ligne et hors ligne · téléchargement d'un album ou d'une série · budget disque · réconciliation au retour du réseau |
 
-Ce qui n'y est pas encore : iOS, OPDS, applications de bureau, i18n autre que le
-français. Voir la [feuille de route](docs/04-roadmap.md#après-la-v010).
+Ce qui n'y est pas encore : iOS, OPDS, applications de bureau, CB7 et EPUB. Voir la
+[feuille de route](docs/04-roadmap.md#après-la-v010).
 
 ## Documentation
 

@@ -44,7 +44,14 @@ Les durées supposent un développeur principal à temps partiel soutenu. Elles 
 | Scan complet, 5 albums / 274 pages | 1,57 s |
 | Rescan sans changement | 22 ms, aucun doublon |
 
-Écart assumé : le moteur d'imagerie est en Go pur (JPEG), libvips et la sortie WebP/AVIF sont reportés à M4. Le CBR est détecté et marqué explicitement — l'hydratation reste à implémenter.
+Écart assumé : le moteur d'imagerie est en Go pur (JPEG), libvips et la sortie
+WebP/AVIF restent reportés.
+
+**Le CBR et le PDF sont désormais traités.** L'hydratation, prévue dès M1 et
+laissée en suspens jusqu'ici, convertit ces formats en CBZ dans le cache dérivé
+à l'indexation. Après quoi ils suivent exactement le chemin d'un CBZ — un
+ReadRange par page, sans branchement. Le CB7 et l'EPUB restent détectés et
+refusés nommément.
 
 ---
 

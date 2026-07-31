@@ -58,6 +58,13 @@ jobs:
           test -d out/_next || { echo "::error::assets manquants"; exit 1; }
           echo "→ $(du -sh out | cut -f1) exportés"
 
+      # Le lint échouait depuis le début du projet, faute de configuration —
+      # et le CI ne l'exécutait pas, si bien que rien ne cassait. Un
+      # contributeur qui lançait la commande documentée, si.
+      - name: Lint
+        working-directory: apps/web
+        run: npm run lint
+
       # Une classe Tailwind qui référence mal une variable CSS compile sans
       # avertissement et produit une déclaration que le navigateur écarte : la
       # transition disparaît sans que rien n'échoue. Seule une inspection de la

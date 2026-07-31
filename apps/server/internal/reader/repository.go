@@ -35,7 +35,7 @@ func (r *PostgresRepository) GetComic(ctx context.Context, id uuid.UUID) (Comic,
 		return Comic{}, ErrNotFound
 	}
 
-	return Comic{
+	comic := Comic{
 		ID:        row.ID,
 		LibraryID: row.LibraryID,
 		ObjectKey: row.ObjectKey,
@@ -43,7 +43,11 @@ func (r *PostgresRepository) GetComic(ctx context.Context, id uuid.UUID) (Comic,
 		State:     string(row.State),
 		PageCount: row.PageCount,
 		CoverPage: row.CoverPage,
-	}, nil
+	}
+	if row.HydratedKey != nil {
+		comic.HydratedKey = *row.HydratedKey
+	}
+	return comic, nil
 }
 
 // GetPage lit les coordonnées d'accès aléatoire d'une page.

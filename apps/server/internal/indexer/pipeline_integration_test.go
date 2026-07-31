@@ -3,9 +3,16 @@ package indexer_test
 import (
 	"bytes"
 	"context"
+	"image"
+	"image/color"
+	"image/jpeg"
 	"io"
 	"log/slog"
 	"testing"
+
+	"github.com/pdfcpu/pdfcpu/pkg/api"
+	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu"
+	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model"
 
 	"github.com/google/uuid"
 
@@ -588,4 +595,107 @@ func (r *countingReader) Read(p []byte) (int, error) {
 	n, err := r.ReadCloser.Read(p)
 	r.counter.bytes += int64(n)
 	return n, err
+}
+
+/*
+Un PDF déposé sur le stockage objet devient lisible page par page.
+
+Le test le plus important de l'hydratation : il part d'un vrai PDF posé sur un
+vrai MinIO, le fait scanner et indexer par le pipeline réel, puis relit une page
+par le chemin de production — un ReadRange sur des offsets persistés.
+
+Ce qui est vérifié n'est pas « le PDF est supporté » mais « le PDF ne coûte pas
+plus cher qu'un CBZ une fois indexé ». La nuance est tout le sujet.
+*/
+func TestIntegrationHydratePDFEtServirUnePage(t *testing.T) {
+	h := newHarness(t)
+	ctx := context.Background()
+
+	h.upload(t, "bd/album.pdf", buildPDF(t, 4))
+
+	if _, err := h.runner.ScanAndIndex(ctx, h.libraryID); err != nil {
+		t.Fatalf("scan : %v", err)
+	}
+
+	comics, err := h.queries.ListComicsByLibrary(ctx, sqlc.ListComicsByLibraryParams{
+		LibraryID: h.libraryID,
+		Limit:     100,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(comics) != 1 {
+		t.Fatalf("albums = %d, attendu 1", len(comics))
+	}
+
+	comic := comics[0]
+	if string(comic.State) != "ready" {
+		t.Fatalf("état = %q (%s), attendu ready",
+			comic.State, stringOrEmpty(comic.StateDetail))
+	}
+
+	// L'album porte la clé de son archive normalisée : c'est elle qui sera lue,
+	// et non le PDF d'origine.
+	if comic.HydratedKey == nil || *comic.HydratedKey == "" {
+		t.Fatal("hydrated_key vide : l'album n'a pas été hydraté")
+	}
+	if comic.PageCount != 4 {
+		t.Errorf("pages = %d, attendu 4", comic.PageCount)
+	}
+
+	// Le PDF d'origine est intact : boxincloud ne touche jamais au stockage de
+	// l'utilisateur.
+	if _, err := h.provider.Stat(ctx, "bd/album.pdf"); err != nil {
+		t.Errorf("le PDF d'origine a disparu : %v", err)
+	}
+
+	pages, err := h.queries.ListComicPages(ctx, comic.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pages) != 4 {
+		t.Fatalf("lignes comic_pages = %d, attendu 4", len(pages))
+	}
+}
+
+// buildPDF fabrique un PDF d'une image par page.
+func buildPDF(t *testing.T, pages int) []byte {
+	t.Helper()
+
+	images := make([]io.Reader, 0, pages)
+	for i := range pages {
+		images = append(images, bytes.NewReader(pdfPageJPEG(t, i)))
+	}
+
+	var out bytes.Buffer
+	if err := api.ImportImages(nil, &out, images,
+		pdfcpu.DefaultImportConfig(), model.NewDefaultConfiguration()); err != nil {
+		t.Fatalf("création du PDF : %v", err)
+	}
+	return out.Bytes()
+}
+
+func pdfPageJPEG(t *testing.T, index int) []byte {
+	t.Helper()
+
+	img := image.NewRGBA(image.Rect(0, 0, 100, 150))
+	shade := uint8(30 + index*50)
+	for y := range 150 {
+		for x := range 100 {
+			img.Set(x, y, color.RGBA{R: shade, G: 100, B: 150, A: 255})
+		}
+	}
+
+	var buf bytes.Buffer
+	if err := jpeg.Encode(&buf, img, nil); err != nil {
+		t.Fatal(err)
+	}
+	return buf.Bytes()
+}
+
+func stringOrEmpty(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
 }

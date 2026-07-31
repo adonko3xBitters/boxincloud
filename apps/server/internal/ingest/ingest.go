@@ -78,6 +78,13 @@ type Service struct {
 	guard     WriteGuard
 	log       *slog.Logger
 
+	// derived est le stockage du cache dérivé. Il n'est consulté que pour une
+	// chose : effacer l'archive hydratée d'un album qu'on purge. Sans elle,
+	// supprimer un CBR laisserait derrière lui sa version normalisée — plusieurs
+	// centaines de méga-octets que plus rien ne référence et que rien ne
+	// viendrait jamais nettoyer.
+	derived storage.Provider
+
 	// maxSize borne un envoi. Zéro signifie « sans limite ».
 	maxSize int64
 }
@@ -87,6 +94,7 @@ func NewService(
 	repo Repository,
 	manage ManageRepository,
 	scanner Scanner,
+	derived storage.Provider,
 	maxSize int64,
 	log *slog.Logger,
 ) *Service {
@@ -95,6 +103,7 @@ func NewService(
 		repo:      repo,
 		manage:    manage,
 		scanner:   scanner,
+		derived:   derived,
 		maxSize:   maxSize,
 		log:       log,
 	}

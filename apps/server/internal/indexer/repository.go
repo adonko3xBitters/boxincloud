@@ -67,6 +67,10 @@ type Repository interface {
 	GetComic(ctx context.Context, id uuid.UUID) (Comic, error)
 	SetComicState(ctx context.Context, id uuid.UUID, state, detail string) error
 	SetComicIndexed(ctx context.Context, id uuid.UUID, pageCount int) error
+
+	// SetComicHydrated enregistre la clé de l'archive normalisée, dans le cache
+	// dérivé, d'un album qui n'a pas d'accès aléatoire natif.
+	SetComicHydrated(ctx context.Context, id uuid.UUID, key string) error
 	ApplyMetadata(ctx context.Context, id uuid.UUID, m Metadata, seriesID *uuid.UUID, metadataJSON []byte) error
 	SetCoverPlaceholder(ctx context.Context, id uuid.UUID, dataURI string) error
 	SetFolder(ctx context.Context, id uuid.UUID, folder string) error

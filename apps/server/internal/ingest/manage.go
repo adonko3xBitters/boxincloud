@@ -113,8 +113,34 @@ func (s *Service) Delete(ctx context.Context, p DeleteParams) error {
 		return err
 	}
 
+	s.removeHydrated(ctx, p.ComicID)
 	s.refreshSeries(ctx, comic.LibraryID)
 	return nil
+}
+
+/*
+removeHydrated efface l'archive normalisée d'un album purgé.
+
+Un CBR ou un PDF laisse dans le cache dérivé une copie CBZ de plusieurs
+centaines de méga-octets. Purger l'album sans elle la rendrait orpheline : plus
+rien ne la référencerait, et l'éviction du cache ne la connaît pas — elle n'y
+est pas inscrite, précisément parce qu'elle ne doit pas être évincée tant que
+l'album vit.
+
+L'échec est journalisé sans faire échouer la suppression. L'album est déjà parti
+de la base et du stockage ; refuser l'opération pour un fichier de cache
+laisserait un état plus incohérent que celui qu'on cherche à éviter.
+*/
+func (s *Service) removeHydrated(ctx context.Context, comicID uuid.UUID) {
+	if s.derived == nil {
+		return
+	}
+
+	key := indexer.HydratedKey(comicID)
+	if err := s.derived.Delete(ctx, key); err != nil {
+		s.log.Warn("archive hydratée non supprimée",
+			slog.String("key", key), slog.Any("err", err))
+	}
 }
 
 /*

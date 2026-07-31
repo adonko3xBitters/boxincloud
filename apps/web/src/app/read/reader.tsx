@@ -61,7 +61,10 @@ export function ReaderView() {
     enabled: Boolean(comicId),
   });
 
-  const pages = manifest.data?.pages ?? [];
+  // Le repli `?? []` produirait un tableau neuf à chaque rendu, et les mémos
+  // qui en dépendent se recalculeraient tous — sur un album de deux cents
+  // pages, à chaque frappe.
+  const pages = useMemo(() => manifest.data?.pages ?? [], [manifest.data]);
   const pageCount = manifest.data?.pageCount ?? 0;
 
   const spreads = useMemo(

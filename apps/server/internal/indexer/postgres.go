@@ -114,6 +114,10 @@ func (r *PostgresRepository) SetComicState(ctx context.Context, id uuid.UUID, st
 	})
 }
 
+func (r *PostgresRepository) SetComicHydrated(ctx context.Context, id uuid.UUID, key string) error {
+	return r.q.SetComicHydrated(ctx, sqlc.SetComicHydratedParams{ID: id, HydratedKey: &key})
+}
+
 func (r *PostgresRepository) SetComicIndexed(ctx context.Context, id uuid.UUID, pageCount int) error {
 	return r.q.SetComicIndexed(ctx, sqlc.SetComicIndexedParams{
 		ID:        id,

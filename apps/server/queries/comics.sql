@@ -186,3 +186,11 @@ FROM cache_entries;
 -- l'éviction ne trouverait donc jamais.
 -- name: PurgeCacheEntries :many
 DELETE FROM cache_entries RETURNING key, size;
+
+-- Enregistre l'archive normalisée d'un album hydraté.
+--
+-- Écrite AVANT l'indexation des pages : les offsets qui suivront désignent
+-- cette archive, et l'ordre inverse laisserait, en cas d'interruption, des
+-- pages pointant vers une archive que rien ne référence.
+-- name: SetComicHydrated :exec
+UPDATE comics SET hydrated_key = $2 WHERE id = $1;

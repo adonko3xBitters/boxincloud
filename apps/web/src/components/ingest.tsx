@@ -64,7 +64,7 @@ export function IngestProvider({ children }: { children: React.ReactNode }) {
   const pending = useRef<File[]>([]);
 
   const libraries = useQuery({ queryKey: ["libraries"], queryFn: api.listLibraries });
-  const items = libraries.data?.libraries ?? [];
+  const items = useMemo(() => libraries.data?.libraries ?? [], [libraries.data]);
 
   // La destination par défaut est la première bibliothèque : dans le cas
   // courant — une seule — il n'y a alors rien à choisir.
