@@ -103,6 +103,14 @@ dev-server: ## Démarre l'API avec rechargement à chaud
 run: ## Démarre l'API sans rechargement à chaud (aucun outil à installer)
 	cd $(SERVER_DIR) && $(GO) run ./cmd/boxincloud serve
 
+# ARGS plutôt que des cibles dédiées : boxincloudctl a une douzaine de
+# sous-commandes, et en refléter chacune dans le Makefile ferait diverger les
+# deux au premier ajout. L'entrée standard passe, donc `user set-password`
+# fonctionne aussi.
+.PHONY: ctl
+ctl: ## Lance boxincloudctl avec .env chargé — make ctl ARGS="user list"
+	cd $(SERVER_DIR) && $(GO) run ./cmd/boxincloudctl $(ARGS)
+
 .PHONY: dev-web
 dev-web: ## Démarre l'application web
 	cd $(WEB_DIR) && npm run dev

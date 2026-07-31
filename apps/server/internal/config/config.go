@@ -248,9 +248,38 @@ func Load() (*Config, error) {
 	}
 
 	if len(errs) > 0 {
-		return nil, fmt.Errorf("configuration invalide :\n%w", errors.Join(errs...))
+		return nil, fmt.Errorf("configuration invalide :\n%w%s", errors.Join(errs...), hintEnv())
 	}
 	return cfg, nil
+}
+
+/*
+hintEnv rappelle comment charger .env, quand un .env existe justement.
+
+La configuration vient de l'ENVIRONNEMENT, délibérément : en production, c'est
+Docker ou systemd qui la fournit, et lire un fichier caché à côté du binaire
+serait une surprise. Ce choix a un coût en développement, et ce coût s'est
+manifesté six fois de suite pendant une seule session de mise au point — le
+binaire ignore le `.env` posé à côté de lui, et rien ne le dit.
+
+Le rappel n'apparaît QUE si un `.env` existe : ailleurs il désignerait un
+fichier absent, ce qui égarerait au lieu d'aider. Le message reste donc muet en
+production, où il n'aurait aucun sens.
+*/
+func hintEnv() string {
+	candidates := []string{".env", "../../.env"}
+
+	for _, path := range candidates {
+		if _, err := os.Stat(path); err != nil {
+			continue
+		}
+		return "\n\nUn fichier .env existe, mais les binaires ne le lisent pas :" +
+			" la configuration vient de l'environnement.\n" +
+			"En développement, passez par make, qui le charge pour vous :\n\n" +
+			"    make run                        # le serveur\n" +
+			"    make ctl ARGS=\"user list\"       # boxincloudctl\n"
+	}
+	return ""
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
