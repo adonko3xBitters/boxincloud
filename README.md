@@ -40,6 +40,32 @@ boxincloud prend le problème dans l'autre sens.
 - **Le mobile comme client de premier rang.** Une application Flutter avec lecture hors
   ligne réelle et synchronisation de la progression — pas une page web emballée.
 - **Deux conteneurs.** PostgreSQL et un binaire unique. Pas de Redis, pas de runtime Node.
+- **Vos lecteurs préférés continuent de marcher.** L'instance publie son catalogue en
+  OPDS : Panels, Chunky, KyBook ou Thorium s'y branchent directement. Le stockage objet
+  est un choix d'infrastructure, il ne vous enferme pas dans nos clients.
+
+## À quoi ça ressemble
+
+<!--
+  À COMPLÉTER avant l'annonce publique.
+
+  Quatre visuels, dans cet ordre — c'est celui dans lequel un inconnu se fait une
+  opinion, et les trois premières secondes décident du reste :
+
+    1. docs/media/bibliotheque.png — la grille, remplie, sur un thème sombre.
+       C'est la capture que les gens comparent à Komga et Kavita.
+    2. docs/media/lecteur.gif      — le lecteur en défilement continu, 3 à 5 s.
+       C'est le seul visuel qui prouve la fluidité ; une capture fixe ne le peut pas.
+    3. docs/media/stockage.png     — l'écran des backends, avec un MinIO et un B2
+       côte à côte. C'est LE visuel du positionnement : personne d'autre ne peut
+       le montrer.
+    4. docs/media/mobile.png       — l'application Android, lecture hors ligne.
+
+  Sans ces images, l'annonce sur r/selfhosted perd l'essentiel de son effet : le
+  public y juge sur des captures avant de lire une ligne.
+-->
+
+> Captures et démonstration du lecteur à venir avant l'annonce publique.
 
 ## Démarrage rapide
 
@@ -79,8 +105,10 @@ correspond exactement à celle de votre instance. iOS n'existe pas encore.
 | **Gestion** | téléversement par glisser-déposer · dossiers avec verrouillage par code · liens de partage publics · édition des métadonnées |
 | **Comptes** | rôles · bibliothèques restreintes · profils enfants filtrés par classification d'âge · révocation d'appareil |
 | **Android** | lecture en ligne et hors ligne · téléchargement d'un album ou d'une série · budget disque · réconciliation au retour du réseau |
+| **OPDS** | votre instance **publie** son catalogue en OPDS 1.2 et 2.0 — lisible depuis Panels, Chunky, KyBook, Thorium |
+| **Découvrir** | recherche fédérée sur des catalogues OPDS tiers · import direct vers un backend · enrichissement des métadonnées depuis Open Library, Internet Archive et Google Books |
 
-Ce qui n'y est pas encore : iOS, OPDS, applications de bureau. Voir la
+Ce qui n'y est pas encore : iOS et les applications de bureau. Voir la
 [feuille de route](docs/04-roadmap.md#après-la-v010).
 
 ## Documentation
