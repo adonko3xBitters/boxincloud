@@ -127,17 +127,24 @@ plutôt que vite.
 
 ---
 
-## M5 — Flutter : lecture en ligne *(~2,5 semaines)*
+## M5 — Flutter : lecture en ligne — **atteint**
 
 **But :** un client mobile de premier rang, pas un miroir du web.
 
-- Connexion (saisie de l'URL du serveur), stockage sécurisé des jetons, gestion multi-serveurs.
-- Schéma Drift, client API généré, chargement de la bibliothèque en cache local.
-- Écrans bibliothèque, série, détail — même langage visuel que le web via les tokens partagés.
-- Lecteur tactile : `PageView`, zoom, préchargement, plein écran immersif, mode manga.
-- Synchronisation de la progression avec file d'opérations hors ligne.
+- [x] Connexion (saisie de l'URL du serveur), stockage sécurisé des jetons, gestion multi-serveurs.
+- [x] Schéma Drift, client API généré, chargement de la bibliothèque en cache local.
+- [x] Écrans bibliothèque, série, détail — même langage visuel que le web via les tokens partagés.
+- [x] Lecteur tactile : `PageView`, zoom, préchargement, plein écran immersif, mode manga.
+- [x] Synchronisation de la progression avec file d'opérations hors ligne.
 
-**Sortie :** APK et build iOS installables, lecture fluide sur téléphone et tablette, progression cohérente entre web et mobile.
+**Sortie :** APK de debug construit et vérifié en intégration continue. Le build
+iOS reste à valider : il demande Xcode, absent de la machine de développement.
+
+Le client Dart est généré par `tools/generate-dart-models.mjs` plutôt que par
+openapi-generator, qui exigerait une machine virtuelle Java — dépendance lourde
+à imposer à un contributeur. Le générateur échoue franchement sur toute
+construction qu'il ne sait pas traduire, plutôt que de produire un modèle
+silencieusement faux.
 
 ---
 
