@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
 import { BrandLockup } from "@/components/brand";
@@ -20,6 +20,7 @@ import { imageURL } from "@/lib/api/client";
 import type { Comic } from "@/lib/api/client";
 import * as api from "@/lib/api/endpoints";
 import { useCurrentUser, useLogout, useRequireAuth } from "@/lib/auth";
+import { useDismissOnOutside } from "@/lib/dismiss";
 import { WorkspaceProvider, scopeLabel, scopeToQuery, useWorkspace } from "@/lib/workspace";
 
 /**
@@ -72,12 +73,11 @@ function TopBar() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   // Un clic ailleurs referme le menu, comme partout ailleurs dans le système.
-  useEffect(() => {
-    if (!menuOpen) return undefined;
-    const close = () => setMenuOpen(false);
-    document.addEventListener("pointerdown", close);
-    return () => document.removeEventListener("pointerdown", close);
-  }, [menuOpen]);
+  // La référence englobe le bouton ET le menu : rouvrir ou choisir un élément
+  // ne doit pas être vu comme un clic « ailleurs ».
+  const menuRef = useRef<HTMLDivElement>(null);
+  const closeMenu = useCallback(() => setMenuOpen(false), []);
+  useDismissOnOutside(menuOpen, menuRef, closeMenu);
 
   return (
     <header className="flex h-13 shrink-0 items-center gap-3 border-b border-border bg-surface px-4">
@@ -96,7 +96,7 @@ function TopBar() {
           de l'atteindre. Le clic supprime le problème plutôt que de le
           contourner en collant les deux éléments.
         */}
-        <div className="relative">
+        <div className="relative" ref={menuRef}>
           <button
             onClick={() => setMenuOpen((v) => !v)}
             aria-expanded={menuOpen}
@@ -110,7 +110,6 @@ function TopBar() {
           {menuOpen && (
           <div
             role="menu"
-            onPointerDown={(e) => e.stopPropagation()}
             className="fade-in absolute right-0 top-full z-50 mt-1.5 w-52 rounded-lg border border-border bg-surface-raised p-1.5 shadow-lg"
           >
             <p className="truncate px-2 py-1 text-meta text-muted">

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { cx } from "@/components/ui";
+import { useDismissOnOutside } from "@/lib/dismiss";
 import type { ManifestPage } from "@/lib/reader/pages";
 import { Filmstrip } from "./filmstrip";
 import {
@@ -231,24 +232,7 @@ function SettingsPanel({ onClose }: { onClose: () => void }) {
   const settings = useReaderSettings();
   const ref = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    function onPointerDown(event: PointerEvent) {
-      if (!ref.current?.contains(event.target as Node)) onClose();
-    }
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        event.stopPropagation();
-        onClose();
-      }
-    }
-
-    document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("keydown", onKeyDown, true);
-    return () => {
-      document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("keydown", onKeyDown, true);
-    };
-  }, [onClose]);
+  useDismissOnOutside(true, ref, onClose);
 
   return (
     <div

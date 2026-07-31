@@ -65,3 +65,10 @@ jobs:
       - name: Vérifier la feuille de style
         working-directory: apps/web
         run: npm run check:css
+
+      # Un calque qui se referme au pointeur en comptant sur un stopPropagation
+      # se démonte avant le click : le menu se ferme sans exécuter l'action.
+      # Rien ne lève d'erreur ; seule une relecture du code le voit.
+      - name: Vérifier les calques
+        working-directory: apps/web
+        run: npm run check:overlays

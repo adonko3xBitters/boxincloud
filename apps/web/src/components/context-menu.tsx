@@ -3,6 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { cx } from "./ui";
+import { useDismissOnOutside } from "@/lib/dismiss";
 
 /**
  * Menu contextuel au clic droit.
@@ -56,33 +57,28 @@ export function ContextMenu({
     });
   }, [position, items.length]);
 
+  // Un clic ailleurs referme — y compris un clic droit ailleurs, puisque le
+  // `pointerdown` précède le `contextmenu` : le menu précédent se ferme avant
+  // que le suivant ne s'ouvre, sans qu'il faille écouter `contextmenu` en plus.
+  // L'écouter aurait d'ailleurs refermé le menu que le clic droit venait
+  // d'ouvrir, les deux gestionnaires vivant sur le même nœud.
+  useDismissOnOutside(position !== null, ref, onClose);
+
+  // Le menu est ancré à des coordonnées figées : dès que la page bouge sous
+  // lui, il désigne autre chose que ce qu'on avait visé.
   useEffect(() => {
     if (!position) return undefined;
 
     function close() {
       onClose();
     }
-    function onKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        event.stopPropagation();
-        onClose();
-      }
-    }
 
-    // Un clic ailleurs referme, y compris un clic droit ailleurs : sans quoi
-    // deux menus se superposeraient.
-    document.addEventListener("pointerdown", close);
-    document.addEventListener("contextmenu", close);
     window.addEventListener("resize", close);
     window.addEventListener("scroll", close, true);
-    document.addEventListener("keydown", onKeyDown, true);
 
     return () => {
-      document.removeEventListener("pointerdown", close);
-      document.removeEventListener("contextmenu", close);
       window.removeEventListener("resize", close);
       window.removeEventListener("scroll", close, true);
-      document.removeEventListener("keydown", onKeyDown, true);
     };
   }, [position, onClose]);
 
@@ -92,7 +88,6 @@ export function ContextMenu({
     <div
       ref={ref}
       role="menu"
-      onPointerDown={(e) => e.stopPropagation()}
       onContextMenu={(e) => e.preventDefault()}
       style={{
         left: placed?.x ?? position.x,

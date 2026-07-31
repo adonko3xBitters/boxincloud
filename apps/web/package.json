@@ -10,7 +10,8 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "generate:api": "openapi-typescript ../../api/openapi.yaml -o src/lib/api/schema.d.ts",
-    "generate:tokens": "node ../../packages/design-tokens/build.mjs"
+    "generate:tokens": "node ../../packages/design-tokens/build.mjs",
+    "check:overlays": "node scripts/check-overlays.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.62.0",

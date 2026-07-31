@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
 import { cx } from "./ui";
+import { useDismissOnOutside } from "@/lib/dismiss";
 import { ContextMenu, useContextMenu, type MenuItem } from "./context-menu";
 import { FolderDialogs, type FolderDialog } from "./folder-dialogs";
 import * as api from "@/lib/api/endpoints";
@@ -358,22 +359,18 @@ function FolderMenu({
   onAction: (dialog: FolderDialog) => void;
 }) {
   const [open, setOpen] = useState(false);
-
-  useEffect(() => {
-    if (!open) return undefined;
-    function close() {
-      setOpen(false);
-    }
-    document.addEventListener("pointerdown", close);
-    return () => document.removeEventListener("pointerdown", close);
-  }, [open]);
+  const ref = useRef<HTMLDivElement>(null);
+  const close = useCallback(() => setOpen(false), []);
+  useDismissOnOutside(open, ref, close);
 
   const isRoot = folder.path === "";
 
   return (
-    <div className="relative shrink-0">
+    <div className="relative shrink-0" ref={ref}>
       <button
         onPointerDown={(e) => {
+          // Sur le pointeur, pas sur le clic : la ligne de l'arbre réagit au
+          // clic, et l'ouverture du menu ne doit pas la sélectionner au passage.
           e.stopPropagation();
           setOpen((v) => !v);
         }}
