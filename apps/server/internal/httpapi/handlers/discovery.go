@@ -577,17 +577,69 @@ func (h *Discovery) TestSource(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"ok": true})
 }
 
+/*
+writeDiscoveryError traduit un échec de catalogue en réponse.
+
+Toutes les causes tombaient auparavant dans un unique `url: invalid` : nom
+manquant, adresse absente, schéma refusé, gabarit inconnu, site qui ne répond
+pas, gabarit qui ne lit plus la page. Le serveur connaissait la raison et la
+jetait ; l'interface affichait « cette valeur n'est pas valide » sur un
+formulaire dont l'utilisateur ne pouvait pas deviner ce qui clochait — pas même
+QUEL champ, puisque le nom et le genre atterrissaient eux aussi sur `url`.
+
+Deux corrections. Le code est choisi d'après la cause, et le diagnostic BRUT est
+joint. Ce diagnostic vient souvent du site distant, en anglais : il n'est pas
+traduisible, mais il est le seul à dire « le site a répondu 403 » plutôt que
+« invalide ». C'est déjà le parti pris de l'essai de catalogue, qui rend son
+`detail` pour la même raison.
+*/
 func writeDiscoveryError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.Is(err, discovery.ErrSourceNotFound):
 		problem.Write(w, r, problem.NotFound("discovery source not found"))
+
 	case errors.Is(err, discovery.ErrNoSearch):
-		problem.Write(w, r, problem.Validation(map[string]string{"url": "no-search"}))
+		problem.Write(w, r, discoveryValidation("url", "no-search", err))
+
+	case errors.Is(err, discovery.ErrUnknownProvider):
+		// Le genre demandé n'est pas chargé — un gabarit retiré du répertoire de
+		// l'opérateur, par exemple. Rien à corriger dans l'adresse.
+		problem.Write(w, r, discoveryValidation("kind", "unknown", err))
+
 	case errors.Is(err, discovery.ErrInvalidSource):
-		problem.Write(w, r, problem.Validation(map[string]string{"url": "invalid"}))
+		problem.Write(w, r, discoveryValidation(discoveryField(err), "invalid", err))
+
 	default:
 		writeInternal(w, r, err)
 	}
+}
+
+/*
+discoveryField devine le champ fautif à partir du message.
+
+Une heuristique, et elle est nommée comme telle. La solution propre serait des
+erreurs typées par champ dans le domaine ; elle vaudra le coup le jour où les
+cas se multiplieront. En attendant, désigner le bon champ trois fois sur quatre
+vaut mieux que de désigner `url` systématiquement, y compris quand c'est le nom
+qui manque.
+*/
+func discoveryField(err error) string {
+	message := err.Error()
+	switch {
+	case strings.Contains(message, "le nom est requis"):
+		return "name"
+	case strings.Contains(message, "genre"):
+		return "kind"
+	default:
+		return "url"
+	}
+}
+
+// discoveryValidation joint le diagnostic brut au code stable.
+func discoveryValidation(field, code string, err error) problem.Problem {
+	p := problem.Validation(map[string]string{field: code})
+	p.Detail = err.Error()
+	return p
 }
 
 // pathUUID lit un identifiant porté par le chemin, ou répond 400.

@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Badge, Button, EmptyState, Input, Spinner, cx } from "./ui";
 import * as api from "@/lib/api/endpoints";
-import { describeError } from "@/lib/api/problem";
+import { describeError, rawDetail } from "@/lib/api/problem";
 import { useT, type MessageKey } from "@/i18n";
 
 /**
@@ -792,7 +792,20 @@ function SourceForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => 
       )}
 
       {create.error && (
-        <p className="text-meta text-danger">{describeError(create.error, t)}</p>
+        <p className="text-meta text-danger">
+          {describeError(create.error, t)}
+          {/*
+            Le diagnostic du serveur, quand il en dit plus que la règle. En
+            police à chasse fixe et sous le message traduit : c'est une trace
+            technique, pas une phrase — elle cite souvent le site distant, en
+            anglais.
+          */}
+          {rawDetail(create.error) && (
+            <code className="mt-1 block font-mono text-subtle">
+              {rawDetail(create.error)}
+            </code>
+          )}
+        </p>
       )}
 
       <div className="flex gap-2">

@@ -140,3 +140,26 @@ function keyForStatus(status: number): MessageKey {
       return status >= 500 ? "problem.internal" : "problem.bad-request";
   }
 }
+
+/**
+ * Le diagnostic BRUT rendu par le serveur, quand il en dit plus que la règle.
+ *
+ * Une erreur de validation porte un code par champ — « invalid » — que
+ * l'interface traduit. Ce code dit qu'il y a un problème, pas lequel : adresse
+ * absente, schéma refusé, site qui ne répond pas et gabarit qui ne lit plus la
+ * page tombent tous sur le même mot.
+ *
+ * Le serveur joint désormais sa phrase. Elle n'est pas traduisible — elle cite
+ * souvent le service distant, en anglais — et se présente donc comme un
+ * diagnostic technique sous un libellé traduit, jamais comme une phrase à lire.
+ * C'est le parti déjà pris pour l'essai d'un catalogue.
+ *
+ * Le texte générique est écarté : il ne dit rien de plus que la règle.
+ */
+export function rawDetail(error: unknown): string | null {
+  if (!(error instanceof ApiError)) return null;
+
+  const detail = error.problem?.detail;
+  if (!detail || detail === "One or more fields are invalid.") return null;
+  return detail;
+}

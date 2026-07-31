@@ -42,6 +42,16 @@ endif
 
 DATABASE_URL ?= postgres://boxincloud:boxincloud@localhost:5432/boxincloud?sslmode=disable
 
+# Le port de l'API, déduit de BOXINCLOUD_ADDR (« :8070 » → « 8070 »).
+#
+# Sert à dire à l'interface où joindre l'API en développement. En production la
+# question ne se pose pas : le binaire sert le web ET l'API sur la même origine,
+# et le chemin relatif `/api/v1` suffit. En développement ce sont deux serveurs
+# sur deux ports, et ce même chemin relatif pointe vers le serveur Next, où il
+# n'y a pas d'API — la connexion échoue alors sur « serveur injoignable », ce
+# qui accuse le serveur au lieu de la configuration.
+DEV_API_PORT := $(or $(lastword $(subst :, ,$(BOXINCLOUD_ADDR))),8080)
+
 .PHONY: help
 help: ## Affiche cette aide
 	@echo "boxincloud — cibles disponibles"
@@ -112,8 +122,9 @@ ctl: ## Lance boxincloudctl avec .env chargé — make ctl ARGS="user list"
 	cd $(SERVER_DIR) && $(GO) run ./cmd/boxincloudctl $(ARGS)
 
 .PHONY: dev-web
-dev-web: ## Démarre l'application web
-	cd $(WEB_DIR) && npm run dev
+dev-web: ## Démarre l'application web (API sur $(DEV_API_PORT))
+	@echo "→ interface http://localhost:3000   API http://localhost:$(DEV_API_PORT)"
+	cd $(WEB_DIR) && NEXT_PUBLIC_API_BASE=http://localhost:$(DEV_API_PORT)/api/v1 npm run dev
 
 .PHONY: dev-mobile
 dev-mobile: ## Démarre l'application Flutter
