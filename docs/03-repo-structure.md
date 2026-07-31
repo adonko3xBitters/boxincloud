@@ -220,5 +220,11 @@ keytool -genkey -v -keystore release.jks -keyalg RSA -keysize 2048 \
 base64 -i release.jks | pbcopy   # à coller dans ANDROID_KEYSTORE_BASE64
 ```
 
+Sans ces secrets, la publication ne bloque pas : elle produit un APK signé
+avec la clé de debug, nommé `boxincloud-android-non-signe.apk`. Il s.installe
+et fonctionne, mais son identité est figée sur une clé publiquement connue —
+il ne se mettra jamais à jour vers la version signée. La page /telecharger le
+dit avant de le proposer. C.est un dépannage, pas une distribution.
+
 En local, aucun secret n'est nécessaire : sans `android/key.properties`, la
 release retombe sur la clé de debug et `flutter run --release` fonctionne.

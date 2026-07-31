@@ -6,6 +6,7 @@ import { BrandLockup } from "@/components/brand";
 import { cx } from "@/components/ui";
 import {
   ANDROID_APK_URL,
+  ANDROID_TEST_APK_URL,
   RELEASES_URL,
   detectPlatform,
   type Platform,
@@ -70,6 +71,31 @@ export default function Page() {
             </a>
             .
           </p>
+
+          {/*
+            Le lien de test est là parce qu'il doit y être tant qu'aucune clé
+            de signature n'existe — mais en second, et en le disant. Un APK
+            signé avec la clé de debug s'installe très bien ; il ne se met
+            simplement jamais à jour vers la version signée, ce qui se découvre
+            trop tard si personne ne l'a écrit.
+          */}
+          <details className="text-meta text-subtle">
+            <summary className="cursor-pointer select-none hover:text-muted">
+              Le bouton ne trouve pas de fichier ?
+            </summary>
+            <p className="mt-2 leading-relaxed">
+              Aucune version signée n&apos;a encore été publiée. Une{" "}
+              <a
+                href={ANDROID_TEST_APK_URL}
+                className="text-accent-text underline underline-offset-2 hover:no-underline"
+              >
+                version de test
+              </a>{" "}
+              existe peut-être. Elle s&apos;installe et fonctionne, mais ne se
+              mettra pas à jour vers la version définitive : il faudra la
+              désinstaller le moment venu.
+            </p>
+          </details>
         </section>
       )}
 

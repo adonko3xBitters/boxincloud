@@ -15,6 +15,17 @@ export const REPO_URL = "https://github.com/adonko3xBitters/boxincloud";
 
 export const ANDROID_APK_URL = `${REPO_URL}/releases/latest/download/boxincloud-android.apk`;
 
+/**
+ * L'APK de test, signé avec la clé de debug.
+ *
+ * Publié tant qu'aucune clé de release n'existe, pour que le code QR mène à
+ * quelque chose dès la première version. Il porte un autre nom, exprès :
+ * Android identifie une application par sa clé autant que par son identifiant,
+ * et la clé de debug est publiquement connue — passer ensuite à une vraie clé
+ * exigera une désinstallation. Personne ne doit l'installer sans le savoir.
+ */
+export const ANDROID_TEST_APK_URL = `${REPO_URL}/releases/latest/download/boxincloud-android-non-signe.apk`;
+
 export const RELEASES_URL = `${REPO_URL}/releases/latest`;
 
 export type Platform = "android" | "ios" | "other";
