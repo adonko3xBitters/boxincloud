@@ -22,6 +22,11 @@ type Verifier interface {
 	// courant. Un jeton est autoporteur : sans cette vérification, désactiver
 	// un compte ou le rétrograder n'aurait d'effet qu'à l'expiration du jeton.
 	AccountState(ctx context.Context, userID uuid.UUID) (string, error)
+
+	// DeviceActive confirme que l'appareil porté par le jeton existe encore.
+	// Même raison, un cran plus fin : révoquer un téléphone perdu doit couper
+	// l'accès tout de suite, pas au bout d'un quart d'heure.
+	DeviceActive(ctx context.Context, userID, deviceID uuid.UUID) error
 }
 
 // Authenticate exige un jeton d'accès valide, porté par l'en-tête
@@ -86,6 +91,15 @@ func authenticate(v Verifier, allowQuery bool) func(http.Handler) http.Handler {
 				return
 			}
 			claims.Role = role
+
+			if err := v.DeviceActive(r.Context(), claims.UserID, claims.DeviceID); err != nil {
+				if errors.Is(err, auth.ErrDeviceRevoked) {
+					problem.Write(w, r, problem.Unauthorized("device revoked"))
+					return
+				}
+				problem.Write(w, r, problem.ServiceUnavailable("device state unavailable"))
+				return
+			}
 
 			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), claimsKey{}, claims)))
 		})

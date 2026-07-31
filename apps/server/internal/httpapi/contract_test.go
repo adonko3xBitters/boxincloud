@@ -107,6 +107,7 @@ func newContractHarness(t *testing.T) *contractHarness {
 		Libraries: core.Libraries,
 		Ingest:    core.Ingest,
 		Tools:     core.Tools,
+		Cache:     core.Cache,
 		Reader:    core.Reader,
 		Progress:  core.Progress,
 	})

@@ -165,3 +165,24 @@ DELETE FROM cache_entries WHERE key = $1;
 
 -- name: SetComicPlaceholder :exec
 UPDATE comics SET cover_placeholder = $2 WHERE id = $1;
+
+-- Inventaire du cache dérivé, pour l'écran d'administration.
+--
+-- Une seule requête plutôt que trois : l'écran les affiche ensemble, et trois
+-- allers-retours pour peupler le même encart seraient du gâchis.
+-- name: CacheStats :one
+SELECT
+    count(*)::bigint                          AS entries,
+    coalesce(sum(size), 0)::bigint            AS bytes,
+    coalesce(sum(hits), 0)::bigint            AS hits,
+    min(created_at)::timestamptz              AS oldest_at,
+    max(last_hit_at)::timestamptz             AS newest_hit_at
+FROM cache_entries;
+
+-- Vide l'inventaire du cache et rend les clés effacées.
+--
+-- Les clés sont retournées pour que l'appelant efface aussi les objets : vider
+-- la table seule laisserait des fichiers que plus rien ne référence, et que
+-- l'éviction ne trouverait donc jamais.
+-- name: PurgeCacheEntries :many
+DELETE FROM cache_entries RETURNING key, size;

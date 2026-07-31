@@ -179,6 +179,30 @@ func (q *Queries) DeleteExpiredSessions(ctx context.Context) (int64, error) {
 	return result.RowsAffected(), nil
 }
 
+const deviceExists = `-- name: DeviceExists :one
+SELECT EXISTS (
+    SELECT 1 FROM devices WHERE id = $1 AND user_id = $2
+)
+`
+
+type DeviceExistsParams struct {
+	ID     uuid.UUID
+	UserID uuid.UUID
+}
+
+// Cet appareil existe-t-il encore pour ce compte ?
+//
+// Interrogée à chaque requête portant un jeton d'appareil, derrière un cache de
+// quelques secondes. Sans elle, révoquer un téléphone perdu ne l'empêcherait de
+// rien pendant la durée de vie du jeton d'accès — un quart d'heure de lecture
+// offert à qui l'a ramassé.
+func (q *Queries) DeviceExists(ctx context.Context, arg DeviceExistsParams) (bool, error) {
+	row := q.db.QueryRow(ctx, deviceExists, arg.ID, arg.UserID)
+	var exists bool
+	err := row.Scan(&exists)
+	return exists, err
+}
+
 const getDevice = `-- name: GetDevice :one
 SELECT id, user_id, name, platform, app_version, push_token, last_seen_at, created_at FROM devices WHERE id = $1
 `
@@ -470,6 +494,24 @@ WHERE user_id = $1 AND revoked_at IS NULL
 
 func (q *Queries) RevokeAllUserSessions(ctx context.Context, userID uuid.UUID) (int64, error) {
 	result, err := q.db.Exec(ctx, revokeAllUserSessions, userID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected(), nil
+}
+
+const revokeDeviceSessions = `-- name: RevokeDeviceSessions :execrows
+UPDATE sessions SET revoked_at = now()
+WHERE user_id = $1 AND device_id = $2 AND revoked_at IS NULL
+`
+
+type RevokeDeviceSessionsParams struct {
+	UserID   uuid.UUID
+	DeviceID uuid.NullUUID
+}
+
+func (q *Queries) RevokeDeviceSessions(ctx context.Context, arg RevokeDeviceSessionsParams) (int64, error) {
+	result, err := q.db.Exec(ctx, revokeDeviceSessions, arg.UserID, arg.DeviceID)
 	if err != nil {
 		return 0, err
 	}

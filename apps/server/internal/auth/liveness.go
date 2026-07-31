@@ -107,6 +107,59 @@ func (s *Service) AccountState(ctx context.Context, userID uuid.UUID) (string, e
 	return user.Role, nil
 }
 
+// ErrDeviceRevoked signale un appareil dont l'accès a été retiré.
+var ErrDeviceRevoked = errors.New("auth : appareil révoqué")
+
+// ErrDeviceNotFound signale un appareil inconnu du compte.
+var ErrDeviceNotFound = errors.New("auth : appareil introuvable")
+
+/*
+DeviceActive vérifie qu'un appareil existe encore.
+
+Même raisonnement que pour le compte, appliqué à un cran plus fin. Révoquer un
+téléphone perdu ne servirait à rien si son jeton d'accès continuait d'ouvrir la
+bibliothèque jusqu'à expiration : celui qui l'a ramassé aurait un quart d'heure
+de lecture, et surtout un quart d'heure pour en faire autre chose.
+
+Le cache est le même que celui des comptes, à quinze secondes : une requête par
+appareil actif et par quart de minute, contre une fenêtre de résidu ramenée de
+quinze minutes à quinze secondes — et à zéro quand la révocation passe par ce
+processus, ce qui est le cas d'une instance unique.
+*/
+func (s *Service) DeviceActive(ctx context.Context, userID, deviceID uuid.UUID) error {
+	if deviceID == uuid.Nil {
+		// Un jeton sans appareil — clé d'API, jeton de partage — ne relève pas
+		// de ce contrôle.
+		return nil
+	}
+
+	now := time.Now()
+
+	if entry, ok := s.deviceLiveness.get(deviceID, now); ok {
+		if !entry.active {
+			return ErrDeviceRevoked
+		}
+		return nil
+	}
+
+	exists, err := s.repo.DeviceExists(ctx, userID, deviceID)
+	if err != nil {
+		// Une panne de base ne doit pas déconnecter tout le monde.
+		return err
+	}
+
+	s.deviceLiveness.put(deviceID, livenessEntry{active: exists, refreshed: now})
+	if !exists {
+		return ErrDeviceRevoked
+	}
+	return nil
+}
+
+// ForgetDevice purge l'état mis en cache d'un appareil.
+func (s *Service) ForgetDevice(deviceID uuid.UUID) {
+	s.deviceLiveness.forget(deviceID)
+}
+
 // ForgetAccount purge l'état mis en cache d'un compte.
 //
 // À appeler après toute modification qui doit prendre effet tout de suite :

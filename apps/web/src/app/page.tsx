@@ -10,6 +10,7 @@ import { Coverflow } from "@/components/coverflow";
 import { AccountsPanel } from "@/components/accounts-panel";
 import { useComicMenu } from "@/components/comic-menu";
 import { MobileAppDialog } from "@/components/mobile-app-dialog";
+import { SessionsPanel } from "@/components/sessions-panel";
 import { StoragePanel } from "@/components/storage-panel";
 import { AddContentButton, GlobalDropZone, IngestProvider } from "@/components/ingest";
 import { DetailPanel } from "@/components/detail-panel";
@@ -72,6 +73,7 @@ function TopBar() {
   const [accountsOpen, setAccountsOpen] = useState(false);
   const [storageOpen, setStorageOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [sessionsOpen, setSessionsOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
   // Un clic ailleurs referme le menu, comme partout ailleurs dans le système.
@@ -133,6 +135,21 @@ function TopBar() {
               Application mobile
             </button>
 
+            {/*
+              Les appareils connectés relèvent du compte, pas de
+              l'administration : chacun révoque les siens, y compris un
+              utilisateur sans droits particuliers.
+            */}
+            <button
+              onClick={() => {
+                setMenuOpen(false);
+                setSessionsOpen(true);
+              }}
+              className="pressable w-full rounded px-2 py-1.5 text-left text-ui text-muted hover:bg-surface-hover hover:text-fg"
+            >
+              Appareils connectés
+            </button>
+
             {user?.role === "admin" && (
               <>
                 <button
@@ -168,6 +185,7 @@ function TopBar() {
       </div>
 
       {mobileOpen && <MobileAppDialog onClose={() => setMobileOpen(false)} />}
+      {sessionsOpen && <SessionsPanel onClose={() => setSessionsOpen(false)} />}
       {storageOpen && <StoragePanel onClose={() => setStorageOpen(false)} />}
       {accountsOpen && <AccountsPanel onClose={() => setAccountsOpen(false)} />}
     </header>

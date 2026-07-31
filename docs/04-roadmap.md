@@ -188,18 +188,29 @@ téléchargements le dit plutôt que de le laisser croire.
 
 ---
 
-## M7 — Multi-utilisateur et administration *(~1,5 semaine)*
+## M7 — Multi-utilisateur et administration — **atteint**
 
 **But :** l'usage familial, qui est le scénario self-hosted dominant.
 
-- Gestion des comptes : création, rôles, réinitialisation de mot de passe.
-- `library_access` : bibliothèques partagées ou restreintes.
-- Profils restreints : filtrage par classification d'âge.
-- Console d'administration : backends de stockage (ajout, test, statut), bibliothèques, scans en cours et historique, statistiques de cache, purge.
-- Édition manuelle des métadonnées avec verrouillage des champs (`locked_fields`).
-- Gestion des appareils et révocation de session.
+- [x] Gestion des comptes : création, rôles, réinitialisation de mot de passe.
+- [x] `library_access` : bibliothèques partagées ou restreintes.
+- [x] Profils restreints : filtrage par classification d'âge.
+- [x] Console d'administration : backends de stockage, bibliothèques, scans et historique, statistiques de cache, purge.
+- [x] Édition manuelle des métadonnées avec verrouillage des champs (`locked_fields`).
+- [x] Gestion des appareils et révocation de session.
 
-**Sortie :** une famille de quatre personnes utilise l'instance avec des progressions indépendantes et une bibliothèque enfant filtrée.
+La révocation d'un appareil a demandé plus qu'une route. Un jeton d'accès est
+autoporteur : le supprimer de la base ne l'empêche de rien tant qu'il n'a pas
+expiré, et révoquer un téléphone perdu lui laissait donc un quart d'heure de
+lecture — et surtout un quart d'heure pour en faire autre chose. La
+vérification par appareil rejoint celle du compte, derrière le même cache de
+quinze secondes : une requête par appareil actif et par quart de minute, contre
+une fenêtre de résidu ramenée de quinze minutes à zéro sur une instance unique.
+
+La purge du cache est présentée sans dramatisation, parce qu'elle n'en mérite
+pas : tout s'y régénère depuis les archives d'origine. Un test de contrat le
+vérifie plutôt que de l'affirmer — il lit une page, purge, et relit la même
+page.
 
 ---
 

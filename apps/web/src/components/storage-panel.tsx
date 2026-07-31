@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
-import { buttonClass, cx } from "./ui";
+import { Button, Spinner, buttonClass, cx } from "./ui";
 import { ApiError } from "@/lib/api/client";
 import * as api from "@/lib/api/endpoints";
 
@@ -16,7 +16,7 @@ import * as api from "@/lib/api/endpoints";
  * tout ce qui s'y rattachait.
  */
 export function StoragePanel({ onClose }: { onClose: () => void }) {
-  const [tab, setTab] = useState<"backends" | "libraries">("libraries");
+  const [tab, setTab] = useState<"libraries" | "backends" | "cache">("libraries");
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -41,7 +41,7 @@ export function StoragePanel({ onClose }: { onClose: () => void }) {
           <h2 className="text-title font-semibold text-fg">Stockage</h2>
 
           <div className="ml-2 flex items-center gap-0.5 rounded-md border border-border p-0.5">
-            {(["libraries", "backends"] as const).map((option) => (
+            {(["libraries", "backends", "cache"] as const).map((option) => (
               <button
                 key={option}
                 onClick={() => setTab(option)}
@@ -53,7 +53,7 @@ export function StoragePanel({ onClose }: { onClose: () => void }) {
                     : "text-muted hover:bg-surface-hover hover:text-fg",
                 )}
               >
-                {option === "libraries" ? "Bibliothèques" : "Espaces de stockage"}
+                {TAB_LABELS[option]}
               </button>
             ))}
           </div>
@@ -70,11 +70,154 @@ export function StoragePanel({ onClose }: { onClose: () => void }) {
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-4">
-          {tab === "libraries" ? <Libraries /> : <Backends />}
+          {tab === "libraries" && <Libraries />}
+          {tab === "backends" && <Backends />}
+          {tab === "cache" && <CacheSection />}
         </div>
       </div>
     </div>
   );
+}
+
+const TAB_LABELS = {
+  libraries: "Bibliothèques",
+  backends: "Espaces de stockage",
+  cache: "Cache",
+} as const;
+
+// ─── Cache dérivé ────────────────────────────────────────────────────────────
+
+/**
+ * Occupation du cache dérivé, et bouton pour le vider.
+ *
+ * La purge est présentée sans dramatisation parce qu'elle n'en mérite pas :
+ * tout ce que le cache contient se régénère depuis les archives d'origine. La
+ * confirmation existe pour le temps que coûte la régénération, pas pour un
+ * risque de perte.
+ */
+function CacheSection() {
+  const queryClient = useQueryClient();
+  const [confirming, setConfirming] = useState(false);
+  const [freed, setFreed] = useState<{ entries: number; bytes: number } | null>(null);
+
+  const stats = useQuery({ queryKey: ["cache"], queryFn: api.getCacheStats });
+
+  const purge = useMutation({
+    mutationFn: api.purgeCache,
+    onSuccess: (result) => {
+      setFreed(result);
+      setConfirming(false);
+      void queryClient.invalidateQueries({ queryKey: ["cache"] });
+    },
+  });
+
+  if (stats.isLoading) return <Spinner className="size-5 text-muted" />;
+  if (stats.error) return <ErrorNote>{describe(stats.error)}</ErrorNote>;
+
+  const data = stats.data;
+  if (!data) return null;
+
+  const ratio = data.maxBytes && data.maxBytes > 0 ? data.bytes / data.maxBytes : 0;
+
+  return (
+    <div className="flex flex-col gap-4">
+      <div className="rounded-lg border border-border bg-surface-sunken p-4">
+        <div className="flex items-baseline gap-2">
+          <span className="text-2xl font-semibold text-fg">{formatBytes(data.bytes)}</span>
+          {data.maxBytes ? (
+            <span className="text-meta text-subtle">sur {formatBytes(data.maxBytes)}</span>
+          ) : (
+            <span className="text-meta text-subtle">cache non borné</span>
+          )}
+        </div>
+
+        {data.maxBytes ? (
+          <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-border">
+            <div
+              className={cx("h-full rounded-full", ratio > 0.9 ? "bg-danger" : "bg-accent")}
+              style={{ width: `${Math.min(ratio * 100, 100)}%` }}
+            />
+          </div>
+        ) : null}
+
+        <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 text-meta sm:grid-cols-3">
+          <Stat label="Entrées" value={data.entries.toLocaleString("fr-FR")} />
+          <Stat label="Lectures servies" value={data.hits.toLocaleString("fr-FR")} />
+          {data.oldestAt && (
+            <Stat label="Plus ancienne" value={formatDate(data.oldestAt)} />
+          )}
+        </dl>
+      </div>
+
+      <p className="text-meta leading-relaxed text-subtle">
+        Vignettes, couvertures et pages transcodées. Tout s&apos;y régénère depuis
+        les archives d&apos;origine : vider ce cache ne perd aucune donnée, cela
+        coûte seulement une régénération à la prochaine lecture.
+      </p>
+
+      {freed && (
+        <p className="rounded-md border border-border bg-surface-sunken px-3 py-2 text-meta text-muted">
+          {freed.entries.toLocaleString("fr-FR")} entrées supprimées,{" "}
+          {formatBytes(freed.bytes)} libérés.
+        </p>
+      )}
+
+      {purge.error && <ErrorNote>{describe(purge.error)}</ErrorNote>}
+
+      {confirming ? (
+        <div className="flex items-center gap-2">
+          <Button variant="danger" loading={purge.isPending} onClick={() => purge.mutate()}>
+            Confirmer la purge
+          </Button>
+          <Button variant="ghost" onClick={() => setConfirming(false)}>
+            Annuler
+          </Button>
+        </div>
+      ) : (
+        <div>
+          <Button
+            variant="secondary"
+            disabled={data.entries === 0}
+            onClick={() => setConfirming(true)}
+          >
+            Vider le cache
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="text-subtle">{label}</dt>
+      <dd className="font-medium text-fg tabular-nums">{value}</dd>
+    </div>
+  );
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} o`;
+
+  const units = ["ko", "Mo", "Go", "To"];
+  let value = bytes / 1024;
+  let unit = 0;
+
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+
+  return unit >= 1
+    ? `${value.toFixed(1).replace(".", ",")} ${units[unit]}`
+    : `${Math.round(value)} ${units[unit]}`;
+}
+
+function formatDate(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" });
 }
 
 // ─── Bibliothèques ───────────────────────────────────────────────────────────

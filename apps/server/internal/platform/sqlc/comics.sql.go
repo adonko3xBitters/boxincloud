@@ -61,6 +61,41 @@ func (q *Queries) ApplyComicMetadata(ctx context.Context, arg ApplyComicMetadata
 	return err
 }
 
+const cacheStats = `-- name: CacheStats :one
+SELECT
+    count(*)::bigint                          AS entries,
+    coalesce(sum(size), 0)::bigint            AS bytes,
+    coalesce(sum(hits), 0)::bigint            AS hits,
+    min(created_at)::timestamptz              AS oldest_at,
+    max(last_hit_at)::timestamptz             AS newest_hit_at
+FROM cache_entries
+`
+
+type CacheStatsRow struct {
+	Entries     int64
+	Bytes       int64
+	Hits        int64
+	OldestAt    pgtype.Timestamptz
+	NewestHitAt pgtype.Timestamptz
+}
+
+// Inventaire du cache dérivé, pour l'écran d'administration.
+//
+// Une seule requête plutôt que trois : l'écran les affiche ensemble, et trois
+// allers-retours pour peupler le même encart seraient du gâchis.
+func (q *Queries) CacheStats(ctx context.Context) (CacheStatsRow, error) {
+	row := q.db.QueryRow(ctx, cacheStats)
+	var i CacheStatsRow
+	err := row.Scan(
+		&i.Entries,
+		&i.Bytes,
+		&i.Hits,
+		&i.OldestAt,
+		&i.NewestHitAt,
+	)
+	return i, err
+}
+
 const countComicPages = `-- name: CountComicPages :one
 SELECT count(*) FROM comic_pages WHERE comic_id = $1
 `
@@ -493,6 +528,40 @@ func (q *Queries) MarkMissingComicsDeleted(ctx context.Context, arg MarkMissingC
 		return 0, err
 	}
 	return result.RowsAffected(), nil
+}
+
+const purgeCacheEntries = `-- name: PurgeCacheEntries :many
+DELETE FROM cache_entries RETURNING key, size
+`
+
+type PurgeCacheEntriesRow struct {
+	Key  string
+	Size int64
+}
+
+// Vide l'inventaire du cache et rend les clés effacées.
+//
+// Les clés sont retournées pour que l'appelant efface aussi les objets : vider
+// la table seule laisserait des fichiers que plus rien ne référence, et que
+// l'éviction ne trouverait donc jamais.
+func (q *Queries) PurgeCacheEntries(ctx context.Context) ([]PurgeCacheEntriesRow, error) {
+	rows, err := q.db.Query(ctx, purgeCacheEntries)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []PurgeCacheEntriesRow{}
+	for rows.Next() {
+		var i PurgeCacheEntriesRow
+		if err := rows.Scan(&i.Key, &i.Size); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const recordCacheEntry = `-- name: RecordCacheEntry :exec

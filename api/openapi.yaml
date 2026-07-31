@@ -284,6 +284,40 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /me/devices/{deviceId}:
+    delete:
+      operationId: revokeDevice
+      summary: Révoquer un appareil
+      description: |
+        Révoque les sessions d'un seul appareil, sans toucher aux autres.
+
+        C'est le geste utile après un téléphone perdu : « tout déconnecter »
+        oblige à se reconnecter partout, y compris là où on est en train de
+        lire. Révoquer l'appareil courant est permis — cela revient à se
+        déconnecter.
+      tags: [auth]
+      parameters:
+        - name: deviceId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Sessions de l'appareil révoquées
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [revokedSessions]
+                properties:
+                  revokedSessions: { type: integer, format: int64 }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
   /me/logout-all:
     post:
       operationId: logoutAllDevices
@@ -745,6 +779,52 @@ paths:
       responses:
         "204":
           description: Accès retiré
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /cache:
+    get:
+      operationId: getCacheStats
+      summary: Occupation du cache dérivé
+      tags: [admin]
+      responses:
+        "200":
+          description: Statistiques
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/CacheStats" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    delete:
+      operationId: purgeCache
+      summary: Vider le cache dérivé
+      description: |
+        Sans danger : tout le contenu du cache est reconstructible depuis les
+        archives d'origine, et une purge ne coûte qu'une régénération à la
+        prochaine lecture. Utile après un changement de réglage d'imagerie, ou
+        quand on soupçonne des variantes corrompues.
+      tags: [admin]
+      responses:
+        "200":
+          description: Cache vidé
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [entries, bytes]
+                properties:
+                  entries:
+                    type: integer
+                    format: int64
+                    description: Entrées supprimées.
+                  bytes:
+                    type: integer
+                    format: int64
+                    description: Octets libérés.
         "401":
           $ref: "#/components/responses/Unauthorized"
         "403":
@@ -2715,6 +2795,28 @@ components:
           type: array
           items: { $ref: "#/components/schemas/Series" }
         nextCursor: { type: string }
+
+    CacheStats:
+      type: object
+      description: |
+        Occupation du cache dérivé — vignettes, couvertures, pages transcodées.
+
+        Tout y est reconstructible depuis les archives d'origine : ces chiffres
+        décrivent de la place occupée, jamais de la donnée à protéger.
+      required: [entries, bytes, hits]
+      properties:
+        entries: { type: integer, format: int64 }
+        bytes: { type: integer, format: int64 }
+        hits:
+          type: integer
+          format: int64
+          description: Nombre total de lectures servies depuis le cache.
+        maxBytes:
+          type: integer
+          format: int64
+          description: Plafond configuré. Zéro signifie un cache non borné.
+        oldestAt: { type: string, format: date-time }
+        newestHitAt: { type: string, format: date-time }
 
     SearchResults:
       type: object

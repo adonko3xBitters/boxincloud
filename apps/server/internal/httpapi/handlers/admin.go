@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
+	"github.com/adonko3xBitters/boxincloud/server/internal/cache"
 	"github.com/adonko3xBitters/boxincloud/server/internal/catalog"
 	"github.com/adonko3xBitters/boxincloud/server/internal/folders"
 	"github.com/adonko3xBitters/boxincloud/server/internal/httpapi/problem"
@@ -29,10 +30,57 @@ type Admin struct {
 	libraries *library.Service
 	catalog   *catalog.Service
 	ingest    *ingest.Service
+	cache     *cache.Cache
 }
 
-func NewAdmin(libraries *library.Service, catalogSvc *catalog.Service, ingestSvc *ingest.Service) *Admin {
-	return &Admin{libraries: libraries, catalog: catalogSvc, ingest: ingestSvc}
+func NewAdmin(
+	libraries *library.Service,
+	catalogSvc *catalog.Service,
+	ingestSvc *ingest.Service,
+	derived *cache.Cache,
+) *Admin {
+	return &Admin{libraries: libraries, catalog: catalogSvc, ingest: ingestSvc, cache: derived}
+}
+
+// ─── Cache dérivé ────────────────────────────────────────────────────────────
+
+func (h *Admin) CacheStats(w http.ResponseWriter, r *http.Request) {
+	stats, err := h.cache.Stats(r.Context())
+	if err != nil {
+		writeInternal(w, r, err)
+		return
+	}
+
+	out := map[string]any{
+		"entries":  stats.Entries,
+		"bytes":    stats.Bytes,
+		"hits":     stats.Hits,
+		"maxBytes": stats.MaxBytes,
+	}
+	if stats.OldestAt != nil {
+		out["oldestAt"] = stats.OldestAt.UTC().Format(time.RFC3339)
+	}
+	if stats.NewestHitAt != nil {
+		out["newestHitAt"] = stats.NewestHitAt.UTC().Format(time.RFC3339)
+	}
+
+	writeJSON(w, http.StatusOK, out)
+}
+
+// PurgeCache vide le cache dérivé.
+//
+// Aucune confirmation côté serveur : tout y est reconstructible, et exiger un
+// jeton de confirmation pour une opération sans perte serait de la cérémonie.
+// L'interface, elle, demande confirmation — parce qu'une purge coûte du temps
+// de régénération, pas parce qu'elle serait dangereuse.
+func (h *Admin) PurgeCache(w http.ResponseWriter, r *http.Request) {
+	entries, freed, err := h.cache.Purge(r.Context())
+	if err != nil {
+		writeInternal(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]int64{"entries": entries, "bytes": freed})
 }
 
 // ─── Backends ────────────────────────────────────────────────────────────────

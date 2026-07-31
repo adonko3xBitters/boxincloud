@@ -27,6 +27,11 @@ type Querier interface {
 	BulkMarkUnread(ctx context.Context, arg BulkMarkUnreadParams) (int64, error)
 	BulkSetFavorite(ctx context.Context, arg BulkSetFavoriteParams) (int64, error)
 	BulkUnsetFavorite(ctx context.Context, arg BulkUnsetFavoriteParams) (int64, error)
+	// Inventaire du cache dérivé, pour l'écran d'administration.
+	//
+	// Une seule requête plutôt que trois : l'écran les affiche ensemble, et trois
+	// allers-retours pour peupler le même encart seraient du gâchis.
+	CacheStats(ctx context.Context) (CacheStatsRow, error)
 	CanAccessLibrary(ctx context.Context, arg CanAccessLibraryParams) (*bool, error)
 	// Le dossier ou l'un de ses ancêtres autorise-t-il ce compte à écrire ?
 	CanWriteFolder(ctx context.Context, arg CanWriteFolderParams) (bool, error)
@@ -74,6 +79,13 @@ type Querier interface {
 	DeleteReadingProgress(ctx context.Context, arg DeleteReadingProgressParams) error
 	DeleteSetting(ctx context.Context, key string) error
 	DeleteStorageBackend(ctx context.Context, id uuid.UUID) error
+	// Cet appareil existe-t-il encore pour ce compte ?
+	//
+	// Interrogée à chaque requête portant un jeton d'appareil, derrière un cache de
+	// quelques secondes. Sans elle, révoquer un téléphone perdu ne l'empêcherait de
+	// rien pendant la durée de vie du jeton d'accès — un quart d'heure de lecture
+	// offert à qui l'a ramassé.
+	DeviceExists(ctx context.Context, arg DeviceExistsParams) (bool, error)
 	// ─── Édition manuelle ────────────────────────────────────────────────────────
 	// Édition d'un album par l'utilisateur.
 	//
@@ -234,6 +246,12 @@ type Querier interface {
 	// un compteur qui ne correspond à rien. Cliquer dessus donne une liste vide, ce
 	// qui ressemble à un défaut d'affichage alors que c'est une donnée périmée.
 	PruneEmptySeries(ctx context.Context, libraryID uuid.UUID) (int64, error)
+	// Vide l'inventaire du cache et rend les clés effacées.
+	//
+	// Les clés sont retournées pour que l'appelant efface aussi les objets : vider
+	// la table seule laisserait des fichiers que plus rien ne référence, et que
+	// l'éviction ne trouverait donc jamais.
+	PurgeCacheEntries(ctx context.Context) ([]PurgeCacheEntriesRow, error)
 	// Efface définitivement la ligne, une fois le fichier supprimé du backend.
 	PurgeComic(ctx context.Context, id uuid.UUID) error
 	// ─── Cache dérivé ────────────────────────────────────────────────────────────
@@ -248,6 +266,7 @@ type Querier interface {
 	RenameFolderTree(ctx context.Context, arg RenameFolderTreeParams) (int64, error)
 	RestoreComic(ctx context.Context, id uuid.UUID) error
 	RevokeAllUserSessions(ctx context.Context, userID uuid.UUID) (int64, error)
+	RevokeDeviceSessions(ctx context.Context, arg RevokeDeviceSessionsParams) (int64, error)
 	RevokeFolderAccess(ctx context.Context, arg RevokeFolderAccessParams) error
 	// Retire tous les déverrouillages d'un dossier, quel que soit le compte.
 	//

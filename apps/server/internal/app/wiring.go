@@ -225,3 +225,38 @@ func (s *cacheStore) ListForEviction(ctx context.Context, limit int32) ([]cache.
 func (s *cacheStore) DeleteEntry(ctx context.Context, key string) error {
 	return s.q.DeleteCacheEntry(ctx, key)
 }
+
+func (s *cacheStore) Stats(ctx context.Context) (cache.Stats, error) {
+	row, err := s.q.CacheStats(ctx)
+	if err != nil {
+		return cache.Stats{}, err
+	}
+
+	stats := cache.Stats{Entries: row.Entries, Bytes: row.Bytes, Hits: row.Hits}
+
+	// Un cache vide n'a ni plus ancienne entrée ni dernier accès : les dates
+	// restent nulles plutôt que de valoir l'époque Unix, qui se serait affichée
+	// comme « 1970 » dans l'interface.
+	if !row.OldestAt.Time.IsZero() {
+		oldest := row.OldestAt.Time
+		stats.OldestAt = &oldest
+	}
+	if !row.NewestHitAt.Time.IsZero() {
+		newest := row.NewestHitAt.Time
+		stats.NewestHitAt = &newest
+	}
+	return stats, nil
+}
+
+func (s *cacheStore) PurgeEntries(ctx context.Context) ([]cache.Entry, error) {
+	rows, err := s.q.PurgeCacheEntries(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]cache.Entry, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, cache.Entry{Key: row.Key, Size: row.Size})
+	}
+	return out, nil
+}

@@ -56,6 +56,17 @@ export const listDevices = () => request<{ devices: Device[] }>("/me/devices");
 export const logoutAllDevices = () =>
   request<{ revokedSessions: number }>("/me/logout-all", { method: "POST" });
 
+/**
+ * Révoque un seul appareil.
+ *
+ * Le geste après un téléphone perdu. `logoutAllDevices` existe à côté, mais
+ * oblige à se reconnecter partout, y compris là où on est en train de lire.
+ */
+export const revokeDevice = (deviceId: string) =>
+  request<{ revokedSessions: number }>(`/me/devices/${deviceId}`, {
+    method: "DELETE",
+  });
+
 // ─── Catalogue ───────────────────────────────────────────────────────────────
 
 export const listLibraries = () => request<{ libraries: Library[] }>("/libraries");
@@ -549,3 +560,19 @@ export type ScanRun = {
 
 export const listScanRuns = (libraryId: string) =>
   request<{ runs: ScanRun[] }>(`/libraries/${libraryId}/scans`);
+
+// ─── Cache dérivé ────────────────────────────────────────────────────────────
+
+export type CacheStats = {
+  entries: number;
+  bytes: number;
+  hits: number;
+  maxBytes?: number;
+  oldestAt?: string;
+  newestHitAt?: string;
+};
+
+export const getCacheStats = () => request<CacheStats>("/cache");
+
+export const purgeCache = () =>
+  request<{ entries: number; bytes: number }>("/cache", { method: "DELETE" });

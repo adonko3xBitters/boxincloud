@@ -73,6 +73,8 @@ type Repository interface {
 	UpsertDevice(ctx context.Context, d Device) (Device, error)
 	ListDevices(ctx context.Context, userID uuid.UUID) ([]Device, error)
 	DeleteDevice(ctx context.Context, userID, deviceID uuid.UUID) error
+	DeviceExists(ctx context.Context, userID, deviceID uuid.UUID) (bool, error)
+	RevokeDeviceSessions(ctx context.Context, userID, deviceID uuid.UUID) (int64, error)
 
 	CreateSession(ctx context.Context, s Session, tokenHash []byte, userAgent string, ip *netip.Addr) (Session, error)
 	GetSessionByTokenHash(ctx context.Context, hash []byte) (Session, error)
@@ -91,15 +93,20 @@ type Service struct {
 	// liveness évite de relire la base à chaque requête pour savoir si le
 	// compte porté par un jeton est toujours actif. Voir liveness.go.
 	liveness *livenessCache
+
+	// deviceLiveness fait de même pour les appareils : révoquer un téléphone
+	// perdu doit couper l'accès sans attendre l'expiration de son jeton.
+	deviceLiveness *livenessCache
 }
 
 func NewService(repo Repository, issuer *TokenIssuer, refreshTTL time.Duration, log *slog.Logger) *Service {
 	return &Service{
-		repo:       repo,
-		issuer:     issuer,
-		refreshTTL: refreshTTL,
-		log:        log,
-		liveness:   newLivenessCache(),
+		repo:           repo,
+		issuer:         issuer,
+		refreshTTL:     refreshTTL,
+		log:            log,
+		liveness:       newLivenessCache(),
+		deviceLiveness: newLivenessCache(),
 	}
 }
 
@@ -354,11 +361,39 @@ func (s *Service) ListDevices(ctx context.Context, userID uuid.UUID) ([]Device, 
 	return s.repo.ListDevices(ctx, userID)
 }
 
-// RevokeDevice supprime un appareil. Les sessions qui y étaient rattachées le
-// perdent, mais restent valides jusqu'à leur expiration — c'est LogoutAll qui
-// coupe immédiatement.
-func (s *Service) RevokeDevice(ctx context.Context, userID, deviceID uuid.UUID) error {
-	return s.repo.DeleteDevice(ctx, userID, deviceID)
+/*
+RevokeDevice coupe un appareil, tout de suite et pour de bon.
+
+L'ordre des trois opérations n'est pas indifférent. Les sessions d'abord :
+tant qu'un jeton de rafraîchissement vit, l'appareil se refait un jeton d'accès
+et la révocation ne serait qu'un répit. L'appareil ensuite, ce qui le fait
+disparaître de la liste. Le cache enfin, sans quoi le jeton d'accès en cours
+resterait accepté pendant sa durée de vie de cache.
+
+C'est le geste utile après un téléphone perdu. « Tout déconnecter » existe
+aussi, mais oblige à se reconnecter partout, y compris là où on est en train de
+lire — une punition collective pour un seul appareil égaré.
+*/
+func (s *Service) RevokeDevice(ctx context.Context, userID, deviceID uuid.UUID) (int64, error) {
+	exists, err := s.repo.DeviceExists(ctx, userID, deviceID)
+	if err != nil {
+		return 0, err
+	}
+	if !exists {
+		return 0, ErrDeviceNotFound
+	}
+
+	revoked, err := s.repo.RevokeDeviceSessions(ctx, userID, deviceID)
+	if err != nil {
+		return 0, err
+	}
+
+	if err := s.repo.DeleteDevice(ctx, userID, deviceID); err != nil {
+		return 0, err
+	}
+
+	s.ForgetDevice(deviceID)
+	return revoked, nil
 }
 
 // ─── Jetons d'accès ──────────────────────────────────────────────────────────

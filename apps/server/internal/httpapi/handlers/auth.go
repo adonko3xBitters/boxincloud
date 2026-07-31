@@ -8,6 +8,7 @@ import (
 	"net/netip"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 
 	"github.com/adonko3xBitters/boxincloud/server/internal/auth"
@@ -217,6 +218,37 @@ func (h *Auth) LogoutAll(w http.ResponseWriter, r *http.Request) {
 
 	revoked, err := h.svc.LogoutAll(r.Context(), claims.UserID)
 	if err != nil {
+		writeInternal(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]int64{"revokedSessions": revoked})
+}
+
+// RevokeDevice coupe les sessions d'un seul appareil.
+//
+// Le geste après un téléphone perdu. LogoutAll existe aussi, mais oblige à se
+// reconnecter partout — une punition collective pour un seul appareil égaré.
+func (h *Auth) RevokeDevice(w http.ResponseWriter, r *http.Request) {
+	claims, ok := middleware.ClaimsFrom(r.Context())
+	if !ok {
+		problem.Write(w, r, problem.Unauthorized("authentication required"))
+		return
+	}
+
+	deviceID, err := uuid.Parse(chi.URLParam(r, "deviceID"))
+	if err != nil {
+		problem.Write(w, r, problem.Validation(map[string]string{
+			"deviceId": "must be a valid UUID",
+		}))
+		return
+	}
+
+	revoked, err := h.svc.RevokeDevice(r.Context(), claims.UserID, deviceID)
+	if err != nil {
+		if errors.Is(err, auth.ErrDeviceNotFound) {
+			problem.Write(w, r, problem.NotFound("device not found"))
+			return
+		}
 		writeInternal(w, r, err)
 		return
 	}

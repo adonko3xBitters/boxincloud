@@ -19,6 +19,7 @@ import (
 	"path"
 	"strconv"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -40,6 +41,10 @@ type Store interface {
 	TotalSize(ctx context.Context) (int64, error)
 	ListForEviction(ctx context.Context, limit int32) ([]Entry, error)
 	DeleteEntry(ctx context.Context, key string) error
+
+	// Stats et PurgeEntries servent l'écran d'administration.
+	Stats(ctx context.Context) (Stats, error)
+	PurgeEntries(ctx context.Context) ([]Entry, error)
 }
 
 // Entry est une entrée de l'inventaire.
@@ -163,6 +168,61 @@ func (c *Cache) Delete(ctx context.Context, key string) error {
 		return err
 	}
 	return c.store.DeleteEntry(ctx, key)
+}
+
+// Stats décrit l'occupation du cache dérivé.
+type Stats struct {
+	Entries     int64
+	Bytes       int64
+	Hits        int64
+	MaxBytes    int64
+	OldestAt    *time.Time
+	NewestHitAt *time.Time
+}
+
+// Stats retourne l'inventaire courant.
+func (c *Cache) Stats(ctx context.Context) (Stats, error) {
+	stats, err := c.store.Stats(ctx)
+	if err != nil {
+		return Stats{}, err
+	}
+	stats.MaxBytes = c.maxSize
+	return stats, nil
+}
+
+/*
+Purge vide entièrement le cache dérivé.
+
+Sans danger par construction : tout y est reconstructible depuis les archives
+d'origine, et une purge ne coûte qu'une régénération à la prochaine lecture.
+C'est le geste utile après un changement de réglage d'imagerie, ou quand on
+soupçonne des variantes corrompues.
+
+L'inventaire est vidé d'abord, et les objets ensuite. L'ordre inverse
+laisserait, en cas d'interruption, des lignes désignant des fichiers absents —
+que le cache servirait alors comme des trous. Dans ce sens-ci, une interruption
+laisse au pire des objets orphelins : de la place perdue, jamais une erreur.
+*/
+func (c *Cache) Purge(ctx context.Context) (int64, int64, error) {
+	entries, err := c.store.PurgeEntries(ctx)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	var freed int64
+	for _, entry := range entries {
+		if err := c.provider.Delete(ctx, entry.Key); err != nil &&
+			!errors.Is(err, storage.ErrNotFound) {
+			// Un objet récalcitrant ne doit pas interrompre la purge : le
+			// suivant se supprimera peut-être, et l'inventaire est déjà vide.
+			c.log.Warn("cache : purge partielle",
+				slog.String("key", entry.Key), slog.Any("err", err))
+			continue
+		}
+		freed += entry.Size
+	}
+
+	return int64(len(entries)), freed, nil
 }
 
 // ─── Éviction ────────────────────────────────────────────────────────────────

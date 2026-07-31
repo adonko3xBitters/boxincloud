@@ -147,6 +147,17 @@ func (r *PostgresRepository) DeleteDevice(ctx context.Context, userID, deviceID 
 	return r.q.DeleteDevice(ctx, sqlc.DeleteDeviceParams{ID: deviceID, UserID: userID})
 }
 
+func (r *PostgresRepository) DeviceExists(ctx context.Context, userID, deviceID uuid.UUID) (bool, error) {
+	return r.q.DeviceExists(ctx, sqlc.DeviceExistsParams{ID: deviceID, UserID: userID})
+}
+
+func (r *PostgresRepository) RevokeDeviceSessions(ctx context.Context, userID, deviceID uuid.UUID) (int64, error) {
+	return r.q.RevokeDeviceSessions(ctx, sqlc.RevokeDeviceSessionsParams{
+		UserID:   userID,
+		DeviceID: uuid.NullUUID{UUID: deviceID, Valid: true},
+	})
+}
+
 func deviceFromRow(row sqlc.Device) Device {
 	d := Device{
 		ID:       row.ID,

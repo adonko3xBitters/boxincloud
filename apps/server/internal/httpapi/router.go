@@ -20,6 +20,7 @@ import (
 
 	"github.com/adonko3xBitters/boxincloud/server/internal/accounts"
 	"github.com/adonko3xBitters/boxincloud/server/internal/auth"
+	"github.com/adonko3xBitters/boxincloud/server/internal/cache"
 	"github.com/adonko3xBitters/boxincloud/server/internal/catalog"
 	"github.com/adonko3xBitters/boxincloud/server/internal/config"
 	"github.com/adonko3xBitters/boxincloud/server/internal/folders"
@@ -50,6 +51,7 @@ type Deps struct {
 	Reader    *reader.Service
 	Progress  *progress.Service
 	Tools     *catalog.Tools
+	Cache     *cache.Cache
 	WebFS     fs.FS // application web embarquée ; nil pour ne rien servir
 }
 
@@ -92,6 +94,7 @@ func NewRouter(d Deps) http.Handler {
 		"Tools":     d.Tools != nil,
 		"Reader":    d.Reader != nil,
 		"Progress":  d.Progress != nil,
+		"Cache":     d.Cache != nil,
 	} {
 		if !wired {
 			panic("httpapi : dépendance " + name + " non câblée dans NewRouter")
@@ -156,6 +159,7 @@ func NewRouter(d Deps) http.Handler {
 			r.Get("/me", authHandler.Me)
 			r.Get("/me/devices", authHandler.ListDevices)
 			r.Post("/me/logout-all", authHandler.LogoutAll)
+			r.Delete("/me/devices/{deviceID}", authHandler.RevokeDevice)
 
 			catalogHandler := handlers.NewCatalog(d.Catalog)
 			readerHandler := handlers.NewReader(d.Reader, d.Catalog)
@@ -217,7 +221,10 @@ func NewRouter(d Deps) http.Handler {
 			// backend, créer une bibliothèque, y déposer un fichier,
 			// relancer un parcours. Sans ces routes, remplir boxincloud
 			// demandait un accès shell au serveur.
-			adminHandler := handlers.NewAdmin(d.Libraries, d.Catalog, d.Ingest)
+			adminHandler := handlers.NewAdmin(d.Libraries, d.Catalog, d.Ingest, d.Cache)
+
+			r.Get("/cache", adminHandler.CacheStats)
+			r.Delete("/cache", adminHandler.PurgeCache)
 
 			r.Get("/storage-backends", adminHandler.ListBackends)
 			r.Post("/storage-backends", adminHandler.CreateBackend)
@@ -280,7 +287,7 @@ func NewRouter(d Deps) http.Handler {
 			r.Use(chimw.Timeout(uploadTimeout))
 			r.Use(middleware.Authenticate(d.Auth))
 
-			adminHandler := handlers.NewAdmin(d.Libraries, d.Catalog, d.Ingest)
+			adminHandler := handlers.NewAdmin(d.Libraries, d.Catalog, d.Ingest, d.Cache)
 			r.Post("/libraries/{libraryID}/upload", adminHandler.Upload)
 		})
 

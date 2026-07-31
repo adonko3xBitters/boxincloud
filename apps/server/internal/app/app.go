@@ -78,6 +78,7 @@ func Build(ctx context.Context, cfg *config.Config, log *slog.Logger, build hand
 		Reader:    core.Reader,
 		Progress:  core.Progress,
 		Tools:     core.Tools,
+		Cache:     core.Cache,
 		WebFS:     webFS,
 	})
 

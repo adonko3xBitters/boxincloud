@@ -175,6 +175,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/devices/{deviceId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Révoquer un appareil
+         * @description Révoque les sessions d'un seul appareil, sans toucher aux autres.
+         *
+         *     C'est le geste utile après un téléphone perdu : « tout déconnecter »
+         *     oblige à se reconnecter partout, y compris là où on est en train de
+         *     lire. Révoquer l'appareil courant est permis — cela revient à se
+         *     déconnecter.
+         */
+        delete: operations["revokeDevice"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/me/logout-all": {
         parameters: {
             query?: never;
@@ -417,6 +442,30 @@ export interface paths {
         post?: never;
         /** Retirer l'accès d'un compte */
         delete: operations["revokeLibraryAccess"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/cache": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Occupation du cache dérivé */
+        get: operations["getCacheStats"];
+        put?: never;
+        post?: never;
+        /**
+         * Vider le cache dérivé
+         * @description Sans danger : tout le contenu du cache est reconstructible depuis les
+         *     archives d'origine, et une purge ne coûte qu'une régénération à la
+         *     prochaine lecture. Utile après un changement de réglage d'imagerie, ou
+         *     quand on soupçonne des variantes corrompues.
+         */
+        delete: operations["purgeCache"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1635,6 +1684,32 @@ export interface components {
             nextCursor?: string;
         };
         /**
+         * @description Occupation du cache dérivé — vignettes, couvertures, pages transcodées.
+         *
+         *     Tout y est reconstructible depuis les archives d'origine : ces chiffres
+         *     décrivent de la place occupée, jamais de la donnée à protéger.
+         */
+        CacheStats: {
+            /** Format: int64 */
+            entries: number;
+            /** Format: int64 */
+            bytes: number;
+            /**
+             * Format: int64
+             * @description Nombre total de lectures servies depuis le cache.
+             */
+            hits: number;
+            /**
+             * Format: int64
+             * @description Plafond configuré. Zéro signifie un cache non borné.
+             */
+            maxBytes?: number;
+            /** Format: date-time */
+            oldestAt?: string;
+            /** Format: date-time */
+            newestHitAt?: string;
+        };
+        /**
          * @description Une recherche retourne deux natures de résultats, jamais fondues en une
          *     seule liste : chercher « astérix » veut dire la série pour qui la
          *     parcourt, et un tome précis pour qui le cherche. Les mêler classerait
@@ -2048,6 +2123,34 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+        };
+    };
+    revokeDevice: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                deviceId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sessions de l'appareil révoquées */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: int64 */
+                        revokedSessions: number;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationFailed"];
         };
     };
     logoutAllDevices: {
@@ -2540,6 +2643,61 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getCacheStats: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Statistiques */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CacheStats"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    purgeCache: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Cache vidé */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * Format: int64
+                         * @description Entrées supprimées.
+                         */
+                        entries: number;
+                        /**
+                         * Format: int64
+                         * @description Octets libérés.
+                         */
+                        bytes: number;
+                    };
+                };
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];

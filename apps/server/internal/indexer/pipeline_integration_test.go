@@ -544,6 +544,21 @@ func (m *memCacheStore) DeleteEntry(_ context.Context, key string) error {
 	delete(m.sizes, key)
 	return nil
 }
+func (m *memCacheStore) Stats(context.Context) (cache.Stats, error) {
+	stats := cache.Stats{Entries: int64(len(m.sizes))}
+	for _, s := range m.sizes {
+		stats.Bytes += s
+	}
+	return stats, nil
+}
+func (m *memCacheStore) PurgeEntries(context.Context) ([]cache.Entry, error) {
+	out := make([]cache.Entry, 0, len(m.sizes))
+	for key, size := range m.sizes {
+		out = append(out, cache.Entry{Key: key, Size: size})
+	}
+	m.sizes = map[string]int64{}
+	return out, nil
+}
 
 type rangeCounter struct {
 	storage.Provider

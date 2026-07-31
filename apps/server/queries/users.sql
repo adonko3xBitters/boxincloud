@@ -60,6 +60,21 @@ UPDATE devices SET last_seen_at = now() WHERE id = $1;
 -- name: DeleteDevice :exec
 DELETE FROM devices WHERE id = $1 AND user_id = $2;
 
+-- Cet appareil existe-t-il encore pour ce compte ?
+--
+-- Interrogée à chaque requête portant un jeton d'appareil, derrière un cache de
+-- quelques secondes. Sans elle, révoquer un téléphone perdu ne l'empêcherait de
+-- rien pendant la durée de vie du jeton d'accès — un quart d'heure de lecture
+-- offert à qui l'a ramassé.
+-- name: DeviceExists :one
+SELECT EXISTS (
+    SELECT 1 FROM devices WHERE id = $1 AND user_id = $2
+);
+
+-- name: RevokeDeviceSessions :execrows
+UPDATE sessions SET revoked_at = now()
+WHERE user_id = $1 AND device_id = $2 AND revoked_at IS NULL;
+
 -- ─── Sessions ────────────────────────────────────────────────────────────────
 
 -- name: CreateSession :one
