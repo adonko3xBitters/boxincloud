@@ -104,9 +104,32 @@ func (c *Catalog) LoadDir(dir string, log *slog.Logger) error {
 		return nil
 	}
 
+	/*
+		Le chemin est RÉSOLU avant d'être signalé.
+
+		Un chemin relatif se résout contre le répertoire de lancement, qui n'est
+		pas celui auquel pense l'opérateur : `deploy/scraper-templates` marche
+		depuis la racine du dépôt et échoue depuis `apps/server`, pour la même
+		configuration. Journaliser la chaîne saisie laisse alors croire à une
+		faute de frappe, là où le chemin est juste et le répertoire courant faux.
+	*/
+	resolved, absErr := filepath.Abs(dir)
+	if absErr != nil {
+		resolved = dir
+	}
+
 	entries, err := os.ReadDir(dir)
 	if os.IsNotExist(err) {
-		log.Info("répertoire de gabarits absent", slog.String("dir", dir))
+		/*
+			Un avertissement, pas une information.
+
+			L'opérateur a DEMANDÉ ces gabarits en renseignant la variable ; ne
+			pas les trouver contredit son intention. Le cas normal — aucun
+			gabarit — se signale par une variable vide, et ne passe jamais ici.
+		*/
+		log.Warn("répertoire de gabarits introuvable : aucun gabarit d'opérateur ne sera chargé",
+			slog.String("configuré", dir),
+			slog.String("résolu", resolved))
 		return nil
 	}
 	if err != nil {

@@ -14,6 +14,26 @@ BIN_DIR     := bin
 GO          ?= go
 COMPOSE_DEV := docker compose -f docker-compose.dev.yml
 
+# Les outils Go s'installent dans $(go env GOPATH)/bin, qui n'est presque jamais
+# dans le PATH d'une machine neuve. `make deps` les installait donc sans les
+# rendre joignables, et la cible suivante échouait sur « command not found » —
+# un message qui accuse l'outil au lieu du PATH.
+#
+# On l'ajoute ici plutôt que de demander à chacun de modifier son shell : le
+# Makefile sait où Go installe, il n'y a aucune raison de faire deviner.
+export PATH := $(PATH):$(shell $(GO) env GOPATH)/bin
+
+# require dit ce qu'il faut faire, au lieu de laisser le shell dire ce qui
+# manque. La différence est celle entre « air: command not found » et une
+# instruction exécutable.
+define require
+@command -v $(1) >/dev/null 2>&1 || { \
+	printf '\033[31m✗ %s est introuvable.\033[0m\n' "$(1)"; \
+	echo "  Installez les outils du projet :  make deps"; \
+	echo "  Ils vont dans $$($(GO) env GOPATH)/bin, que ce Makefile ajoute au PATH."; \
+	exit 1; }
+endef
+
 # Chargé pour les cibles qui en ont besoin (migrations, run)
 ifneq (,$(wildcard .env))
 	include .env
@@ -39,7 +59,11 @@ deps: ## Installe les outils Go (sqlc, goose, oapi-codegen, air, golangci-lint)
 	$(GO) install github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen@latest
 	$(GO) install github.com/air-verse/air@latest
 	$(GO) install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest
-	@echo "→ Assurez-vous que \$$(go env GOPATH)/bin est dans votre PATH"
+	@echo ""
+	@echo "→ Outils installés dans $$($(GO) env GOPATH)/bin."
+	@echo "  Les cibles de ce Makefile les trouvent sans réglage."
+	@echo "  Pour les appeler à la main depuis votre shell, ajoutez à ~/.zshrc :"
+	@echo "    export PATH=\"\$$PATH:\$$(go env GOPATH)/bin\""
 
 .PHONY: env
 env: ## Crée .env depuis .env.example avec une clé secrète générée
@@ -72,7 +96,12 @@ dev-reset: ## Détruit les volumes de développement et redémarre à vide
 
 .PHONY: dev-server
 dev-server: ## Démarre l'API avec rechargement à chaud
+	$(call require,air)
 	cd $(SERVER_DIR) && air
+
+.PHONY: run
+run: ## Démarre l'API sans rechargement à chaud (aucun outil à installer)
+	cd $(SERVER_DIR) && $(GO) run ./cmd/boxincloud serve
 
 .PHONY: dev-web
 dev-web: ## Démarre l'application web
@@ -101,6 +130,7 @@ generate-tokens: ## tokens.json → variables CSS (web) + constantes Dart (mobil
 
 .PHONY: generate-sql
 generate-sql: ## queries/*.sql → Go typé (sqlc)
+	$(call require,sqlc)
 	cd $(SERVER_DIR) && sqlc generate
 
 .PHONY: generate-check
@@ -127,6 +157,7 @@ migrate-status: ## Affiche l'état des migrations
 .PHONY: migrate-new
 migrate-new: ## Crée une migration — make migrate-new name=add_reading_lists
 	@test -n "$(name)" || (echo "✗ Usage : make migrate-new name=ma_migration" && exit 1)
+	$(call require,goose)
 	goose -dir $(SERVER_DIR)/migrations -s create $(name) sql
 
 # ─── Qualité ─────────────────────────────────────────────────────────────────
@@ -147,6 +178,7 @@ cover: ## Rapport de couverture HTML
 .PHONY: lint
 lint: ## Analyse statique
 	cd $(SERVER_DIR) && $(GO) vet ./...
+	$(call require,golangci-lint)
 	cd $(SERVER_DIR) && golangci-lint run
 
 .PHONY: fmt

@@ -10,8 +10,10 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"runtime"
+	"syscall"
 	"time"
 
 	"github.com/adonko3xBitters/boxincloud/server/internal/config"
@@ -118,7 +120,7 @@ func (a *App) Run(ctx context.Context) error {
 			slog.String("go", runtime.Version()),
 		)
 		if err := a.http.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			errCh <- fmt.Errorf("serveur HTTP : %w", err)
+			errCh <- listenFailure(a.cfg.Addr, err)
 		}
 	}()
 
@@ -153,4 +155,41 @@ func (a *App) shutdown() error {
 	a.log.Info("arrêt terminé")
 
 	return errors.Join(errs...)
+}
+
+/*
+listenFailure explique un démarrage impossible, au lieu de le constater.
+
+« listen tcp :8070: bind: address already in use » est exact et inutile : il ne
+dit ni qui occupe le port, ni comment le savoir, ni qu'on peut simplement en
+changer. C'est le premier message que rencontre quelqu'un qui relance une
+instance sans avoir arrêté la précédente — le cas le plus banal du
+développement, et celui qui coûte le plus de minutes à qui découvre le projet.
+
+Le port est extrait de l'adresse écoutée plutôt que réécrit en dur : `Addr` peut
+valoir « :8080 », « 127.0.0.1:8080 » ou « [::1]:8080 », et une commande qui ne
+correspond pas à la configuration réelle vaut moins que pas de commande.
+*/
+func listenFailure(addr string, err error) error {
+	if !errors.Is(err, syscall.EADDRINUSE) {
+		return fmt.Errorf("serveur HTTP : %w", err)
+	}
+
+	port := addr
+	if _, p, splitErr := net.SplitHostPort(addr); splitErr == nil && p != "" {
+		port = p
+	}
+
+	return fmt.Errorf(`le port %s est déjà occupé.
+
+Une autre instance tourne probablement — c'est le cas le plus fréquent après un
+redémarrage. Pour voir laquelle :
+
+    lsof -nP -iTCP:%s -sTCP:LISTEN
+
+Puis arrêtez-la, ou écoutez ailleurs :
+
+    BOXINCLOUD_ADDR=:8081
+
+(%w)`, port, port, err)
 }
