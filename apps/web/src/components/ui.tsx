@@ -98,7 +98,20 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   const describedBy = error ? `${inputId}-error` : hint ? `${inputId}-hint` : undefined;
 
   return (
-    <div className="flex flex-col gap-1.5">
+    /*
+      `w-full min-w-0` sur l'enveloppe, et non sur le champ.
+
+      L'enveloppe est ce que voit la mise en page du parent : un `flex-1` posé
+      sur `<Input>` atterrit à l'intérieur, sur le `<input>`, et n'a donc aucun
+      effet sur la largeur réellement occupée. Le champ restait court au milieu
+      d'une ligne vide, avec un texte d'invite tronqué.
+
+      `w-full` le fait remplir ce qu'on lui donne — en colonne, où vivent la
+      plupart des formulaires, c'est sans effet puisqu'il s'étirait déjà.
+      `min-w-0` l'autorise à rétrécir sous sa largeur intrinsèque : sans lui, un
+      champ dans une ligne partagée déborderait au lieu de se serrer.
+    */
+    <div className="flex w-full min-w-0 flex-col gap-1.5">
       {label && (
         <label htmlFor={inputId} className="text-sm font-medium text-fg">
           {label}
@@ -110,7 +123,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
         aria-invalid={error ? true : undefined}
         aria-describedby={describedBy}
         className={cx(
-          "h-10 rounded-md border bg-surface px-3 text-sm text-fg",
+          "h-10 w-full rounded-md border bg-surface px-3 text-sm text-fg",
           "placeholder:text-subtle",
           "transition-colors duration-(--motion-duration-fast)",
           // `border-strong` et non `border` : un champ dont on ne voit pas le

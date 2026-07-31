@@ -146,9 +146,13 @@ function SearchSection() {
           placeholder={t("discovery.placeholder")}
           aria-label={t("discovery.placeholder")}
           disabled={noSources}
-          className="flex-1"
         />
-        <Button type="submit" disabled={noSources || text.trim().length < 2}>
+        <Button
+          type="submit"
+          disabled={noSources || text.trim().length < 2}
+          // Le bouton garde sa largeur pendant que le champ prend le reste.
+          className="shrink-0"
+        >
           {t("discovery.tab.search")}
         </Button>
       </form>
