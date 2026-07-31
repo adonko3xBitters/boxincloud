@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 
+import { useT } from "@/i18n";
 import { cx } from "@/components/ui";
 import { imageURL } from "@/lib/api/client";
 import type { ManifestPage } from "@/lib/reader/pages";
@@ -42,6 +43,7 @@ export function Filmstrip({
   onSelect: (page: number) => void;
   onClose: () => void;
 }) {
+  const t = useT();
   const scroller = useRef<HTMLDivElement>(null);
   const activeItem = useRef<HTMLButtonElement>(null);
 
@@ -76,7 +78,7 @@ export function Filmstrip({
   return (
     <div
       inert={!open}
-      aria-label="Pages de l'album"
+      aria-label={t("filmstrip.label")}
       className={cx(
         "absolute inset-x-0 bottom-0 z-30 border-t border-white/10 bg-black/85 backdrop-blur",
         "transition-transform duration-(--motion-duration-slow) ease-emphasized",
@@ -89,7 +91,7 @@ export function Filmstrip({
         </p>
         <button
           onClick={onClose}
-          aria-label="Fermer la bande de vignettes"
+          aria-label={t("filmstrip.close")}
           className="pressable grid size-7 place-items-center rounded text-white/60 hover:bg-white/10 hover:text-white"
         >
           <svg viewBox="0 0 16 16" fill="none" className="size-4" aria-hidden="true">
@@ -114,7 +116,7 @@ export function Filmstrip({
                 ref={active ? activeItem : undefined}
                 onClick={() => onSelect(page.index)}
                 aria-current={active ? "true" : undefined}
-                aria-label={`Aller à la page ${page.index + 1}`}
+                aria-label={t("filmstrip.goToPage", { page: page.index + 1 })}
                 className={cx(
                   "group relative shrink-0 overflow-hidden rounded-[3px]",
                   "transition-transform duration-(--motion-duration-fast) ease-emphasized",

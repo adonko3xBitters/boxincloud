@@ -20,6 +20,7 @@ import { useEffect, useState } from "react";
 
 import { BrandLockup } from "@/components/brand";
 import { Button, Input, Spinner } from "@/components/ui";
+import { useT } from "@/i18n";
 import { ApiError } from "@/lib/api/client";
 import { setTokens } from "@/lib/api/tokens";
 import * as api from "@/lib/api/endpoints";
@@ -28,6 +29,7 @@ import { useAuthStatus, useIsAuthenticated } from "@/lib/auth";
 const MIN_PASSWORD = 10;
 
 export default function SetupPage() {
+  const t = useT();
   const router = useRouter();
   const status = useAuthStatus();
   const authenticated = useIsAuthenticated();
@@ -55,7 +57,7 @@ export default function SetupPage() {
     setFieldErrors({});
 
     if (password !== confirm) {
-      setFieldErrors({ confirm: "Les mots de passe ne correspondent pas." });
+      setFieldErrors({ confirm: t("setup.mismatch") });
       return;
     }
 
@@ -79,7 +81,7 @@ export default function SetupPage() {
           setError(err.message);
         }
       } else {
-        setError("Le serveur est-il joignable ?");
+        setError(t("setup.unreachable"));
       }
       setSubmitting(false);
     }
@@ -107,15 +109,15 @@ export default function SetupPage() {
         </div>
 
         <div className="rounded-xl border border-border bg-surface p-6 shadow-[var(--shadow-md)]">
-          <h1 className="mb-1 text-xl font-semibold">Bienvenue</h1>
+          <h1 className="mb-1 text-xl font-semibold">{t("setup.welcome")}</h1>
           <p className="mb-6 text-sm text-muted">
-            Cette instance est neuve. Créez le compte administrateur pour commencer.
+{t("setup.intro")}
           </p>
 
           <form onSubmit={onSubmit} className="flex flex-col gap-4">
             <Input
               name="username"
-              label="Nom d'utilisateur"
+              label={t("auth.username")}
               autoComplete="username"
               autoFocus
               required
@@ -124,12 +126,12 @@ export default function SetupPage() {
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               error={fieldErrors.username}
-              hint="Lettres, chiffres, tiret, point et souligné."
+              hint={t("setup.usernameHint")}
             />
             <Input
               name="email"
               type="email"
-              label="Adresse e-mail (facultative)"
+              label={t("setup.emailOptional")}
               autoComplete="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -138,7 +140,7 @@ export default function SetupPage() {
             <Input
               name="password"
               type="password"
-              label="Mot de passe"
+              label={t("auth.password")}
               autoComplete="new-password"
               required
               value={password}
@@ -149,7 +151,7 @@ export default function SetupPage() {
             <Input
               name="confirm"
               type="password"
-              label="Confirmation"
+              label={t("setup.confirm")}
               autoComplete="new-password"
               required
               value={confirm}
@@ -176,7 +178,7 @@ export default function SetupPage() {
         </div>
 
         <p className="mt-6 text-center text-xs text-subtle">
-          Ce compte sera administrateur. Vous pourrez en créer d&apos;autres ensuite.
+{t("setup.willBeAdmin")}
         </p>
       </div>
     </main>
@@ -191,6 +193,7 @@ export default function SetupPage() {
  * commande exacte — plutôt que de le laisser chercher.
  */
 function SetupComplete({ onContinue }: { onContinue: () => void }) {
+  const t = useT();
   return (
     <main className="grid min-h-dvh place-items-center px-4 py-12">
       <div className="w-full max-w-lg">
@@ -209,16 +212,14 @@ function SetupComplete({ onContinue }: { onContinue: () => void }) {
             </svg>
           </div>
 
-          <h1 className="mb-1 text-xl font-semibold">Compte créé</h1>
+          <h1 className="mb-1 text-xl font-semibold">{t("setup.created")}</h1>
           <p className="mb-6 text-sm text-muted">
-            Il reste à connecter un espace de stockage et à créer une bibliothèque.
-            La console d&apos;administration arrive prochainement ; en attendant, cela
-            se fait en ligne de commande.
+{t("setup.nextSteps")}
           </p>
 
           <div className="rounded-lg bg-surface-sunken p-4">
             <p className="mb-2 text-xs font-medium uppercase tracking-wide text-subtle">
-              Depuis le serveur
+              {t("setup.fromServer")}
             </p>
             <pre className="overflow-x-auto text-xs leading-relaxed text-fg">
               <code>{`boxincloudctl storage add monminio s3 \\

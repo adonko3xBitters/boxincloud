@@ -23,7 +23,7 @@ import type { Comic } from "@/lib/api/client";
 import * as api from "@/lib/api/endpoints";
 import { useCurrentUser, useLogout, useRequireAuth } from "@/lib/auth";
 import { useDismissOnOutside } from "@/lib/dismiss";
-import { useT } from "@/i18n";
+import { LOCALES, useLocale, useT, type Locale } from "@/i18n";
 import { WorkspaceProvider, scopeLabel, scopeToQuery, useWorkspace } from "@/lib/workspace";
 
 /**
@@ -175,6 +175,8 @@ function TopBar() {
               </>
             )}
 
+            <LanguagePicker />
+
             <button
               onClick={() => void logout()}
               className="pressable w-full rounded px-2 py-1.5 text-left text-ui text-muted hover:bg-surface-hover hover:text-fg"
@@ -191,6 +193,51 @@ function TopBar() {
       {storageOpen && <StoragePanel onClose={() => setStorageOpen(false)} />}
       {accountsOpen && <AccountsPanel onClose={() => setAccountsOpen(false)} />}
     </header>
+  );
+}
+
+/**
+ * Choix de la langue.
+ *
+ * Dans le menu du compte plutôt que dans un panneau de réglages : c'est le
+ * premier endroit où quelqu'un cherche, et un réglage qu'on ne trouve pas
+ * n'existe pas.
+ *
+ * Les langues s'affichent dans leur propre langue — « Français », « English »
+ * — et non traduites. Quelqu'un qui ne lit pas la langue courante doit pouvoir
+ * reconnaître la sienne, ce que « Anglais » ne permet pas.
+ */
+const LANGUAGE_NAMES: Record<Locale, string> = {
+  fr: "Français",
+  en: "English",
+};
+
+function LanguagePicker() {
+  const { locale, setLocale, t } = useLocale();
+
+  return (
+    <div className="mt-1 border-t border-border px-2 pb-1 pt-1.5">
+      <p className="mb-1 text-micro uppercase tracking-wide text-subtle">
+        {t("account.language")}
+      </p>
+      <div className="flex gap-1">
+        {LOCALES.map((option) => (
+          <button
+            key={option}
+            onClick={() => setLocale(option)}
+            aria-pressed={locale === option}
+            className={cx(
+              "pressable flex-1 rounded px-2 py-1 text-meta font-medium",
+              locale === option
+                ? "bg-accent text-inverted"
+                : "text-muted hover:bg-surface-hover hover:text-fg",
+            )}
+          >
+            {LANGUAGE_NAMES[option]}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -265,8 +312,8 @@ function MainArea() {
   return (
     <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
       <div className="flex shrink-0 items-baseline gap-2 border-b border-border bg-surface px-3 py-2">
-        <h1 key={scopeLabel(scope)} className="fade-in text-title font-semibold text-fg">
-          {scopeLabel(scope)}
+        <h1 key={scopeLabel(scope, t)} className="fade-in text-title font-semibold text-fg">
+          {scopeLabel(scope, t)}
         </h1>
         <span className="text-meta tabular-nums text-subtle">
           {comics.isLoading ? "…" : `${all.length}${comics.hasNextPage ? "+" : ""} albums`}

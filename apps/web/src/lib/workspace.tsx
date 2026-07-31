@@ -10,6 +10,7 @@
  */
 
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import type { MessageKey } from "@/i18n";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import * as api from "./api/endpoints";
@@ -212,23 +213,38 @@ export function scopeToQuery(
   }
 }
 
-/** Libellé de la portée courante, affiché en tête de la zone principale. */
-export function scopeLabel(scope: Scope): string {
+/**
+ * Libellé de la portée courante, affiché en tête de la zone principale.
+ *
+ * Prend la fonction de traduction en paramètre plutôt que d'appeler un hook :
+ * `scopeLabel` est une fonction pure, appelée depuis le rendu d'un composant
+ * qui, lui, a déjà accès au catalogue. En faire un hook l'empêcherait d'être
+ * utilisée dans une clé de React, ce qu'elle est.
+ *
+ * Deux cas ne passent pas par le catalogue : le nom d'une série et le nom d'un
+ * dossier viennent des données, pas de l'interface.
+ */
+export function scopeLabel(
+  scope: Scope,
+  t: (key: MessageKey) => string,
+): string {
   switch (scope.kind) {
     case "library":
-      return "Bibliothèque";
+      return t("scope.library");
     case "folder":
-      return scope.path === "" ? "Racine" : (scope.path.split("/").pop() ?? scope.path);
+      return scope.path === ""
+        ? t("scope.root")
+        : (scope.path.split("/").pop() ?? scope.path);
     case "series":
       return scope.name;
     case "favorites":
-      return "Favoris";
+      return t("sidebar.favorites");
     case "reading":
-      return "En cours de lecture";
+      return t("scope.reading");
     case "recent":
-      return "Récemment ajouté";
+      return t("scope.recent");
     default:
-      return "Tous les albums";
+      return t("sidebar.allAlbums");
   }
 }
 

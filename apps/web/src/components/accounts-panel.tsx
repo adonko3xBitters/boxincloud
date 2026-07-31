@@ -291,8 +291,8 @@ function AccountForm({
         }}
         className="flex flex-col gap-3"
       >
-        <TextField label="Nom affiché" value={displayName} onChange={setDisplayName} />
-        <TextField label="Adresse e-mail" value={email} onChange={setEmail} type="email" />
+        <TextField label={t("auth.displayName")} value={displayName} onChange={setDisplayName} />
+        <TextField label={t("auth.email")} value={email} onChange={setEmail} type="email" />
 
         <RoleField
           value={role}

@@ -444,6 +444,55 @@ export const fr = {
   "workspace.emptyDetail": "Changez de dossier ou élargissez les filtres.",
   "workspace.loadMore": "Charger la suite",
   "workspace.readNamed": "Lire {title}",
+
+  // ── Connexion et installation ──────────────────────────────────────────
+  "login.failed": "Connexion impossible. Le serveur est-il joignable ?",
+  "setup.mismatch": "Les mots de passe ne correspondent pas.",
+  "setup.unreachable": "Le serveur est-il joignable ?",
+  "setup.usernameHint": "Lettres, chiffres, tiret, point et souligné.",
+  "setup.emailOptional": "Adresse e-mail (facultative)",
+  "setup.confirm": "Confirmation",
+
+  // ── Lien partagé ───────────────────────────────────────────────────────
+  "shared.invalid": "Ce lien n'est pas valide",
+  "shared.expiredOrRevoked": "Il a peut-être expiré, ou été révoqué.",
+  "shared.expiredOrRevokedBy":
+    "Il a peut-être expiré, ou été révoqué par la personne qui vous l'a transmis.",
+  "shared.albums": "Albums partagés",
+  "shared.album": "Album partagé",
+  "shared.nothingTitle": "Rien à voir",
+  "shared.nothingDetail": "Ce partage ne contient aucun album.",
+
+  // ── Bande de vignettes ─────────────────────────────────────────────────
+  "filmstrip.label": "Pages de l'album",
+  "filmstrip.close": "Fermer la bande de vignettes",
+
+  // ── États d'erreur ─────────────────────────────────────────────────────
+  "error.pageFailed": "Impossible de charger cette page",
+
+  // ── Portées ────────────────────────────────────────────────────────────
+  "scope.library": "Bibliothèque",
+  "scope.root": "Racine",
+  "scope.reading": "En cours de lecture",
+  "scope.recent": "Récemment ajouté",
+
+  "login.title": "Connexion",
+  "setup.welcome": "Bienvenue",
+  "setup.intro": "Cette instance est neuve. Créez le compte administrateur pour commencer.",
+  "setup.willBeAdmin": "Ce compte sera administrateur. Vous pourrez en créer d'autres ensuite.",
+  "setup.created": "Compte créé",
+  "setup.nextSteps":
+    "Il reste à connecter un espace de stockage et à créer une bibliothèque. Tout se fait depuis l'interface, sous « Stockage ».",
+  "setup.fromServer": "Depuis le serveur",
+  "filmstrip.goToPage": "Aller à la page {page}",
+  "mobile.qrAlt": "Code QR vers {url}",
+  "mobile.directApk": "Télécharger l'APK directement",
+  "mobile.pageExplains":
+    "Elle propose le téléchargement pour Android et rappelle l'adresse de ce serveur, à saisir à la première connexion.",
+  "login.badCredentials": "Nom d'utilisateur ou mot de passe incorrect.",
+  "storage.endpoint": "Endpoint",
+  "storage.bucket": "Bucket",
+  "account.language": "Langue",
 } as const;
 
 /** Les clés du catalogue. Toute traduction doit les couvrir toutes. */

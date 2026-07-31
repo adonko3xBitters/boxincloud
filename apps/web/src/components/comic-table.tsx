@@ -187,9 +187,11 @@ export function ComicTable({
 }
 
 function ReadMark({ status }: { status?: string }) {
+  const t = useT();
+
   if (status === "read") {
     return (
-      <span title="Lu" className="inline-block text-success">
+      <span title={t("table.read")} className="inline-block text-success">
         <svg viewBox="0 0 16 16" fill="currentColor" className="size-4" aria-hidden="true">
           <path d="M13.5 4.5 6.5 11.5 2.5 7.5l1-1 3 3 6-6 1 1Z" />
         </svg>
@@ -198,7 +200,7 @@ function ReadMark({ status }: { status?: string }) {
   }
   if (status === "in_progress") {
     return (
-      <span title="En cours" className="inline-block size-2.5 rounded-full bg-accent" />
+      <span title={t("toolbar.inProgress")} className="inline-block size-2.5 rounded-full bg-accent" />
     );
   }
   return <span className="text-subtle">—</span>;

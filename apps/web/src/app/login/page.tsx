@@ -5,10 +5,12 @@ import { useEffect, useState } from "react";
 
 import { BrandLockup } from "@/components/brand";
 import { Button, Input, Spinner } from "@/components/ui";
+import { useT } from "@/i18n";
 import { ApiError } from "@/lib/api/client";
 import { useAuthStatus, useIsAuthenticated, useLogin } from "@/lib/auth";
 
 export default function LoginPage() {
+  const t = useT();
   const router = useRouter();
   const authenticated = useIsAuthenticated();
   const status = useAuthStatus();
@@ -42,8 +44,8 @@ export default function LoginPage() {
       // et un mot de passe erroné : on ne cherche pas à en dire plus.
       setError(
         err instanceof ApiError && err.status === 401
-          ? "Nom d'utilisateur ou mot de passe incorrect."
-          : "Connexion impossible. Le serveur est-il joignable ?",
+          ? t("login.badCredentials")
+          : t("login.failed"),
       );
       setSubmitting(false);
     }
@@ -65,13 +67,13 @@ export default function LoginPage() {
         </div>
 
         <div className="rounded-xl border border-border bg-surface p-6 shadow-[var(--shadow-md)]">
-          <h1 className="mb-1 text-xl font-semibold">Connexion</h1>
+          <h1 className="mb-1 text-xl font-semibold">{t("login.title")}</h1>
           <p className="mb-6 text-sm text-muted">Accédez à votre bibliothèque.</p>
 
           <form onSubmit={onSubmit} className="flex flex-col gap-4">
             <Input
               name="username"
-              label="Nom d'utilisateur"
+              label={t("auth.username")}
               autoComplete="username"
               autoFocus
               required
@@ -81,7 +83,7 @@ export default function LoginPage() {
             <Input
               name="password"
               type="password"
-              label="Mot de passe"
+              label={t("auth.password")}
               autoComplete="current-password"
               required
               value={password}
@@ -95,7 +97,7 @@ export default function LoginPage() {
             )}
 
             <Button type="submit" size="lg" loading={submitting} className="mt-2">
-              Se connecter
+              {t("auth.signIn")}
             </Button>
           </form>
         </div>

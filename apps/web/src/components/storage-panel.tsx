@@ -683,8 +683,8 @@ function NewBackend({ onDone }: { onDone: () => void }) {
         />
       ) : (
         <>
-          <Field label="Endpoint" value={endpoint} onChange={setEndpoint} mono />
-          <Field label="Bucket" value={bucket} onChange={setBucket} mono />
+          <Field label={t("storage.endpoint")} value={endpoint} onChange={setEndpoint} mono />
+          <Field label={t("storage.bucket")} value={bucket} onChange={setBucket} mono />
           <Field label={t("storage.accessKey")} value={accessKey} onChange={setAccessKey} />
           <Field
             label={t("storage.secretKey")}

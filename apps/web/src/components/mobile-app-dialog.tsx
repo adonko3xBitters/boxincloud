@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { encodeQR } from "@/lib/qr";
+import { useT } from "@/i18n";
 import { ANDROID_APK_URL } from "@/lib/mobile-app";
 
 /**
@@ -18,6 +19,7 @@ import { ANDROID_APK_URL } from "@/lib/mobile-app";
 export function MobileAppDialog({ onClose }: { onClose: () => void }) {
   // L'origine n'existe pas au rendu statique : la page est exportée à la
   // construction, bien avant de savoir sous quelle adresse elle sera servie.
+  const t = useT();
   const [origin, setOrigin] = useState("");
 
   useEffect(() => setOrigin(window.location.origin), []);
@@ -41,20 +43,20 @@ export function MobileAppDialog({ onClose }: { onClose: () => void }) {
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Application mobile"
+        aria-label={t("mobile.title")}
         onClick={(e) => e.stopPropagation()}
         className="rise-in flex w-full max-w-sm flex-col gap-4 rounded-xl border border-border bg-surface p-5 shadow-2xl"
       >
         <div className="flex items-start justify-between gap-3">
           <div>
-            <h2 className="text-title font-semibold text-fg">Application mobile</h2>
+            <h2 className="text-title font-semibold text-fg">{t("mobile.title")}</h2>
             <p className="mt-0.5 text-meta text-muted">
-              Scannez avec l&apos;appareil photo du téléphone.
+{t("mobile.scanHint")}
             </p>
           </div>
           <button
             onClick={onClose}
-            aria-label="Fermer"
+            aria-label={t("action.close")}
             className="pressable grid size-8 shrink-0 place-items-center rounded text-subtle hover:bg-surface-hover hover:text-fg"
           >
             <svg viewBox="0 0 16 16" fill="none" className="size-4" aria-hidden="true">
@@ -77,7 +79,7 @@ export function MobileAppDialog({ onClose }: { onClose: () => void }) {
               viewBox={`-4 -4 ${qr.size + 8} ${qr.size + 8}`}
               className="size-56"
               role="img"
-              aria-label={`Code QR vers ${target}`}
+              aria-label={t("mobile.qrAlt", { url: target })}
               shapeRendering="crispEdges"
             >
               <path d={qr.path} fill="#000" />
@@ -88,20 +90,19 @@ export function MobileAppDialog({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="flex flex-col gap-1">
-          <p className="text-meta text-subtle">La page ouverte par le code</p>
+          <p className="text-meta text-subtle">{t("mobile.linkLabel")}</p>
           <code className="truncate rounded-md border border-border bg-surface-sunken px-2 py-1.5 text-meta text-muted">
             {target || "…"}
           </code>
         </div>
 
         <p className="text-meta leading-relaxed text-subtle">
-          Elle propose le téléchargement pour Android et rappelle l&apos;adresse de
-          ce serveur, à saisir à la première connexion.{" "}
+{t("mobile.pageExplains")}{" "}
           <a
             href={ANDROID_APK_URL}
             className="text-accent-text underline underline-offset-2 hover:no-underline"
           >
-            Télécharger l&apos;APK directement
+{t("mobile.directApk")}
           </a>
           .
         </p>

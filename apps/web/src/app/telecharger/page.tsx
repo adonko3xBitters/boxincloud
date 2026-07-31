@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { BrandLockup } from "@/components/brand";
 import { cx } from "@/components/ui";
+import { useT } from "@/i18n";
 import {
   ANDROID_APK_URL,
   ANDROID_TEST_APK_URL,
@@ -128,6 +129,7 @@ export default function Page() {
  * est exactement ce qu'on cherche à éviter en scannant un code.
  */
 function ServerAddress({ origin }: { origin: string }) {
+  const t = useT();
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -157,7 +159,7 @@ function ServerAddress({ origin }: { origin: string }) {
           "text-muted hover:bg-surface-hover hover:text-fg disabled:opacity-40",
         )}
       >
-        {copied ? "Copié" : "Copier"}
+        {copied ? t("action.copied") : t("action.copy")}
       </button>
     </div>
   );

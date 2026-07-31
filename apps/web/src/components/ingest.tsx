@@ -550,8 +550,18 @@ function FirstLibrary({ onCreated }: { onCreated: () => void }) {
         </label>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
-          <Field label="Endpoint" value={endpoint} onChange={setEndpoint} placeholder="localhost:9000" />
-          <Field label="Bucket" value={bucket} onChange={setBucket} placeholder="boxincloud" />
+          <Field
+            label={t("storage.endpoint")}
+            value={endpoint}
+            onChange={setEndpoint}
+            placeholder="localhost:9000"
+          />
+          <Field
+            label={t("storage.bucket")}
+            value={bucket}
+            onChange={setBucket}
+            placeholder="boxincloud"
+          />
           <Field label={t("storage.accessKey")} value={accessKey} onChange={setAccessKey} />
           <Field
             label={t("storage.secretKey")}

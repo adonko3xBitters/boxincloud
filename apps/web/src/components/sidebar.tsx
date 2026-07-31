@@ -240,7 +240,7 @@ function FolderTree({
               )}
             >
               <FolderIcon className="size-4 shrink-0 opacity-70" />
-              <span className="truncate">{folder.path === "" ? "Racine" : folder.name}</span>
+              <span className="truncate">{folder.path === "" ? t("scope.root") : folder.name}</span>
 
               {/* Les cadenas disent lequel des deux verrous est posé : le plein
                   protège, l'ouvert signale un dossier masqué qu'on a ouvert. */}

@@ -69,7 +69,38 @@ const NOT_TEXT = [
   /\b(flex|grid|rounded|border|text-|bg-|px-|py-|size-|gap-|font-)/, // Tailwind
   /^use (client|server)$/,
   /^[a-z]+\.[a-z.]+$/, // clés de catalogue déjà extraites
+
+  // Tracés SVG : « M8 4v8M4 8h8 ». Ils commencent par une majuscule et
+  // contiennent des espaces, ce qui les faisait passer pour des phrases.
+  /^[MmLlHhVvCcSsQqTtAaZz][\d\s.,+-]*[MmLlHhVvCcSsQqTtAaZz\d\s.,+-]*$/,
+
+  // Noms de touches et de balises, comparés tels quels par le DOM. Les
+  // traduire casserait le clavier.
+  /^(Arrow(Up|Down|Left|Right)|Page(Up|Down)|Home|End|Escape|Enter|Tab|Backspace|Delete|Shift|Control|Meta|Alt)$/,
+  /^(INPUT|TEXTAREA|SELECT|BUTTON)$/,
+
+  // Constante du DOM : `dataTransfer.types` contient littéralement « Files ».
+  /^Files$/,
+
+  // Noms de langues, écrits dans leur propre langue et jamais traduits :
+  // quelqu'un qui ne lit pas la langue courante doit reconnaître la sienne,
+  // ce que « Anglais » ne permet pas.
+  /^(Français|English)$/,
 ];
+
+/*
+Deux exceptions, permanentes et assumées.
+
+La description dans `layout.tsx` est une balise `<meta>` écrite à la
+construction. L'export statique produit un seul HTML servi à tout le monde :
+elle ne PEUT pas suivre la langue du visiteur, et la traduire à l'exécution ne
+changerait rien à ce que lit un moteur de recherche. Elle reste en français,
+comme la langue par défaut du projet.
+
+Ce n'est pas un oubli qu'on cache : c'est une limite du rendu statique, nommée
+ici pour qu'on ne la redécouvre pas dans six mois.
+*/
+const EXEMPT = new Set([join(SRC, "app", "layout.tsx")]);
 
 /** Un caractère accentué ou une majuscule initiale suffit à trahir du français. */
 const FRENCH = /[éèêëàâäîïôöùûüçœæÉÈÊÀÂÎÔÙÛÇ]|^[A-ZÀ-Ü]/;
@@ -86,7 +117,7 @@ const perFile = new Map();
 let total = 0;
 
 for await (const file of walk(SRC)) {
-  if (IGNORED.has(file)) continue;
+  if (IGNORED.has(file) || EXEMPT.has(file)) continue;
 
   const source = await readFile(file, "utf8");
 

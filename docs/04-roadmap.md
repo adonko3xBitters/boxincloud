@@ -224,7 +224,7 @@ page.
 - [x] Documentation publique : installation, configuration, migration depuis Komga/Kavita.
 - README travaillé : captures, GIF du lecteur, positionnement explicite (« stockage objet natif », le point qui vous distingue de Komga et Kavita).
 - [x] Passe d'accessibilité (navigation clavier, contrastes, lecteurs d'écran).
-- [~] i18n français et anglais — **mécanisme en place, extraction en cours**.
+- [x] i18n français et anglais.
 - [x] Passe de sécurité : limitation de débit, en-têtes, protection SSRF sur les URL de backend, `SECURITY.md`.
 - [x] Tests de charge sur une bibliothèque de 10 000 titres.
 - [x] Étiquettes préparées dans `.github/labels.yml`.
@@ -234,26 +234,38 @@ page.
 
 **Sortie : v0.1.0 publiée.** Annonce sur r/selfhosted, r/comicbooks, Lemmy selfhosted, awesome-selfhosted.
 
-### Internationalisation : où en est le chantier
+### Internationalisation
 
-Le mécanisme est en place et le catalogue anglais est **typé d'après le
-français** : ajouter une clé sans la traduire casse la compilation. Une
-traduction manquante ne peut donc pas être livrée en silence — ce qui compte,
-puisque personne ne relit une interface dans une langue qu'il ne lit pas.
+**382 clés, deux langues.** Le catalogue anglais est typé d'après le français :
+ajouter une clé sans la traduire casse la compilation. Une traduction manquante
+ne peut donc pas être livrée en silence — ce qui compte, puisque personne ne
+relit une interface dans une langue qu'il ne lit pas.
 
-Le sélecteur de langue n'est **pas encore exposé**, et c'est délibéré. À
-couverture partielle, il produirait un menu anglais au-dessus de panneaux
-français : une interface incohérente est pire qu'une interface monolingue.
+Le français reste le défaut, et pas par commodité : c'est la langue dans
+laquelle le projet a été écrit, et une traduction faite après coup est toujours
+moins juste que l'original. Le sélecteur est dans le menu du compte, et les
+langues s'y affichent dans leur propre langue — « Français », « English » — et
+non traduites : quelqu'un qui ne lit pas la langue courante doit reconnaître la
+sienne, ce que « Anglais » ne permet pas.
 
-Ce qui reste est compté, pas estimé. `npm run check:i18n` mesure les chaînes
-encore écrites en dur et **échoue si le nombre augmente** : le chantier ne peut
-que progresser, et une nouvelle chaîne non traduite fait échouer l'intégration
-continue de celui qui vient de l'écrire — au moment précis où il a le contexte
-pour la traduire.
+Ce qui ne passe **pas** par le catalogue, et pourquoi :
 
-Au dernier passage : **411 chaînes**, concentrées dans les panneaux
-d'administration (`storage-panel`, `accounts-panel`, `folder-dialogs`), la
-barre d'outils et le dépôt de fichiers.
+- Les **dates relatives** viennent d'`Intl.RelativeTimeFormat`. Le navigateur
+  connaît déjà les formes, y compris celles qu'on n'aurait pas prévues, et le
+  catalogue n'a pas à porter douze entrées pour ce que la plateforme sait faire.
+- Les **noms de séries et de dossiers** viennent des données, pas de
+  l'interface.
+- La **description `<meta>`** de `layout.tsx` est écrite à la construction.
+  L'export statique produit un seul HTML servi à tout le monde : elle ne *peut*
+  pas suivre la langue du visiteur. Limite du rendu statique, nommée dans le
+  contrôle pour qu'on ne la redécouvre pas dans six mois.
+- Les **commentaires et les messages de commit** restent en français. C'est la
+  langue de travail du projet.
+
+`npm run check:i18n` compte les chaînes encore écrites en dur et **échoue si le
+nombre augmente**. À zéro aujourd'hui : une nouvelle chaîne non traduite fait
+donc échouer l'intégration continue de celui qui vient de l'écrire, au moment
+précis où il a le contexte pour la traduire.
 
 ### Charge mesurée
 

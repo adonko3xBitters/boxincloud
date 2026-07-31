@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 
 import { BrandLockup } from "@/components/brand";
+import { useT } from "@/i18n";
 import { EmptyState, Spinner, cx } from "@/components/ui";
 import { API_BASE } from "@/lib/api/client";
 import * as api from "@/lib/api/endpoints";
@@ -35,6 +36,7 @@ export default function Page() {
 }
 
 function SharedView() {
+  const t = useT();
   const token = useSearchParams().get("t") ?? "";
 
   const shared = useQuery({
@@ -48,8 +50,8 @@ function SharedView() {
     return (
       <Frame>
         <EmptyState
-          title="Ce lien n'est plus valable"
-          description="Il a peut-être expiré, ou été révoqué par la personne qui vous l'a envoyé."
+          title={t("shared.invalid")}
+          description={t("shared.expiredOrRevokedBy")}
         />
       </Frame>
     );
@@ -71,7 +73,7 @@ function SharedView() {
     <Frame>
       <header className="mb-6">
         <h1 className="text-title font-semibold text-fg">
-          {label || (comics.length > 1 ? "Albums partagés" : "Album partagé")}
+          {label || (comics.length > 1 ? t("shared.albums") : t("shared.album"))}
         </h1>
         <p className="mt-1 text-meta text-muted">
           {comics.length} album{comics.length > 1 ? "s" : ""} · accessible
@@ -80,7 +82,7 @@ function SharedView() {
       </header>
 
       {comics.length === 0 ? (
-        <EmptyState title="Rien à voir" description="Ce partage ne contient aucun album." />
+        <EmptyState title={t("shared.nothingTitle")} description={t("shared.nothingDetail")} />
       ) : (
         <div
           className="grid gap-x-5 gap-y-6"

@@ -10,6 +10,7 @@
  */
 
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from "react";
+import { useT } from "@/i18n";
 import { forwardRef } from "react";
 
 export function cx(...parts: Array<string | false | null | undefined>): string {
@@ -182,11 +183,12 @@ export function EmptyState({
 }
 
 export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () => void }) {
-  const message = error instanceof Error ? error.message : "Une erreur est survenue.";
+  const t = useT();
+  const message = error instanceof Error ? error.message : t("error.generic");
 
   return (
     <EmptyState
-      title="Impossible de charger cette page"
+      title={t("error.pageFailed")}
       description={message}
       action={
         onRetry && (

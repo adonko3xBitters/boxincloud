@@ -439,4 +439,53 @@ export const en: Record<MessageKey, string> = {
   "workspace.emptyDetail": "Switch folder, or widen the filters.",
   "workspace.loadMore": "Load more",
   "workspace.readNamed": "Read {title}",
+
+  // ── Sign in and setup ──────────────────────────────────────────────────
+  "login.failed": "Sign-in failed. Is the server reachable?",
+  "setup.mismatch": "The passwords do not match.",
+  "setup.unreachable": "Is the server reachable?",
+  "setup.usernameHint": "Letters, digits, hyphen, dot and underscore.",
+  "setup.emailOptional": "Email address (optional)",
+  "setup.confirm": "Confirmation",
+
+  // ── Shared link ────────────────────────────────────────────────────────
+  "shared.invalid": "This link is not valid",
+  "shared.expiredOrRevoked": "It may have expired, or been revoked.",
+  "shared.expiredOrRevokedBy":
+    "It may have expired, or been revoked by whoever sent it to you.",
+  "shared.albums": "Shared albums",
+  "shared.album": "Shared album",
+  "shared.nothingTitle": "Nothing to see",
+  "shared.nothingDetail": "This share holds no albums.",
+
+  // ── Filmstrip ──────────────────────────────────────────────────────────
+  "filmstrip.label": "Album pages",
+  "filmstrip.close": "Close the filmstrip",
+
+  // ── Error states ───────────────────────────────────────────────────────
+  "error.pageFailed": "This page could not be loaded",
+
+  // ── Scopes ─────────────────────────────────────────────────────────────
+  "scope.library": "Library",
+  "scope.root": "Root",
+  "scope.reading": "Currently reading",
+  "scope.recent": "Recently added",
+
+  "login.title": "Sign in",
+  "setup.welcome": "Welcome",
+  "setup.intro": "This instance is brand new. Create the administrator account to begin.",
+  "setup.willBeAdmin": "This account will be an administrator. You can create others afterwards.",
+  "setup.created": "Account created",
+  "setup.nextSteps":
+    "Next: connect a storage backend and create a library. It all happens in the interface, under \u201cStorage\u201d.",
+  "setup.fromServer": "From the server",
+  "filmstrip.goToPage": "Go to page {page}",
+  "mobile.qrAlt": "QR code to {url}",
+  "mobile.directApk": "Download the APK directly",
+  "mobile.pageExplains":
+    "It offers the Android download and repeats this server's address, to enter on first launch.",
+  "login.badCredentials": "Wrong username or password.",
+  "storage.endpoint": "Endpoint",
+  "storage.bucket": "Bucket",
+  "account.language": "Language",
 };

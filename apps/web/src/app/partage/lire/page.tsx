@@ -4,6 +4,7 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 
+import { useT } from "@/i18n";
 import { EmptyState, Spinner, cx } from "@/components/ui";
 import { API_BASE, request } from "@/lib/api/client";
 import type { Manifest } from "@/lib/api/client";
@@ -30,6 +31,7 @@ export default function Page() {
 }
 
 function SharedReader() {
+  const t = useT();
   const params = useSearchParams();
   const token = params.get("t") ?? "";
   const comicID = params.get("id") ?? "";
@@ -78,8 +80,8 @@ function SharedReader() {
     return (
       <div className="grid min-h-dvh place-items-center bg-background">
         <EmptyState
-          title="Ce lien n'est plus valable"
-          description="Il a peut-être expiré, ou été révoqué."
+          title={t("shared.invalid")}
+          description={t("shared.expiredOrRevoked")}
         />
       </div>
     );
@@ -107,12 +109,12 @@ function SharedReader() {
 
       <button
         onClick={() => setPage((p) => Math.max(0, p - 1))}
-        aria-label="Page précédente"
+        aria-label={t("reader.previousPage")}
         className="absolute inset-y-0 left-0 w-[35%] cursor-w-resize"
       />
       <button
         onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
-        aria-label="Page suivante"
+        aria-label={t("reader.nextPage")}
         className="absolute inset-y-0 right-0 w-[35%] cursor-e-resize"
       />
 
