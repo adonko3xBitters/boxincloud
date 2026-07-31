@@ -247,15 +247,30 @@ func (h *Admin) CreateLibrary(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	kind := req.Kind
-	if kind == "" {
-		kind = "comics"
+	/*
+		Le type n'a PAS de valeur par défaut ici.
+
+		Il en avait une — « comics » — qui n'existe pas dans l'énumération de la
+		base, laquelle dit « comic » au singulier. Toute création de
+		bibliothèque sans type explicite échouait donc en 500, ce qui est
+		exactement ce que fait le formulaire de première installation. Le défaut
+		vit dans le service, qui est le seul endroit à connaître l'énumération.
+
+		Un type inconnu est refusé ici plutôt que laissé filer jusqu'à la base :
+		une valeur invalide est une erreur de saisie, donc un 422, pas une panne
+		du serveur.
+	*/
+	if req.Kind != "" && !validLibraryKind(req.Kind) {
+		problem.Write(w, r, problem.Validation(map[string]string{
+			"kind": "must be one of: comic, manga, book, mixed",
+		}))
+		return
 	}
 
 	lib, err := h.libraries.CreateLibrary(r.Context(), library.CreateLibraryParams{
 		Name:       req.Name,
 		BackendID:  backendID,
-		Kind:       kind,
+		Kind:       req.Kind,
 		RootPrefix: req.RootPrefix,
 	})
 	if err != nil {
@@ -864,4 +879,18 @@ func (h *Admin) ScanRuns(w http.ResponseWriter, r *http.Request) {
 		out = append(out, dto)
 	}
 	writeJSON(w, http.StatusOK, map[string]any{"runs": out})
+}
+
+// validLibraryKind reflète l'énumération `library_kind` de la base.
+//
+// Dupliquée ici à dessein : la seule alternative serait de laisser PostgreSQL
+// refuser la valeur, ce qui produit une erreur interne là où l'utilisateur a
+// simplement mal saisi.
+func validLibraryKind(kind string) bool {
+	switch kind {
+	case "comic", "manga", "book", "mixed":
+		return true
+	default:
+		return false
+	}
 }

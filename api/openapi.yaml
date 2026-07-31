@@ -412,7 +412,8 @@ paths:
                 backendId: { type: string, format: uuid }
                 kind:
                   type: string
-                  description: "Défaut : comics."
+                  enum: [comic, manga, book, mixed]
+                  description: "Défaut : comic."
                 rootPrefix:
                   type: string
                   description: |

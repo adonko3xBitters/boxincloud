@@ -2269,8 +2269,11 @@ export interface operations {
                     name: string;
                     /** Format: uuid */
                     backendId: string;
-                    /** @description Défaut : comics. */
-                    kind?: string;
+                    /**
+                     * @description Défaut : comic.
+                     * @enum {string}
+                     */
+                    kind?: "comic" | "manga" | "book" | "mixed";
                     /**
                      * @description Préfixe sous lequel la bibliothèque vit dans le backend.
                      *     Vide pour la racine.

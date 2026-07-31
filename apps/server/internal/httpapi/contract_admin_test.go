@@ -155,3 +155,87 @@ func TestIntegrationContractLibraryAdmin(t *testing.T) {
 		h.expect(t, http.MethodGet, "/api/v1/comics/"+h.comicID.String(), nil, http.StatusNotFound)
 	})
 }
+
+/*
+Création d'une bibliothèque par l'API, comme le fait le formulaire.
+
+Le test manquait, et son absence a laissé passer un défaut qui cassait la
+PREMIÈRE action de tout nouvel utilisateur : le handler forçait le type à
+« comics » quand l'énumération de la base dit « comic ». Toute création sans
+type explicite répondait 500.
+
+Rien ne l'attrapait parce que le harnais crée ses bibliothèques par le service,
+sans passer par la route. La leçon vaut d'être écrite : un chemin que seul
+l'utilisateur emprunte doit être testé par le chemin de l'utilisateur.
+*/
+func TestIntegrationContractCreateLibrary(t *testing.T) {
+	h := newContractHarness(t)
+
+	var backendID string
+
+	t.Run("backend disponible", func(t *testing.T) {
+		rec := h.expect(t, http.MethodGet, "/api/v1/storage-backends", nil, http.StatusOK)
+
+		var payload struct {
+			Backends []struct {
+				ID string `json:"id"`
+			} `json:"backends"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+			t.Fatal(err)
+		}
+		if len(payload.Backends) == 0 {
+			t.Fatal("aucun backend : le harnais aurait dû en créer un")
+		}
+		backendID = payload.Backends[0].ID
+	})
+
+	t.Run("sans type — le cas du formulaire", func(t *testing.T) {
+		if backendID == "" {
+			t.Skip("aucun backend")
+		}
+
+		rec := h.expect(t, http.MethodPost, "/api/v1/libraries", map[string]any{
+			"name":       "Sans type",
+			"backendId":  backendID,
+			"rootPrefix": "sans-type/",
+		}, http.StatusCreated)
+
+		var lib struct {
+			Kind string `json:"kind"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &lib); err != nil {
+			t.Fatal(err)
+		}
+		if lib.Kind != "comic" {
+			t.Errorf("type = %q, attendu le défaut « comic »", lib.Kind)
+		}
+	})
+
+	t.Run("avec un type valide", func(t *testing.T) {
+		if backendID == "" {
+			t.Skip("aucun backend")
+		}
+
+		h.expect(t, http.MethodPost, "/api/v1/libraries", map[string]any{
+			"name":       "Mangas",
+			"backendId":  backendID,
+			"kind":       "manga",
+			"rootPrefix": "manga/",
+		}, http.StatusCreated)
+	})
+
+	/*
+		Un type inconnu n'est pas testable ICI, et c'est une bonne nouvelle.
+
+		Le contrat déclare désormais l'énumération, si bien que le harnais —
+		qui valide chaque requête contre lui — refuse d'émettre l'appel. La
+		valeur est donc arrêtée avant même de partir, chez tout client engendré
+		depuis le contrat.
+
+		Le garde du handler reste néanmoins en place : un client qui ignore le
+		contrat peut envoyer n'importe quoi, et le serveur doit répondre 422
+		plutôt que de laisser PostgreSQL produire une erreur interne. C'est
+		`validLibraryKind` qui s'en charge, et sa raison d'être est là.
+	*/
+}
