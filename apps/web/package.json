@@ -12,7 +12,8 @@
     "generate:api": "openapi-typescript ../../api/openapi.yaml -o src/lib/api/schema.d.ts",
     "generate:tokens": "node ../../packages/design-tokens/build.mjs",
     "check:overlays": "node scripts/check-overlays.mjs",
-    "check:qr": "node scripts/check-qr.mjs"
+    "check:qr": "node scripts/check-qr.mjs",
+    "check:i18n": "node scripts/check-i18n.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.62.0",

@@ -3,6 +3,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState } from "react";
 import { ApiError } from "@/lib/api/client";
+import { LocaleProvider } from "@/i18n";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   const [client] = useState(
@@ -32,5 +33,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
       }),
   );
 
-  return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+  return (
+    <QueryClientProvider client={client}>
+      <LocaleProvider>{children}</LocaleProvider>
+    </QueryClientProvider>
+  );
 }

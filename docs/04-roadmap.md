@@ -223,13 +223,35 @@ page.
 - [x] Template Unraid, notes pour TrueNAS et Synology.
 - [x] Documentation publique : installation, configuration, migration depuis Komga/Kavita.
 - README travaillé : captures, GIF du lecteur, positionnement explicite (« stockage objet natif », le point qui vous distingue de Komga et Kavita).
-- Passe d'accessibilité (navigation clavier, contrastes, lecteurs d'écran), i18n avec français et anglais.
+- Passe d'accessibilité (navigation clavier, contrastes, lecteurs d'écran).
+- [~] i18n français et anglais — **mécanisme en place, extraction en cours**.
 - [x] Passe de sécurité : limitation de débit, en-têtes, protection SSRF sur les URL de backend, `SECURITY.md`.
 - [x] Tests de charge sur une bibliothèque de 10 000 titres.
 - Roadmap publique en GitHub Projects, étiquettes `good first issue` préparées.
 - Distribution des builds mobiles : APK en release GitHub, TestFlight, puis dépôts.
 
 **Sortie : v0.1.0 publiée.** Annonce sur r/selfhosted, r/comicbooks, Lemmy selfhosted, awesome-selfhosted.
+
+### Internationalisation : où en est le chantier
+
+Le mécanisme est en place et le catalogue anglais est **typé d'après le
+français** : ajouter une clé sans la traduire casse la compilation. Une
+traduction manquante ne peut donc pas être livrée en silence — ce qui compte,
+puisque personne ne relit une interface dans une langue qu'il ne lit pas.
+
+Le sélecteur de langue n'est **pas encore exposé**, et c'est délibéré. À
+couverture partielle, il produirait un menu anglais au-dessus de panneaux
+français : une interface incohérente est pire qu'une interface monolingue.
+
+Ce qui reste est compté, pas estimé. `npm run check:i18n` mesure les chaînes
+encore écrites en dur et **échoue si le nombre augmente** : le chantier ne peut
+que progresser, et une nouvelle chaîne non traduite fait échouer l'intégration
+continue de celui qui vient de l'écrire — au moment précis où il a le contexte
+pour la traduire.
+
+Au dernier passage : **411 chaînes**, concentrées dans les panneaux
+d'administration (`storage-panel`, `accounts-panel`, `folder-dialogs`), la
+barre d'outils et le dépôt de fichiers.
 
 ### Charge mesurée
 

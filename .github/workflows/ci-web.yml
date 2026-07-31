@@ -79,3 +79,9 @@ jobs:
       - name: Vérifier les codes QR
         working-directory: apps/web
         run: npm run check:qr
+
+      # La traduction est un chantier en cours : ce contrôle n'exige pas qu'il
+      # soit fini, seulement qu'il n'aille pas à reculons.
+      - name: Vérifier la couverture de traduction
+        working-directory: apps/web
+        run: npm run check:i18n
