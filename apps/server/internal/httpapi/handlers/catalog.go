@@ -357,7 +357,7 @@ func uuidParam(w http.ResponseWriter, r *http.Request, name string) (*uuid.UUID,
 
 	id, err := uuid.Parse(raw)
 	if err != nil {
-		problem.Write(w, r, problem.Validation(map[string]string{name: "must be a valid UUID"}))
+		problem.Write(w, r, problem.Validation(map[string]string{name: "invalid"}))
 		return nil, false
 	}
 	return &id, true
@@ -382,7 +382,7 @@ func writeCatalogError(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, catalog.ErrForbidden):
 		problem.Write(w, r, problem.Forbidden("you do not have access to this library"))
 	case errors.Is(err, catalog.ErrBadCursor):
-		problem.Write(w, r, problem.Validation(map[string]string{"cursor": "malformed"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"cursor": "invalid"}))
 	default:
 		writeInternal(w, r, err)
 	}

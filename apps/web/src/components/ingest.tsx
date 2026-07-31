@@ -12,8 +12,8 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { buttonClass, cx } from "./ui";
-import { ApiError } from "@/lib/api/client";
 import * as api from "@/lib/api/endpoints";
+import { describeError } from "@/lib/api/problem";
 import { useT } from "@/i18n";
 import { useCurrentUser } from "@/lib/auth";
 
@@ -56,6 +56,7 @@ export function useIngest(): IngestValue {
 }
 
 export function IngestProvider({ children }: { children: React.ReactNode }) {
+  const t = useT();
   const queryClient = useQueryClient();
   const [isOpen, setOpen] = useState(false);
   const [queue, setQueue] = useState<QueueItem[]>([]);
@@ -113,6 +114,11 @@ export function IngestProvider({ children }: { children: React.ReactNode }) {
   const send = useCallback(async () => {
     if (!target) return;
 
+    // Compté pendant la boucle plutôt que relu après : `queue` est figé dans
+    // cette fermeture, et le relire donnerait l'état d'avant les envois.
+    let sent = 0;
+    let failed = 0;
+
     for (const item of queue) {
       if (item.status !== "pending") continue;
 
@@ -129,13 +135,15 @@ export function IngestProvider({ children }: { children: React.ReactNode }) {
             ),
         });
 
+        sent++;
         setQueue((current) =>
           current.map((q) => (q.id === item.id ? { ...q, status: "done", progress: 1 } : q)),
         );
       } catch (error) {
+        failed++;
         setQueue((current) =>
           current.map((q) =>
-            q.id === item.id ? { ...q, status: "failed", error: describe(error) } : q,
+            q.id === item.id ? { ...q, status: "failed", error: describeError(error, t) } : q,
           ),
         );
       }
@@ -145,7 +153,25 @@ export function IngestProvider({ children }: { children: React.ReactNode }) {
     await queryClient.invalidateQueries({ queryKey: ["folders"] });
     await queryClient.invalidateQueries({ queryKey: ["libraries"] });
     await queryClient.invalidateQueries({ queryKey: ["series"] });
-  }, [queue, target, folder, queryClient]);
+
+    /*
+      Le dialogue se referme quand tout est passé.
+
+      Il restait ouvert sur une liste de coches vertes, et il fallait le fermer
+      soi-même pour voir ce qu'on venait d'ajouter — la seule chose qu'on
+      voulait voir. Un envoi réussi n'appelle aucune décision : le laisser
+      ouvert ne demande une action que pour n'en tirer aucune information.
+
+      En cas d'échec, il reste. Là, il y a quelque chose à lire, et refermer
+      escamoterait le seul endroit qui dise pourquoi.
+
+      Le délai laisse voir la dernière coche : disparaître à l'instant où la
+      barre se remplit donne l'impression que quelque chose a été interrompu.
+    */
+    if (sent > 0 && failed === 0) {
+      setTimeout(() => setOpen(false), 600);
+    }
+  }, [queue, target, folder, queryClient, t]);
 
   const value = useMemo<IngestValue>(() => ({ open, uploading }), [open, uploading]);
 
@@ -503,7 +529,7 @@ function FirstLibrary({ onCreated }: { onCreated: () => void }) {
       await api.createLibrary({ name, backendId: backend.id, rootPrefix: prefix });
       onCreated();
     } catch (err) {
-      setError(describe(err));
+      setError(describeError(err, t));
     } finally {
       setBusy(false);
     }
@@ -799,17 +825,6 @@ function hasFiles(transfer: DataTransfer): boolean {
   return Array.from(transfer.types ?? []).includes("Files");
 }
 
-function describe(error: unknown): string {
-  if (error instanceof ApiError) {
-    const fields = error.problem?.errors;
-    if (fields) {
-      const first = Object.values(fields)[0];
-      if (first) return first;
-    }
-    return error.problem?.detail ?? error.problem?.title ?? error.message;
-  }
-  return error instanceof Error ? error.message : "erreur inconnue";
-}
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} o`;

@@ -5,8 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { buttonClass, cx } from "./ui";
-import { ApiError } from "@/lib/api/client";
 import * as api from "@/lib/api/endpoints";
+import { describeError } from "@/lib/api/problem";
 import { useWorkspace } from "@/lib/workspace";
 
 /**
@@ -57,7 +57,7 @@ export function DeleteDialog({
       clearSelection();
       onClose();
     } catch (err) {
-      setError(describe(err));
+      setError(describeError(err, t));
     } finally {
       setBusy(false);
     }
@@ -185,7 +185,7 @@ export function MoveDialog({
       clearSelection();
       onClose();
     } catch (err) {
-      setError(describe(err));
+      setError(describeError(err, t));
     } finally {
       setBusy(false);
     }
@@ -389,14 +389,3 @@ async function refreshCatalog(queryClient: ReturnType<typeof useQueryClient>) {
   ]);
 }
 
-function describe(error: unknown): string {
-  if (error instanceof ApiError) {
-    const fields = error.problem?.errors;
-    if (fields) {
-      const first = Object.values(fields)[0];
-      if (first) return first;
-    }
-    return error.problem?.detail ?? error.problem?.title ?? error.message;
-  }
-  return error instanceof Error ? error.message : "erreur inconnue";
-}

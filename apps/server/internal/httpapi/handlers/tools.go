@@ -210,7 +210,7 @@ func (h *Tools) Bulk(w http.ResponseWriter, r *http.Request) {
 		id, err := uuid.Parse(raw)
 		if err != nil {
 			problem.Write(w, r, problem.Validation(map[string]string{
-				"ids": "all entries must be valid UUIDs",
+				"ids": "invalid",
 			}))
 			return
 		}
@@ -226,7 +226,7 @@ func (h *Tools) Bulk(w http.ResponseWriter, r *http.Request) {
 		return
 	case errors.Is(err, catalog.ErrUnknownAction):
 		problem.Write(w, r, problem.Validation(map[string]string{
-			"action": "must be one of read, unread, favorite, unfavorite",
+			"action": "one-of",
 		}))
 		return
 	case err != nil:

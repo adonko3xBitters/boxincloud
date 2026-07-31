@@ -526,4 +526,50 @@ export const en: Record<MessageKey, string> = {
     "Changing library may change storage backend. The bytes then travel through the server, as no copy is possible between two distinct backends \u2014 slower, and noticeably so on a large volume.",
   "manage.moveHint":
     "The file is moved inside your storage. Within one backend the copy happens server-side: the bytes never travel through boxincloud.",
+
+  // ── Server errors ──────────────────────────────────────────────────────
+  //
+  // One key per RFC 7807 problem type. The server translates nothing: it
+  // returns a stable type, and the interface \u2014 the only side that knows the
+  // reader's language \u2014 puts it into words.
+  "problem.not-found": "This item no longer exists.",
+  "problem.bad-request": "The request could not be understood.",
+  "problem.validation": "One or more fields are invalid.",
+  "problem.unauthorized": "You are no longer signed in.",
+  "problem.token-expired": "Your session has expired.",
+  "problem.session-revoked": "This session has been revoked.",
+  "problem.forbidden": "You do not have permission for this action.",
+  "problem.method-not-allowed": "That action is not possible here.",
+  "problem.too-many-requests": "Too many attempts. Wait a moment.",
+  "problem.service-unavailable": "The server is not responding right now.",
+  "problem.internal": "Something unexpected went wrong.",
+  "problem.folder-not-empty": "This folder is not empty.",
+  "problem.folder-read-only": "This folder is read-only.",
+  "problem.backend-in-use": "This storage backend is used by a library.",
+  "problem.not-indexed": "This album is not indexed yet.",
+  "problem.network": "The server is unreachable.",
+
+  // ── Field errors ───────────────────────────────────────────────────────
+  //
+  // The server sends the RULE that was broken, not a sentence: \u201ctaken\u201d, not
+  // \u201calready taken\u201d. The interface puts it into words. Third-party clients
+  // gain too \u2014 a code can be translated, an English sentence can only be
+  // endured.
+  "field.required": "This field is required.",
+  "field.invalid": "This value is not valid.",
+  "field.unknown": "This item does not exist.",
+  "field.taken": "Already in use.",
+  "field.exists": "Something with this name already exists here.",
+  "field.format": "Characters not allowed.",
+  "field.mismatch": "The file contents do not match its extension.",
+  "field.range": "Value outside the allowed range.",
+  "field.one-of": "Unrecognised value.",
+  "field.self": "This action would target yourself.",
+  "field.protected": "This item cannot be changed.",
+  "field.no-code": "This folder has no access code.",
+  "field.wrong-code": "Wrong access code.",
+
+  "comic.indexing": "Indexing\u2026",
+  "comic.hydrating": "Converting\u2026",
+  "comic.failed": "Indexing failed",
 };

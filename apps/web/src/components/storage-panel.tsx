@@ -4,8 +4,8 @@ import { useEffect, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Button, Spinner, buttonClass, cx } from "./ui";
-import { ApiError } from "@/lib/api/client";
 import * as api from "@/lib/api/endpoints";
+import { describeError } from "@/lib/api/problem";
 import { useLocale, useT, type MessageKey } from "@/i18n";
 
 /**
@@ -115,7 +115,7 @@ function CacheSection() {
   });
 
   if (stats.isLoading) return <Spinner className="size-5 text-muted" />;
-  if (stats.error) return <ErrorNote>{describe(stats.error)}</ErrorNote>;
+  if (stats.error) return <ErrorNote>{describeError(stats.error, t)}</ErrorNote>;
 
   const data = stats.data;
   if (!data) return null;
@@ -162,7 +162,7 @@ function CacheSection() {
         </p>
       )}
 
-      {purge.error && <ErrorNote>{describe(purge.error)}</ErrorNote>}
+      {purge.error && <ErrorNote>{describeError(purge.error, t)}</ErrorNote>}
 
       {confirming ? (
         <div className="flex items-center gap-2">
@@ -303,7 +303,7 @@ function NewLibrary({
       await queryClient.invalidateQueries({ queryKey: ["libraries"] });
       onDone();
     } catch (err) {
-      setError(describe(err));
+      setError(describeError(err, t));
     } finally {
       setBusy(false);
     }
@@ -387,7 +387,7 @@ function LibraryCard({ id, name, count }: { id: string; name: string; count: num
       await queryClient.invalidateQueries({ queryKey: ["libraries"] });
       setEditing(false);
     } catch (err) {
-      setError(describe(err));
+      setError(describeError(err, t));
     } finally {
       setBusy(false);
     }
@@ -402,7 +402,7 @@ function LibraryCard({ id, name, count }: { id: string; name: string; count: num
       await queryClient.invalidateQueries({ queryKey: ["comics"] });
       await queryClient.invalidateQueries({ queryKey: ["folders"] });
     } catch (err) {
-      setError(describe(err));
+      setError(describeError(err, t));
     } finally {
       setBusy(false);
     }
@@ -633,7 +633,7 @@ function NewBackend({ onDone }: { onDone: () => void }) {
       await queryClient.invalidateQueries({ queryKey: ["backends"] });
       onDone();
     } catch (err) {
-      setError(describe(err));
+      setError(describeError(err, t));
     } finally {
       setBusy(false);
     }
@@ -748,7 +748,7 @@ function BackendCard({ backend }: { backend: api.StorageBackend }) {
       setSecrets({});
       setEditing(false);
     } catch (err) {
-      setError(describe(err));
+      setError(describeError(err, t));
     } finally {
       setBusy(false);
     }
@@ -767,7 +767,7 @@ function BackendCard({ backend }: { backend: api.StorageBackend }) {
       await api.deleteBackend(backend.id);
       await queryClient.invalidateQueries({ queryKey: ["backends"] });
     } catch (err) {
-      setError(describe(err));
+      setError(describeError(err, t));
     } finally {
       setBusy(false);
     }
@@ -954,14 +954,3 @@ function statusKey(status: string): MessageKey {
   }
 }
 
-function describe(error: unknown): string {
-  if (error instanceof ApiError) {
-    const fields = error.problem?.errors;
-    if (fields) {
-      const first = Object.values(fields)[0];
-      if (first) return first;
-    }
-    return error.problem?.detail ?? error.problem?.title ?? error.message;
-  }
-  return error instanceof Error ? error.message : "erreur inconnue";
-}

@@ -56,7 +56,7 @@ func (h *Sharing) ListFolderGrants(w http.ResponseWriter, r *http.Request) {
 
 	libraryID, err := uuid.Parse(chi.URLParam(r, "libraryID"))
 	if err != nil {
-		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "must be a UUID"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "invalid"}))
 		return
 	}
 
@@ -110,12 +110,12 @@ func (h *Sharing) GrantFolder(w http.ResponseWriter, r *http.Request) {
 
 	libraryID, err := uuid.Parse(req.LibraryID)
 	if err != nil {
-		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "must be a UUID"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "invalid"}))
 		return
 	}
 	userID, err := uuid.Parse(req.UserID)
 	if err != nil {
-		problem.Write(w, r, problem.Validation(map[string]string{"userId": "must be a UUID"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"userId": "invalid"}))
 		return
 	}
 
@@ -140,12 +140,12 @@ func (h *Sharing) RevokeFolderGrant(w http.ResponseWriter, r *http.Request) {
 
 	libraryID, err := uuid.Parse(chi.URLParam(r, "libraryID"))
 	if err != nil {
-		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "must be a UUID"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "invalid"}))
 		return
 	}
 	userID, err := uuid.Parse(chi.URLParam(r, "userID"))
 	if err != nil {
-		problem.Write(w, r, problem.Validation(map[string]string{"userId": "must be a UUID"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"userId": "invalid"}))
 		return
 	}
 
@@ -227,7 +227,7 @@ func (h *Sharing) CreateShare(w http.ResponseWriter, r *http.Request) {
 
 	libraryID, err := uuid.Parse(req.LibraryID)
 	if err != nil {
-		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "must be a UUID"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "invalid"}))
 		return
 	}
 
@@ -249,7 +249,7 @@ func (h *Sharing) CreateShare(w http.ResponseWriter, r *http.Request) {
 	if req.ComicID != nil {
 		comicID, err := uuid.Parse(*req.ComicID)
 		if err != nil {
-			problem.Write(w, r, problem.Validation(map[string]string{"comicId": "must be a UUID"}))
+			problem.Write(w, r, problem.Validation(map[string]string{"comicId": "invalid"}))
 			return
 		}
 		params.ComicID = &comicID
@@ -311,7 +311,7 @@ func (h *Sharing) RevokeShare(w http.ResponseWriter, r *http.Request) {
 
 	id, err := uuid.Parse(chi.URLParam(r, "shareID"))
 	if err != nil {
-		problem.Write(w, r, problem.Validation(map[string]string{"shareId": "must be a UUID"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"shareId": "invalid"}))
 		return
 	}
 
@@ -467,12 +467,12 @@ func writeShareError(w http.ResponseWriter, r *http.Request, err error) {
 
 	case errors.Is(err, folders.ErrShareExpiryRequired):
 		problem.Write(w, r, problem.Validation(map[string]string{
-			"expiresAt": "a public link must expire, and in the future",
+			"expiresAt": "range",
 		}))
 
 	case errors.Is(err, folders.ErrShareExpiryTooFar):
 		problem.Write(w, r, problem.Validation(map[string]string{
-			"expiresAt": "at most one year from now",
+			"expiresAt": "range",
 		}))
 
 	default:

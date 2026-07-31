@@ -202,7 +202,7 @@ func writeReaderError(w http.ResponseWriter, r *http.Request, err error) {
 		problem.Write(w, r, problem.NotFound("page not found"))
 	case errors.Is(err, reader.ErrPageOutRange):
 		problem.Write(w, r, problem.Validation(map[string]string{
-			"index": "out of range for this comic",
+			"index": "range",
 		}))
 	case errors.Is(err, reader.ErrNotReady):
 		p := problem.Problem{

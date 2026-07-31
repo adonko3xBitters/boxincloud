@@ -278,6 +278,23 @@ function MainArea() {
     queryFn: ({ pageParam }) => api.listComics({ ...query, cursor: pageParam }),
     initialPageParam: undefined as string | undefined,
     getNextPageParam: (last) => last.nextCursor || undefined,
+
+    /*
+      Un album fraîchement déposé arrive AVANT d'être indexé : le serveur le
+      connaît, mais son nombre de pages est nul et sa couverture n'existe pas
+      encore. La grille montrait donc une vignette grise à zéro page, et rien
+      ne la corrigeait — il fallait recharger la page à la main pour voir
+      l'album apparaître.
+
+      Tant qu'un album de la vue n'est pas prêt, la liste se redemande toutes
+      les deux secondes. Dès qu'ils le sont tous, l'intervalle retombe à zéro
+      et le sondage cesse : une bibliothèque au repos ne produit aucune
+      requête.
+    */
+    refetchInterval: (query) => {
+      const items = query.state.data?.pages.flatMap((page) => page.items) ?? [];
+      return items.some((comic) => comic.state !== "ready") ? 2000 : false;
+    },
   });
 
   const all = useMemo(
@@ -541,7 +558,23 @@ function CoverGrid({
               {comic.title}
             </p>
             <p className="mt-0.5 truncate text-meta text-subtle">
-              {comic.seriesName ? `${comic.seriesName}${comic.number ? ` · ${comic.number}` : ""}` : `${comic.pageCount} p.`}
+              {/*
+                Un album non indexé n'a ni série ni pages : afficher « 0 p. »
+                laissait croire à un album vide alors qu'il est en cours de
+                traitement. L'état le dit, et la grille se rafraîchit d'elle-même
+                jusqu'à ce qu'il change.
+              */}
+              {comic.state !== "ready"
+                ? t(
+                    comic.state === "error"
+                      ? "comic.failed"
+                      : comic.state === "hydrating"
+                        ? "comic.hydrating"
+                        : "comic.indexing",
+                  )
+                : comic.seriesName
+                  ? `${comic.seriesName}${comic.number ? ` · ${comic.number}` : ""}`
+                  : `${comic.pageCount} p.`}
             </p>
 
             {rating > 0 && (

@@ -246,7 +246,7 @@ func (h *Progress) SyncPush(w http.ResponseWriter, r *http.Request) {
 	for i, item := range req.Updates {
 		comicID, err := uuid.Parse(item.ComicID)
 		if err != nil {
-			invalid["updates["+itoa(i)+"].comicId"] = "must be a valid UUID"
+			invalid["updates["+itoa(i)+"].comicId"] = "invalid"
 			continue
 		}
 

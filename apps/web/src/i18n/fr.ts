@@ -531,6 +531,51 @@ export const fr = {
     "Changer de bibliothèque peut changer d'espace de stockage. Les octets transitent alors par le serveur, faute de copie possible entre deux backends distincts — c'est plus lent, et cela se voit sur une intégrale.",
   "manage.moveHint":
     "Le fichier est déplacé dans votre stockage. Au sein d'un même espace de stockage, la copie se fait côté serveur : les octets ne transitent pas par boxincloud.",
+
+  // ── Erreurs du serveur ─────────────────────────────────────────────────
+  //
+  // Une clé par type de problème RFC 7807. Le serveur ne traduit rien : il
+  // renvoie un type stable, et c'est l'interface — qui seule connaît la langue
+  // du lecteur — qui le met en mots.
+  "problem.not-found": "Cet élément n'existe plus.",
+  "problem.bad-request": "La demande n'a pas pu être comprise.",
+  "problem.validation": "Un ou plusieurs champs sont invalides.",
+  "problem.unauthorized": "Vous n'êtes plus connecté.",
+  "problem.token-expired": "Votre session a expiré.",
+  "problem.session-revoked": "Cette session a été révoquée.",
+  "problem.forbidden": "Vous n'avez pas les droits pour cette action.",
+  "problem.method-not-allowed": "Cette action n'est pas possible ici.",
+  "problem.too-many-requests": "Trop de tentatives. Patientez un instant.",
+  "problem.service-unavailable": "Le serveur ne répond pas pour le moment.",
+  "problem.internal": "Une erreur inattendue est survenue.",
+  "problem.folder-not-empty": "Ce dossier n'est pas vide.",
+  "problem.folder-read-only": "Ce dossier est en lecture seule.",
+  "problem.backend-in-use": "Cet espace de stockage est utilisé par une bibliothèque.",
+  "problem.not-indexed": "Cet album n'est pas encore indexé.",
+  "problem.network": "Le serveur est injoignable.",
+
+  // ── Erreurs par champ ──────────────────────────────────────────────────
+  //
+  // Le serveur envoie la RÈGLE enfreinte, pas une phrase : « taken », pas
+  // « already taken ». C'est l'interface qui la met en mots. Un client tiers y
+  // gagne aussi — un code se traduit, une phrase anglaise se subit.
+  "field.required": "Ce champ est obligatoire.",
+  "field.invalid": "Cette valeur n'est pas valide.",
+  "field.unknown": "Cet élément n'existe pas.",
+  "field.taken": "Déjà utilisé.",
+  "field.exists": "Un élément portant ce nom existe déjà ici.",
+  "field.format": "Caractères non autorisés.",
+  "field.mismatch": "Le contenu du fichier ne correspond pas à son extension.",
+  "field.range": "Valeur hors des limites permises.",
+  "field.one-of": "Valeur non reconnue.",
+  "field.self": "Cette action vous viserait vous-même.",
+  "field.protected": "Cet élément ne peut pas être modifié.",
+  "field.no-code": "Ce dossier n'a pas de code d'accès.",
+  "field.wrong-code": "Code d'accès incorrect.",
+
+  "comic.indexing": "Indexation…",
+  "comic.hydrating": "Conversion…",
+  "comic.failed": "Échec de l'indexation",
 } as const;
 
 /** Les clés du catalogue. Toute traduction doit les couvrir toutes. */

@@ -109,7 +109,7 @@ func (h *Auth) Setup(w http.ResponseWriter, r *http.Request) {
 		problem.Write(w, r, problem.Validation(map[string]string{"username": err.Error()}))
 		return
 	case errors.Is(err, auth.ErrUserExists):
-		problem.Write(w, r, problem.Validation(map[string]string{"username": "already taken"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"username": "taken"}))
 		return
 	case err != nil:
 		writeInternal(w, r, err)
@@ -174,7 +174,7 @@ func (h *Auth) Refresh(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if req.RefreshToken == "" {
-		problem.Write(w, r, problem.Validation(map[string]string{"refreshToken": "is required"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"refreshToken": "required"}))
 		return
 	}
 
@@ -238,7 +238,7 @@ func (h *Auth) RevokeDevice(w http.ResponseWriter, r *http.Request) {
 	deviceID, err := uuid.Parse(chi.URLParam(r, "deviceID"))
 	if err != nil {
 		problem.Write(w, r, problem.Validation(map[string]string{
-			"deviceId": "must be a valid UUID",
+			"deviceId": "invalid",
 		}))
 		return
 	}

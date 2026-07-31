@@ -4,8 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { buttonClass, cx } from "./ui";
-import { ApiError } from "@/lib/api/client";
 import * as api from "@/lib/api/endpoints";
+import { describeError } from "@/lib/api/problem";
 import { useT } from "@/i18n";
 import { useCurrentUser } from "@/lib/auth";
 
@@ -178,7 +178,7 @@ function CreateForm({ onDone }: { onDone: (id: string) => void }) {
       await queryClient.invalidateQueries({ queryKey: ["accounts"] });
       onDone(account.id);
     },
-    onError: (err) => setError(describe(err)),
+    onError: (err) => setError(describeError(err, t)),
   });
 
   return (
@@ -268,7 +268,7 @@ function AccountForm({
       setPassword("");
       setSaved(true);
     },
-    onError: (err) => setError(describe(err)),
+    onError: (err) => setError(describeError(err, t)),
   });
 
   const remove = useMutation({
@@ -277,7 +277,7 @@ function AccountForm({
       await queryClient.invalidateQueries({ queryKey: ["accounts"] });
       onDeleted();
     },
-    onError: (err) => setError(describe(err)),
+    onError: (err) => setError(describeError(err, t)),
   });
 
   return (
@@ -556,14 +556,3 @@ function ErrorNote({ children }: { children: React.ReactNode }) {
   );
 }
 
-function describe(error: unknown): string {
-  if (error instanceof ApiError) {
-    const fields = error.problem?.errors;
-    if (fields) {
-      const first = Object.values(fields)[0];
-      if (first) return first;
-    }
-    return error.problem?.detail ?? error.problem?.title ?? error.message;
-  }
-  return error instanceof Error ? error.message : "erreur inconnue";
-}

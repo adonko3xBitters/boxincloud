@@ -4,8 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { buttonClass, cx } from "./ui";
-import { ApiError } from "@/lib/api/client";
 import * as api from "@/lib/api/endpoints";
+import { describeError } from "@/lib/api/problem";
 import { useLocale, useT } from "@/i18n";
 
 /**
@@ -111,7 +111,7 @@ function CreateFolder({
       await refreshFolders(queryClient);
       onClose();
     } catch (err) {
-      setError(describe(err));
+      setError(describeError(err, t));
     } finally {
       setBusy(false);
     }
@@ -192,7 +192,7 @@ function RenameFolder({
       await refreshFolders(queryClient);
       onClose();
     } catch (err) {
-      setError(describe(err));
+      setError(describeError(err, t));
     } finally {
       setBusy(false);
     }
@@ -268,7 +268,7 @@ function DeleteFolder({
       await refreshFolders(queryClient);
       onClose();
     } catch (err) {
-      setError(describe(err));
+      setError(describeError(err, t));
     } finally {
       setBusy(false);
     }
@@ -420,17 +420,6 @@ async function refreshFolders(queryClient: ReturnType<typeof useQueryClient>) {
   ]);
 }
 
-function describe(error: unknown): string {
-  if (error instanceof ApiError) {
-    const fields = error.problem?.errors;
-    if (fields) {
-      const first = Object.values(fields)[0];
-      if (first) return first;
-    }
-    return error.problem?.detail ?? error.problem?.title ?? error.message;
-  }
-  return error instanceof Error ? error.message : "erreur inconnue";
-}
 
 // ─── Verrouillage ────────────────────────────────────────────────────────────
 
@@ -480,7 +469,7 @@ export function LockFolder({
       await refreshFolders(queryClient);
       onClose();
     } catch (err) {
-      setError(describe(err));
+      setError(describeError(err, t));
     } finally {
       setBusy(false);
     }
@@ -595,7 +584,7 @@ export function UnlockFolder({
       await refreshFolders(queryClient);
       onClose();
     } catch (err) {
-      setError(describe(err));
+      setError(describeError(err, t));
     } finally {
       setBusy(false);
     }
@@ -705,7 +694,7 @@ function AccountSharing({ libraryId, path }: { libraryId: string; path: string }
       await queryClient.invalidateQueries({ queryKey: ["folder-access", libraryId, path] });
       await queryClient.invalidateQueries({ queryKey: ["folders"] });
     } catch (err) {
-      setError(describe(err));
+      setError(describeError(err, t));
     }
   }
 
@@ -792,7 +781,7 @@ function PublicLink({
       setCreated(`${window.location.origin}/partage?t=${link.token}`);
       await queryClient.invalidateQueries({ queryKey: ["share-links"] });
     } catch (err) {
-      setError(describe(err));
+      setError(describeError(err, t));
     } finally {
       setBusy(false);
     }

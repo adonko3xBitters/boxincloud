@@ -130,7 +130,7 @@ func (h *Accounts) Update(w http.ResponseWriter, r *http.Request) {
 
 	targetID, err := uuid.Parse(chi.URLParam(r, "userID"))
 	if err != nil {
-		problem.Write(w, r, problem.Validation(map[string]string{"userId": "must be a UUID"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"userId": "invalid"}))
 		return
 	}
 
@@ -192,7 +192,7 @@ func (h *Accounts) Delete(w http.ResponseWriter, r *http.Request) {
 
 	targetID, err := uuid.Parse(chi.URLParam(r, "userID"))
 	if err != nil {
-		problem.Write(w, r, problem.Validation(map[string]string{"userId": "must be a UUID"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"userId": "invalid"}))
 		return
 	}
 
@@ -219,7 +219,7 @@ func (h *Accounts) ListGrants(w http.ResponseWriter, r *http.Request) {
 
 	userID, err := uuid.Parse(chi.URLParam(r, "userID"))
 	if err != nil {
-		problem.Write(w, r, problem.Validation(map[string]string{"userId": "must be a UUID"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"userId": "invalid"}))
 		return
 	}
 
@@ -240,7 +240,7 @@ func (h *Accounts) ListLibraryGrants(w http.ResponseWriter, r *http.Request) {
 
 	libraryID, err := uuid.Parse(chi.URLParam(r, "libraryID"))
 	if err != nil {
-		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "must be a UUID"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "invalid"}))
 		return
 	}
 
@@ -272,7 +272,7 @@ func (h *Accounts) Grant(w http.ResponseWriter, r *http.Request) {
 
 	libraryID, err := uuid.Parse(chi.URLParam(r, "libraryID"))
 	if err != nil {
-		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "must be a UUID"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "invalid"}))
 		return
 	}
 
@@ -283,7 +283,7 @@ func (h *Accounts) Grant(w http.ResponseWriter, r *http.Request) {
 
 	userID, err := uuid.Parse(req.UserID)
 	if err != nil {
-		problem.Write(w, r, problem.Validation(map[string]string{"userId": "must be a UUID"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"userId": "invalid"}))
 		return
 	}
 
@@ -306,12 +306,12 @@ func (h *Accounts) Revoke(w http.ResponseWriter, r *http.Request) {
 
 	libraryID, err := uuid.Parse(chi.URLParam(r, "libraryID"))
 	if err != nil {
-		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "must be a UUID"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "invalid"}))
 		return
 	}
 	userID, err := uuid.Parse(chi.URLParam(r, "userID"))
 	if err != nil {
-		problem.Write(w, r, problem.Validation(map[string]string{"userId": "must be a UUID"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"userId": "invalid"}))
 		return
 	}
 
@@ -357,11 +357,11 @@ func writeAccountError(w http.ResponseWriter, r *http.Request, err error) {
 
 	case errors.Is(err, accounts.ErrSelfDemotion):
 		problem.Write(w, r, problem.Validation(map[string]string{
-			"userId": "you cannot remove your own administrator rights",
+			"userId": "self",
 		}))
 
 	case errors.Is(err, accounts.ErrInvalidRole):
-		problem.Write(w, r, problem.Validation(map[string]string{"role": "must be one of admin, user"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"role": "one-of"}))
 
 	case errors.Is(err, accounts.ErrWeakPassword):
 		problem.Write(w, r, problem.Validation(map[string]string{
@@ -369,11 +369,11 @@ func writeAccountError(w http.ResponseWriter, r *http.Request, err error) {
 		}))
 
 	case errors.Is(err, auth.ErrUserExists):
-		problem.Write(w, r, problem.Validation(map[string]string{"username": "already in use"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"username": "taken"}))
 
 	case errors.Is(err, auth.ErrUsernameInvalid):
 		problem.Write(w, r, problem.Validation(map[string]string{
-			"username": "letters, digits, hyphen, dot and underscore only",
+			"username": "format",
 		}))
 
 	default:

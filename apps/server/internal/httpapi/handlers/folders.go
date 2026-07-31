@@ -116,7 +116,7 @@ func (h *Folders) Create(w http.ResponseWriter, r *http.Request) {
 
 	libraryID, err := uuid.Parse(req.LibraryID)
 	if err != nil {
-		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "must be a UUID"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "invalid"}))
 		return
 	}
 	if !h.mayWrite(w, r, v, libraryID) {
@@ -158,7 +158,7 @@ func (h *Folders) Relocate(w http.ResponseWriter, r *http.Request) {
 
 	libraryID, err := uuid.Parse(req.LibraryID)
 	if err != nil {
-		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "must be a UUID"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "invalid"}))
 		return
 	}
 	if !h.mayWrite(w, r, v, libraryID) {
@@ -189,7 +189,7 @@ func (h *Folders) Delete(w http.ResponseWriter, r *http.Request) {
 
 	libraryID, err := uuid.Parse(chi.URLParam(r, "libraryID"))
 	if err != nil {
-		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "must be a UUID"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "invalid"}))
 		return
 	}
 	if !h.mayWrite(w, r, v, libraryID) {
@@ -277,21 +277,21 @@ func writeFolderError(w http.ResponseWriter, r *http.Request, err error) {
 
 	case errors.Is(err, folders.ErrAlreadyExists):
 		problem.Write(w, r, problem.Validation(map[string]string{
-			"path": "a folder or file already exists at this location",
+			"path": "exists",
 		}))
 
 	case errors.Is(err, folders.ErrRootImmutable):
 		problem.Write(w, r, problem.Validation(map[string]string{
-			"path": "the library root cannot be renamed or deleted",
+			"path": "protected",
 		}))
 
 	case errors.Is(err, folders.ErrIntoItself):
 		problem.Write(w, r, problem.Validation(map[string]string{
-			"newPath": "a folder cannot be moved inside itself",
+			"newPath": "self",
 		}))
 
 	case errors.Is(err, folders.ErrInvalidName):
-		problem.Write(w, r, problem.Validation(map[string]string{"path": "unusable folder name"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"path": "format"}))
 
 	case errors.Is(err, folders.ErrReadOnly):
 		problem.Write(w, r, problem.Problem{
@@ -302,11 +302,11 @@ func writeFolderError(w http.ResponseWriter, r *http.Request, err error) {
 		})
 
 	case errors.Is(err, folders.ErrWrongCode):
-		problem.Write(w, r, problem.Validation(map[string]string{"code": "incorrect access code"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"code": "wrong-code"}))
 
 	case errors.Is(err, folders.ErrNotLocked):
 		problem.Write(w, r, problem.Validation(map[string]string{
-			"path": "this folder has no access code",
+			"path": "no-code",
 		}))
 
 	case errors.Is(err, folders.ErrCodeTooShort):
@@ -356,7 +356,7 @@ func (h *Folders) SetLock(w http.ResponseWriter, r *http.Request) {
 
 	libraryID, err := uuid.Parse(req.LibraryID)
 	if err != nil {
-		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "must be a UUID"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "invalid"}))
 		return
 	}
 
@@ -413,7 +413,7 @@ func (h *Folders) Unlock(w http.ResponseWriter, r *http.Request) {
 
 	libraryID, err := uuid.Parse(req.LibraryID)
 	if err != nil {
-		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "must be a UUID"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "invalid"}))
 		return
 	}
 
@@ -443,7 +443,7 @@ func (h *Folders) Relock(w http.ResponseWriter, r *http.Request) {
 
 	libraryID, err := uuid.Parse(chi.URLParam(r, "libraryID"))
 	if err != nil {
-		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "must be a UUID"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "invalid"}))
 		return
 	}
 

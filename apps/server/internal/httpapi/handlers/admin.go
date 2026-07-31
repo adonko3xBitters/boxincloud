@@ -192,7 +192,7 @@ func (h *Admin) TestBackend(w http.ResponseWriter, r *http.Request) {
 
 	id, err := uuid.Parse(chi.URLParam(r, "backendID"))
 	if err != nil {
-		problem.Write(w, r, problem.Validation(map[string]string{"backendId": "must be a UUID"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"backendId": "invalid"}))
 		return
 	}
 
@@ -240,7 +240,7 @@ func (h *Admin) CreateLibrary(w http.ResponseWriter, r *http.Request) {
 	}
 	backendID, err := uuid.Parse(req.BackendID)
 	if err != nil {
-		errs["backendId"] = "must be a UUID"
+		errs["backendId"] = "invalid"
 	}
 	if len(errs) > 0 {
 		problem.Write(w, r, problem.Validation(errs))
@@ -262,7 +262,7 @@ func (h *Admin) CreateLibrary(w http.ResponseWriter, r *http.Request) {
 	*/
 	if req.Kind != "" && !validLibraryKind(req.Kind) {
 		problem.Write(w, r, problem.Validation(map[string]string{
-			"kind": "must be one of: comic, manga, book, mixed",
+			"kind": "one-of",
 		}))
 		return
 	}
@@ -302,7 +302,7 @@ func (h *Admin) Scan(w http.ResponseWriter, r *http.Request) {
 
 	id, err := uuid.Parse(chi.URLParam(r, "libraryID"))
 	if err != nil {
-		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "must be a UUID"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "invalid"}))
 		return
 	}
 
@@ -343,7 +343,7 @@ func (h *Admin) Upload(w http.ResponseWriter, r *http.Request) {
 
 	libraryID, err := uuid.Parse(chi.URLParam(r, "libraryID"))
 	if err != nil {
-		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "must be a UUID"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "invalid"}))
 		return
 	}
 
@@ -445,7 +445,7 @@ func writeLibraryError(w http.ResponseWriter, r *http.Request, err error) {
 	case errors.Is(err, library.ErrLibraryNotFound):
 		problem.Write(w, r, problem.NotFound("library not found"))
 	case errors.Is(err, library.ErrBackendNotFound):
-		problem.Write(w, r, problem.Validation(map[string]string{"backendId": "unknown backend"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"backendId": "unknown"}))
 	case errors.Is(err, library.ErrInvalidConfig):
 		problem.Write(w, r, problem.Validation(map[string]string{"config": err.Error()}))
 	default:
@@ -461,13 +461,13 @@ func writeIngestError(w http.ResponseWriter, r *http.Request, err error) {
 		}))
 	case errors.Is(err, ingest.ErrContentMismatch):
 		problem.Write(w, r, problem.Validation(map[string]string{
-			"file": "file content does not match its extension",
+			"file": "mismatch",
 		}))
 	case errors.Is(err, ingest.ErrEmptyName):
-		problem.Write(w, r, problem.Validation(map[string]string{"file": "unusable filename"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"file": "format"}))
 	case errors.Is(err, ingest.ErrAlreadyExists):
 		problem.Write(w, r, problem.Validation(map[string]string{
-			"file": "a file with this name already exists in the destination folder",
+			"file": "exists",
 		}))
 	case errors.Is(err, ingest.ErrComicNotFound):
 		problem.Write(w, r, problem.NotFound("comic not found"))
@@ -522,7 +522,7 @@ func (h *Admin) DeleteComic(w http.ResponseWriter, r *http.Request) {
 
 	comicID, err := uuid.Parse(chi.URLParam(r, "comicID"))
 	if err != nil {
-		problem.Write(w, r, problem.Validation(map[string]string{"comicId": "must be a UUID"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"comicId": "invalid"}))
 		return
 	}
 
@@ -559,7 +559,7 @@ func (h *Admin) MoveComic(w http.ResponseWriter, r *http.Request) {
 
 	comicID, err := uuid.Parse(chi.URLParam(r, "comicID"))
 	if err != nil {
-		problem.Write(w, r, problem.Validation(map[string]string{"comicId": "must be a UUID"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"comicId": "invalid"}))
 		return
 	}
 
@@ -618,7 +618,7 @@ func (h *Admin) BulkManage(w http.ResponseWriter, r *http.Request) {
 
 	if req.Action != "delete" && req.Action != "move" {
 		problem.Write(w, r, problem.Validation(map[string]string{
-			"action": "must be one of delete, move",
+			"action": "one-of",
 		}))
 		return
 	}
@@ -628,7 +628,7 @@ func (h *Admin) BulkManage(w http.ResponseWriter, r *http.Request) {
 		id, err := uuid.Parse(raw)
 		if err != nil {
 			problem.Write(w, r, problem.Validation(map[string]string{
-				"ids": "all entries must be valid UUIDs",
+				"ids": "invalid",
 			}))
 			return
 		}
@@ -656,7 +656,7 @@ func (h *Admin) BulkManage(w http.ResponseWriter, r *http.Request) {
 			id, parseErr := uuid.Parse(req.LibraryID)
 			if parseErr != nil {
 				problem.Write(w, r, problem.Validation(map[string]string{
-					"libraryId": "must be a valid UUID",
+					"libraryId": "invalid",
 				}))
 				return
 			}
@@ -700,7 +700,7 @@ func (h *Admin) UpdateBackend(w http.ResponseWriter, r *http.Request) {
 
 	id, err := uuid.Parse(chi.URLParam(r, "backendID"))
 	if err != nil {
-		problem.Write(w, r, problem.Validation(map[string]string{"backendId": "must be a UUID"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"backendId": "invalid"}))
 		return
 	}
 
@@ -730,7 +730,7 @@ func (h *Admin) DeleteBackend(w http.ResponseWriter, r *http.Request) {
 
 	id, err := uuid.Parse(chi.URLParam(r, "backendID"))
 	if err != nil {
-		problem.Write(w, r, problem.Validation(map[string]string{"backendId": "must be a UUID"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"backendId": "invalid"}))
 		return
 	}
 
@@ -758,7 +758,7 @@ func (h *Admin) SetDefaultBackend(w http.ResponseWriter, r *http.Request) {
 
 	id, err := uuid.Parse(chi.URLParam(r, "backendID"))
 	if err != nil {
-		problem.Write(w, r, problem.Validation(map[string]string{"backendId": "must be a UUID"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"backendId": "invalid"}))
 		return
 	}
 
@@ -788,7 +788,7 @@ func (h *Admin) UpdateLibrary(w http.ResponseWriter, r *http.Request) {
 
 	id, err := uuid.Parse(chi.URLParam(r, "libraryID"))
 	if err != nil {
-		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "must be a UUID"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "invalid"}))
 		return
 	}
 
@@ -824,7 +824,7 @@ func (h *Admin) DeleteLibrary(w http.ResponseWriter, r *http.Request) {
 
 	id, err := uuid.Parse(chi.URLParam(r, "libraryID"))
 	if err != nil {
-		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "must be a UUID"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "invalid"}))
 		return
 	}
 
@@ -864,7 +864,7 @@ func (h *Admin) ScanRuns(w http.ResponseWriter, r *http.Request) {
 
 	id, err := uuid.Parse(chi.URLParam(r, "libraryID"))
 	if err != nil {
-		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "must be a UUID"}))
+		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "invalid"}))
 		return
 	}
 
