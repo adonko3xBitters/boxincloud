@@ -1,0 +1,86 @@
+# Étiquettes du dépôt.
+#
+# Versionnées plutôt que créées à la main dans l'interface GitHub : une
+# étiquette renommée un soir de fatigue casse silencieusement les filtres que
+# les contributeurs se sont mis en favori, et rien ne garde trace de ce qu'elle
+# était avant.
+#
+# À appliquer :
+#   gh label create <nom> --color <couleur> --description <description>
+# ou d'un coup, avec l'action `crazy-max/ghaction-github-labeler`.
+
+# ─── Nature ──────────────────────────────────────────────────────────────────
+
+- name: bug
+  color: "d73a4a"
+  description: Quelque chose ne fonctionne pas comme annoncé
+
+- name: enhancement
+  color: "0e8a16"
+  description: Nouvelle fonctionnalité ou amélioration
+
+- name: documentation
+  color: "0075ca"
+  description: Documentation, README, guides
+
+- name: performance
+  color: "fbca04"
+  description: Lenteur, consommation mémoire, requêtes coûteuses
+
+- name: security
+  color: "b60205"
+  description: Faille, durcissement, dépendance vulnérable
+
+# ─── Zone ────────────────────────────────────────────────────────────────────
+#
+# Une par module de premier niveau. Elles servent surtout à filtrer : quelqu'un
+# qui sait faire du Flutter ne devrait pas avoir à lire trente titres pour
+# trouver ce qui le concerne.
+
+- name: "area: serveur"
+  color: "5319e7"
+  description: Go, API, indexation, stockage
+
+- name: "area: web"
+  color: "1d76db"
+  description: Interface Next.js
+
+- name: "area: mobile"
+  color: "006b75"
+  description: Application Flutter
+
+- name: "area: déploiement"
+  color: "bfd4f2"
+  description: Docker, compose, NAS, publication
+
+# ─── Contribution ────────────────────────────────────────────────────────────
+
+# `good first issue` n'est PAS synonyme de « facile ». C'est un contrat : le
+# problème est cerné, la piste est indiquée, et personne ne travaille dessus.
+# Une issue étiquetée ainsi mais vague fait perdre à un nouveau venu la seule
+# soirée qu'il avait décidé de donner au projet.
+- name: good first issue
+  color: "7057ff"
+  description: Bien cerné, avec une piste — bon point d'entrée
+
+- name: help wanted
+  color: "008672"
+  description: Un coup de main serait bienvenu
+
+- name: "needs: reproduction"
+  color: "e4e669"
+  description: Manque les étapes pour reproduire
+
+- name: "needs: decision"
+  color: "d4c5f9"
+  description: En attente d'un arbitrage avant d'être implémentable
+
+# ─── Cycle de vie ────────────────────────────────────────────────────────────
+
+- name: duplicate
+  color: "cfd3d7"
+  description: Déjà signalé ailleurs
+
+- name: wontfix
+  color: "ffffff"
+  description: Écarté, avec la raison en commentaire

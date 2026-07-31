@@ -223,12 +223,14 @@ page.
 - [x] Template Unraid, notes pour TrueNAS et Synology.
 - [x] Documentation publique : installation, configuration, migration depuis Komga/Kavita.
 - README travaillé : captures, GIF du lecteur, positionnement explicite (« stockage objet natif », le point qui vous distingue de Komga et Kavita).
-- Passe d'accessibilité (navigation clavier, contrastes, lecteurs d'écran).
+- [x] Passe d'accessibilité (navigation clavier, contrastes, lecteurs d'écran).
 - [~] i18n français et anglais — **mécanisme en place, extraction en cours**.
 - [x] Passe de sécurité : limitation de débit, en-têtes, protection SSRF sur les URL de backend, `SECURITY.md`.
 - [x] Tests de charge sur une bibliothèque de 10 000 titres.
-- Roadmap publique en GitHub Projects, étiquettes `good first issue` préparées.
-- Distribution des builds mobiles : APK en release GitHub, TestFlight, puis dépôts.
+- [x] Étiquettes préparées dans `.github/labels.yml`.
+- [x] Distribution mobile : workflow de publication de l'APK sur les versions GitHub.
+- [ ] Roadmap publique en GitHub Projects — action sortante, à faire par le mainteneur.
+- [ ] TestFlight — demande un compte Apple Developer et Xcode, absents de la machine.
 
 **Sortie : v0.1.0 publiée.** Annonce sur r/selfhosted, r/comicbooks, Lemmy selfhosted, awesome-selfhosted.
 
