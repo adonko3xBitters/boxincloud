@@ -3392,13 +3392,23 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Image de la page */
+            /**
+             * @description Image de la page. Format négocié sur l'en-tête `Accept`, comme sur
+             *     la route authentifiée.
+             */
             200: {
                 headers: {
+                    /**
+                     * @description Vaut `Accept`. La réponse dépend des formats déclarés par le
+                     *     client : un cache qui l'ignorerait servirait de l'AVIF à qui ne
+                     *     sait pas le lire.
+                     */
+                    Vary?: string;
                     [name: string]: unknown;
                 };
                 content: {
                     "image/jpeg": string;
+                    "image/webp": string;
                 };
             };
             404: components["responses"]["NotFound"];
@@ -3419,13 +3429,24 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Image de couverture */
+            /**
+             * @description Image de couverture. Format négocié sur l'en-tête `Accept`, comme
+             *     sur la route authentifiée.
+             */
             200: {
                 headers: {
+                    /**
+                     * @description Vaut `Accept`. La réponse dépend des formats déclarés par le
+                     *     client : un cache qui l'ignorerait servirait de l'AVIF à qui ne
+                     *     sait pas le lire.
+                     */
+                    Vary?: string;
                     [name: string]: unknown;
                 };
                 content: {
                     "image/jpeg": string;
+                    "image/webp": string;
+                    "image/avif": string;
                 };
             };
             404: components["responses"]["NotFound"];
@@ -3959,11 +3980,29 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Image de la page */
+            /**
+             * @description Image de la page, dans le meilleur format que le client déclare
+             *     savoir lire (en-tête `Accept`).
+             *
+             *     Le WebP est servi à qui l'annonce, le JPEG à tous les autres — y
+             *     compris à qui n'envoie qu'un joker : « je n'ai rien à déclarer »
+             *     n'est pas « je sais tout lire ».
+             *
+             *     L'AVIF n'est **pas** proposé ici, bien qu'il soit produit pour les
+             *     couvertures. Une page se transcode pendant qu'un lecteur attend, et
+             *     l'AVIF réglé pour tenir dans cette attente est à la fois plus lourd
+             *     et plus lent que le WebP.
+             */
             200: {
                 headers: {
                     ETag?: string;
                     "Cache-Control"?: string;
+                    /**
+                     * @description Vaut `Accept`. La réponse dépend des formats déclarés par le
+                     *     client : un cache qui l'ignorerait servirait de l'AVIF à qui ne
+                     *     sait pas le lire.
+                     */
+                    Vary?: string;
                     [name: string]: unknown;
                 };
                 content: {
@@ -4003,15 +4042,31 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            /** @description Vignette */
+            /**
+             * @description Vignette, dans le meilleur format que le client déclare savoir lire
+             *     (en-tête `Accept`) : AVIF, sinon WebP, sinon JPEG.
+             *
+             *     L'AVIF est proposé ici et pas sur les pages parce que son encodage
+             *     est payé une seule fois par album et par taille, et qu'une grille de
+             *     couvertures est le plus gros transfert de l'application — 62 %
+             *     d'octets en moins qu'en JPEG.
+             */
             200: {
                 headers: {
                     ETag?: string;
                     "Cache-Control"?: string;
+                    /**
+                     * @description Vaut `Accept`. La réponse dépend des formats déclarés par le
+                     *     client : un cache qui l'ignorerait servirait de l'AVIF à qui ne
+                     *     sait pas le lire.
+                     */
+                    Vary?: string;
                     [name: string]: unknown;
                 };
                 content: {
                     "image/jpeg": string;
+                    "image/webp": string;
+                    "image/avif": string;
                 };
             };
             /** @description Inchangée */

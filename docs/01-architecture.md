@@ -183,11 +183,33 @@ Toute donnée dérivée (pages transcodées, vignettes, couvertures) va dans un 
 
 Interface `imaging.Processor`, avec deux implémentations prévues.
 
-**Implémenté (M1) — Go pur.** Décodage JPEG/PNG/GIF/BMP/TIFF/WebP, redimensionnement CatmullRom, sortie JPEG et PNG. Pas de cgo, donc build `CGO_ENABLED=0`, image Docker minimale et toutes les architectures supportées. Suffisant pour générer les vignettes de couverture et réduire une planche à la largeur demandée.
+**Go pur, quatre formats en sortie.** Décodage JPEG/PNG/GIF/BMP/TIFF/WebP/AVIF, redimensionnement CatmullRom, sortie JPEG, PNG, WebP et AVIF. Toujours pas de cgo : les encodeurs modernes sont compilés en WebAssembly et exécutés par wazero, ce qui préserve `CGO_ENABLED=0`, le binaire unique et la compilation croisée sans chaîne C.
 
-**À venir — libvips via `govips`.** 4 à 8× plus rapide et bien plus économe en mémoire sur des planches haute résolution, et seul moyen de produire du **WebP** et de l'**AVIF**. Contrainte : cgo, donc build multi-étages avec `libvips-dev` et image finale `debian-slim` plutôt que `scratch` (~120 Mo). À introduire quand la négociation de format deviendra utile, c'est-à-dire avec le lecteur web en M4 — pas avant, l'enjeu de M1 étant l'accès aléatoire au stockage objet.
+Prix payé : +16 Mo de binaire, dont ~3 pour le WebP et ~13 pour l'AVIF.
 
-- Formats de sortie visés à terme : **AVIF** si le client l'annonce, **WebP** sinon, JPEG en dernier recours. Négociation par en-tête `Accept`.
+**Le format suit qui paie l'encodage.** C'est la mesure qui a tranché, et pas dans le sens attendu — sur une planche de 1600×2400 et sa vignette de 320 px :
+
+| | page 1600×2400 | vignette 320 px |
+|---|---|---|
+| JPEG q85 | 846 Ko / 52 ms | 38,9 Ko / 2 ms |
+| WebP q80 | 503 Ko / 148 ms | 27,1 Ko / 6 ms |
+| AVIF q60 vitesse 8 | 322 Ko / **2,1 s** | 14,6 Ko / 130 ms |
+| AVIF q60 vitesse 10 | **533 Ko / 663 ms** | — |
+
+L'AVIF assez rapide pour être encodé pendant qu'un lecteur attend sa page est plus gros *et* presque aussi lent que le WebP : sur ce chemin, il ferait payer pour perdre. L'AVIF qui gagne vraiment coûte deux secondes.
+
+D'où la règle :
+
+- **Pages** — négociation entre **WebP** et **JPEG**. L'AVIF n'est pas proposé, même au client qui l'annonce.
+- **Couvertures** — négociation entre **AVIF**, **WebP** et **JPEG**. Les 130 ms sont payées une fois par album et par taille, dans une grille qui est le plus gros transfert de l'application.
+
+Seul le JPEG est produit à l'indexation ; les variantes modernes naissent à la première demande et restent en cache. Encoder trois formats d'avance gonflerait le scan pour produire des variantes que telle instance ne servira jamais — une bibliothèque lue depuis l'application Android n'a aucun usage de l'AVIF, que Flutter ne décode pas.
+
+**Négociation stricte.** Seule une mention explicite dans `Accept` compte : un client qui envoie un joker reçoit du JPEG. « Je n'ai rien à déclarer » n'est pas « je sais tout lire », et les deux se ressemblent surtout quand on a tort. Aucun navigateur n'y perd — ils nomment tous leurs formats.
+
+Les réponses portent `Vary: Accept`, y compris les 304, et l'ETag inclut le format. Sans cela, un proxy servirait l'AVIF du premier lecteur au suivant, qui peut être l'application Android.
+
+**libvips via `govips` reste possible** derrière la même interface, pour les instances qui indexent des dizaines de milliers d'albums : nettement plus rapide et plus économe en mémoire. Elle impose cgo — un prix que la grande majorité des installations n'a aucune raison de payer.
 - Vignettes en trois tailles : `sm` 160px, `md` 320px, `lg` 640px (largeur).
 - Les dimensions de chaque page sont lues via `image.DecodeConfig` — quelques centaines d'octets d'en-tête au lieu de l'image entière — et persistées dans `comic_pages`.
 

@@ -44,8 +44,10 @@ Les durées supposent un développeur principal à temps partiel soutenu. Elles 
 | Scan complet, 5 albums / 274 pages | 1,57 s |
 | Rescan sans changement | 22 ms, aucun doublon |
 
-Écart assumé : le moteur d'imagerie est en Go pur (JPEG), libvips et la sortie
-WebP/AVIF restent reportés.
+Écart rattrapé depuis : le moteur d'imagerie produit les quatre formats, et
+toujours sans cgo — les encodeurs WebP et AVIF passent par WebAssembly plutôt
+que par libvips. Voir l'architecture pour la mesure qui décide lequel est servi
+où : l'AVIF gagne sur les vignettes et perd sur les pages.
 
 **Le CBR et le PDF sont désormais traités.** L'hydratation, prévue dès M1 et
 laissée en suspens jusqu'ici, convertit ces formats en CBZ dans le cache dérivé

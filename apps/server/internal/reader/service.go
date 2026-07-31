@@ -155,6 +155,9 @@ type PageRequest struct {
 	Index   int32
 	// Width demande un redimensionnement. Zéro sert la page d'origine.
 	Width int
+	// Accept est l'en-tête du client, tel quel. Le service en tire le format
+	// de sortie ; le vide donne du JPEG.
+	Accept string
 }
 
 // GetPage sert une page.
@@ -210,24 +213,35 @@ func (s *Service) GetPage(ctx context.Context, req PageRequest) (PageContent, er
 		}, nil
 	}
 
-	key := cache.PageKey(comic.ID, int(page.Index), req.Width, imaging.FormatJPEG)
+	/*
+		Le format suit qui paie l'encodage — voir le tableau de mesures dans
+		imaging/purego.go.
+
+		Ici, quelqu'un attend sa page. Le WebP rend 40 % des octets pour une
+		centaine de millisecondes ; l'AVIF, au réglage qui tiendrait dans cette
+		attente, est à la fois plus gros et presque aussi lent. Il n'est donc
+		pas proposé sur ce chemin : ce serait payer pour perdre.
+	*/
+	format := imaging.Negotiate(req.Accept, imaging.FormatWebP, imaging.FormatJPEG)
+
+	key := cache.PageKey(comic.ID, int(page.Index), req.Width, format)
 
 	if body, err := s.cache.Get(ctx, key); err == nil {
 		return PageContent{
 			Body:        body,
-			ContentType: imaging.FormatJPEG.ContentType(),
-			ETag:        pageETag(comic.ID, page.Index, req.Width, string(imaging.FormatJPEG)),
+			ContentType: format.ContentType(),
+			ETag:        pageETag(comic.ID, page.Index, req.Width, string(format)),
 		}, nil
 	} else if !errors.Is(err, storage.ErrNotFound) {
 		s.log.Warn("lecture du cache impossible", slog.String("key", key), slog.Any("err", err))
 	}
 
-	transcoded, err := s.transcode(ctx, comic, page, req.Width)
+	transcoded, err := s.transcode(ctx, comic, page, req.Width, format)
 	if err != nil {
 		return PageContent{}, err
 	}
 
-	if err := s.cache.Put(ctx, key, comic.ID, transcoded, imaging.FormatJPEG.ContentType()); err != nil {
+	if err := s.cache.Put(ctx, key, comic.ID, transcoded, format.ContentType()); err != nil {
 		// Le cache est un accélérateur, pas une source de vérité : son échec ne
 		// doit pas empêcher de servir la page.
 		s.log.Warn("écriture du cache impossible", slog.String("key", key), slog.Any("err", err))
@@ -235,9 +249,9 @@ func (s *Service) GetPage(ctx context.Context, req PageRequest) (PageContent, er
 
 	return PageContent{
 		Body:        io.NopCloser(bytes.NewReader(transcoded)),
-		ContentType: imaging.FormatJPEG.ContentType(),
+		ContentType: format.ContentType(),
 		Size:        int64(len(transcoded)),
-		ETag:        pageETag(comic.ID, page.Index, req.Width, string(imaging.FormatJPEG)),
+		ETag:        pageETag(comic.ID, page.Index, req.Width, string(format)),
 	}, nil
 }
 
@@ -304,7 +318,13 @@ func compressionOf(v int16) archive.Compression {
 // borne protège d'une entrée d'archive délibérément énorme.
 const maxPageBytes = 64 << 20
 
-func (s *Service) transcode(ctx context.Context, comic Comic, page Page, width int) ([]byte, error) {
+func (s *Service) transcode(
+	ctx context.Context,
+	comic Comic,
+	page Page,
+	width int,
+	format imaging.Format,
+) ([]byte, error) {
 	src, err := s.openOriginal(ctx, comic, page)
 	if err != nil {
 		return nil, err
@@ -319,7 +339,7 @@ func (s *Service) transcode(ctx context.Context, comic Comic, page Page, width i
 	var buf bytes.Buffer
 	if _, err := s.imaging.Transform(&buf, bytes.NewReader(raw), imaging.Options{
 		Width:  width,
-		Format: imaging.FormatJPEG,
+		Format: format,
 	}); err != nil {
 		return nil, fmt.Errorf("transcodage de la page %d : %w", page.Index, err)
 	}
@@ -328,24 +348,44 @@ func (s *Service) transcode(ctx context.Context, comic Comic, page Page, width i
 
 // ─── Couvertures ─────────────────────────────────────────────────────────────
 
-// GetCover sert une vignette de couverture.
-//
-// Les trois tailles sont générées à l'indexation ; ce chemin ne fait donc
-// normalement que lire le cache. En cas d'absence — cache purgé, album indexé
-// par une version antérieure — la vignette est régénérée à la volée.
-func (s *Service) GetCover(ctx context.Context, comicID uuid.UUID, width int) (PageContent, error) {
+/*
+GetCover sert une vignette de couverture.
+
+Les trois tailles sont générées en JPEG à l'indexation ; ce chemin ne fait donc
+normalement que lire le cache. En cas d'absence — cache purgé, album indexé par
+une version antérieure, ou format moderne demandé pour la première fois — la
+vignette est produite à la volée puis conservée.
+
+C'est ici que l'AVIF gagne, et largement : 62 % d'octets en moins qu'en JPEG.
+Une grille de soixante couvertures est le plus gros transfert de l'application,
+et les 130 ms d'encodage ne sont payées qu'une fois dans la vie de l'album —
+personne n'attend devant, contrairement à une page qu'on tourne.
+
+Seul le JPEG est produit à l'indexation, et c'est voulu : encoder d'avance trois
+formats pour chaque album gonflerait le scan de plusieurs minutes pour produire
+des variantes que telle instance ne servira jamais — une bibliothèque lue depuis
+l'application Android n'a aucun usage de l'AVIF, que Flutter ne décode pas.
+*/
+func (s *Service) GetCover(
+	ctx context.Context,
+	comicID uuid.UUID,
+	width int,
+	accept string,
+) (PageContent, error) {
 	if width <= 0 {
 		width = imaging.ThumbMedium
 	}
 	width = nearestThumbSize(width)
 
-	key := cache.CoverKey(comicID, width, imaging.FormatJPEG)
+	format := imaging.Negotiate(accept, imaging.FormatAVIF, imaging.FormatWebP, imaging.FormatJPEG)
+
+	key := cache.CoverKey(comicID, width, format)
 
 	if body, err := s.cache.Get(ctx, key); err == nil {
 		return PageContent{
 			Body:        body,
-			ContentType: imaging.FormatJPEG.ContentType(),
-			ETag:        coverETag(comicID, width),
+			ContentType: format.ContentType(),
+			ETag:        coverETag(comicID, width, format),
 		}, nil
 	}
 
@@ -362,21 +402,21 @@ func (s *Service) GetCover(ctx context.Context, comicID uuid.UUID, width int) (P
 		return PageContent{}, err
 	}
 
-	data, err := s.transcode(ctx, comic, page, width)
+	data, err := s.transcode(ctx, comic, page, width, format)
 	if err != nil {
 		return PageContent{}, err
 	}
 
-	if err := s.cache.Put(ctx, key, comicID, data, imaging.FormatJPEG.ContentType()); err != nil {
+	if err := s.cache.Put(ctx, key, comicID, data, format.ContentType()); err != nil {
 		s.log.Warn("écriture de la couverture en cache impossible",
 			slog.String("key", key), slog.Any("err", err))
 	}
 
 	return PageContent{
 		Body:        io.NopCloser(bytes.NewReader(data)),
-		ContentType: imaging.FormatJPEG.ContentType(),
+		ContentType: format.ContentType(),
 		Size:        int64(len(data)),
-		ETag:        coverETag(comicID, width),
+		ETag:        coverETag(comicID, width, format),
 	}, nil
 }
 
@@ -433,8 +473,14 @@ func pageETag(comicID uuid.UUID, index int32, width int, format string) string {
 	return fmt.Sprintf(`"%s-%d-%d-%s"`, comicID.String()[:8], index, width, format)
 }
 
-func coverETag(comicID uuid.UUID, width int) string {
-	return fmt.Sprintf(`"cover-%s-%d"`, comicID.String()[:8], width)
+// coverETag identifie une variante, format compris.
+//
+// L'omettre serait un vrai défaut : deux formats partageraient une même
+// validation, et un client qui a mis en cache le JPEG se verrait répondre 304
+// sur une demande d'AVIF — donc afficherait éternellement l'ancien format, ou
+// pire, un cache partagé servirait de l'AVIF à un client qui n'en veut pas.
+func coverETag(comicID uuid.UUID, width int, format imaging.Format) string {
+	return fmt.Sprintf(`"cover-%s-%d-%s"`, comicID.String()[:8], width, format)
 }
 
 func contentTypeOf(entryName string) string {

@@ -104,6 +104,7 @@ func (h *Reader) ServePage(w http.ResponseWriter, r *http.Request, comicID uuid.
 		ComicID: comicID,
 		Index:   int32(index),
 		Width:   int(intParam(r, "width", 0)),
+		Accept:  r.Header.Get("Accept"),
 	})
 	if err != nil {
 		writeReaderError(w, r, err)
@@ -127,7 +128,8 @@ func (h *Reader) Cover(w http.ResponseWriter, r *http.Request) {
 
 // ServeCover sert la couverture d'un album déjà autorisé.
 func (h *Reader) ServeCover(w http.ResponseWriter, r *http.Request, comicID uuid.UUID) {
-	content, err := h.svc.GetCover(r.Context(), comicID, int(intParam(r, "width", 0)))
+	content, err := h.svc.GetCover(
+		r.Context(), comicID, int(intParam(r, "width", 0)), r.Header.Get("Accept"))
 	if err != nil {
 		writeReaderError(w, r, err)
 		return
@@ -141,6 +143,17 @@ func (h *Reader) ServeCover(w http.ResponseWriter, r *http.Request, comicID uuid
 
 // writeImage écrit une image avec sa validation de cache.
 func writeImage(w http.ResponseWriter, r *http.Request, content reader.PageContent, cacheControl string) {
+	/*
+		Sans ce Vary, la même URL servirait des octets différents selon le
+		client, et n'importe quel cache intermédiaire — un proxy d'entreprise,
+		un CDN devant l'instance — servirait joyeusement l'AVIF du premier
+		visiteur au suivant, qui ne saurait pas le lire.
+
+		L'en-tête doit être posé avant le 304 : une réponse conditionnelle est
+		une réponse de cache, et c'est justement elle qu'il faut cadrer.
+	*/
+	w.Header().Set("Vary", "Accept")
+
 	// Requête conditionnelle : si le client a déjà cette variante, on lui
 	// répond 304 sans transférer un octet. Sur un album de soixante pages
 	// relu, c'est tout le trafic d'images qui disparaît.

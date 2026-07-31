@@ -4,11 +4,15 @@
 // fournit une implémentation en Go pur : elle ne demande pas cgo, permet un
 // build CGO_ENABLED=0 et fonctionne sur toutes les architectures.
 //
-// Une implémentation libvips (via govips) viendra derrière la même interface :
-// elle est 4 à 8 fois plus rapide et bien plus économe en mémoire sur des
-// planches haute résolution, et sait produire du WebP et de l'AVIF. Elle impose
-// en revanche cgo et une image Docker plus lourde, ce qui n'a pas sa place dans
-// le jalon qui doit d'abord prouver l'accès aléatoire au stockage objet.
+// Les quatre formats de sortie sont produits sans cgo : le JPEG et le PNG par
+// la bibliothèque standard, le WebP et l'AVIF par des encodeurs compilés en
+// WebAssembly qu'exécute wazero. Le binaire reste unique et se compile en
+// croisé sans chaîne C.
+//
+// Une implémentation libvips reste possible derrière la même interface, pour
+// les instances qui indexent des dizaines de milliers d'albums : elle est
+// nettement plus rapide et plus économe en mémoire. Elle impose cgo, ce qui est
+// un prix que la grande majorité des installations n'a aucune raison de payer.
 package imaging
 
 import (
@@ -25,6 +29,11 @@ import (
 	_ "golang.org/x/image/bmp"
 	_ "golang.org/x/image/tiff"
 	_ "golang.org/x/image/webp"
+
+	// En entrée aussi : les CBZ récents contiennent de plus en plus de pages
+	// déjà en WebP ou en AVIF, et un album illisible parce qu'on ne décode pas
+	// son format serait une drôle de façon de se moderniser.
+	_ "github.com/gen2brain/avif"
 )
 
 // Format identifie un format d'image en sortie.
@@ -33,7 +42,6 @@ type Format string
 const (
 	FormatJPEG Format = "jpeg"
 	FormatPNG  Format = "png"
-	// FormatWebP et FormatAVIF seront produits par l'implémentation libvips.
 	FormatWebP Format = "webp"
 	FormatAVIF Format = "avif"
 )
