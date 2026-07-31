@@ -30,8 +30,18 @@ func TestIntegrationContractAccounts(t *testing.T) {
 		if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
 			t.Fatal(err)
 		}
-		if len(payload.Accounts) != 1 || payload.Accounts[0].Role != "admin" {
-			t.Errorf("comptes = %+v, attendu un seul administrateur", payload.Accounts)
+		// Le harnais installe deux comptes : l'administrateur de
+		// l'installation, et un compte ordinaire dont les tests d'autorisation
+		// ont besoin pour prouver ce qui lui est refusé.
+		roles := map[string]int{}
+		for _, account := range payload.Accounts {
+			roles[account.Role]++
+		}
+		if roles["admin"] != 1 {
+			t.Errorf("comptes = %+v, attendu exactement un administrateur", payload.Accounts)
+		}
+		if len(payload.Accounts) != 2 {
+			t.Errorf("comptes = %+v, attendu les deux comptes du harnais", payload.Accounts)
 		}
 	})
 

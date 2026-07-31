@@ -45,6 +45,10 @@ func NewAdmin(
 // ─── Cache dérivé ────────────────────────────────────────────────────────────
 
 func (h *Admin) CacheStats(w http.ResponseWriter, r *http.Request) {
+	if !requireAdmin(w, r) {
+		return
+	}
+
 	stats, err := h.cache.Stats(r.Context())
 	if err != nil {
 		writeInternal(w, r, err)
@@ -67,13 +71,25 @@ func (h *Admin) CacheStats(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, out)
 }
 
-// PurgeCache vide le cache dérivé.
-//
-// Aucune confirmation côté serveur : tout y est reconstructible, et exiger un
-// jeton de confirmation pour une opération sans perte serait de la cérémonie.
-// L'interface, elle, demande confirmation — parce qu'une purge coûte du temps
-// de régénération, pas parce qu'elle serait dangereuse.
+/*
+PurgeCache vide le cache dérivé.
+
+Aucune confirmation côté serveur : tout y est reconstructible, et exiger un
+jeton de confirmation pour une opération sans perte serait de la cérémonie.
+L'interface, elle, demande confirmation — parce qu'une purge coûte du temps de
+régénération, pas parce qu'elle serait dangereuse.
+
+Réservée à l'administration, en revanche, et ce garde manquait. « Sans perte »
+ne veut pas dire « sans conséquence » : purger oblige l'instance à régénérer
+toutes ses vignettes et toutes ses variantes de page. Laissée ouverte, la route
+offrait à n'importe quel compte — un profil enfant restreint compris — de quoi
+mettre le serveur à genoux d'un clic répété.
+*/
 func (h *Admin) PurgeCache(w http.ResponseWriter, r *http.Request) {
+	if !requireAdmin(w, r) {
+		return
+	}
+
 	entries, freed, err := h.cache.Purge(r.Context())
 	if err != nil {
 		writeInternal(w, r, err)
@@ -427,7 +443,23 @@ func (h *Admin) Upload(w http.ResponseWriter, r *http.Request) {
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-// requireAdmin refuse la requête si le compte n'est pas administrateur.
+/*
+requireAdmin refuse la requête si le compte n'est pas administrateur.
+
+C'est le SEUL mécanisme d'autorisation par rôle du projet. Un middleware
+`RequireAdmin` a existé en parallèle sans jamais être câblé : deux façons
+d'exprimer une même règle, dont une inerte, invitent à croire l'une active en
+écrivant l'autre. Il a été supprimé.
+
+Le garde en tête de gestionnaire est préféré au groupe de routes parce que les
+routes d'administration et les autres s'entremêlent — `PATCH /comics/{id}` est
+ouvert, `DELETE /libraries/{id}` ne l'est pas — et qu'un groupe rendrait cette
+frontière moins lisible qu'une ligne dans la fonction concernée.
+
+Sa faiblesse est qu'il repose sur la mémoire de celui qui écrit la route. Elle
+est compensée ailleurs : `contract_authz_test.go` appelle chaque route réservée
+avec un compte ordinaire et exige un 403. Un garde oublié y casse un test.
+*/
 func requireAdmin(w http.ResponseWriter, r *http.Request) bool {
 	v, ok := viewerFrom(w, r)
 	if !ok {

@@ -106,24 +106,6 @@ func authenticate(v Verifier, allowQuery bool) func(http.Handler) http.Handler {
 	}
 }
 
-// RequireAdmin refuse l'accès aux comptes non administrateurs.
-//
-// À composer après Authenticate.
-func RequireAdmin(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		claims, ok := ClaimsFrom(r.Context())
-		if !ok {
-			problem.Write(w, r, problem.Unauthorized("authentication required"))
-			return
-		}
-		if claims.Role != "admin" {
-			problem.Write(w, r, problem.Forbidden("administrator role required"))
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
 // ClaimsFrom récupère les claims attachées par Authenticate.
 func ClaimsFrom(ctx context.Context) (auth.Claims, bool) {
 	claims, ok := ctx.Value(claimsKey{}).(auth.Claims)

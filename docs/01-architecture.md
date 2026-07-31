@@ -323,3 +323,30 @@ Le client Flutter tient une file d'opérations persistée en SQLite (Drift), la 
 **CI/CD** — GitHub Actions : lint (`golangci-lint`, `eslint`, `dart analyze`), tests, build multi-arch (amd64/arm64) et publication sur GHCR, `release-please` pour le versionnement sémantique et le journal des modifications.
 
 **Sécurité** — SSRF : les URL de backend fournies par l'utilisateur sont validées (pas de plage IP privée sans opt-in explicite). Limitation de débit sur l'authentification. En-têtes CSP stricts. Aucun secret dans les logs.
+
+---
+
+## Autorisation par rôle
+
+Un seul mécanisme : `requireAdmin(w, r)` en tête des gestionnaires réservés.
+
+Un middleware `RequireAdmin` a longtemps existé en parallèle sans être câblé
+nulle part. Deux façons d'exprimer une même règle, dont une inerte, est pire
+qu'une seule : on croit l'une active en écrivant l'autre. Il a été supprimé.
+
+Le garde en tête de gestionnaire est préféré au groupe de routes parce que les
+routes d'administration et les autres s'entremêlent — `PATCH /comics/{id}` est
+ouvert, `DELETE /libraries/{id}` ne l'est pas — et qu'un groupe rendrait cette
+frontière moins lisible qu'une ligne dans la fonction concernée.
+
+Sa faiblesse est qu'il repose sur la mémoire de celui qui écrit la route.
+`contract_authz_test.go` la compense : chaque route réservée y est appelée avec
+un compte ordinaire et doit répondre 403, et chacune est rappelée avec un
+administrateur pour vérifier que le garde ne refuse pas tout le monde. Les deux
+moitiés ne valent qu'ensemble.
+
+Ce test a trouvé, en étant écrit, deux routes sans aucun garde : `GET /cache` et
+`DELETE /cache`. La seconde comptait — purger le cache dérivé n'efface rien
+d'irremplaçable, mais oblige l'instance à régénérer toutes ses vignettes et
+toutes ses variantes de page. N'importe quel compte, profil enfant restreint
+compris, pouvait la déclencher en boucle.

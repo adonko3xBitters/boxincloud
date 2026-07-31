@@ -18,6 +18,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 
+	"github.com/adonko3xBitters/boxincloud/server/internal/accounts"
 	"github.com/adonko3xBitters/boxincloud/server/internal/app"
 	"github.com/adonko3xBitters/boxincloud/server/internal/auth"
 	"github.com/adonko3xBitters/boxincloud/server/internal/config"
@@ -53,6 +54,13 @@ type contractHarness struct {
 
 	// adminID est le compte créé à l'installation.
 	adminID uuid.UUID
+
+	// userToken ouvre une session sur un compte ORDINAIRE.
+	//
+	// Sans lui, toute la suite de tests s'exécute en administrateur et ne peut
+	// rien prouver sur ce qui est réservé : une route dont on aurait oublié le
+	// garde passerait tous les tests.
+	userToken string
 
 	// loneComicID désigne un album sans série — le cas que toute jointure sur
 	// la table des séries doit supporter.
@@ -157,6 +165,26 @@ func (h *contractHarness) seed(t *testing.T, core *app.Core, minio miniotest.Env
 		t.Fatalf("connexion : %v", err)
 	}
 	h.token = tokens.AccessToken
+
+	if _, err := core.Accounts.Create(ctx, accounts.CreateParams{
+		Username: "ordinaire",
+		Email:    "ordinaire@example.test",
+		Password: "un autre mot de passe solide",
+		Role:     "user",
+	}); err != nil {
+		t.Fatalf("compte ordinaire : %v", err)
+	}
+
+	userTokens, err := core.Auth.Login(ctx, auth.LoginParams{
+		Username:   "ordinaire",
+		Password:   "un autre mot de passe solide",
+		DeviceName: "Contract",
+		Platform:   "web",
+	})
+	if err != nil {
+		t.Fatalf("connexion du compte ordinaire : %v", err)
+	}
+	h.userToken = userTokens.AccessToken
 
 	backend, err := core.Libraries.CreateBackend(ctx, library.CreateBackendParams{
 		Name: "minio-contract",
