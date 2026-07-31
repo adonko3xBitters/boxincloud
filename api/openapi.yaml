@@ -2707,6 +2707,11 @@ paths:
         `/opds` au lieu de `/opds/v1.2`, cas le plus fréquent — se signale donc
         à la saisie, et non trois semaines plus tard sous la forme d'une
         recherche qui ne rend rien.
+
+        Pour une source `scraper:<gabarit>`, l'essai vérifie en plus que le
+        gabarit trouve encore des lignes sur le site. C'est le contrôle qui
+        compte : un site qui refait sa mise en page répond parfaitement et ne
+        rend plus rien, et la panne se déguiserait en « aucun résultat ».
       tags: [discovery]
       requestBody:
         required: true
@@ -2714,14 +2719,28 @@ paths:
           application/json:
             schema:
               type: object
-              required: [name, url]
+              required: [name]
               properties:
                 name: { type: string, minLength: 1 }
+                kind:
+                  type: string
+                  pattern: '^(opds|scraper:[a-z0-9][a-z0-9-]*)$'
+                  default: opds
+                  description: |
+                    `opds` par défaut, ce qui reste le cas de l'écrasante
+                    majorité des catalogues ajoutés à la main. Les gabarits
+                    disponibles se lisent sur `GET /discovery/scraper-templates`.
                 url:
                   type: string
                   description: |
                     Adresse du flux OPDS racine, en http:// ou https://.
                     OPDS 1.2 (Atom) et 2.0 (JSON) sont reconnus automatiquement.
+
+                    **Requise pour `opds`**, facultative pour un gabarit : celui-ci
+                    déclare déjà ses miroirs, et l'adresse ne se saisit que le jour
+                    où l'un d'eux change. Elle passe alors devant ceux du gabarit,
+                    ce qui permet de suivre un changement de domaine sans
+                    recompiler.
                 enabled: { type: boolean, default: true }
                 username:
                   type: string
@@ -2740,6 +2759,39 @@ paths:
         "422":
           $ref: "#/components/responses/ValidationFailed"
 
+  /discovery/scraper-templates:
+    get:
+      operationId: listScraperTemplates
+      summary: Gabarits de scraping disponibles
+      description: |
+        **Réservé aux administrateurs.**
+
+        Les sites du domaine public qui n'exposent ni API ni flux OPDS sont lus
+        à partir de gabarits déclaratifs — sélecteurs CSS, miroirs, débit
+        sortant. Cette route dit lesquels cette instance a chargés, pour que
+        l'écran de configuration propose un choix plutôt qu'une chaîne à saisir.
+
+        La liste peut être **vide**, et c'est un cas normal : c'est même l'état
+        livré aujourd'hui. Elle contient alors les seuls gabarits qu'un
+        opérateur aurait déposés dans `BOXINCLOUD_SCRAPER_TEMPLATES_DIR`.
+      tags: [discovery]
+      responses:
+        "200":
+          description: Gabarits chargés, triés par identifiant
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/ScraperTemplate" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
   /discovery/sources/{sourceId}:
     patch:
       operationId: updateDiscoverySource
@@ -2750,6 +2802,9 @@ paths:
         Omettre `password` conserve le mot de passe enregistré ; l'envoyer vide
         l'efface. Un formulaire qui renvoie tous ses champs ne doit pas effacer
         un secret qu'il n'affiche pas.
+
+        `kind` ne se modifie pas : il identifie le protocole ou le gabarit, et
+        en changer ferait une autre source. Il faut la supprimer et la recréer.
       tags: [discovery]
       parameters:
         - $ref: "#/components/parameters/SourceId"
@@ -2759,10 +2814,15 @@ paths:
           application/json:
             schema:
               type: object
-              required: [name, url]
+              required: [name]
               properties:
                 name: { type: string, minLength: 1 }
-                url: { type: string }
+                url:
+                  type: string
+                  description: |
+                    Requise pour `opds`. Sur une source lue au gabarit, la vider
+                    fait retomber sur les miroirs déclarés — c'est ainsi qu'on
+                    annule un changement de miroir qu'on regrette.
                 enabled: { type: boolean }
                 username: { type: string }
                 password: { type: string }
@@ -2926,11 +2986,23 @@ components:
         url: { type: string }
         kind:
           type: string
-          enum: [opds]
+          pattern: '^(opds|scraper:[a-z0-9][a-z0-9-]*)$'
           description: |
-            Un seul protocole, et ce n'est pas une étape : fédérer de l'OPDS,
-            c'est interroger des catalogues auxquels l'utilisateur a déjà accès,
-            publics ou ouverts par des identifiants qu'il fournit lui-même.
+            Deux familles.
+
+            `opds` est un protocole : une implémentation, N catalogues
+            configurés. Fédérer de l'OPDS, c'est interroger des catalogues
+            auxquels l'utilisateur a déjà accès, publics ou ouverts par des
+            identifiants qu'il fournit lui-même.
+
+            `scraper:<gabarit>` désigne un site du domaine public qui n'expose
+            ni API ni flux, et qui est lu à partir d'un gabarit déclaratif. Le
+            nom du gabarit entre dans le genre parce que deux sites lus ainsi
+            n'ont rien en commun à l'exécution — ni adresse, ni règles
+            d'extraction, ni débit. Ce sont bien deux genres de catalogue.
+
+            Les gabarits disponibles se lisent sur
+            `GET /discovery/scraper-templates`.
         enabled: { type: boolean }
         username:
           type: string
@@ -2944,6 +3016,37 @@ components:
             simplement moins. Cette colonne le rend visible.
         lastCheckedAt: { type: string, format: date-time }
         createdAt: { type: string, format: date-time }
+
+    ScraperTemplate:
+      type: object
+      required: [kind, id, name]
+      properties:
+        kind:
+          type: string
+          pattern: '^scraper:[a-z0-9][a-z0-9-]*$'
+          description: |
+            À passer tel quel au champ `kind` de la création d'une source.
+            Rendu composé plutôt que reconstruit côté client : la convention de
+            nommage appartient au serveur.
+        id: { type: string }
+        name: { type: string }
+        homepage:
+          type: string
+          description: |
+            Le site lui-même, pour que celui qui active un gabarit puisse aller
+            voir de quoi il s'agit avant de le brancher.
+        license:
+          type: string
+          description: |
+            À quel titre ce site est admissible — domaine public, licence libre,
+            autorisation de l'auteur. Informatif pour le moteur, décisif pour la
+            revue d'un gabarit proposé.
+        mirrors:
+          type: array
+          description: |
+            Les bases essayées, dans l'ordre. L'adresse enregistrée pour une
+            source passe devant.
+          items: { type: string }
 
     DiscoveryResult:
       type: object
@@ -3007,6 +3110,7 @@ components:
             - foreign-host
             - invalid
             - source-gone
+            - unknown-kind
             - queue
             - unsupported-format
             - content-mismatch
@@ -3102,7 +3206,7 @@ components:
         elapsedMs: { type: integer }
         error:
           type: string
-          enum: [unreachable, timeout, canceled, no-search, invalid]
+          enum: [unreachable, timeout, canceled, no-search, invalid, unknown-kind]
           description: |
             Code stable, pas une phrase : l'interface le traduit. Le serveur
             n'a pas à deviner la langue du lecteur — même règle que pour les

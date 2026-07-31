@@ -3,7 +3,7 @@ Package discovery interroge des catalogues extérieurs et agrège leurs réponse
 
 # Ce que ce paquet fédère, et ce qu'il ne fédérera pas
 
-Il ne connaît qu'un protocole : **OPDS**, le format de catalogue ouvert que
+Le protocole de référence est **OPDS**, le format de catalogue ouvert que
 servent Komga, Kavita, Calibre-Web, Standard Ebooks, Project Gutenberg, une
 autre instance boxincloud, et la plupart des bibliothèques numériques publiques.
 
@@ -12,13 +12,19 @@ des catalogues auxquels l'utilisateur a déjà accès : soit publics, soit ouver
 par des identifiants qu'il fournit lui-même. La légitimité de l'accès est
 établie avant que boxincloud n'entre en jeu, et le protocole est public.
 
-Le paquet ne fournit donc pas — et ne fournira pas — de registre de sources
-librement configurable pointant vers des bibliothèques clandestines. Un tel
-mécanisme n'est pas neutre du fait d'être configurable : concevoir l'outil pour
-que le contenu vienne d'ailleurs est précisément ce qui fonde la responsabilité
-de celui qui l'a conçu. Ici, l'adresse d'un catalogue est saisie par un
-administrateur pour un service dont il a les clés, ce qui n'est pas la même
-chose qu'un annuaire fourni avec le produit.
+Les sites du domaine public qui n'exposent rien du tout sont lus au gabarit —
+voir `discovery/scraper`. C'est un moyen technique de plus, pas une frontière
+déplacée : les gabarits livrés restent une liste fermée, embarquée dans le
+binaire et revue comme du code, soumise au même critère d'admission.
+
+Le paquet ne fournit donc pas — et ne fournira pas — d'annuaire de sources
+pointant vers des bibliothèques clandestines. Un tel mécanisme n'est pas neutre
+du fait d'être configurable : concevoir l'outil pour que le contenu vienne
+d'ailleurs est précisément ce qui fonde la responsabilité de celui qui l'a
+conçu. Ce qui reste ouvert — l'adresse d'un catalogue OPDS, un répertoire de
+gabarits d'opérateur désactivé par défaut — l'est par un geste explicite
+d'administration, pour un service dont l'administrateur répond. Ce n'est pas la
+même chose qu'un annuaire fourni avec le produit.
 
 # Ce qu'une source doit savoir faire
 
@@ -32,6 +38,7 @@ import (
 	"context"
 	"errors"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -48,14 +55,37 @@ var (
 	ErrImportNotFound = errors.New("discovery : import introuvable")
 )
 
-// Kind identifie le protocole d'un catalogue.
-//
-// Une seule valeur aujourd'hui. Le type existe quand même : il oblige la base,
-// le contrat et l'interface à réserver la place, ce qui coûte moins cher
-// maintenant qu'une migration plus tard.
+/*
+Kind identifie le protocole d'un catalogue.
+
+Deux familles aujourd'hui.
+
+`opds` est un protocole : une implémentation, N catalogues configurés.
+
+`scraper:<gabarit>` désigne un site lu au gabarit — voir `discovery/scraper`.
+Le nom du gabarit entre dans le genre plutôt que dans une colonne à part, et ce
+n'est pas une économie de migration : deux sites lus au gabarit n'ont RIEN en
+commun à l'exécution, ni adresse, ni règles d'extraction, ni débit. Ce sont bien
+deux genres de catalogue, pas deux configurations d'un même genre — exactement
+ce que cette colonne dit.
+*/
 type Kind string
 
-const KindOPDS Kind = "opds"
+const (
+	KindOPDS Kind = "opds"
+
+	// scraperPrefix ouvre l'espace de noms des gabarits.
+	scraperPrefix = "scraper:"
+)
+
+// ScraperKind compose le genre d'une source lue au gabarit.
+func ScraperKind(template string) Kind { return Kind(scraperPrefix + template) }
+
+// ScraperTemplate rend le nom du gabarit, et si ce genre en est un.
+func (k Kind) ScraperTemplate() (string, bool) {
+	name, found := strings.CutPrefix(string(k), scraperPrefix)
+	return name, found && name != ""
+}
 
 // Source est un catalogue configuré.
 type Source struct {
@@ -176,4 +206,24 @@ type Client interface {
 	// Open ouvre un lien d'acquisition chez le catalogue. À l'appelant de
 	// fermer le corps.
 	Open(ctx context.Context, source Source, password, href string) (Fetched, error)
+}
+
+/*
+OriginChecker élargit le périmètre d'adresses qu'un import a le droit de
+joindre.
+
+Facultative : un client qui ne l'implémente pas s'en tient à la règle par
+défaut — même schéma, même hôte, même port que l'URL de la source.
+
+Elle existe parce que cette règle, taillée pour OPDS, est trop étroite pour un
+site lu au gabarit. Un tel site sert couramment ses pages depuis un hôte et ses
+fichiers depuis un autre, et un miroir sert les deux depuis un troisième. Sans
+cette porte, chaque téléchargement serait refusé comme étranger.
+
+Ce qu'elle élargit reste FERMÉ, et c'est la condition pour qu'elle soit
+acceptable : le client répond à partir d'une liste d'hôtes déclarée d'avance,
+jamais à partir de l'adresse qu'on lui présente.
+*/
+type OriginChecker interface {
+	AllowsHost(source Source, href string) bool
 }

@@ -612,8 +612,30 @@ export type DiscoverySourceStatus = {
   name: string;
   count: number;
   elapsedMs: number;
-  error?: "unreachable" | "timeout" | "canceled" | "no-search" | "invalid";
+  error?: "unreachable" | "timeout" | "canceled" | "no-search" | "invalid" | "unknown-kind";
 };
+
+/**
+ * Gabarit de scraping chargé par l'instance.
+ *
+ * Les sites du domaine public sans API ni flux OPDS sont lus à partir de ces
+ * gabarits. `kind` se recopie tel quel dans la création d'une source : la
+ * convention de nommage appartient au serveur, et la reconstruire ici la ferait
+ * diverger le jour où elle change.
+ *
+ * La liste peut être vide, et c'est un cas normal — c'est même l'état livré.
+ */
+export type ScraperTemplate = {
+  kind: string;
+  id: string;
+  name: string;
+  homepage?: string;
+  license?: string;
+  mirrors?: string[];
+};
+
+export const listScraperTemplates = () =>
+  request<{ items: ScraperTemplate[] }>("/discovery/scraper-templates");
 
 export const discoverySearch = (query: string, limit = 40) =>
   request<{ results: DiscoveryResult[]; sources: DiscoverySourceStatus[] }>(
@@ -625,7 +647,13 @@ export const listDiscoverySources = () =>
 
 export const createDiscoverySource = (input: {
   name: string;
-  url: string;
+  /** `opds` quand il est omis. Sinon, le `kind` d'un ScraperTemplate. */
+  kind?: string;
+  /**
+   * Requise pour `opds`. Facultative sur un gabarit, qui déclare déjà ses
+   * miroirs — on ne la saisit que le jour où l'un d'eux change.
+   */
+  url?: string;
   enabled?: boolean;
   username?: string;
   password?: string;
@@ -635,7 +663,8 @@ export const updateDiscoverySource = (
   sourceId: string,
   input: {
     name: string;
-    url: string;
+    // Vidée sur une source lue au gabarit, on retombe sur ses miroirs.
+    url?: string;
     enabled?: boolean;
     username?: string;
     // Omis, le mot de passe enregistré est conservé.

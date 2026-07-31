@@ -109,7 +109,24 @@ func newContractHarness(t *testing.T) *contractHarness {
 		// Aucune sortie vers un service tiers : des tests qui joignent
 		// Internet sont lents, instables, et impolis envers des bases
 		// publiques financées par des dons.
-		Discovery: config.Discovery{Metadata: false},
+		Discovery: config.Discovery{
+			Metadata: false,
+
+			/*
+				Le gabarit de référence est chargé, et pas par commodité.
+
+				Aucun gabarit n'est livré aujourd'hui ; sans celui-ci, la route
+				qui les liste ne serait vérifiée que sur sa réponse vide, et
+				rien ne dirait que le contrat tient dès qu'elle porte quelque
+				chose. Or c'est précisément la forme non vide que les clients
+				générés consomment.
+
+				Il ne sort jamais sur le réseau : ses miroirs sont en `.example`,
+				un domaine réservé qui ne résout nulle part, et aucun test ne
+				crée de source qui s'en serve.
+			*/
+			ScraperTemplatesDir: "../discovery/scraper/testdata",
+		},
 	}
 
 	core, err := app.BuildCore(context.Background(), cfg, pool, log)

@@ -573,3 +573,141 @@ func TestIntegrationContractDiscoveryDescribe(t *testing.T) {
 		}
 	})
 }
+
+/*
+Le genre d'une source, et les gabarits de scraping.
+
+Ce qui est vérifié ici est la charnière ajoutée au contrat : une source peut
+désormais déclarer un `kind` autre qu'OPDS, et l'administration doit pouvoir
+savoir lesquels cette instance sait traiter.
+
+Aucun gabarit n'est livré aujourd'hui (voir
+internal/discovery/scraper/templates/README.md), et c'est précisément ce que le
+premier cas fixe : la liste vide est une réponse NORMALE, pas une panne. Le jour
+où un gabarit est livré, ce test dira que le contrat tient encore.
+*/
+func TestIntegrationContractScraperTemplates(t *testing.T) {
+	h := newContractHarness(t)
+
+	t.Run("les gabarits chargés sont proposables tels quels", func(t *testing.T) {
+		rec := h.expect(t, http.MethodGet,
+			"/api/v1/discovery/scraper-templates", nil, http.StatusOK)
+
+		var payload struct {
+			Items []struct {
+				Kind     string   `json:"kind"`
+				ID       string   `json:"id"`
+				Name     string   `json:"name"`
+				Homepage string   `json:"homepage"`
+				Mirrors  []string `json:"mirrors"`
+			} `json:"items"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+			t.Fatal(err)
+		}
+
+		// `null` n'est pas une liste vide en JavaScript, et l'interface itère
+		// dessus sans se demander laquelle des deux elle a reçue.
+		if payload.Items == nil {
+			t.Fatalf("liste nulle plutôt que vide : %s", rec.Body.String())
+		}
+
+		var reference bool
+		for _, item := range payload.Items {
+			// Le genre doit être composable tel quel : l'interface le recopie
+			// dans le formulaire de création, elle ne le reconstruit pas.
+			if item.Kind != "scraper:"+item.ID {
+				t.Errorf("genre %q incohérent avec l'identifiant %q", item.Kind, item.ID)
+			}
+			if item.Name == "" {
+				t.Errorf("gabarit %q sans nom affichable", item.ID)
+			}
+			if item.ID == "comicshelf" {
+				reference = true
+				// Les miroirs sont ce qui permet à l'administration de montrer
+				// d'où viendront les requêtes avant qu'il n'active la source.
+				if len(item.Mirrors) == 0 {
+					t.Error("gabarit sans miroir : l'écran ne peut rien montrer")
+				}
+				if item.Homepage == "" {
+					t.Error("gabarit sans page d'accueil : impossible d'aller voir le site")
+				}
+			}
+		}
+
+		if !reference {
+			t.Errorf("le gabarit de référence n'est pas proposé : %s", rec.Body.String())
+		}
+	})
+
+	/*
+		Un gabarit chargé devient un genre de source acceptable.
+
+		Le catalogue est refusé au bout du compte — ses miroirs sont en
+		`.example` et ne répondent pas — mais le refus doit venir de l'ESSAI,
+		pas d'un genre incompris. C'est ce qui distingue « le site ne répond
+		pas » de « ce gabarit n'existe pas », deux diagnostics que
+		l'administrateur ne traite pas de la même façon.
+	*/
+	t.Run("un gabarit chargé est reconnu comme genre", func(t *testing.T) {
+		rec := h.expect(t, http.MethodPost, "/api/v1/discovery/sources", map[string]any{
+			"name": "Comic Shelf",
+			"kind": "scraper:comicshelf",
+		}, http.StatusUnprocessableEntity)
+
+		if strings.Contains(rec.Body.String(), "genre de catalogue inconnu") {
+			t.Errorf("le gabarit chargé n'a pas été reconnu : %s", rec.Body.String())
+		}
+	})
+
+	t.Run("kind: opds explicite vaut le défaut", func(t *testing.T) {
+		catalogue := opdsCatalogue(t)
+
+		rec := h.expect(t, http.MethodPost, "/api/v1/discovery/sources", map[string]any{
+			"name": "Catalogue explicite",
+			"kind": "opds",
+			"url":  catalogue.URL + "/opds",
+		}, http.StatusCreated)
+
+		var created struct {
+			Kind string `json:"kind"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &created); err != nil {
+			t.Fatal(err)
+		}
+		if created.Kind != "opds" {
+			t.Errorf("genre = %q", created.Kind)
+		}
+	})
+
+	/*
+		Un gabarit absent est refusé À LA SAISIE.
+
+		C'est le cas qu'il ne faut surtout pas laisser passer : sans ce contrôle,
+		la source serait enregistrée puis traitée par le client OPDS, qui
+		demanderait un flux Atom à une page HTML. L'échec serait tardif, et son
+		message ne dirait rien de la vraie cause.
+	*/
+	t.Run("un gabarit inconnu est refusé", func(t *testing.T) {
+		h.expect(t, http.MethodPost, "/api/v1/discovery/sources", map[string]any{
+			"name": "Gabarit fantôme",
+			"kind": "scraper:absent",
+			"url":  "https://exemple.test",
+		}, http.StatusUnprocessableEntity)
+	})
+
+	// Le contrat borne la forme du genre. Un client qui enverrait n'importe
+	// quoi doit être arrêté par la validation d'entrée, pas par le handler.
+	t.Run("un genre hors du motif est refusé par le contrat", func(t *testing.T) {
+		rec := h.callWith(t, http.MethodPost, "/api/v1/discovery/sources",
+			map[string]any{
+				"name": "Genre douteux",
+				"kind": "SCRAPER:Majuscules",
+				"url":  "https://exemple.test",
+			}, false)
+
+		if rec.Code == http.StatusCreated {
+			t.Errorf("un genre hors motif a été accepté : %s", rec.Body.String())
+		}
+	})
+}

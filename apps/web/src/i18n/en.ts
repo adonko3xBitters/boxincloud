@@ -634,6 +634,7 @@ export const en: Record<MessageKey, string> = {
   "discovery.status.canceled": "Interrupted",
   "discovery.status.no-search": "Exposes no search",
   "discovery.status.invalid": "Invalid address",
+  "discovery.status.unknown-kind": "Template or protocol missing from this instance",
   "discovery.partial": "Some catalogues did not answer: the list is incomplete.",
 
   "discovery.sources.title": "Federated catalogues",
@@ -642,9 +643,15 @@ export const en: Record<MessageKey, string> = {
   "discovery.sources.empty": "No catalogue",
   "discovery.sources.add": "Add a catalogue",
   "discovery.sources.name": "Name",
+  "discovery.sources.kind": "Catalogue type",
+  "discovery.sources.kindOpds": "OPDS feed",
   "discovery.sources.url": "OPDS feed address",
   "discovery.sources.urlHint":
     "For example https://komga.example.com/opds/v2 \u2014 OPDS 1.2 and 2.0 are detected automatically.",
+  "discovery.sources.mirror": "Address (optional)",
+  "discovery.sources.mirrorHint":
+    "The template already declares its mirrors. Fill this in only if the site changed address.",
+  "discovery.sources.templateMirrors": "Template mirrors",
   "discovery.sources.username": "Username",
   "discovery.sources.usernameHint": "Leave empty for a public catalogue.",
   "discovery.sources.password": "Password",
@@ -678,6 +685,7 @@ export const en: Record<MessageKey, string> = {
   "discovery.import.err.foreign-host": "Address foreign to the catalogue",
   "discovery.import.err.invalid": "Address refused",
   "discovery.import.err.source-gone": "The catalogue was removed",
+  "discovery.import.err.unknown-kind": "Template or protocol missing from this instance",
   "discovery.import.err.queue": "The job queue did not accept the import",
   "discovery.import.err.unsupported-format": "Unsupported format",
   "discovery.import.err.content-mismatch": "The content does not match its extension",

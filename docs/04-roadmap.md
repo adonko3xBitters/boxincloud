@@ -412,12 +412,19 @@ l'enrichissement de métadonnées (D3).
 
 ### Périmètre des sources
 
-Le registre des sources est une **liste fermée, en dur dans le code**. Ce n'est
-pas une configuration libre : une source non listée ne peut pas être ajoutée
-par un fichier de configuration. Cette contrainte est délibérée — elle empêche
-que la fonctionnalité soit détournée en agrégateur de sites de contrefaçon, ce
-qui ferait sortir le projet d'awesome-selfhosted et de F-Droid, l'exposerait à
-des retraits DMCA et découragerait les contributeurs.
+Le registre des sources livrées est une **liste fermée, embarquée dans le
+binaire** : sources en dur pour les protocoles, gabarits embarqués pour les
+sites lus au HTML. Cette contrainte est délibérée — elle empêche que la
+fonctionnalité soit livrée en agrégateur de sites de contrefaçon, ce qui ferait
+sortir le projet d'awesome-selfhosted et de F-Droid, l'exposerait à des retraits
+DMCA et découragerait les contributeurs.
+
+Deux portes existent, et toutes deux s'ouvrent par un geste explicite
+d'administration plutôt que par un défaut du produit : la **fédération OPDS**,
+où l'utilisateur désigne un catalogue dont il a les clés, et le **répertoire de
+gabarits d'opérateur** (`BOXINCLOUD_SCRAPER_TEMPLATES_DIR`, vide par défaut),
+où il décrit un site dont il répond. Le critère d'admission ci-dessous vaut pour
+les deux ; ce qui change est qui l'applique.
 
 **Critère d'admission d'une source :** la diffusion des œuvres doit être
 autorisée — domaine public, licence libre, autorisation de l'auteur, ou accès
@@ -427,8 +434,8 @@ fourni par l'utilisateur lui-même avec ses propres identifiants.
 
 | Source | Contenu |
 |---|---|
-| Digital Comic Museum | Comics Golden Age, domaine public, déjà en CBZ |
-| Comic Book Plus | Comics, pulps, journaux illustrés du domaine public |
+| Digital Comic Museum | Comics Golden Age, domaine public, déjà en CBZ — **bloqué**, voir ci-dessous |
+| Comic Book Plus | Comics, pulps, journaux illustrés du domaine public — **sans recherche serveur**, voir ci-dessous |
 | Internet Archive | Collections vérifiées domaine public |
 | Project Gutenberg | Livres, pour les bibliothèques `kind = book` |
 | Standard Ebooks | Livres du domaine public, EPUB soignés |
@@ -446,6 +453,37 @@ fourni par l'utilisateur lui-même avec ses propres identifiants.
 **Fédération OPDS** — catalogues auxquels l'utilisateur a déjà accès : une autre
 instance boxincloud, un Komga ou Kavita tiers, une bibliothèque publique
 numérique. La légitimité vient des identifiants que l'utilisateur fournit.
+
+### Les sites sans API : moteur de gabarits
+
+Les deux premières sources du tableau n'ont ni API ni OPDS. Écrire un client Go
+par site aurait donné autant de livraisons que de fois où l'un d'eux change de
+mise en page — deux ou trois par an et par site.
+
+`internal/discovery/scraper` les lit à partir de **gabarits YAML déclaratifs** :
+sélecteurs CSS, miroirs de repli, débit sortant, bornes de temps et de taille,
+respect de `robots.txt`. Un gabarit implémente `discovery.Client`, la même
+interface que le client OPDS ; recherche fédérée, déduplication, import
+asynchrone et marquage « déjà possédé » fonctionnent sans une ligne de plus.
+Format et raisons : [`06-gabarits-scraper.md`](06-gabarits-scraper.md).
+
+**Le moteur est fait ; aucun gabarit n'est livré.** Vérification faite en
+juillet 2026, les deux sites visés ne sont pas lisibles :
+
+- **Digital Comic Museum** répond `403` à toute requête non issue d'un
+  navigateur — un défi Cloudflare — alors même que son `robots.txt` nous
+  autorise explicitement. Passer outre demanderait d'usurper un agent de
+  navigateur ; c'est refusé, et ce refus est écrit dans le code plutôt que
+  laissé à l'appréciation d'un gabarit.
+- **Comic Book Plus** est joignable, mais sa recherche est un Google Custom
+  Search exécuté dans le navigateur : il n'y a aucun point d'entrée serveur à
+  interroger. Un gabarit devrait parcourir les pages de catalogue — un autre
+  travail, bien plus coûteux pour le site.
+
+C'est un résultat, pas un échec : D2b se heurte à l'état réel de ces deux sites,
+et le savoir vaut mieux que de livrer deux gabarits qui ne fonctionnent pas. Le
+moteur, lui, sert dès aujourd'hui aux gabarits d'opérateur, et accueillera un
+site admissible le jour où il s'en présente un.
 
 ### Architecture
 
@@ -472,7 +510,7 @@ activable ou désactivable depuis l'administration.
 | **D1** | Registre `discovery.Source`, recherche fédérée, interface web | **fait** |
 | **D4** | Fédération OPDS (client OPDS 1.2 + 2.0) | **fait** |
 | **D2a** | Import d'un résultat vers un backend de stockage | **fait** |
-| **D2b** | Sources domaine public en téléchargement direct | 1 sem |
+| **D2b** | Moteur de gabarits (scraping) | **fait** — sans gabarit livré, voir ci-dessus |
 | **D3** | Métadonnées + écran de rapprochement manuel | 2 sem |
 
 D1 et D4 ont été faits ensemble, et l'ordre initial était le mauvais : le client

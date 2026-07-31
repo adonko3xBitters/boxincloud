@@ -1558,8 +1558,42 @@ export interface paths {
          *     `/opds` au lieu de `/opds/v1.2`, cas le plus fréquent — se signale donc
          *     à la saisie, et non trois semaines plus tard sous la forme d'une
          *     recherche qui ne rend rien.
+         *
+         *     Pour une source `scraper:<gabarit>`, l'essai vérifie en plus que le
+         *     gabarit trouve encore des lignes sur le site. C'est le contrôle qui
+         *     compte : un site qui refait sa mise en page répond parfaitement et ne
+         *     rend plus rien, et la panne se déguiserait en « aucun résultat ».
          */
         post: operations["createDiscoverySource"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/discovery/scraper-templates": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Gabarits de scraping disponibles
+         * @description **Réservé aux administrateurs.**
+         *
+         *     Les sites du domaine public qui n'exposent ni API ni flux OPDS sont lus
+         *     à partir de gabarits déclaratifs — sélecteurs CSS, miroirs, débit
+         *     sortant. Cette route dit lesquels cette instance a chargés, pour que
+         *     l'écran de configuration propose un choix plutôt qu'une chaîne à saisir.
+         *
+         *     La liste peut être **vide**, et c'est un cas normal : c'est même l'état
+         *     livré aujourd'hui. Elle contient alors les seuls gabarits qu'un
+         *     opérateur aurait déposés dans `BOXINCLOUD_SCRAPER_TEMPLATES_DIR`.
+         */
+        get: operations["listScraperTemplates"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -1590,6 +1624,9 @@ export interface paths {
          *     Omettre `password` conserve le mot de passe enregistré ; l'envoyer vide
          *     l'efface. Un formulaire qui renvoie tous ses champs ne doit pas effacer
          *     un secret qu'il n'affiche pas.
+         *
+         *     `kind` ne se modifie pas : il identifie le protocole ou le gabarit, et
+         *     en changer ferait une autre source. Il faut la supprimer et la recréer.
          */
         patch: operations["updateDiscoverySource"];
         trace?: never;
@@ -1628,12 +1665,23 @@ export interface components {
             name: string;
             url: string;
             /**
-             * @description Un seul protocole, et ce n'est pas une étape : fédérer de l'OPDS,
-             *     c'est interroger des catalogues auxquels l'utilisateur a déjà accès,
-             *     publics ou ouverts par des identifiants qu'il fournit lui-même.
-             * @enum {string}
+             * @description Deux familles.
+             *
+             *     `opds` est un protocole : une implémentation, N catalogues
+             *     configurés. Fédérer de l'OPDS, c'est interroger des catalogues
+             *     auxquels l'utilisateur a déjà accès, publics ou ouverts par des
+             *     identifiants qu'il fournit lui-même.
+             *
+             *     `scraper:<gabarit>` désigne un site du domaine public qui n'expose
+             *     ni API ni flux, et qui est lu à partir d'un gabarit déclaratif. Le
+             *     nom du gabarit entre dans le genre parce que deux sites lus ainsi
+             *     n'ont rien en commun à l'exécution — ni adresse, ni règles
+             *     d'extraction, ni débit. Ce sont bien deux genres de catalogue.
+             *
+             *     Les gabarits disponibles se lisent sur
+             *     `GET /discovery/scraper-templates`.
              */
-            kind: "opds";
+            kind: string;
             enabled: boolean;
             /** @description Vide pour un catalogue public. Le mot de passe ne sort jamais. */
             username?: string;
@@ -1648,6 +1696,32 @@ export interface components {
             lastCheckedAt?: string;
             /** Format: date-time */
             createdAt: string;
+        };
+        ScraperTemplate: {
+            /**
+             * @description À passer tel quel au champ `kind` de la création d'une source.
+             *     Rendu composé plutôt que reconstruit côté client : la convention de
+             *     nommage appartient au serveur.
+             */
+            kind: string;
+            id: string;
+            name: string;
+            /**
+             * @description Le site lui-même, pour que celui qui active un gabarit puisse aller
+             *     voir de quoi il s'agit avant de le brancher.
+             */
+            homepage?: string;
+            /**
+             * @description À quel titre ce site est admissible — domaine public, licence libre,
+             *     autorisation de l'auteur. Informatif pour le moteur, décisif pour la
+             *     revue d'un gabarit proposé.
+             */
+            license?: string;
+            /**
+             * @description Les bases essayées, dans l'ordre. L'adresse enregistrée pour une
+             *     source passe devant.
+             */
+            mirrors?: string[];
         };
         DiscoveryResult: {
             /** Format: uuid */
@@ -1701,7 +1775,7 @@ export interface components {
              *     problèmes RFC 7807 et les états de catalogue.
              * @enum {string}
              */
-            errorCode?: "unreachable" | "timeout" | "foreign-host" | "invalid" | "source-gone" | "queue" | "unsupported-format" | "content-mismatch" | "exists" | "too-large" | "deposit-failed";
+            errorCode?: "unreachable" | "timeout" | "foreign-host" | "invalid" | "source-gone" | "unknown-kind" | "queue" | "unsupported-format" | "content-mismatch" | "exists" | "too-large" | "deposit-failed";
             /**
              * @description Diagnostic BRUT, souvent celui du catalogue distant et donc souvent
              *     en anglais. À afficher comme un détail technique sous un titre
@@ -1775,7 +1849,7 @@ export interface components {
              *     problèmes RFC 7807.
              * @enum {string}
              */
-            error?: "unreachable" | "timeout" | "canceled" | "no-search" | "invalid";
+            error?: "unreachable" | "timeout" | "canceled" | "no-search" | "invalid" | "unknown-kind";
         };
         DiscoverySearchResult: {
             results: components["schemas"]["DiscoveryResult"][];
@@ -4817,10 +4891,23 @@ export interface operations {
                 "application/json": {
                     name: string;
                     /**
+                     * @description `opds` par défaut, ce qui reste le cas de l'écrasante
+                     *     majorité des catalogues ajoutés à la main. Les gabarits
+                     *     disponibles se lisent sur `GET /discovery/scraper-templates`.
+                     * @default opds
+                     */
+                    kind?: string;
+                    /**
                      * @description Adresse du flux OPDS racine, en http:// ou https://.
                      *     OPDS 1.2 (Atom) et 2.0 (JSON) sont reconnus automatiquement.
+                     *
+                     *     **Requise pour `opds`**, facultative pour un gabarit : celui-ci
+                     *     déclare déjà ses miroirs, et l'adresse ne se saisit que le jour
+                     *     où l'un d'eux change. Elle passe alors devant ceux du gabarit,
+                     *     ce qui permet de suivre un changement de domaine sans
+                     *     recompiler.
                      */
-                    url: string;
+                    url?: string;
                     /** @default true */
                     enabled?: boolean;
                     /** @description Vide pour un catalogue public. */
@@ -4842,6 +4929,30 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             422: components["responses"]["ValidationFailed"];
+        };
+    };
+    listScraperTemplates: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Gabarits chargés, triés par identifiant */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        items: components["schemas"]["ScraperTemplate"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
         };
     };
     deleteDiscoverySource: {
@@ -4880,7 +4991,12 @@ export interface operations {
             content: {
                 "application/json": {
                     name: string;
-                    url: string;
+                    /**
+                     * @description Requise pour `opds`. Sur une source lue au gabarit, la vider
+                     *     fait retomber sur les miroirs déclarés — c'est ainsi qu'on
+                     *     annule un changement de miroir qu'on regrette.
+                     */
+                    url?: string;
                     enabled?: boolean;
                     username?: string;
                     password?: string;

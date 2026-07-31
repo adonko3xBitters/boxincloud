@@ -86,6 +86,23 @@ type Service struct {
 	sealer *crypto.Sealer
 	log    *slog.Logger
 
+	/*
+		clients associe un genre de catalogue à son client.
+
+		Vide au départ, et c'est le cas normal : `client` reste le client par
+		défaut, celui d'OPDS, et une source qui ne réclame rien d'autre retombe
+		sur lui. Le comportement d'origine tient donc tant que rien n'est
+		enregistré ici.
+
+		Une table plutôt qu'un `switch` : le service n'a pas à connaître les
+		genres qui existent, et un paquet qui en ajoute un — `discovery/scraper`
+		— n'a pas à être importé ici, ce qui ferait un cycle.
+	*/
+	clients map[Kind]Client
+	// kinds décrit ces mêmes genres, pour que l'administration puisse les
+	// proposer plutôt que les faire saisir.
+	kinds map[Kind]KindInfo
+
 	// comics applique les métadonnées enrichies. Nul tant qu'il n'est pas
 	// branché, auquel cas l'import n'enrichit rien.
 	comics ComicWriter
@@ -114,6 +131,84 @@ pour l'indexeur casse le cycle au câblage.
 */
 func (s *Service) SetImportQueue(queue ImportQueue) { s.queue = queue }
 
+/*
+KindInfo décrit un genre de catalogue enregistré.
+
+Existe pour une raison précise : l'écran de configuration doit pouvoir PROPOSER
+les genres disponibles, plutôt que demander à l'administrateur de taper
+`scraper:comicshelf` de mémoire. Sans cette description, l'interface devrait
+connaître la convention de nommage des gabarits — donc dépendre d'un détail du
+serveur qui ne la regarde pas.
+
+Les champs au-delà du genre sont facultatifs. Un protocole n'a ni page d'accueil
+ni miroirs ; un gabarit a les deux.
+*/
+type KindInfo struct {
+	Kind Kind
+	// ID est l'identifiant nu, sans préfixe de genre. Vide pour un protocole.
+	ID       string
+	Name     string
+	Homepage string
+	License  string
+	Mirrors  []string
+}
+
+/*
+RegisterClient associe un client à un genre de catalogue.
+
+Appelé au câblage, avant que le service ne serve quoi que ce soit — les tables
+ne sont pas protégées par un verrou, et ne doivent donc plus bouger une fois les
+requêtes ouvertes. C'est la même discipline que pour le registre des bases de
+métadonnées, et pour la même raison : un enregistrement à chaud serait une
+donnée partagée écrite pendant qu'on la lit, pour un besoin qui n'existe pas.
+*/
+func (s *Service) RegisterClient(info KindInfo, client Client) {
+	if s.clients == nil {
+		s.clients = map[Kind]Client{}
+		s.kinds = map[Kind]KindInfo{}
+	}
+	s.clients[info.Kind] = client
+	s.kinds[info.Kind] = info
+}
+
+// RegisteredKinds rend les genres enregistrés, dans un ordre stable.
+//
+// N'inclut pas OPDS : celui-ci est le client par défaut, pas un genre
+// enregistré. La distinction n'est pas cosmétique — OPDS n'est pas un choix
+// dans une liste, c'est ce qu'on obtient quand on ne choisit rien.
+func (s *Service) RegisteredKinds() []KindInfo {
+	out := make([]KindInfo, 0, len(s.kinds))
+	for _, info := range s.kinds {
+		out = append(out, info)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].Kind < out[j].Kind })
+	return out
+}
+
+/*
+clientFor choisit le client d'un catalogue.
+
+OPDS est le repli, pas une entrée du registre : c'est ce qu'on obtient quand on
+ne choisit rien, et les sources créées avant que d'autres genres n'existent
+n'ont donc rien à rattraper.
+
+Un genre EXPLICITE mais absent du registre est une erreur, et il faut résister à
+la tentation de le faire retomber sur OPDS. Le cas se produit vraiment : un
+opérateur retire un gabarit de son répertoire, et les sources qui s'en servaient
+restent en base. Les traiter en OPDS ferait demander un flux Atom à une page
+HTML, pour un échec dont le message ne dirait rien de la vraie cause.
+*/
+func (s *Service) clientFor(source Source) (Client, error) {
+	if client, ok := s.clients[source.Kind]; ok {
+		return client, nil
+	}
+	if source.Kind != "" && source.Kind != KindOPDS {
+		return nil, fmt.Errorf("%w : genre de catalogue inconnu (%s)",
+			ErrUnknownProvider, source.Kind)
+	}
+	return s.client, nil
+}
+
 // ─── Administration des catalogues ───────────────────────────────────────────
 
 func (s *Service) List(ctx context.Context) ([]Source, error) {
@@ -122,8 +217,11 @@ func (s *Service) List(ctx context.Context) ([]Source, error) {
 
 // CreateParams décrit un catalogue à enregistrer.
 type CreateParams struct {
-	Name     string
-	URL      string
+	Name string
+	URL  string
+	// Kind vaut OPDS quand il n'est pas renseigné, ce qui reste le cas de
+	// l'écrasante majorité des catalogues ajoutés à la main.
+	Kind     Kind
 	Enabled  bool
 	Username string
 	Password string
@@ -138,23 +236,45 @@ interface tierce, et se trompe souvent d'un segment — `/opds` au lieu de
 elle passe pour « aucun résultat ».
 */
 func (s *Service) Create(ctx context.Context, p CreateParams) (Source, error) {
+	kind := p.Kind
+	if kind == "" {
+		kind = KindOPDS
+	}
+
 	source := Source{
 		Name:     strings.TrimSpace(p.Name),
 		URL:      strings.TrimSpace(p.URL),
-		Kind:     KindOPDS,
+		Kind:     kind,
 		Enabled:  p.Enabled,
 		Username: strings.TrimSpace(p.Username),
 	}
 
-	if source.Name == "" || source.URL == "" {
-		return Source{}, fmt.Errorf("%w : nom et adresse sont requis", ErrInvalidSource)
+	if source.Name == "" {
+		return Source{}, fmt.Errorf("%w : le nom est requis", ErrInvalidSource)
 	}
-	if !strings.HasPrefix(source.URL, "http://") && !strings.HasPrefix(source.URL, "https://") {
+	/*
+		Une source lue au gabarit peut n'avoir aucune adresse : celles du gabarit
+		suffisent, et c'est même le cas normal — l'administrateur n'en saisit une
+		que le jour où un miroir change.
+
+		Un catalogue OPDS, lui, n'est RIEN sans son adresse : il n'y a pas de
+		miroir de repli à connaître, et le protocole n'est pas lié à un site
+		particulier.
+	*/
+	if _, templated := kind.ScraperTemplate(); !templated && source.URL == "" {
+		return Source{}, fmt.Errorf("%w : l'adresse est requise", ErrInvalidSource)
+	}
+	if source.URL != "" &&
+		!strings.HasPrefix(source.URL, "http://") && !strings.HasPrefix(source.URL, "https://") {
 		return Source{}, fmt.Errorf("%w : l'adresse doit commencer par http:// ou https://",
 			ErrInvalidSource)
 	}
 
-	if err := s.client.Probe(ctx, source, p.Password); err != nil {
+	client, err := s.clientFor(source)
+	if err != nil {
+		return Source{}, fmt.Errorf("%w : %w", ErrInvalidSource, err)
+	}
+	if err := client.Probe(ctx, source, p.Password); err != nil {
 		return Source{}, fmt.Errorf("%w : %w", ErrInvalidSource, err)
 	}
 
@@ -190,8 +310,14 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, p UpdateParams) (Sou
 	current.Enabled = p.Enabled
 	current.Username = strings.TrimSpace(p.Username)
 
-	if current.Name == "" || current.URL == "" {
-		return Source{}, fmt.Errorf("%w : nom et adresse sont requis", ErrInvalidSource)
+	if current.Name == "" {
+		return Source{}, fmt.Errorf("%w : le nom est requis", ErrInvalidSource)
+	}
+	// Même nuance qu'à la création : une source lue au gabarit peut rendre son
+	// adresse pour retomber sur les miroirs déclarés. C'est d'ailleurs la façon
+	// d'annuler un changement de miroir qu'on regrette.
+	if _, templated := current.Kind.ScraperTemplate(); !templated && current.URL == "" {
+		return Source{}, fmt.Errorf("%w : l'adresse est requise", ErrInvalidSource)
 	}
 
 	var secret []byte
@@ -215,7 +341,10 @@ func (s *Service) Probe(ctx context.Context, id uuid.UUID) error {
 	}
 
 	failure := ""
-	if err := s.client.Probe(ctx, source, password); err != nil {
+	client, err := s.clientFor(source)
+	if err != nil {
+		failure = err.Error()
+	} else if err := client.Probe(ctx, source, password); err != nil {
 		failure = err.Error()
 	}
 
@@ -320,7 +449,11 @@ func (s *Service) searchOne(ctx context.Context, source Source, q Query) ([]Resu
 	if err != nil {
 		return nil, err
 	}
-	return s.client.Search(ctx, source, password, q)
+	client, err := s.clientFor(source)
+	if err != nil {
+		return nil, err
+	}
+	return client.Search(ctx, source, password, q)
 }
 
 /*
@@ -498,6 +631,11 @@ func failureCode(err error) string {
 	switch {
 	case errors.Is(err, ErrNoSearch):
 		return "no-search"
+	case errors.Is(err, ErrUnknownProvider):
+		// Distingué d'« invalid » : la source est bien formée, c'est le
+		// gabarit ou le protocole qu'elle réclame qui n'est plus chargé. La
+		// correction est côté exploitation, pas côté saisie.
+		return "unknown-kind"
 	case errors.Is(err, ErrInvalidSource):
 		return "invalid"
 	case errors.Is(err, context.DeadlineExceeded):

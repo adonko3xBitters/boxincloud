@@ -72,6 +72,10 @@ func adminOnlyRoutes(h *contractHarness) []adminRoute {
 		}},
 		{http.MethodDelete, "/api/v1/discovery/sources/" + absent, nil},
 		{http.MethodPost, "/api/v1/discovery/sources/" + absent + "/test", nil},
+
+		// Les gabarits disent quels sites cette instance sait lire, et depuis
+		// quelles adresses. C'est de la configuration, pas du catalogue.
+		{http.MethodGet, "/api/v1/discovery/scraper-templates", nil},
 	}
 }
 

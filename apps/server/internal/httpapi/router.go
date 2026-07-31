@@ -332,6 +332,7 @@ func NewRouter(d Deps) http.Handler {
 			r.Patch("/discovery/sources/{sourceID}", discoveryHandler.UpdateSource)
 			r.Delete("/discovery/sources/{sourceID}", discoveryHandler.DeleteSource)
 			r.Post("/discovery/sources/{sourceID}/test", discoveryHandler.TestSource)
+			r.Get("/discovery/scraper-templates", discoveryHandler.ListScraperTemplates)
 
 			// ── Comptes ─────────────────────────────────────────────
 			accountsHandler := handlers.NewAccounts(d.Accounts)

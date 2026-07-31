@@ -368,8 +368,61 @@ func (h *Discovery) ListSources(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"items": items})
 }
 
+/*
+scraperTemplateDTO décrit un gabarit proposable à l'administrateur.
+
+Le genre est rendu COMPOSÉ (`scraper:comicshelf`) en plus de l'identifiant nu.
+C'est délibéré : la convention de nommage appartient au serveur, et une
+interface qui la reconstituerait par concaténation se casserait le jour où elle
+change. Elle recopie ce qu'on lui donne.
+*/
+type scraperTemplateDTO struct {
+	Kind     string   `json:"kind"`
+	ID       string   `json:"id"`
+	Name     string   `json:"name"`
+	Homepage string   `json:"homepage,omitempty"`
+	License  string   `json:"license,omitempty"`
+	Mirrors  []string `json:"mirrors,omitempty"`
+}
+
+/*
+ListScraperTemplates rend les gabarits de scraping chargés.
+
+Une liste vide est un cas NORMAL, pas une panne : c'est même l'état livré
+aujourd'hui, faute de site admissible qui soit joignable. L'interface doit donc
+la présenter comme « aucun gabarit disponible » et non comme une erreur.
+*/
+func (h *Discovery) ListScraperTemplates(w http.ResponseWriter, r *http.Request) {
+	if !requireAdmin(w, r) {
+		return
+	}
+
+	items := []scraperTemplateDTO{}
+	for _, info := range h.svc.RegisteredKinds() {
+		id, ok := info.Kind.ScraperTemplate()
+		if !ok {
+			// Un genre enregistré qui n'est pas un gabarit — un protocole
+			// ajouté plus tard — n'a rien à faire dans cette liste.
+			continue
+		}
+		items = append(items, scraperTemplateDTO{
+			Kind:     string(info.Kind),
+			ID:       id,
+			Name:     info.Name,
+			Homepage: info.Homepage,
+			License:  info.License,
+			Mirrors:  info.Mirrors,
+		})
+	}
+	writeJSON(w, http.StatusOK, map[string]any{"items": items})
+}
+
 type createDiscoverySourceRequest struct {
-	Name     string `json:"name"`
+	Name string `json:"name"`
+	// Kind vaut OPDS quand il est absent. Le défaut est côté serveur plutôt
+	// que dans le formulaire : l'API doit rester utilisable par un client qui
+	// ignore que d'autres genres existent.
+	Kind     string `json:"kind"`
 	URL      string `json:"url"`
 	Enabled  *bool  `json:"enabled"`
 	Username string `json:"username"`
@@ -393,6 +446,7 @@ func (h *Discovery) CreateSource(w http.ResponseWriter, r *http.Request) {
 
 	source, err := h.svc.Create(r.Context(), discovery.CreateParams{
 		Name:     req.Name,
+		Kind:     discovery.Kind(strings.TrimSpace(req.Kind)),
 		URL:      req.URL,
 		Enabled:  enabled,
 		Username: req.Username,

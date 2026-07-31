@@ -639,7 +639,14 @@ function SourceRow({
         </span>
       </div>
 
-      <p className="truncate text-meta text-subtle">{source.url}</p>
+      {/*
+        Une source lue au gabarit n'a pas forcément d'adresse : ses miroirs
+        viennent du gabarit. Laisser la ligne vide donnerait l'impression d'une
+        configuration incomplète alors que c'est le cas normal.
+      */}
+      <p className="truncate text-meta text-subtle">
+        {source.url || t("discovery.sources.templateMirrors")}
+      </p>
 
       {/*
         Le détail vient du catalogue distant, en anglais le plus souvent. Il est
@@ -666,18 +673,39 @@ function SourceRow({
   );
 }
 
+/*
+Formulaire d'ajout d'un catalogue.
+
+Le choix du genre n'apparaît QUE si l'instance a chargé des gabarits — et elle
+n'en livre aucun par défaut. Montrer un menu déroulant à une seule entrée
+demanderait à l'administrateur de choisir là où il n'y a rien à choisir, et
+ferait passer OPDS pour une option parmi d'autres alors qu'il est le cas normal.
+*/
 function SourceForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }) {
   const t = useT();
   const [name, setName] = useState("");
+  // Vide = OPDS. Le défaut est côté serveur ; on ne l'envoie pas.
+  const [kind, setKind] = useState("");
   const [url, setUrl] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+
+  const templates = useQuery({
+    queryKey: ["discovery", "scraper-templates"],
+    queryFn: api.listScraperTemplates,
+  });
+
+  const chosen = templates.data?.items.find((item) => item.kind === kind);
 
   const create = useMutation({
     mutationFn: () =>
       api.createDiscoverySource({
         name,
-        url,
+        kind: kind || undefined,
+        // Sur un gabarit, une adresse vide fait retomber sur ses miroirs. La
+        // transmettre vide plutôt que de l'omettre ne changerait rien côté
+        // serveur, mais l'omission dit mieux ce qu'on veut.
+        url: url || undefined,
         username: username || undefined,
         password: password || undefined,
       }),
@@ -697,15 +725,40 @@ function SourceForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => 
         <Input value={name} onChange={(event) => setName(event.target.value)} required />
       </label>
 
+      {templates.data && templates.data.items.length > 0 && (
+        <label className="flex flex-col gap-1 text-meta text-muted">
+          {t("discovery.sources.kind")}
+          <select
+            value={kind}
+            onChange={(event) => setKind(event.target.value)}
+            className="h-9 rounded-md border border-border bg-surface px-2 text-ui text-fg"
+          >
+            <option value="">{t("discovery.sources.kindOpds")}</option>
+            {templates.data.items.map((template) => (
+              <option key={template.kind} value={template.kind}>
+                {template.name}
+              </option>
+            ))}
+          </select>
+          {chosen?.license && (
+            <span className="text-subtle">{chosen.license}</span>
+          )}
+        </label>
+      )}
+
       <label className="flex flex-col gap-1 text-meta text-muted">
-        {t("discovery.sources.url")}
+        {chosen ? t("discovery.sources.mirror") : t("discovery.sources.url")}
         <Input
           value={url}
           onChange={(event) => setUrl(event.target.value)}
-          placeholder="https://…/opds"
-          required
+          placeholder={chosen ? (chosen.mirrors?.[0] ?? "https://…") : "https://…/opds"}
+          // Un gabarit déclare déjà ses miroirs : l'adresse ne se saisit que le
+          // jour où l'un d'eux change.
+          required={!chosen}
         />
-        <span className="text-subtle">{t("discovery.sources.urlHint")}</span>
+        <span className="text-subtle">
+          {chosen ? t("discovery.sources.mirrorHint") : t("discovery.sources.urlHint")}
+        </span>
       </label>
 
       <label className="flex flex-col gap-1 text-meta text-muted">

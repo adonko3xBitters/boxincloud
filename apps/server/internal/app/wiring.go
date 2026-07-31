@@ -17,6 +17,7 @@ import (
 	"github.com/adonko3xBitters/boxincloud/server/internal/catalog"
 	"github.com/adonko3xBitters/boxincloud/server/internal/config"
 	"github.com/adonko3xBitters/boxincloud/server/internal/discovery"
+	"github.com/adonko3xBitters/boxincloud/server/internal/discovery/scraper"
 	"github.com/adonko3xBitters/boxincloud/server/internal/folders"
 	"github.com/adonko3xBitters/boxincloud/server/internal/imaging"
 	"github.com/adonko3xBitters/boxincloud/server/internal/indexer"
@@ -120,8 +121,30 @@ func BuildCore(ctx context.Context, cfg *config.Config, pool *db.Pool, log *slog
 		sealer,
 		log,
 	)
-	discoveryService.SetMetadata(buildMetadataRegistry(cfg, log))
+
+	/*
+		Le débit sortant et le cache sont construits UNE fois et partagés par
+		tout ce qui sort vers un service tiers — bases de métadonnées et sites
+		lus au gabarit.
+
+		C'est la seule façon qu'ils valent quelque chose : un limiteur par
+		fournisseur laisserait passer autant de requêtes qu'on a construit
+		d'objets, et deux caches se partageraient une mémoire sans se partager
+		leurs réponses.
+
+		Cinq minutes et cinq cents entrées : de quoi absorber les recherches
+		répétées d'une session sans jamais servir une page franchement périmée,
+		pour moins d'un méga-octet.
+	*/
+	throttle := discovery.NewThrottle()
+	memo := discovery.NewMemo(5*time.Minute, 500)
+
+	discoveryService.SetMetadata(buildMetadataRegistry(cfg, log, throttle, memo))
 	discoveryService.SetComicWriter(discovery.NewPostgresRepository(queries))
+
+	if err := registerScrapers(discoveryService, cfg, log, throttle, memo); err != nil {
+		return nil, err
+	}
 
 	jobClient, err := jobs.New(pool, cfg.Jobs, log, func(w *river.Workers) {
 		discovery.Register(w, discoveryService, depositTo(&deferredIngest))
@@ -286,29 +309,22 @@ func depositCode(err error) string {
 /*
 buildMetadataRegistry enregistre les bases de métadonnées disponibles.
 
-Le débit et le cache sont construits ICI et partagés par tous les fournisseurs.
-C'est la seule façon qu'ils valent quelque chose : un limiteur par fournisseur
-laisserait passer autant de requêtes qu'on a construit d'objets, et un cache par
-fournisseur ne mémoriserait rien d'un appel à l'autre.
-
 Aucun fournisseur n'est indispensable. Une instance coupée d'Internet — le cas
 d'un serveur familial sur un réseau fermé — voit simplement le rapprochement
 rendre une liste vide, sans que rien d'autre en pâtisse.
 */
-func buildMetadataRegistry(cfg *config.Config, log *slog.Logger) *discovery.Registry {
-	throttle := discovery.NewThrottle()
+func buildMetadataRegistry(
+	cfg *config.Config,
+	log *slog.Logger,
+	throttle *discovery.Throttle,
+	memo *discovery.Memo,
+) *discovery.Registry {
 	throttle.SetRate("openlibrary", discovery.RateOpenLibrary)
 	throttle.SetRate("internetarchive", discovery.RateInternetArchive)
 	throttle.SetRate("googlebooks", discovery.RateGoogleBooks)
 	throttle.SetRate("opds", discovery.RateOPDS)
 
-	// Cinq minutes et cinq cents entrées : de quoi absorber les recherches
-	// répétées d'une session sans jamais servir une fiche franchement périmée,
-	// pour moins d'un méga-octet.
-	deps := discovery.MetadataDeps{
-		Throttle: throttle,
-		Memo:     discovery.NewMemo(5*time.Minute, 500),
-	}
+	deps := discovery.MetadataDeps{Throttle: throttle, Memo: memo}
 
 	registry := discovery.NewRegistry()
 
@@ -418,4 +434,59 @@ func (s *cacheStore) PurgeEntries(ctx context.Context) ([]cache.Entry, error) {
 		out = append(out, cache.Entry{Key: row.Key, Size: row.Size})
 	}
 	return out, nil
+}
+
+/*
+registerScrapers branche les sites lus au gabarit.
+
+Deux origines, deux traitements, et l'asymétrie est délibérée. Un gabarit
+EMBARQUÉ fautif fait échouer le démarrage : il est passé par une revue, donc son
+échec est un défaut de livraison. Un gabarit d'OPÉRATEUR fautif est ignoré avec
+un message : il n'a été revu par personne, et faire tomber l'instance pour un
+fichier déposé à la main serait disproportionné.
+
+Un catalogue vide est un cas NORMAL, pas dégradé — c'est même la situation
+livrée aujourd'hui, faute de site admissible qui soit joignable (voir
+internal/discovery/scraper/templates/README.md). Rien n'est alors enregistré, et
+le reste de la découverte fonctionne à l'identique.
+*/
+func registerScrapers(
+	service *discovery.Service,
+	cfg *config.Config,
+	log *slog.Logger,
+	throttle *discovery.Throttle,
+	memo *discovery.Memo,
+) error {
+	catalog, err := scraper.LoadEmbedded()
+	if err != nil {
+		return fmt.Errorf("gabarits livrés : %w", err)
+	}
+	if err := catalog.LoadDir(cfg.Discovery.ScraperTemplatesDir, log); err != nil {
+		return fmt.Errorf("gabarits d'opérateur : %w", err)
+	}
+
+	templates := catalog.List()
+	if len(templates) == 0 {
+		return nil
+	}
+
+	// Le débit de chaque hôte est déclaré au limiteur partagé AVANT que le
+	// client ne serve : un compartiment sans débit déclaré ne limite rien, et
+	// la première recherche partirait sans retenue.
+	catalog.ApplyRates(throttle)
+
+	client := scraper.New(catalog, scraper.Deps{
+		Throttle: throttle,
+		Memo:     memo,
+		Log:      log,
+	})
+
+	names := make([]string, 0, len(templates))
+	for _, info := range client.Kinds() {
+		service.RegisterClient(info, client)
+		names = append(names, info.ID)
+	}
+	log.Info("gabarits de scraping chargés", slog.Any("templates", names))
+
+	return nil
 }

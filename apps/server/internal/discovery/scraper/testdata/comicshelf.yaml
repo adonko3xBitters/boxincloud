@@ -1,0 +1,83 @@
+# Gabarit de référence.
+#
+# Ne vise aucun site réel : il décrit « comicshelf », un site fictif servi par
+# le serveur d'essai de la suite de tests. Il existe pour deux raisons — montrer
+# chaque possibilité du format en contexte, et être exécuté de bout en bout à
+# chaque `go test`, ce qu'un exemple dans une documentation ne serait pas.
+#
+# Le format est documenté dans docs/06-gabarits-scraper.md.
+
+id: comicshelf
+name: Comic Shelf
+homepage: https://comicshelf.example
+license: Domaine public (fictif — gabarit d'essai)
+
+# Essayés dans l'ordre. L'URL enregistrée pour la source passe devant.
+mirrors:
+  - https://comicshelf.example
+  - https://mirror.comicshelf.example
+
+# Débit sortant, par hôte.
+rate:
+  every: 1s
+  burst: 2
+
+limits:
+  timeout: 5s      # une requête
+  budget: 20s      # la recherche entière, suivi des fiches compris
+  maxBytes: 2097152
+  maxResults: 25
+  followDetail: 5
+
+search:
+  method: GET
+  path: /search
+  query:
+    q: "{terms}"
+    per_page: "{limit}"
+  probe: comic     # terme d'essai : doit toujours rendre quelque chose
+
+results:
+  # Le sélecteur de LIGNE. Tous les champs sont cherchés à l'intérieur.
+  select: "ul.results > li.issue"
+
+  fields:
+    title:
+      select: "h3 a"
+
+    # `all` retient tous les nœuds : un album à plusieurs auteurs.
+    authors:
+      select: "span.author"
+      all: true
+
+    # `split` découpe un nœud unique qui les liste tous.
+    series:
+      select: "span.series"
+
+    # `regex` extrait un morceau : « Publié en 1948 par Fox » → « 1948 ».
+    published:
+      select: "span.meta"
+      regex: '(\d{4})'
+
+    coverUrl:
+      select: "img.cover"
+      from: attr
+      attr: src
+
+    pageUrl:
+      select: "h3 a"
+      from: attr
+      attr: href
+
+# Ce site ne publie le lien de téléchargement que sur la fiche.
+detail:
+  from: pageUrl
+  onlyIfMissing: [acquisition]   # ne suivre que les lignes sans lien
+  fields:
+    acquisition:
+      select: "a.download"
+      from: attr
+      attr: href
+      mediaType: application/vnd.comicbook+zip
+    summary:
+      select: "div.synopsis"

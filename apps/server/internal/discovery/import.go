@@ -180,7 +180,7 @@ func (s *Service) RequestImport(ctx context.Context, p ImportParams) (Import, er
 		return Import{}, err
 	}
 
-	if err := sameOrigin(source.URL, p.Href); err != nil {
+	if err := s.checkOrigin(source, p.Href); err != nil {
 		return Import{}, err
 	}
 	if err := netguard.Check(p.Href); err != nil {
@@ -297,14 +297,19 @@ func (s *Service) runImport(
 	// Revérifié au moment de partir, et pas seulement à la demande : entre les
 	// deux, un administrateur a pu changer l'adresse du catalogue, et un job en
 	// attente ne doit pas garder un droit d'accès qu'on lui a retiré.
-	if err := sameOrigin(source.URL, record.Href); err != nil {
+	if err := s.checkOrigin(source, record.Href); err != nil {
 		return Deposited{}, err
 	}
 	if err := netguard.Check(record.Href); err != nil {
 		return Deposited{}, fmt.Errorf("%w : %w", ErrInvalidSource, err)
 	}
 
-	fetched, err := s.client.Open(ctx, source, password, record.Href)
+	client, err := s.clientFor(source)
+	if err != nil {
+		return Deposited{}, err
+	}
+
+	fetched, err := client.Open(ctx, source, password, record.Href)
 	if err != nil {
 		return Deposited{}, err
 	}
@@ -348,6 +353,8 @@ func importFailure(err error) (string, string) {
 		return "foreign-host", err.Error()
 	case errors.Is(err, ErrSourceNotFound):
 		return "source-gone", err.Error()
+	case errors.Is(err, ErrUnknownProvider):
+		return "unknown-kind", err.Error()
 	case errors.Is(err, ErrInvalidSource):
 		return "invalid", err.Error()
 	case errors.Is(err, context.DeadlineExceeded), errors.Is(err, context.Canceled):
@@ -370,6 +377,41 @@ type ErrDeposit struct {
 }
 
 func (e ErrDeposit) Error() string { return e.Detail }
+
+/*
+checkOrigin vérifie que l'adresse appartient bien au catalogue annoncé.
+
+La règle par défaut est `sameOrigin` — même schéma, même hôte, même port que
+l'URL de la source. Elle est juste pour OPDS, où le catalogue EST un service à
+une adresse.
+
+Un client peut l'élargir en implémentant `OriginChecker`, et c'est nécessaire
+pour les sites lus au gabarit : ils servent leurs fichiers depuis un autre hôte
+que leurs pages, et leurs miroirs depuis un troisième. L'élargissement reste
+une liste fermée, déclarée par le client — voir `OriginChecker`.
+*/
+func (s *Service) checkOrigin(source Source, href string) error {
+	client, err := s.clientFor(source)
+	if err != nil {
+		return err
+	}
+	if checker, ok := client.(OriginChecker); ok {
+		if checker.AllowsHost(source, href) {
+			return nil
+		}
+		return fmt.Errorf("%w : %s n'appartient pas à %s",
+			ErrForeignHost, hostOnly(href), source.Name)
+	}
+	return sameOrigin(source.URL, href)
+}
+
+func hostOnly(href string) string {
+	parsed, err := url.Parse(href)
+	if err != nil {
+		return "cette adresse"
+	}
+	return parsed.Host
+}
 
 /*
 sameOrigin vérifie que l'adresse appartient bien au catalogue annoncé.

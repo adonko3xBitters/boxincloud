@@ -642,6 +642,7 @@ export const fr = {
   "discovery.status.canceled": "Interrompu",
   "discovery.status.no-search": "N'expose pas de recherche",
   "discovery.status.invalid": "Adresse invalide",
+  "discovery.status.unknown-kind": "Gabarit ou protocole absent de cette instance",
   "discovery.partial":
     "Certains catalogues n'ont pas répondu : la liste est incompl\u00e8te.",
 
@@ -651,9 +652,15 @@ export const fr = {
   "discovery.sources.empty": "Aucun catalogue",
   "discovery.sources.add": "Ajouter un catalogue",
   "discovery.sources.name": "Nom",
+  "discovery.sources.kind": "Type de catalogue",
+  "discovery.sources.kindOpds": "Flux OPDS",
   "discovery.sources.url": "Adresse du flux OPDS",
   "discovery.sources.urlHint":
     "Par exemple https://komga.chez-moi.fr/opds/v2 — OPDS 1.2 et 2.0 sont reconnus automatiquement.",
+  "discovery.sources.mirror": "Adresse (facultative)",
+  "discovery.sources.mirrorHint":
+    "Le gabarit déclare déjà ses miroirs. À remplir seulement si le site a changé d'adresse.",
+  "discovery.sources.templateMirrors": "Miroirs du gabarit",
   "discovery.sources.username": "Identifiant",
   "discovery.sources.usernameHint": "Laissez vide pour un catalogue public.",
   "discovery.sources.password": "Mot de passe",
@@ -688,6 +695,7 @@ export const fr = {
   "discovery.import.err.foreign-host": "Adresse étrang\u00e8re au catalogue",
   "discovery.import.err.invalid": "Adresse refusée",
   "discovery.import.err.source-gone": "Le catalogue a été retiré",
+  "discovery.import.err.unknown-kind": "Gabarit ou protocole absent de cette instance",
   "discovery.import.err.queue": "La file de tâches n'a pas accepté l'import",
   "discovery.import.err.unsupported-format": "Format non pris en charge",
   "discovery.import.err.content-mismatch": "Le contenu ne correspond pas \u00e0 son extension",

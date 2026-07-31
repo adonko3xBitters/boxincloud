@@ -111,6 +111,24 @@ type Discovery struct {
 
 	// GoogleBooksKey active Google Books. Vide, le fournisseur est absent.
 	GoogleBooksKey string
+
+	/*
+		ScraperTemplatesDir charge des gabarits de scraping écrits par
+		l'opérateur, en plus de ceux livrés dans le binaire.
+
+		Vide par défaut, et ce défaut est une position, pas une prudence. Les
+		gabarits livrés sont revus comme du code et soumis au critère
+		d'admission de la feuille de route ; ceux d'un répertoire ne le sont par
+		personne.
+
+		Ouvrir la porte reste légitime — c'est le pendant exact de la fédération
+		OPDS en configuration libre, où l'administrateur désigne un service dont
+		il répond. Mais elle s'ouvre par un geste explicite d'exploitation, et
+		non parce que le produit l'a laissée entrouverte.
+
+		Voir internal/discovery/scraper.
+	*/
+	ScraperTemplatesDir string
 }
 
 type Upload struct {
@@ -214,8 +232,9 @@ func Load() (*Config, error) {
 	cfg.Upload = Upload{MaxSize: uploadSize}
 
 	cfg.Discovery = Discovery{
-		Metadata:       envBool("BOXINCLOUD_METADATA_ENABLED", true),
-		GoogleBooksKey: envString("BOXINCLOUD_GOOGLE_BOOKS_KEY", ""),
+		Metadata:            envBool("BOXINCLOUD_METADATA_ENABLED", true),
+		GoogleBooksKey:      envString("BOXINCLOUD_GOOGLE_BOOKS_KEY", ""),
+		ScraperTemplatesDir: envString("BOXINCLOUD_SCRAPER_TEMPLATES_DIR", ""),
 	}
 
 	// ── Cache dérivé ─────────────────────────────────────────────────────
