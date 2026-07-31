@@ -72,3 +72,10 @@ jobs:
       - name: Vérifier les calques
         working-directory: apps/web
         run: npm run check:overlays
+
+      # Un code QR illisible s'affiche parfaitement : on ne l'apprend qu'en
+      # pointant un téléphone dessus. Le contrôle refait l'aller-retour
+      # encodage/décodage avec un décodeur indépendant.
+      - name: Vérifier les codes QR
+        working-directory: apps/web
+        run: npm run check:qr

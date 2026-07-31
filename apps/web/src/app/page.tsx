@@ -9,6 +9,7 @@ import { ComicTable } from "@/components/comic-table";
 import { Coverflow } from "@/components/coverflow";
 import { AccountsPanel } from "@/components/accounts-panel";
 import { useComicMenu } from "@/components/comic-menu";
+import { MobileAppDialog } from "@/components/mobile-app-dialog";
 import { StoragePanel } from "@/components/storage-panel";
 import { AddContentButton, GlobalDropZone, IngestProvider } from "@/components/ingest";
 import { DetailPanel } from "@/components/detail-panel";
@@ -70,6 +71,7 @@ function TopBar() {
   const logout = useLogout();
   const [accountsOpen, setAccountsOpen] = useState(false);
   const [storageOpen, setStorageOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
   // Un clic ailleurs referme le menu, comme partout ailleurs dans le système.
@@ -116,6 +118,21 @@ function TopBar() {
               {user?.username} · {user?.role === "admin" ? "admin" : "utilisateur"}
             </p>
 
+            {/*
+              Accessible à tout le monde, pas seulement aux administrateurs :
+              c'est l'entrée par laquelle un membre de la famille installe
+              l'application sur son propre téléphone.
+            */}
+            <button
+              onClick={() => {
+                setMenuOpen(false);
+                setMobileOpen(true);
+              }}
+              className="pressable w-full rounded px-2 py-1.5 text-left text-ui text-muted hover:bg-surface-hover hover:text-fg"
+            >
+              Application mobile
+            </button>
+
             {user?.role === "admin" && (
               <>
                 <button
@@ -150,6 +167,7 @@ function TopBar() {
         </div>
       </div>
 
+      {mobileOpen && <MobileAppDialog onClose={() => setMobileOpen(false)} />}
       {storageOpen && <StoragePanel onClose={() => setStorageOpen(false)} />}
       {accountsOpen && <AccountsPanel onClose={() => setAccountsOpen(false)} />}
     </header>

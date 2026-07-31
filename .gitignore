@@ -47,3 +47,8 @@ build/
 /data/
 /apps/server/data/
 /tmp/
+
+# Signature Android : la clé et ses mots de passe ne sont jamais versionnés.
+apps/mobile/android/key.properties
+*.jks
+*.keystore
