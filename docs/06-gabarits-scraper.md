@@ -304,6 +304,21 @@ vers un hôte tiers ne l'ouvre pas.
 
 ---
 
+## Un exemple qui fonctionne
+
+`deploy/scraper-templates/standardebooks.yaml` vise un site réel et admissible.
+Pointez `BOXINCLOUD_SCRAPER_TEMPLATES_DIR` dessus, redémarrez, et il apparaît
+dans le menu « Type de catalogue ».
+
+Ses sélecteurs sont rejoués à chaque `go test` contre deux pages enregistrées du
+site — un exemple faux apprendrait une syntaxe qui ne marche pas, ce qui est
+pire que pas d'exemple du tout.
+
+Il démontre le cas qui piège tout le monde : sur ce site, le titre et l'auteur
+portent le même attribut `property="schema:name"`, et seul leur paragraphe les
+distingue. Un sélecteur naïf met l'auteur dans le titre une fois sur deux, sans
+que rien ne le signale.
+
 ## Écrire un gabarit
 
 1. Ouvrez la page de résultats du site dans un navigateur, outils de
