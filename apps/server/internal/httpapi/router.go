@@ -113,6 +113,7 @@ func NewRouter(d Deps) http.Handler {
 	// explicitement.
 	r.Use(middleware.Logger(d.Log))
 	r.Use(middleware.Recover)
+	r.Use(middleware.SecurityHeaders)
 	r.Use(chimw.Compress(5, "application/json", "text/html", "text/css", "application/javascript"))
 
 	// En développement, le web tourne sur son propre port (next dev) : il lui
@@ -143,6 +144,11 @@ func NewRouter(d Deps) http.Handler {
 		// ── Routes publiques ────────────────────────────────────────────
 		r.Route("/auth", func(r chi.Router) {
 			r.Use(chimw.Timeout(requestTimeout))
+
+			// Les seules routes publiques qui vérifient un secret. argon2id rend
+			// chaque essai coûteux — pour l'attaquant comme pour le serveur —
+			// et la limitation protège donc les deux.
+			r.Use(middleware.RateLimit(middleware.AuthLimit))
 
 			r.Get("/status", authHandler.Status)
 			r.Post("/setup", authHandler.Setup)

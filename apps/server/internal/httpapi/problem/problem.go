@@ -110,6 +110,20 @@ func Forbidden(detail string) Problem {
 	}
 }
 
+// TooManyRequests signale une limitation de débit.
+//
+// La réponse porte un `Retry-After` : un client qui sait quand réessayer n'a
+// pas besoin de tâtonner, et tâtonner est précisément ce qui produit la charge
+// que la limitation cherche à éviter.
+func TooManyRequests(detail string) Problem {
+	return Problem{
+		Type:   "https://boxincloud.dev/problems/too-many-requests",
+		Title:  "Too Many Requests",
+		Status: http.StatusTooManyRequests,
+		Detail: detail,
+	}
+}
+
 func ServiceUnavailable(detail string) Problem {
 	return Problem{
 		Type:   "https://boxincloud.dev/problems/service-unavailable",

@@ -288,6 +288,13 @@ func buildProvider(kind storage.Kind, config, secrets map[string]string, readOnl
 			return nil, fmt.Errorf("%w : 'endpoint' est obligatoire pour un backend S3", ErrInvalidConfig)
 		}
 
+		// Ici plutôt qu'à la création : ce point de passage couvre aussi la
+		// modification et la reconstruction depuis la base, si bien qu'une
+		// adresse interdite ne peut pas entrer par une porte de côté.
+		if err := CheckEndpoint(endpoint); err != nil {
+			return nil, err
+		}
+
 		return s3.New(s3.Options{
 			Endpoint:  endpoint,
 			Bucket:    bucket,
