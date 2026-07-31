@@ -117,6 +117,84 @@ func (q *Queries) DeleteDiscoverySource(ctx context.Context, id uuid.UUID) error
 	return err
 }
 
+const enrichComic = `-- name: EnrichComic :one
+
+UPDATE comics
+SET summary = CASE
+        WHEN nullif(summary, '') IS NULL AND NOT ('summary' = ANY(locked_fields))
+        THEN coalesce($1, summary)
+        ELSE summary END,
+    language = CASE
+        WHEN nullif(language, '') IS NULL AND NOT ('language' = ANY(locked_fields))
+        THEN coalesce($2, language)
+        ELSE language END
+WHERE id = $3
+RETURNING id, library_id, series_id, object_key, file_size, file_etag, content_hash, format, title, number, number_sort, volume, summary, released_at, age_rating, language, page_count, cover_page, state, state_detail, hydrated_at, indexed_at, metadata, locked_fields, created_at, updated_at, deleted_at, search_vector, cover_placeholder, folder_path, excluded_at, hydrated_key
+`
+
+type EnrichComicParams struct {
+	Summary  *string
+	Language *string
+	ID       uuid.UUID
+}
+
+// ─── Enrichissement ──────────────────────────────────────────────────────────
+// Complète un album avec une fiche de métadonnées.
+//
+// Trois garde-fous inscrits dans la requête plutôt que laissés au code.
+//
+// `nullif(champ, ”)` : seuls les champs VIDES sont remplis. Une fiche
+// généraliste ne doit pas écraser ce que l'archive elle-même déclarait — le
+// ComicInfo.xml d'un éditeur en sait plus sur son album qu'Open Library.
+//
+// `NOT (... = ANY(locked_fields))` : une saisie manuelle est intouchable. C'est
+// la contrepartie de tout automatisme dans ce projet, et l'enrichissement n'y
+// fait pas exception — corriger un titre à la main serait inutile s'il pouvait
+// être défait par une requête vers un service tiers.
+//
+// `locked_fields` n'est PAS modifié : l'enrichissement est automatique, et
+// verrouiller ce qu'il pose empêcherait une réindexation de le corriger avec
+// une meilleure source.
+func (q *Queries) EnrichComic(ctx context.Context, arg EnrichComicParams) (Comic, error) {
+	row := q.db.QueryRow(ctx, enrichComic, arg.Summary, arg.Language, arg.ID)
+	var i Comic
+	err := row.Scan(
+		&i.ID,
+		&i.LibraryID,
+		&i.SeriesID,
+		&i.ObjectKey,
+		&i.FileSize,
+		&i.FileEtag,
+		&i.ContentHash,
+		&i.Format,
+		&i.Title,
+		&i.Number,
+		&i.NumberSort,
+		&i.Volume,
+		&i.Summary,
+		&i.ReleasedAt,
+		&i.AgeRating,
+		&i.Language,
+		&i.PageCount,
+		&i.CoverPage,
+		&i.State,
+		&i.StateDetail,
+		&i.HydratedAt,
+		&i.IndexedAt,
+		&i.Metadata,
+		&i.LockedFields,
+		&i.CreatedAt,
+		&i.UpdatedAt,
+		&i.DeletedAt,
+		&i.SearchVector,
+		&i.CoverPlaceholder,
+		&i.FolderPath,
+		&i.ExcludedAt,
+		&i.HydratedKey,
+	)
+	return i, err
+}
+
 const failDiscoveryImport = `-- name: FailDiscoveryImport :exec
 UPDATE discovery_imports
 SET status = 'failed',

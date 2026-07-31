@@ -86,6 +86,10 @@ type Service struct {
 	sealer *crypto.Sealer
 	log    *slog.Logger
 
+	// comics applique les métadonnées enrichies. Nul tant qu'il n'est pas
+	// branché, auquel cas l'import n'enrichit rien.
+	comics ComicWriter
+
 	// registry porte les bases de métadonnées. Nul tant qu'aucune n'est
 	// enregistrée, auquel cas le rapprochement rend simplement une liste vide —
 	// une instance sans accès Internet reste utilisable.

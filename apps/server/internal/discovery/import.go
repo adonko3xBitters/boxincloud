@@ -266,7 +266,20 @@ func (s *Service) RunImport(ctx context.Context, importID uuid.UUID, deposit Dep
 		return nil
 	}
 
-	return s.repo.FinishImport(ctx, importID, deposited)
+	if err := s.repo.FinishImport(ctx, importID, deposited); err != nil {
+		return err
+	}
+
+	/*
+		L'enrichissement vient APRÈS la clôture, et son échec n'est pas remonté.
+
+		L'ordre compte : un import est terminé dès que le fichier est dans la
+		bibliothèque et inscrit au catalogue. Le faire dépendre d'une requête
+		vers un service tiers laisserait un import « en cours » à cause d'une
+		base publique en panne, alors que l'album est là et lisible.
+	*/
+	s.enrichImported(ctx, deposited.ComicID, deposited.Title)
+	return nil
 }
 
 func (s *Service) runImport(

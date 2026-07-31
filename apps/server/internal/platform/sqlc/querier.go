@@ -97,6 +97,24 @@ type Querier interface {
 	// jamais écraser une saisie manuelle. C'est la contrepartie de l'automatisme —
 	// sans elle, corriger un titre serait inutile.
 	EditComic(ctx context.Context, arg EditComicParams) (Comic, error)
+	// ─── Enrichissement ──────────────────────────────────────────────────────────
+	// Complète un album avec une fiche de métadonnées.
+	//
+	// Trois garde-fous inscrits dans la requête plutôt que laissés au code.
+	//
+	// `nullif(champ, '')` : seuls les champs VIDES sont remplis. Une fiche
+	// généraliste ne doit pas écraser ce que l'archive elle-même déclarait — le
+	// ComicInfo.xml d'un éditeur en sait plus sur son album qu'Open Library.
+	//
+	// `NOT (... = ANY(locked_fields))` : une saisie manuelle est intouchable. C'est
+	// la contrepartie de tout automatisme dans ce projet, et l'enrichissement n'y
+	// fait pas exception — corriger un titre à la main serait inutile s'il pouvait
+	// être défait par une requête vers un service tiers.
+	//
+	// `locked_fields` n'est PAS modifié : l'enrichissement est automatique, et
+	// verrouiller ce qu'il pose empêcherait une réindexation de le corriger avec
+	// une meilleure source.
+	EnrichComic(ctx context.Context, arg EnrichComicParams) (Comic, error)
 	// ─── Suppression et déplacement ──────────────────────────────────────────────
 	// Retire l'album du catalogue sans effacer sa ligne.
 	//

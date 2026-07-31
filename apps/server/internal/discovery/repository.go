@@ -275,3 +275,36 @@ func truncate(value string, max int) string {
 	}
 	return value[:max]
 }
+
+// ─── Enrichissement ──────────────────────────────────────────────────────────
+
+var _ ComicWriter = (*PostgresRepository)(nil)
+
+/*
+Enrich complète un album sans jamais écraser.
+
+La garantie est dans le SQL, pas ici : seuls les champs vides et non verrouillés
+par une saisie manuelle sont touchés. La placer dans la requête plutôt que dans
+ce code la rend impossible à contourner par un appelant distrait.
+*/
+func (r *PostgresRepository) Enrich(
+	ctx context.Context, comicID uuid.UUID, summary, language string,
+) error {
+	params := sqlc.EnrichComicParams{ID: comicID}
+	if summary != "" {
+		params.Summary = &summary
+	}
+	if language != "" {
+		params.Language = &language
+	}
+
+	if _, err := r.q.EnrichComic(ctx, params); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			// L'album a disparu entre l'import et l'enrichissement. Rare, mais
+			// pas anormal : rien à corriger, rien à signaler.
+			return nil
+		}
+		return fmt.Errorf("discovery : enrichissement : %w", err)
+	}
+	return nil
+}

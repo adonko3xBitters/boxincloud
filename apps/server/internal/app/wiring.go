@@ -121,6 +121,7 @@ func BuildCore(ctx context.Context, cfg *config.Config, pool *db.Pool, log *slog
 		log,
 	)
 	discoveryService.SetMetadata(buildMetadataRegistry(cfg, log))
+	discoveryService.SetComicWriter(discovery.NewPostgresRepository(queries))
 
 	jobClient, err := jobs.New(pool, cfg.Jobs, log, func(w *river.Workers) {
 		discovery.Register(w, discoveryService, depositTo(&deferredIngest))
