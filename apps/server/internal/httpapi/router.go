@@ -141,6 +141,46 @@ func NewRouter(d Deps) http.Handler {
 
 	authHandler := handlers.NewAuth(d.Auth)
 
+	/*
+		── Catalogue OPDS sortant ──────────────────────────────────────────────
+
+		Hors de `/api/v1`, et délibérément : ce n'est pas l'API du projet mais
+		un protocole public, dont les lecteurs tiers attendent une racine courte
+		qu'un utilisateur puisse recopier de mémoire.
+
+		Il ne suit pas non plus le versionnement de l'API. OPDS 1.2 est figé
+		depuis 2018 ; le jour où boxincloud changera son contrat interne, les
+		lecteurs installés sur les téléphones, eux, ne changeront pas.
+
+		L'authentification est Basic, seule que la spécification mentionne et
+		seule qu'implémentent Chunky, Panels, KyBook ou Moon+ Reader. Elle est
+		confinée ici : l'API garde ses jetons, dont la révocation par appareil
+		et l'expiration courte n'ont pas d'équivalent.
+
+		La limitation de débit est celle de l'authentification, et pas celle des
+		requêtes ordinaires : un couple identifiant/mot de passe voyage sur
+		chaque requête, ce qui en fait une surface de force brute permanente.
+	*/
+	r.Route("/opds", func(r chi.Router) {
+		r.Use(chimw.Timeout(uploadTimeout))
+		r.Use(middleware.RateLimit(middleware.AuthLimit))
+		r.Use(middleware.BasicAuth(d.Auth, middleware.NewBasicCache()))
+
+		opdsHandler := handlers.NewOPDS(d.Catalog, d.Reader, d.Config.PublicURL)
+
+		r.Get("/", opdsHandler.Root)
+		r.Get("/recent", opdsHandler.Recent)
+		r.Get("/libraries/{libraryID}", opdsHandler.Library)
+
+		// Le document OpenSearch d'abord : sans lui, aucun lecteur tiers ne
+		// sait qu'une recherche existe.
+		r.Get("/search.xml", opdsHandler.SearchDescription)
+		r.Get("/search", opdsHandler.Search)
+
+		r.Get("/comics/{comicID}/file", opdsHandler.File)
+		r.Get("/comics/{comicID}/cover", opdsHandler.Cover)
+	})
+
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Get("/version", health.Version)
 

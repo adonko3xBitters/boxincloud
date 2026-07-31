@@ -329,7 +329,7 @@ Environ **quatre mois** à temps partiel soutenu.
 
 Par ordre de valeur décroissante pour l'adoption :
 
-1. **OPDS sortant** — publier le catalogue de l'instance pour les lecteurs tiers. Le client OPDS existe déjà (recherche fédérée) ; c'est le serveur qui manque.
+1. ~~**OPDS sortant**~~ — **fait.** L'instance publie son catalogue en OPDS 1.2 sous `/opds`, avec authentification Basic — la seule qu'implémentent Chunky, Panels, KyBook ou Moon+ Reader. Les droits sont ceux de l'API, et un test le vérifie en comparant les deux portes pour un même compte.
 2. **Découvrir : métadonnées** — la recherche fédérée et l'import sont faits ; enrichir la collection existante ne l'est pas. Voir la section dédiée ci-dessous.
 3. **Import et téléversement** — déposer un fichier depuis le web ou le mobile vers un backend.
 4. **OIDC** — Authelia, Authentik, Keycloak. Très demandé par le public self-hosted.
