@@ -434,7 +434,7 @@ func normalizeTitle(title string) string {
 				builder.WriteByte(' ')
 			}
 			space = false
-			builder.WriteRune(foldAccent(r))
+			builder.WriteString(foldRune(r))
 		default:
 			space = true
 		}
@@ -442,20 +442,41 @@ func normalizeTitle(title string) string {
 	return builder.String()
 }
 
-// foldAccent replie les lettres accentuées du latin sur leur base.
-//
-// Une table plutôt qu'une dépendance de normalisation Unicode : les alphabets
-// concernés par les catalogues qu'on fédère tiennent en deux lignes, et la
-// table se lit d'un coup d'œil.
-func foldAccent(r rune) rune {
+/*
+foldRune ramène une lettre à sa forme comparable.
+
+Une table plutôt qu'une dépendance de normalisation Unicode : les alphabets
+concernés par les catalogues qu'on fédère tiennent en quelques lignes, et la
+table se lit d'un coup d'œil.
+
+Le retour est une CHAÎNE et non une rune, ce qui n'est pas un détail. Les
+ligatures s'étendent en deux lettres : « Mœbius » s'écrit « Moebius » partout où
+le clavier n'a pas la ligature, et les replier sur une seule lettre donnait
+« mobius » — qui ne rejoignait ni l'une ni l'autre.
+
+Le défaut se voyait mal : il ne cassait rien visiblement, il empêchait seulement
+deux catalogues de reconnaître le même auteur, et laissait passer des doublons
+qu'on croyait dédupliqués.
+*/
+func foldRune(r rune) string {
+	// Ligatures et lettres composées : une lettre en entrée, deux en sortie.
+	switch r {
+	case 'œ':
+		return "oe"
+	case 'æ':
+		return "ae"
+	case 'ß':
+		return "ss"
+	}
+
 	const (
-		accented = "àáâãäåçèéêëìíîïñòóôõöùúûüýÿœæ"
-		plain    = "aaaaaaceeeeiiiinooooouuuuyyoa"
+		accented = "àáâãäåçèéêëìíîïñòóôõöùúûüýÿ"
+		plain    = "aaaaaaceeeeiiiinooooouuuuyy"
 	)
 	if at := strings.IndexRune(accented, r); at >= 0 {
-		return rune(plain[len([]rune(accented[:at]))])
+		return string(plain[len([]rune(accented[:at]))])
 	}
-	return r
+	return string(r)
 }
 
 /*
