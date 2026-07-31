@@ -120,6 +120,8 @@ Ce qui n'y est pas encore : iOS et les applications de bureau. Voir la
 | [Structure du dépôt](docs/03-repo-structure.md) | Arborescence et conventions |
 | [Feuille de route](docs/04-roadmap.md) | Jalons jusqu'à la v0.1.0 et au-delà |
 | [Installation](docs/05-installation.md) | Compose, Unraid, TrueNAS, Synology, sources, migration |
+| [Gabarits de scraping](docs/06-gabarits-scraper.md) | Lire un site sans API : format, miroirs, politesse |
+| [Journal des modifications](CHANGELOG.md) | Ce qui change d'une version à l'autre |
 | [Contribuer](CONTRIBUTING.md) | Installer l'environnement, conventions, workflow |
 
 ## Stack
