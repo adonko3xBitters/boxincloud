@@ -584,6 +584,24 @@ export const fr = {
     "L'application est servie par ce serveur, pas par un tiers : rien ne sort de votre réseau, et sa version correspond exactement à celle de votre instance.",
   "download.size": "{size}",
 
+  // ── Rapprochement de métadonnées ───────────────────────────────────────────
+  "metadata.find": "Chercher une fiche",
+  "metadata.searching": "Interrogation des bases\u2026",
+  "metadata.none": "Aucune fiche trouvée",
+  "metadata.noneHint":
+    "Ces bases couvrent mal la bande dessinée franco-belge. Essayez le titre de la série plut\u00f4t que celui du tome.",
+  "metadata.offline":
+    "Aucune base de métadonnées n'est activée sur cette instance.",
+  "metadata.apply": "Utiliser cette fiche",
+  "metadata.applied": "Champs remplis — relisez avant d'enregistrer.",
+  "metadata.confidence": "{percent} % de correspondance",
+  "metadata.from": "Depuis {source}",
+  "metadata.openSource": "Voir la fiche d'origine",
+  "metadata.partial":
+    "Certaines bases n'ont pas répondu : la liste est incompl\u00e8te.",
+  "metadata.explain":
+    "Les propositions viennent de bases publiques. Rien n'est enregistré tant que vous n'avez pas validé.",
+
   // ── Configuration ──────────────────────────────────────────────────────────
   "settings.title": "Configuration",
   "settings.open": "Configuration",

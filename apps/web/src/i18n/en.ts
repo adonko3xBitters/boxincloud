@@ -580,6 +580,22 @@ export const en: Record<MessageKey, string> = {
     "The app is served by this server, not by a third party: nothing leaves your network, and its version matches your instance exactly.",
   "download.size": "{size}",
 
+  // ── Metadata matching ──────────────────────────────────────────────────────
+  "metadata.find": "Find a record",
+  "metadata.searching": "Querying the databases\u2026",
+  "metadata.none": "No record found",
+  "metadata.noneHint":
+    "These databases cover Franco-Belgian comics poorly. Try the series title rather than the volume title.",
+  "metadata.offline": "No metadata database is enabled on this instance.",
+  "metadata.apply": "Use this record",
+  "metadata.applied": "Fields filled in \u2014 review before saving.",
+  "metadata.confidence": "{percent}% match",
+  "metadata.from": "From {source}",
+  "metadata.openSource": "Open the original record",
+  "metadata.partial": "Some databases did not answer: the list is incomplete.",
+  "metadata.explain":
+    "Suggestions come from public databases. Nothing is saved until you confirm.",
+
   // ── Settings ───────────────────────────────────────────────────────────────
   "settings.title": "Settings",
   "settings.open": "Settings",

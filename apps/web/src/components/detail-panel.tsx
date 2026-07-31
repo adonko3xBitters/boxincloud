@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 
 import { buttonClass, cx } from "./ui";
 import { imageURL } from "@/lib/api/client";
+import { MetadataMatch } from "./metadata-match";
 import * as api from "@/lib/api/endpoints";
 import { useT } from "@/i18n";
 import { useWorkspace } from "@/lib/workspace";
@@ -245,6 +246,7 @@ function EditForm({
   const [title, setTitle] = useState(comic.title);
   const [number, setNumber] = useState(comic.number ?? "");
   const [summary, setSummary] = useState(comic.summary ?? "");
+  const [language, setLanguage] = useState(comic.language ?? "");
   const [saving, setSaving] = useState(false);
 
   async function save(event: React.FormEvent) {
@@ -255,6 +257,7 @@ function EditForm({
         title: title !== comic.title ? title : undefined,
         number: number !== (comic.number ?? "") ? number : undefined,
         summary: summary !== (comic.summary ?? "") ? summary : undefined,
+        language: language !== (comic.language ?? "") ? language : undefined,
       });
       onDone();
     } finally {
@@ -266,6 +269,12 @@ function EditForm({
     <form onSubmit={save} className="flex flex-col gap-2">
       <SmallField label={t("detail.title")} value={title} onChange={setTitle} />
       <SmallField label={t("detail.number")} value={number} onChange={setNumber} />
+      {/*
+        La langue est éditable, et pas seulement remplie par le rapprochement :
+        un champ qu'une proposition modifie sans qu'on puisse le voir ni le
+        corriger change en silence, ce qui est le contraire de « proposer ».
+      */}
+      <SmallField label={t("detail.language")} value={language} onChange={setLanguage} />
 
       <label className="flex flex-col gap-1">
         <span className="text-micro uppercase tracking-wide text-subtle">{t("detail.summary")}</span>
@@ -276,6 +285,22 @@ function EditForm({
           className="rounded-md border border-border bg-surface px-2.5 py-1.5 text-ui text-fg transition-colors focus:border-accent"
         />
       </label>
+
+      {/*
+        Le rapprochement est ICI, dans le formulaire, et non ailleurs : ce qu'il
+        rend remplit des champs qu'on relit avant d'enregistrer. Placé dans un
+        écran séparé qui écrirait lui-même, il remplacerait une fiche par celle
+        d'un homonyme sans que personne s'en aperçoive.
+      */}
+      <MetadataMatch
+        title={title}
+        onApply={(fill) => {
+          // Ne remplit que ce qui est vide : ce que l'utilisateur a saisi
+          // l'emporte toujours sur une proposition automatique.
+          if (fill.summary && !summary.trim()) setSummary(fill.summary);
+          if (fill.language && !language.trim()) setLanguage(fill.language);
+        }}
+      />
 
       <p className="text-micro leading-relaxed text-subtle">
         {t("detail.lockedFields")}

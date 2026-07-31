@@ -697,3 +697,55 @@ export const discoveryImport = (input: {
 
 export const listDiscoveryImports = (limit = 50) =>
   request<{ items: DiscoveryImport[] }>(`/discovery/imports?limit=${limit}`);
+
+/** Fiche proposée par une base de métadonnées ouverte. */
+export type DiscoveryDescription = {
+  providerKind: string;
+  providerName: string;
+  title: string;
+  authors?: string[];
+  series?: string;
+  number?: string;
+  summary?: string;
+  language?: string;
+  published?: string;
+  publisher?: string;
+  isbn?: string;
+  pageCount?: number;
+  subjects?: string[];
+  coverUrl?: string;
+  pageUrl?: string;
+  /** Force du rapprochement, de 0 à 1. Un ISBN identique vaut 1. */
+  confidence: number;
+};
+
+/**
+ * Cherche à quelle œuvre correspond ce qu'on décrit.
+ *
+ * Ces bases ne fournissent aucun fichier : elles décrivent. Leurs réponses
+ * n'apparaissent donc jamais dans les résultats de recherche fédérée.
+ *
+ * Toujours pour UNE œuvre : le débit sortant vers les bases publiques interdit
+ * d'en traiter quarante dans le temps d'une requête.
+ */
+export const discoveryDescribe = (work: {
+  title?: string;
+  authors?: string[];
+  isbn?: string;
+  year?: string;
+  language?: string;
+}) => {
+  const query = new URLSearchParams();
+  if (work.title) query.set("title", work.title);
+  if (work.isbn) query.set("isbn", work.isbn);
+  if (work.year) query.set("year", work.year);
+  if (work.language) query.set("language", work.language);
+  // Répété plutôt que joint : un nom peut contenir une virgule, et la joindre
+  // ferait inventer un second auteur au serveur.
+  for (const author of work.authors ?? []) query.append("author", author);
+
+  return request<{
+    candidates: DiscoveryDescription[];
+    sources: DiscoverySourceStatus[];
+  }>(`/discovery/describe?${query.toString()}`);
+};
