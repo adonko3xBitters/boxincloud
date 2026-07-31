@@ -127,10 +127,19 @@ de connaître toutes les routes au build.
 complet, interface qui s'efface, préchargement glissant avec libération
 mémoire, progression sauvegardée par anti-rebond et sendBeacon.
 
-Écarts assumés : le zoom au pincement et le sélecteur de page à miniatures sont
-reportés — la navigation clavier, tactile et par zones couvre l'usage courant,
-et le zoom demande un travail de gestes qui mérite d'être fait correctement
-plutôt que vite.
+Le zoom au pincement et le sélecteur de page à miniatures, d'abord reportés,
+sont faits. Le zoom prend deux formes, parce que ce sont deux gestes différents :
+en mode page on agrandit une planche et on s'y déplace ; en défilement continu
+on élargit la colonne.
+
+La distinction n'est pas cosmétique. Transformer la page en défilement casserait
+tout le reste — le conteneur ne connaîtrait plus la vraie hauteur de son contenu,
+la barre sauterait, et la détection de la page courante, qui repose sur ce qui
+occupe le centre de l'écran, deviendrait fausse. En jouant sur la largeur, le
+reste continue de fonctionner sans le savoir.
+
+La largeur de colonne est persistée : quelqu'un qui lit des webtoons la règle une
+fois, pas à chaque album.
 
 ---
 

@@ -16,6 +16,7 @@ import {
 } from "@/lib/reader/pages";
 import { useProgressSaver } from "@/lib/reader/progress";
 import { useReaderSettings } from "@/lib/reader/store";
+import { useColumnZoom } from "@/lib/reader/column";
 import { useZoom } from "@/lib/reader/zoom";
 import { ErrorState, Spinner, cx } from "@/components/ui";
 import { ReaderChrome } from "./chrome";
@@ -66,6 +67,17 @@ export function ReaderView() {
   // pages, à chaque frappe.
   const pages = useMemo(() => manifest.data?.pages ?? [], [manifest.data]);
   const pageCount = manifest.data?.pageCount ?? 0;
+
+  /*
+    Deux zooms, parce que ce sont deux gestes différents : agrandir une planche
+    et s'y déplacer, ou élargir un ruban vertical.
+
+    Celui des modes page vit dans `SpreadReader`, qui le remet à plat à chaque
+    feuillet. Celui du défilement vit ici, parce qu'il traverse tout l'album —
+    on règle sa largeur de colonne une fois, pas à chaque page.
+  */
+  const column = useColumnZoom();
+  useZoomKeyboard(column, settings.mode === "scroll");
 
   const spreads = useMemo(
     () => buildSpreads(pages, settings.mode === "double"),
@@ -178,6 +190,7 @@ export function ReaderView() {
     >
       {settings.mode === "scroll" ? (
         <ScrollReader
+          column={column}
           comicId={comicId}
           pages={pages}
           width={width}
@@ -222,6 +235,8 @@ function SpreadReader({
   const key = spread?.pages.join("-") ?? "";
   const zoom = useZoom(key);
 
+  // Pas de condition : `SpreadReader` n'est monté qu'en mode page, et le
+  // défilement continu a son propre zoom, piloté un cran au-dessus.
   useZoomKeyboard(zoom);
 
   if (!spread) return null;
@@ -373,8 +388,13 @@ function ZoomBadge({ scale, onReset }: { scale: number; onReset: () => void }) {
  * Les mêmes que partout ailleurs : `+`, `-`, et `0` pour revenir à la taille
  * normale. Les réinventer n'apporterait rien.
  */
-function useZoomKeyboard(zoom: ReturnType<typeof useZoom>) {
+/** Ce que le clavier demande d'un zoom, quel qu'il soit. */
+type Zoomable = { zoomBy: (factor: number) => void; reset: () => void };
+
+function useZoomKeyboard(zoom: Zoomable, active = true) {
   useEffect(() => {
+    if (!active) return undefined;
+
     function onKeyDown(event: KeyboardEvent) {
       const target = event.target as HTMLElement | null;
       if (target?.tagName === "INPUT" || target?.isContentEditable) return;
@@ -394,7 +414,7 @@ function useZoomKeyboard(zoom: ReturnType<typeof useZoom>) {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [zoom]);
+  }, [zoom, active]);
 }
 
 // ─── Clavier ─────────────────────────────────────────────────────────────────

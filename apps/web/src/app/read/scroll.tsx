@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 
 import { imageURL } from "@/lib/api/client";
+import type { ColumnZoom } from "@/lib/reader/column";
 import type { ManifestPage } from "@/lib/reader/pages";
 
 /**
@@ -23,14 +24,26 @@ export function ScrollReader({
   width,
   startPage,
   onPageChange,
+  column,
 }: {
   comicId: string;
   pages: ManifestPage[];
   width: number;
   startPage: number;
   onPageChange: (page: number) => void;
+
+  // Fourni par le lecteur plutôt que créé ici : le clavier doit pouvoir piloter
+  // le même zoom, et il vit un cran au-dessus.
+  column: ColumnZoom;
 }) {
-  const container = useRef<HTMLDivElement>(null);
+  /*
+    Le zoom du défilement continu élargit la COLONNE, il ne transforme pas la
+    page. Transformer casserait tout le reste : le conteneur ne connaîtrait
+    plus la vraie hauteur de son contenu, la barre de défilement sauterait, et
+    la détection de la page courante — qui repose sur ce qui occupe le centre
+    de l'écran — deviendrait fausse.
+  */
+  const container = column.containerRef;
   const refs = useRef(new Map<number, HTMLElement>());
   const jumped = useRef(false);
 
@@ -75,8 +88,18 @@ export function ScrollReader({
   }, [pages, onPageChange]);
 
   return (
-    <div ref={container} className="h-dvh overflow-y-auto overscroll-contain">
-      <div className="mx-auto flex max-w-[1000px] flex-col">
+    <div
+      ref={container}
+      className="h-dvh overflow-y-auto overscroll-contain"
+      // Le navigateur ne doit pas s'occuper du pincement : c'est nous qui le
+      // traduisons en largeur de colonne. Le laisser faire superposerait son
+      // zoom de page au nôtre.
+      style={{ touchAction: "pan-y" }}
+    >
+      <div
+        className="mx-auto flex flex-col"
+        style={{ maxWidth: `${Math.round(1000 * column.scale)}px` }}
+      >
         {pages.map((page, position) => {
           // Ratio connu du manifeste : la place est réservée avant l'arrivée
           // de l'image, donc aucun saut de défilement.
