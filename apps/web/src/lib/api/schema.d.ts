@@ -1414,6 +1414,48 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/discovery/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Rapatrier un résultat dans une bibliothèque
+         * @description Le serveur télécharge chez le catalogue et écrit directement dans le
+         *     backend de stockage. Le fichier ne transite **pas** par le navigateur,
+         *     ce qui compte quand l'instance a une bien meilleure liaison que le
+         *     téléphone qui la pilote.
+         *
+         *     **`href` doit appartenir au catalogue désigné par `sourceId`** — même
+         *     schéma, même hôte, même port. Ce n'est pas une vérification de forme :
+         *     sans elle, la route serait un relais anonyme doublé d'un sondeur de
+         *     réseau interne, puisque c'est le client qui choisit l'adresse et le
+         *     serveur qui va la chercher. Une adresse étrangère est refusée avec la
+         *     règle `foreign-host` sur le champ `href`.
+         *
+         *     L'accès suit celui du téléversement — qui peut consulter une
+         *     bibliothèque peut l'alimenter — et non celui de l'administration des
+         *     catalogues.
+         *
+         *     Les règles d'écriture sont celles de l'ingestion : taille bornée,
+         *     signature du contenu vérifiée avant d'écrire, refus d'écraser un objet
+         *     existant, contrôle d'écriture sur le dossier de destination.
+         *
+         *     Comme le téléversement, cette route n'a pas le délai des requêtes
+         *     ordinaires : un import de plusieurs centaines de méga-octets dépasse
+         *     largement trente secondes.
+         */
+        post: operations["discoveryImport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/discovery/sources": {
         parameters: {
             query?: never;
@@ -4472,6 +4514,61 @@ export interface operations {
                 };
             };
             401: components["responses"]["Unauthorized"];
+        };
+    };
+    discoveryImport: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /**
+                     * Format: uuid
+                     * @description Le catalogue d'où vient le lien, et qui autorise l'adresse.
+                     */
+                    sourceId: string;
+                    /** @description Lien d'acquisition, tel que rendu par la recherche. */
+                    href: string;
+                    /** Format: uuid */
+                    libraryId: string;
+                    /** @description Dossier de destination, relatif au préfixe de la bibliothèque. */
+                    folder?: string;
+                    /**
+                     * @description Sert à nommer le fichier quand le catalogue ne donne rien de
+                     *     mieux. Ce n'est pas cosmétique : le nom devient la clé de
+                     *     l'objet, et l'indexation en tire série et tome. Komga et
+                     *     Kavita servent des liens comme `/api/v1/books/42/file`, qui
+                     *     ne disent rien.
+                     */
+                    title?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Album importé et inscrit au catalogue */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /** Format: uuid */
+                        comicId: string;
+                        objectKey: string;
+                        title: string;
+                        format: string;
+                        /** Format: int64 */
+                        fileSize: number;
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            404: components["responses"]["NotFound"];
+            422: components["responses"]["ValidationFailed"];
         };
     };
     listDiscoverySources: {

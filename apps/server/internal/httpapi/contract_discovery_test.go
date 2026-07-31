@@ -4,7 +4,10 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
+
+	"github.com/adonko3xBitters/boxincloud/server/internal/testsupport/comicfixture"
 )
 
 /*
@@ -34,6 +37,21 @@ func opdsCatalogue(t *testing.T) *httptest.Server {
 </feed>`))
 	})
 
+	// Un vrai CBZ : l'ingestion vérifie la signature du contenu avant
+	// d'écrire, un fichier bidon serait refusé — et le test ne prouverait
+	// alors que le refus.
+	mux.HandleFunc("/dl/garage.cbz", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/vnd.comicbook+zip")
+		_, _ = w.Write(importableCBZ)
+	})
+
+	// Le même contenu, mais servi sans extension dans l'adresse ni nom
+	// déclaré : c'est ce que font Komga et Kavita.
+	mux.HandleFunc("/api/v1/books/42/file", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/vnd.comicbook+zip")
+		_, _ = w.Write(importableCBZ)
+	})
+
 	mux.HandleFunc("/opds/search", func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/atom+xml;profile=opds-catalog")
 		_, _ = w.Write([]byte(`<?xml version="1.0" encoding="UTF-8"?>
@@ -53,6 +71,9 @@ func opdsCatalogue(t *testing.T) *httptest.Server {
 	t.Cleanup(server.Close)
 	return server
 }
+
+// importableCBZ est rempli par le premier test qui en a besoin.
+var importableCBZ []byte
 
 func TestIntegrationContractDiscovery(t *testing.T) {
 	h := newContractHarness(t)
@@ -260,4 +281,121 @@ func contains(haystack, needle string) bool {
 		}
 	}
 	return false
+}
+
+/*
+Import d'un résultat vers une bibliothèque.
+
+Deux choses à prouver, et la seconde compte plus que la première : que le
+fichier arrive bien, et qu'on ne puisse pas faire télécharger n'importe quoi par
+l'instance.
+*/
+func TestIntegrationContractDiscoveryImport(t *testing.T) {
+	importableCBZ = comicfixture.BuildCBZ(t, comicfixture.Options{Pages: 3}).Data
+
+	h := newContractHarness(t)
+	catalogue := opdsCatalogue(t)
+
+	rec := h.expect(t, http.MethodPost, "/api/v1/discovery/sources", map[string]any{
+		"name": "Voisin",
+		"url":  catalogue.URL + "/opds",
+	}, http.StatusCreated)
+
+	var source struct {
+		ID string `json:"id"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &source); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Run("l'album arrive dans la bibliothèque", func(t *testing.T) {
+		rec := h.expect(t, http.MethodPost, "/api/v1/discovery/import", map[string]any{
+			"sourceId":  source.ID,
+			"href":      catalogue.URL + "/dl/garage.cbz",
+			"libraryId": h.libraryID.String(),
+			"folder":    "Importés",
+			"title":     "Le Garage hermétique",
+		}, http.StatusCreated)
+
+		var imported struct {
+			ComicID   string `json:"comicId"`
+			ObjectKey string `json:"objectKey"`
+			Format    string `json:"format"`
+			FileSize  int64  `json:"fileSize"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &imported); err != nil {
+			t.Fatal(err)
+		}
+
+		if imported.ComicID == "" {
+			t.Fatal("aucun album créé")
+		}
+		if imported.Format != "cbz" {
+			t.Errorf("format = %q", imported.Format)
+		}
+		if imported.FileSize != int64(len(importableCBZ)) {
+			t.Errorf("taille = %d, attendu %d", imported.FileSize, len(importableCBZ))
+		}
+		// Le nom vient de l'adresse, et le dossier demandé est respecté : c'est
+		// ce que l'indexation analysera ensuite.
+		if !strings.Contains(imported.ObjectKey, "Importés/garage.cbz") {
+			t.Errorf("clé = %q, attendue dans le dossier demandé", imported.ObjectKey)
+		}
+
+		// L'album est réellement consultable, pas seulement rendu par la
+		// réponse de l'import.
+		h.expect(t, http.MethodGet, "/api/v1/comics/"+imported.ComicID, nil, http.StatusOK)
+	})
+
+	t.Run("un lien sans nom est nommé par son titre", func(t *testing.T) {
+		rec := h.expect(t, http.MethodPost, "/api/v1/discovery/import", map[string]any{
+			"sourceId":  source.ID,
+			"href":      catalogue.URL + "/api/v1/books/42/file",
+			"libraryId": h.libraryID.String(),
+			"title":     "Arzach",
+		}, http.StatusCreated)
+
+		var imported struct {
+			ObjectKey string `json:"objectKey"`
+		}
+		if err := json.Unmarshal(rec.Body.Bytes(), &imported); err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(imported.ObjectKey, "Arzach.cbz") {
+			t.Errorf("clé = %q : un lien muet doit être nommé par son titre",
+				imported.ObjectKey)
+		}
+	})
+
+	t.Run("une adresse étrangère au catalogue est refusée", func(t *testing.T) {
+		// Le refus le plus important du module. Sans lui, cette route ferait
+		// télécharger n'importe quoi par l'instance, depuis l'intérieur de son
+		// réseau.
+		autre := opdsCatalogue(t)
+
+		h.expect(t, http.MethodPost, "/api/v1/discovery/import", map[string]any{
+			"sourceId":  source.ID,
+			"href":      autre.URL + "/dl/garage.cbz",
+			"libraryId": h.libraryID.String(),
+		}, http.StatusUnprocessableEntity)
+
+		h.expect(t, http.MethodPost, "/api/v1/discovery/import", map[string]any{
+			"sourceId":  source.ID,
+			"href":      "http://169.254.169.254/latest/meta-data/",
+			"libraryId": h.libraryID.String(),
+		}, http.StatusUnprocessableEntity)
+	})
+
+	t.Run("importer deux fois le même fichier est refusé", func(t *testing.T) {
+		// L'objet existe déjà : l'écraser remplacerait une édition par une
+		// autre et rendrait fausse la progression de lecture qui y est
+		// attachée.
+		h.expect(t, http.MethodPost, "/api/v1/discovery/import", map[string]any{
+			"sourceId":  source.ID,
+			"href":      catalogue.URL + "/dl/garage.cbz",
+			"libraryId": h.libraryID.String(),
+			"folder":    "Importés",
+			"title":     "Le Garage hermétique",
+		}, http.StatusUnprocessableEntity)
+	})
 }

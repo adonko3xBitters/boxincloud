@@ -31,6 +31,7 @@ package discovery
 import (
 	"context"
 	"errors"
+	"io"
 	"time"
 
 	"github.com/google/uuid"
@@ -144,13 +145,33 @@ type SearchResult struct {
 	Sources []SourceStatus `json:"sources"`
 }
 
+/*
+Fetched est un contenu ouvert chez un catalogue.
+
+Le corps n'est pas lu : il est passé tel quel au dépôt, pour qu'une intégrale
+de plusieurs centaines de méga-octets traverse le serveur sans jamais y tenir
+en entier.
+*/
+type Fetched struct {
+	Body io.ReadCloser
+	// Size vaut -1 quand le catalogue répond en flux fragmenté, ce qui est
+	// fréquent : le backend bascule alors sur un envoi en plusieurs parties.
+	Size int64
+	// Filename est celui que le catalogue déclare, vide s'il n'en déclare pas.
+	Filename    string
+	ContentType string
+}
+
 // Client interroge un catalogue d'un protocole donné.
 //
-// Déclarée au point d'usage : le service ne connaît que cette méthode, ce qui
-// permet de le tester sans réseau.
+// Déclarée au point d'usage : le service ne connaît que ces trois méthodes, ce
+// qui permet de le tester entièrement sans réseau.
 type Client interface {
 	Search(ctx context.Context, source Source, password string, q Query) ([]Result, error)
 	// Probe vérifie qu'un catalogue répond et expose une recherche, au moment
 	// où l'administrateur l'ajoute plutôt qu'à la première requête.
 	Probe(ctx context.Context, source Source, password string) error
+	// Open ouvre un lien d'acquisition chez le catalogue. À l'appelant de
+	// fermer le corps.
+	Open(ctx context.Context, source Source, password, href string) (Fetched, error)
 }

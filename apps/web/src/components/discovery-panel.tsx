@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Badge, Button, EmptyState, Input, Spinner, cx } from "./ui";
@@ -231,6 +231,7 @@ function SourceStatuses({ statuses }: { statuses: api.DiscoverySourceStatus[] })
 
 function ResultRow({ result }: { result: api.DiscoveryResult }) {
   const t = useT();
+  const [importing, setImporting] = useState(false);
   const download = result.acquisitions?.[0]?.href;
 
   return (
@@ -283,6 +284,15 @@ function ResultRow({ result }: { result: api.DiscoveryResult }) {
               {t("discovery.download")}
             </a>
           )}
+          {download && !importing && (
+            <button
+              type="button"
+              onClick={() => setImporting(true)}
+              className="pressable rounded border border-border px-2 py-1 text-meta text-fg hover:bg-surface-hover"
+            >
+              {t("discovery.import")}
+            </button>
+          )}
           {result.pageUrl && (
             <a
               href={result.pageUrl}
@@ -294,8 +304,123 @@ function ResultRow({ result }: { result: api.DiscoveryResult }) {
             </a>
           )}
         </div>
+
+        {download && importing && (
+          <ImportForm
+            result={result}
+            href={download}
+            onDone={() => setImporting(false)}
+          />
+        )}
       </div>
     </li>
+  );
+}
+
+/**
+ * Rapatrier un résultat.
+ *
+ * Le formulaire tient dans la ligne du résultat plutôt que dans une boîte de
+ * dialogue : c'est une action sur CETTE entrée, et l'ouvrir ailleurs obligerait
+ * à répéter de quoi on parle.
+ */
+function ImportForm({
+  result,
+  href,
+  onDone,
+}: {
+  result: api.DiscoveryResult;
+  href: string;
+  onDone: () => void;
+}) {
+  const t = useT();
+  const [library, setLibrary] = useState("");
+  const [folder, setFolder] = useState("");
+
+  const libraries = useQuery({
+    queryKey: ["libraries"],
+    queryFn: api.listLibraries,
+  });
+
+  // La bibliothèque sélectionnée doit toujours exister : sans ce recalage, une
+  // bibliothèque supprimée resterait choisie en coulisse pendant que la liste
+  // en affiche une autre, et l'import partirait vers un identifiant mort.
+  // Mémoïsé : `?? []` fabriquerait un tableau neuf à chaque rendu, et
+  // relancerait l'effet en boucle.
+  const items = useMemo(() => libraries.data?.libraries ?? [], [libraries.data]);
+  useEffect(() => {
+    const first = items[0];
+    if (first && !items.some((entry) => entry.id === library)) {
+      setLibrary(first.id);
+    }
+  }, [items, library]);
+
+  const run = useMutation({
+    mutationFn: () =>
+      api.discoveryImport({
+        sourceId: result.sourceId,
+        href,
+        libraryId: library,
+        folder: folder || undefined,
+        title: result.title,
+      }),
+  });
+
+  if (libraries.data && items.length === 0) {
+    return <p className="mt-2 text-meta text-danger">{t("discovery.import.noLibrary")}</p>;
+  }
+
+  if (run.isSuccess) {
+    return (
+      <p className="mt-2 text-meta text-muted">
+        {t("discovery.import.done")} — {run.data.objectKey}
+      </p>
+    );
+  }
+
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        run.mutate();
+      }}
+      className="mt-2 flex flex-col gap-2 rounded-md border border-border p-2"
+    >
+      <p className="text-meta text-subtle">{t("discovery.import.explain")}</p>
+
+      <div className="flex flex-wrap gap-2">
+        <label className="flex flex-col gap-1 text-meta text-muted">
+          {t("discovery.import.library")}
+          <select
+            value={library}
+            onChange={(event) => setLibrary(event.target.value)}
+            className="rounded border border-border bg-surface px-2 py-1 text-ui text-fg"
+          >
+            {items.map((entry) => (
+              <option key={entry.id} value={entry.id}>
+                {entry.name}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="flex flex-1 flex-col gap-1 text-meta text-muted">
+          {t("discovery.import.folder")}
+          <Input value={folder} onChange={(event) => setFolder(event.target.value)} />
+        </label>
+      </div>
+
+      {run.error && <p className="text-meta text-danger">{describeError(run.error, t)}</p>}
+
+      <div className="flex gap-2">
+        <Button type="submit" disabled={run.isPending || !library}>
+          {run.isPending ? t("discovery.import.running") : t("discovery.import")}
+        </Button>
+        <Button type="button" variant="ghost" onClick={onDone} disabled={run.isPending}>
+          {t("action.cancel")}
+        </Button>
+      </div>
+    </form>
   );
 }
 

@@ -2495,6 +2495,83 @@ paths:
         "401":
           $ref: "#/components/responses/Unauthorized"
 
+  /discovery/import:
+    post:
+      operationId: discoveryImport
+      summary: Rapatrier un résultat dans une bibliothèque
+      description: |
+        Le serveur télécharge chez le catalogue et écrit directement dans le
+        backend de stockage. Le fichier ne transite **pas** par le navigateur,
+        ce qui compte quand l'instance a une bien meilleure liaison que le
+        téléphone qui la pilote.
+
+        **`href` doit appartenir au catalogue désigné par `sourceId`** — même
+        schéma, même hôte, même port. Ce n'est pas une vérification de forme :
+        sans elle, la route serait un relais anonyme doublé d'un sondeur de
+        réseau interne, puisque c'est le client qui choisit l'adresse et le
+        serveur qui va la chercher. Une adresse étrangère est refusée avec la
+        règle `foreign-host` sur le champ `href`.
+
+        L'accès suit celui du téléversement — qui peut consulter une
+        bibliothèque peut l'alimenter — et non celui de l'administration des
+        catalogues.
+
+        Les règles d'écriture sont celles de l'ingestion : taille bornée,
+        signature du contenu vérifiée avant d'écrire, refus d'écraser un objet
+        existant, contrôle d'écriture sur le dossier de destination.
+
+        Comme le téléversement, cette route n'a pas le délai des requêtes
+        ordinaires : un import de plusieurs centaines de méga-octets dépasse
+        largement trente secondes.
+      tags: [discovery]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sourceId, href, libraryId]
+              properties:
+                sourceId:
+                  type: string
+                  format: uuid
+                  description: Le catalogue d'où vient le lien, et qui autorise l'adresse.
+                href:
+                  type: string
+                  description: Lien d'acquisition, tel que rendu par la recherche.
+                libraryId: { type: string, format: uuid }
+                folder:
+                  type: string
+                  description: Dossier de destination, relatif au préfixe de la bibliothèque.
+                title:
+                  type: string
+                  description: |
+                    Sert à nommer le fichier quand le catalogue ne donne rien de
+                    mieux. Ce n'est pas cosmétique : le nom devient la clé de
+                    l'objet, et l'indexation en tire série et tome. Komga et
+                    Kavita servent des liens comme `/api/v1/books/42/file`, qui
+                    ne disent rien.
+      responses:
+        "201":
+          description: Album importé et inscrit au catalogue
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [comicId, objectKey, title, format, fileSize]
+                properties:
+                  comicId: { type: string, format: uuid }
+                  objectKey: { type: string }
+                  title: { type: string }
+                  format: { type: string }
+                  fileSize: { type: integer, format: int64 }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
   /discovery/sources:
     get:
       operationId: listDiscoverySources

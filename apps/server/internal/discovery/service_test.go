@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -55,6 +56,11 @@ type fakeClient struct {
 	errs    map[uuid.UUID]error
 	delays  map[uuid.UUID]time.Duration
 	calls   int
+
+	// Contenus servis par Open, indexés par adresse.
+	files        map[string]string
+	filenames    map[string]string
+	contentTypes map[string]string
 }
 
 func (c *fakeClient) Search(
@@ -85,6 +91,28 @@ func (c *fakeClient) Search(
 		out[i].SourceName = source.Name
 	}
 	return out, nil
+}
+
+// Open sert le contenu que le catalogue de test est censé héberger.
+func (c *fakeClient) Open(
+	_ context.Context, source Source, _, href string,
+) (Fetched, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if err := c.errs[source.ID]; err != nil {
+		return Fetched{}, err
+	}
+	body := c.files[href]
+	if body == "" {
+		return Fetched{}, errors.New("404")
+	}
+	return Fetched{
+		Body:        io.NopCloser(strings.NewReader(body)),
+		Size:        int64(len(body)),
+		Filename:    c.filenames[href],
+		ContentType: c.contentTypes[href],
+	}, nil
 }
 
 func (c *fakeClient) Probe(_ context.Context, source Source, _ string) error {

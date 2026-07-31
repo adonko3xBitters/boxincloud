@@ -654,3 +654,25 @@ export const testDiscoverySource = (sourceId: string) =>
   request<{ ok: boolean; detail?: string }>(`/discovery/sources/${sourceId}/test`, {
     method: "POST",
   });
+
+/**
+ * Rapatrie un résultat dans une bibliothèque.
+ *
+ * `href` doit appartenir au catalogue désigné par `sourceId` : le serveur le
+ * vérifie et refuse tout le reste. Sans cette règle, la route ferait
+ * télécharger n'importe quoi par l'instance.
+ */
+export const discoveryImport = (input: {
+  sourceId: string;
+  href: string;
+  libraryId: string;
+  folder?: string;
+  title?: string;
+}) =>
+  request<{
+    comicId: string;
+    objectKey: string;
+    title: string;
+    format: string;
+    fileSize: number;
+  }>("/discovery/import", { method: "POST", body: input });

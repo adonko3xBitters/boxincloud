@@ -6,6 +6,7 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"net/url"
 	"strings"
@@ -688,4 +689,71 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+/*
+Open ouvre un lien d'acquisition chez le catalogue.
+
+Il ne partage pas le chemin de `fetch`, et pour trois raisons qui tiennent
+toutes au fait qu'on télécharge une œuvre et non un flux de métadonnées.
+
+Le corps n'est ni lu ni borné ici : il est rendu au service, qui le passe tel
+quel au dépôt. Une intégrale traverse le serveur sans jamais y tenir en entier,
+et la borne de taille est appliquée à l'écriture, là où elle protège vraiment le
+backend.
+
+Le délai est celui du contexte, pas les huit secondes d'une recherche : un
+catalogue lent doit être écarté d'une recherche fédérée, mais un téléchargement
+de trois cents méga-octets a le droit de durer.
+
+L'en-tête `Accept` est ouvert : on ne sait pas quel format le catalogue sert,
+et le lui imposer ferait échouer un lien parfaitement valide.
+*/
+func (c *OPDSClient) Open(
+	ctx context.Context, source Source, password, href string,
+) (Fetched, error) {
+	if err := netguard.Check(href); err != nil {
+		return Fetched{}, fmt.Errorf("%w : %w", ErrInvalidSource, err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, href, nil)
+	if err != nil {
+		return Fetched{}, fmt.Errorf("%w : %w", ErrInvalidSource, err)
+	}
+	req.Header.Set("Accept", "*/*")
+	req.Header.Set("User-Agent", "boxincloud")
+
+	if source.Username != "" {
+		req.SetBasicAuth(source.Username, password)
+	}
+
+	resp, err := c.http.Do(req)
+	if err != nil {
+		return Fetched{}, fmt.Errorf("téléchargement impossible : %w", err)
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		_ = resp.Body.Close()
+		return Fetched{}, fmt.Errorf("le catalogue a répondu %s", resp.Status)
+	}
+
+	return Fetched{
+		Body:        resp.Body,
+		Size:        resp.ContentLength,
+		Filename:    filenameFromDisposition(resp.Header.Get("Content-Disposition")),
+		ContentType: resp.Header.Get("Content-Type"),
+	}, nil
+}
+
+// filenameFromDisposition lit le nom déclaré par le catalogue, s'il en déclare
+// un.
+func filenameFromDisposition(disposition string) string {
+	if disposition == "" {
+		return ""
+	}
+	_, params, err := mime.ParseMediaType(disposition)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(params["filename"])
 }

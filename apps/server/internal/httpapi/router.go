@@ -273,7 +273,7 @@ func NewRouter(d Deps) http.Handler {
 			// Chercher est ouvert à tout compte. Déclarer un catalogue
 			// ne l'est pas : c'est une adresse que le SERVEUR ira
 			// joindre, ce qui en fait une décision d'administration.
-			discoveryHandler := handlers.NewDiscovery(d.Discovery, d.Catalog)
+			discoveryHandler := handlers.NewDiscovery(d.Discovery, d.Catalog, d.Ingest)
 
 			r.Get("/discovery/search", discoveryHandler.Search)
 			r.Get("/discovery/sources", discoveryHandler.ListSources)
@@ -327,6 +327,12 @@ func NewRouter(d Deps) http.Handler {
 
 			adminHandler := handlers.NewAdmin(d.Libraries, d.Catalog, d.Ingest, d.Cache)
 			r.Post("/libraries/{libraryID}/upload", adminHandler.Upload)
+
+			// L'import a exactement le même profil : un téléversement dont
+			// la source est distante. Il ne peut donc pas plus que lui
+			// tenir dans le délai des requêtes ordinaires.
+			discoveryHandler := handlers.NewDiscovery(d.Discovery, d.Catalog, d.Ingest)
+			r.Post("/discovery/import", discoveryHandler.Import)
 		})
 
 		/*

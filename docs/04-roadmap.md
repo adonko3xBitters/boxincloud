@@ -330,7 +330,7 @@ Environ **quatre mois** à temps partiel soutenu.
 Par ordre de valeur décroissante pour l'adoption :
 
 1. **OPDS sortant** — publier le catalogue de l'instance pour les lecteurs tiers. Le client OPDS existe déjà (recherche fédérée) ; c'est le serveur qui manque.
-2. **Découvrir : import** — la recherche fédérée est faite ; rapatrier un résultat dans une bibliothèque ne l'est pas. Voir la section dédiée ci-dessous.
+2. **Découvrir : métadonnées** — la recherche fédérée et l'import sont faits ; enrichir la collection existante ne l'est pas. Voir la section dédiée ci-dessous.
 3. **Import et téléversement** — déposer un fichier depuis le web ou le mobile vers un backend.
 4. **OIDC** — Authelia, Authentik, Keycloak. Très demandé par le public self-hosted.
 5. **Notifications push** — nouveautés dans une série suivie.
@@ -374,9 +374,24 @@ comme celle des backends de stockage — même garde-fou, désormais partagé da
 Déclarer un catalogue est réservé aux administrateurs ; chercher est ouvert à
 tout compte.
 
-Reste à faire : l'**import** d'un résultat vers un backend de stockage. Les
-liens d'acquisition sont rendus et ouvrables ; les rapatrier dans une
-bibliothèque est l'étape suivante (D2).
+**L'import est fait aussi.** Le serveur télécharge chez le catalogue et écrit
+directement dans le backend de stockage : le fichier ne transite pas par le
+navigateur, ce qui compte quand l'instance a une bien meilleure liaison que le
+téléphone qui la pilote.
+
+Une règle gouverne cette route : **l'adresse téléchargée doit appartenir au
+catalogue annoncé** — même schéma, même hôte, même port. Ce n'est pas une
+vérification de forme. C'est le client qui choisit l'adresse et le serveur qui
+va la chercher ; sans cette contrainte, la route serait un relais anonyme
+doublé d'un sondeur de réseau interne.
+
+Le reste des garde-fous est hérité de l'ingestion plutôt que réécrit : borne de
+taille appliquée au flux, signature du contenu vérifiée avant d'écrire, refus
+d'écraser un objet existant, contrôle d'écriture sur le dossier de destination.
+Les redire ici les aurait fait diverger.
+
+Reste à faire : les sources du domaine public en téléchargement direct (D2) et
+l'enrichissement de métadonnées (D3).
 
 ### Périmètre des sources
 
@@ -439,7 +454,8 @@ activable ou désactivable depuis l'administration.
 |---|---|---|
 | **D1** | Registre `discovery.Source`, recherche fédérée, interface web | **fait** |
 | **D4** | Fédération OPDS (client OPDS 1.2 + 2.0) | **fait** |
-| **D2** | Sources domaine public + import vers un backend de stockage | 1,5 sem |
+| **D2a** | Import d'un résultat vers un backend de stockage | **fait** |
+| **D2b** | Sources domaine public en téléchargement direct | 1 sem |
 | **D3** | Métadonnées + écran de rapprochement manuel | 2 sem |
 
 D1 et D4 ont été faits ensemble, et l'ordre initial était le mauvais : le client

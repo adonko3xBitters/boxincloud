@@ -635,6 +635,17 @@ export const fr = {
   "discovery.sources.lastError": "Dernier échec",
   "discovery.sources.confirmDelete": "Retirer ce catalogue ?",
   "discovery.sources.checking": "Essai en cours\u2026",
+
+  "discovery.import": "Importer",
+  "discovery.import.title": "Importer dans une bibliothèque",
+  "discovery.import.library": "Biblioth\u00e8que",
+  "discovery.import.folder": "Dossier",
+  "discovery.import.folderHint": "Laissez vide pour la racine de la biblioth\u00e8que.",
+  "discovery.import.running": "Téléchargement en cours\u2026",
+  "discovery.import.explain":
+    "Le serveur télécharge depuis le catalogue et écrit directement dans votre stockage : le fichier ne passe pas par ce navigateur.",
+  "discovery.import.done": "Importé",
+  "discovery.import.noLibrary": "Aucune biblioth\u00e8que o\u00f9 importer",
 } as const;
 
 /** Les clés du catalogue. Toute traduction doit les couvrir toutes. */

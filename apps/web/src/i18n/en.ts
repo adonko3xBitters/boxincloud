@@ -628,4 +628,15 @@ export const en: Record<MessageKey, string> = {
   "discovery.sources.lastError": "Last failure",
   "discovery.sources.confirmDelete": "Remove this catalogue?",
   "discovery.sources.checking": "Testing\u2026",
+
+  "discovery.import": "Import",
+  "discovery.import.title": "Import into a library",
+  "discovery.import.library": "Library",
+  "discovery.import.folder": "Folder",
+  "discovery.import.folderHint": "Leave empty for the library root.",
+  "discovery.import.running": "Downloading\u2026",
+  "discovery.import.explain":
+    "The server downloads from the catalogue and writes straight into your storage: the file does not pass through this browser.",
+  "discovery.import.done": "Imported",
+  "discovery.import.noLibrary": "No library to import into",
 };

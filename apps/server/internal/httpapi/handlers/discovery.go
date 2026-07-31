@@ -12,6 +12,7 @@ import (
 	"github.com/adonko3xBitters/boxincloud/server/internal/catalog"
 	"github.com/adonko3xBitters/boxincloud/server/internal/discovery"
 	"github.com/adonko3xBitters/boxincloud/server/internal/httpapi/problem"
+	"github.com/adonko3xBitters/boxincloud/server/internal/ingest"
 )
 
 /*
@@ -32,10 +33,13 @@ une reviendrait à lui offrir un sondeur de réseau interne.
 type Discovery struct {
 	svc     *discovery.Service
 	catalog *catalog.Service
+	ingest  *ingest.Service
 }
 
-func NewDiscovery(svc *discovery.Service, cat *catalog.Service) *Discovery {
-	return &Discovery{svc: svc, catalog: cat}
+func NewDiscovery(
+	svc *discovery.Service, cat *catalog.Service, ing *ingest.Service,
+) *Discovery {
+	return &Discovery{svc: svc, catalog: cat, ingest: ing}
 }
 
 // ─── Représentations ─────────────────────────────────────────────────────────
@@ -121,6 +125,131 @@ func (h *Discovery) localView(v catalog.Viewer) discovery.LocalCatalog {
 			titles = append(titles, series.Name)
 		}
 		return titles, nil
+	}
+}
+
+// ─── Import ──────────────────────────────────────────────────────────────────
+
+type importRequest struct {
+	SourceID  string `json:"sourceId"`
+	Href      string `json:"href"`
+	LibraryID string `json:"libraryId"`
+	Folder    string `json:"folder"`
+	Title     string `json:"title"`
+}
+
+/*
+Import rapatrie un résultat dans une bibliothèque.
+
+Le fichier ne passe pas par le navigateur : le serveur télécharge chez le
+catalogue et écrit directement dans le backend. C'est ce qui compte quand
+l'instance a une bien meilleure liaison que le téléphone qui la pilote.
+
+L'accès suit celui du téléversement — qui peut consulter une bibliothèque peut
+l'alimenter — et non celui de l'administration des catalogues. Déclarer un
+catalogue ouvre une adresse que le serveur ira joindre ; y puiser reste une
+opération de bibliothèque.
+*/
+func (h *Discovery) Import(w http.ResponseWriter, r *http.Request) {
+	v, ok := viewerFrom(w, r)
+	if !ok {
+		return
+	}
+
+	var req importRequest
+	if !decodeJSON(w, r, &req) {
+		return
+	}
+
+	sourceID, err := uuid.Parse(req.SourceID)
+	if err != nil {
+		problem.Write(w, r, problem.Validation(map[string]string{"sourceId": "invalid"}))
+		return
+	}
+	libraryID, err := uuid.Parse(req.LibraryID)
+	if err != nil {
+		problem.Write(w, r, problem.Validation(map[string]string{"libraryId": "invalid"}))
+		return
+	}
+
+	if !v.IsAdmin {
+		allowed, err := h.catalog.CanAccessLibrary(r.Context(), v, libraryID)
+		if err != nil {
+			writeInternal(w, r, err)
+			return
+		}
+		if !allowed {
+			problem.Write(w, r, problem.NotFound("library not found"))
+			return
+		}
+	}
+
+	deposited, err := h.svc.Import(r.Context(), discovery.ImportParams{
+		SourceID:  sourceID,
+		Href:      req.Href,
+		LibraryID: libraryID,
+		Folder:    req.Folder,
+		Title:     req.Title,
+	}, h.deposit)
+	if err != nil {
+		writeImportError(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusCreated, map[string]any{
+		"comicId":   deposited.ComicID,
+		"objectKey": deposited.ObjectKey,
+		"title":     deposited.Title,
+		"format":    deposited.Format,
+		"fileSize":  deposited.Size,
+	})
+}
+
+/*
+deposit branche l'import sur l'ingestion.
+
+L'adaptateur tient en dix lignes et vaut mieux qu'une dépendance directe : le
+paquet `discovery` décrit ce dont il a besoin, l'ingestion garde ses types, et
+les règles d'écriture — borne de taille sur le flux, signature vérifiée avant
+d'écrire, refus d'écraser, contrôle du dossier de destination — ne sont pas
+réécrites une seconde fois.
+*/
+func (h *Discovery) deposit(
+	ctx context.Context, p discovery.DepositParams,
+) (discovery.Deposited, error) {
+	result, err := h.ingest.Upload(ctx, ingest.UploadParams{
+		LibraryID: p.LibraryID,
+		Folder:    p.Folder,
+		Filename:  p.Filename,
+		Size:      p.Size,
+		Content:   p.Content,
+	})
+	if err != nil {
+		return discovery.Deposited{}, err
+	}
+	return discovery.Deposited{
+		ComicID:   result.ComicID,
+		ObjectKey: result.ObjectKey,
+		Title:     result.Title,
+		Format:    result.Format,
+		Size:      result.Size,
+	}, nil
+}
+
+func writeImportError(w http.ResponseWriter, r *http.Request, err error) {
+	switch {
+	case errors.Is(err, discovery.ErrForeignHost):
+		// Le refus le plus important du module : l'adresse n'appartient à aucun
+		// catalogue déclaré. Sans lui, la route serait un relais anonyme.
+		problem.Write(w, r, problem.Validation(map[string]string{"href": "foreign-host"}))
+	case errors.Is(err, discovery.ErrSourceNotFound):
+		problem.Write(w, r, problem.NotFound("discovery source not found"))
+	case errors.Is(err, discovery.ErrInvalidSource):
+		problem.Write(w, r, problem.Validation(map[string]string{"href": "invalid"}))
+	default:
+		// Tout ce qui vient de l'ingestion garde sa traduction : format refusé,
+		// contenu qui dément l'extension, objet déjà présent, dossier protégé.
+		writeIngestError(w, r, err)
 	}
 }
 
