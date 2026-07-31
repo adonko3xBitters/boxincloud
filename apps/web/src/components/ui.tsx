@@ -193,7 +193,7 @@ export function ErrorState({ error, onRetry }: { error: unknown; onRetry?: () =>
       action={
         onRetry && (
           <Button variant="secondary" onClick={onRetry}>
-            Réessayer
+            {t("action.retry")}
           </Button>
         )
       }

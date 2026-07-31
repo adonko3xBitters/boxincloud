@@ -121,7 +121,7 @@ function CreateFolder({
     <Shell title={t("folderDialog.newTitle")} onClose={onClose}>
       <form onSubmit={run} className="flex flex-col gap-3">
         <label className="flex flex-col gap-1">
-          <span className="text-micro uppercase tracking-wide text-subtle">Nom</span>
+          <span className="text-micro uppercase tracking-wide text-subtle">{t("storage.fieldName")}</span>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -202,7 +202,7 @@ function RenameFolder({
     <Shell title={t("folderDialog.renameTitle")} onClose={onClose}>
       <form onSubmit={run} className="flex flex-col gap-3">
         <label className="flex flex-col gap-1">
-          <span className="text-micro uppercase tracking-wide text-subtle">Nom</span>
+          <span className="text-micro uppercase tracking-wide text-subtle">{t("storage.fieldName")}</span>
           <input
             value={next}
             onChange={(e) => setNext(e.target.value)}
@@ -672,7 +672,7 @@ export function ShareFolder({
 
       <div className="flex justify-end">
         <button onClick={onClose} className={buttonClass("secondary", "sm")}>
-          Fermer
+          {t("action.close")}
         </button>
       </div>
     </Shell>
@@ -865,7 +865,7 @@ function PublicLink({
 
       <div className="mt-2.5 flex flex-wrap items-end gap-2">
         <label className="flex flex-col gap-1">
-          <span className="text-micro uppercase tracking-wide text-subtle">Nom</span>
+          <span className="text-micro uppercase tracking-wide text-subtle">{t("storage.fieldName")}</span>
           <input
             value={label}
             onChange={(e) => setLabel(e.target.value)}

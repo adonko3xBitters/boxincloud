@@ -58,6 +58,19 @@ compteur ait besoin de les voir.
  */
 const TEXT = /["'`]([A-ZÀ-Üa-zà-ü][^"'`\n]{3,})["'`]/g;
 
+/*
+Texte nu dans le JSX : `<button>Continuer</button>`.
+
+Il ne porte aucun guillemet et échappait donc entièrement au contrôle
+précédent — qui annonçait zéro chaîne restante alors qu'il n'avait simplement
+jamais regardé là. C'est le genre de trou qui rend une mesure rassurante et
+fausse, ce qui est pire que pas de mesure du tout.
+
+L'expression exige une majuscule ou un accent, et refuse ce qui contient une
+accolade : `{t("clé")}` est déjà traduit, et le compter serait absurde.
+*/
+const JSX_TEXT = />\s*([A-ZÀ-Üa-zà-ü][^<>{}\n]{2,}?)\s*</g;
+
 /** Ce qui ressemble à du texte mais n'en est pas. */
 const NOT_TEXT = [
   /^[a-z-]+$/, // identifiants, clés, noms de classes simples
@@ -128,11 +141,13 @@ for await (const file of walk(SRC)) {
     .replace(/^\s*\/\/.*$/gm, "");
 
   let count = 0;
-  for (const match of code.matchAll(TEXT)) {
-    const value = match[1];
-    if (NOT_TEXT.some((pattern) => pattern.test(value))) continue;
-    if (!FRENCH.test(value)) continue;
-    count += 1;
+  for (const pattern of [TEXT, JSX_TEXT]) {
+    for (const match of code.matchAll(pattern)) {
+      const value = match[1].trim();
+      if (NOT_TEXT.some((rule) => rule.test(value))) continue;
+      if (!FRENCH.test(value)) continue;
+      count += 1;
+    }
   }
 
   if (count > 0) {

@@ -741,7 +741,7 @@ export function GlobalDropZone({ children }: { children: React.ReactNode }) {
           <div className="rounded-xl border-2 border-dashed border-accent bg-surface/90 px-8 py-6 text-center shadow-2xl">
             <UploadIcon />
             <p className="mt-2 text-title font-semibold text-fg">{t("ingest.dropToAdd")}</p>
-            <p className="mt-1 text-meta text-muted">CBZ, CBR, PDF, ZIP, RAR</p>
+            <p className="mt-1 text-meta text-muted">{t("ingest.formatsShort")}</p>
           </div>
         </div>
       )}

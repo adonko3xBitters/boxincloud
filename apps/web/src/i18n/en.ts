@@ -488,4 +488,32 @@ export const en: Record<MessageKey, string> = {
   "storage.endpoint": "Endpoint",
   "storage.bucket": "Bucket",
   "account.language": "Language",
+
+  "login.subtitle": "Reach your library.",
+  "setup.createAccount": "Create the account",
+  "action.continue": "Continue",
+  "download.title": "boxincloud on your phone",
+  "download.subtitle":
+    "Your library, readable offline, with progress synchronised with this server.",
+  "download.androidWarning":
+    "Android will ask you to allow installation from this source: the app is not distributed through the Play Store.",
+  "download.allVersions": "All releases",
+  "download.noFile": "The button finds no file?",
+  "download.noFileDetail":
+    "No signed release has been published yet. A test build may exist. It installs and works, but will not update to the final release: you will have to uninstall it when the time comes.",
+  "download.testVersion": "test build",
+  "download.iosTitle": "iPhone and iPad",
+  "download.iosDetail":
+    "The iOS app is not published yet. In the meantime this site works on mobile: open it and add it to your home screen from the share menu.",
+  "accounts.pickFromLeft": "Pick an account on the left, or create one.",
+  "accounts.saved": "Saved.",
+  "detail.pickAlbum": "Select an album to see its details",
+  "detail.lockedFields":
+    "Edited fields are locked: a new scan will not overwrite them.",
+  "manage.destination": "Destination folder",
+  "manage.typeWord": "Type",
+  "search.hint": "Search the whole library",
+  "search.tolerance":
+    "Accents and typos are tolerated \u2014 \u201casterics\u201d finds \u201cAst\u00e9rix\u201d.",
+  "ingest.formatsShort": "CBZ, CBR, PDF, ZIP, RAR",
 };

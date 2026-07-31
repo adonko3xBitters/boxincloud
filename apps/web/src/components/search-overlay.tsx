@@ -278,11 +278,13 @@ function Group({ label, children }: { label: string; children: React.ReactNode }
 }
 
 function Hint() {
+  const t = useT();
+
   return (
     <div className="px-4 py-8 text-center">
-      <p className="text-ui text-muted">Cherchez dans toute la bibliothèque</p>
+      <p className="text-ui text-muted">{t("search.hint")}</p>
       <p className="mt-1.5 text-meta text-subtle">
-        Les accents et les fautes de frappe sont tolérés — « asterics » trouve « Astérix ».
+        {t("search.tolerance")}
       </p>
     </div>
   );

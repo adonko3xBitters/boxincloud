@@ -26,6 +26,7 @@ import {
  * téléphone est le seul moment pénible de l'installation ; l'écrire ici l'évite.
  */
 export default function Page() {
+  const t = useT();
   const [platform, setPlatform] = useState<Platform>("other");
   const [origin, setOrigin] = useState("");
 
@@ -42,11 +43,10 @@ export default function Page() {
 
       <div>
         <h1 className="text-2xl font-semibold leading-tight text-fg">
-          boxincloud sur votre téléphone
+          {t("download.title")}
         </h1>
         <p className="mt-2 leading-relaxed text-muted">
-          Votre bibliothèque, lisible hors ligne, avec la progression synchronisée
-          avec ce serveur.
+{t("download.subtitle")}
         </p>
       </div>
 
@@ -59,16 +59,15 @@ export default function Page() {
               "font-semibold text-accent-fg",
             )}
           >
-            Télécharger pour Android
+            {t("mobile.download")}
           </a>
           <p className="text-meta leading-relaxed text-subtle">
-            Android demandera d&apos;autoriser l&apos;installation depuis cette source :
-            l&apos;application n&apos;est pas distribuée par le Play Store.{" "}
+{t("download.androidWarning")}{" "}
             <a
               href={RELEASES_URL}
               className="text-accent-text underline underline-offset-2 hover:no-underline"
             >
-              Toutes les versions
+              {t("download.allVersions")}
             </a>
             .
           </p>
@@ -82,39 +81,32 @@ export default function Page() {
           */}
           <details className="text-meta text-subtle">
             <summary className="cursor-pointer select-none hover:text-muted">
-              Le bouton ne trouve pas de fichier ?
+              {t("download.noFile")}
             </summary>
-            <p className="mt-2 leading-relaxed">
-              Aucune version signée n&apos;a encore été publiée. Une{" "}
-              <a
-                href={ANDROID_TEST_APK_URL}
-                className="text-accent-text underline underline-offset-2 hover:no-underline"
-              >
-                version de test
-              </a>{" "}
-              existe peut-être. Elle s&apos;installe et fonctionne, mais ne se
-              mettra pas à jour vers la version définitive : il faudra la
-              désinstaller le moment venu.
-            </p>
+            <p className="mt-2 leading-relaxed">{t("download.noFileDetail")}</p>
+            <a
+              href={ANDROID_TEST_APK_URL}
+              className="mt-1 inline-block text-accent-text underline underline-offset-2 hover:no-underline"
+            >
+              {t("download.testVersion")}
+            </a>
           </details>
         </section>
       )}
 
       {platform !== "android" && (
         <section className="rounded-lg border border-border bg-surface-sunken p-4">
-          <h2 className="font-semibold text-fg">iPhone et iPad</h2>
+          <h2 className="font-semibold text-fg">{t("download.iosTitle")}</h2>
           <p className="mt-1 text-meta leading-relaxed text-muted">
-            L&apos;application iOS n&apos;est pas encore publiée. En attendant, ce
-            site fonctionne sur mobile : ouvrez-le et ajoutez-le à votre écran
-            d&apos;accueil depuis le menu de partage.
+{t("download.iosDetail")}
           </p>
         </section>
       )}
 
       <section className="flex flex-col gap-2">
-        <h2 className="font-semibold text-fg">L&apos;adresse de ce serveur</h2>
+        <h2 className="font-semibold text-fg">{t("mobile.serverAddress")}</h2>
         <p className="text-meta leading-relaxed text-muted">
-          À saisir dans l&apos;application, au premier lancement.
+{t("mobile.serverAddressHint")}
         </p>
         <ServerAddress origin={origin} />
       </section>

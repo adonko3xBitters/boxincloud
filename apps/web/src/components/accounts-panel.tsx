@@ -53,7 +53,7 @@ export function AccountsPanel({ onClose }: { onClose: () => void }) {
         {/* Liste des comptes */}
         <div className="flex w-64 shrink-0 flex-col border-r border-border bg-surface-sunken">
           <div className="flex items-center justify-between border-b border-border px-3 py-2.5">
-            <h2 className="text-ui font-semibold text-fg">Comptes</h2>
+            <h2 className="text-ui font-semibold text-fg">{t("accounts.title")}</h2>
             <span className="text-meta tabular-nums text-subtle">{list.length}</span>
           </div>
 
@@ -143,7 +143,7 @@ export function AccountsPanel({ onClose }: { onClose: () => void }) {
               />
             ) : (
               <p className="py-12 text-center text-ui text-subtle">
-                Choisissez un compte à gauche, ou créez-en un.
+                {t("accounts.pickFromLeft")}
               </p>
             )}
           </div>
@@ -349,7 +349,7 @@ function AccountForm({
         {error && <ErrorNote>{error}</ErrorNote>}
         {saved && !error && (
           <p className="rounded-md border border-success/40 bg-success/10 px-3 py-2 text-meta text-success">
-            Enregistré.
+            {t("accounts.saved")}
           </p>
         )}
 

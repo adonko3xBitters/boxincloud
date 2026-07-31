@@ -43,7 +43,7 @@ export function DetailPanel() {
     return (
       <aside className="hidden w-[340px] shrink-0 border-l border-border bg-surface-sunken p-4 xl:block">
         <p className="text-center text-meta text-subtle">
-          Sélectionnez un album pour voir son détail
+          {t("detail.pickAlbum")}
         </p>
       </aside>
     );
@@ -278,7 +278,7 @@ function EditForm({
       </label>
 
       <p className="text-micro leading-relaxed text-subtle">
-        Les champs modifiés sont verrouillés : un nouveau scan ne les écrasera pas.
+        {t("detail.lockedFields")}
       </p>
 
       <div className="flex gap-1.5">
@@ -286,7 +286,7 @@ function EditForm({
           {saving ? t("storage.saving") : t("action.save")}
         </button>
         <button type="button" onClick={onDone} className={buttonClass("secondary", "sm")}>
-          Annuler
+          {t("action.cancel")}
         </button>
       </div>
     </form>

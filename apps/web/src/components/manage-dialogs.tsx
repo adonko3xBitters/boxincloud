@@ -93,7 +93,7 @@ export function DeleteDialog({
       {needsTyping && (
         <label className="flex flex-col gap-1">
           <span className="text-meta text-muted">
-            Tapez <strong className="text-danger">supprimer</strong> pour confirmer.
+            {t("manage.typeWord")} <strong className="text-danger">supprimer</strong> pour confirmer.
           </span>
           <input
             value={confirmed}
@@ -108,7 +108,7 @@ export function DeleteDialog({
 
       <div className="flex justify-end gap-2">
         <button onClick={onClose} className={buttonClass("secondary", "sm")}>
-          Annuler
+          {t("action.cancel")}
         </button>
         <button
           onClick={() => void run()}
@@ -187,7 +187,7 @@ export function MoveDialog({
       <TargetList titles={titles} count={ids.length} />
 
       <label className="flex flex-col gap-1">
-        <span className="text-micro uppercase tracking-wide text-subtle">Dossier de destination</span>
+        <span className="text-micro uppercase tracking-wide text-subtle">{t("manage.destination")}</span>
         <input
           value={folder}
           onChange={(e) => setFolder(e.target.value)}
@@ -211,7 +211,7 @@ export function MoveDialog({
 
       <div className="flex justify-end gap-2">
         <button onClick={onClose} className={buttonClass("secondary", "sm")}>
-          Annuler
+          {t("action.cancel")}
         </button>
         <button onClick={() => void run()} disabled={busy} className={buttonClass("primary", "sm")}>
           {busy ? t("manage.moving") : t("manage.move")}

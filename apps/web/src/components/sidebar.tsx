@@ -402,7 +402,7 @@ function FolderMenu({
               onAction({ kind: "create", libraryId: folder.libraryId, parent: folder.path })
             }
           >
-            Nouveau sous-dossier
+            {t("folder.newChild")}
           </MenuItem>
 
           {!isRoot && (
@@ -418,7 +418,7 @@ function FolderMenu({
                   })
                 }
               >
-                Verrouiller…
+                {t("folder.lock")}
               </MenuItem>
               <MenuItem
                 onClick={() =>
@@ -430,7 +430,7 @@ function FolderMenu({
                   })
                 }
               >
-                Partager…
+                {t("folder.share")}
               </MenuItem>
               <MenuItem
                 onClick={() =>
@@ -442,7 +442,7 @@ function FolderMenu({
                   })
                 }
               >
-                Renommer
+                {t("folderDialog.rename")}
               </MenuItem>
               <MenuItem
                 destructive
@@ -455,7 +455,7 @@ function FolderMenu({
                   })
                 }
               >
-                Supprimer
+                {t("action.delete")}
               </MenuItem>
             </>
           )}

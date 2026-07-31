@@ -172,7 +172,7 @@ export default function SetupPage() {
               loading={submitting}
               disabled={password.length < MIN_PASSWORD}
             >
-              Créer le compte
+              {t("setup.createAccount")}
             </Button>
           </form>
         </div>
@@ -217,22 +217,8 @@ function SetupComplete({ onContinue }: { onContinue: () => void }) {
 {t("setup.nextSteps")}
           </p>
 
-          <div className="rounded-lg bg-surface-sunken p-4">
-            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-subtle">
-              {t("setup.fromServer")}
-            </p>
-            <pre className="overflow-x-auto text-xs leading-relaxed text-fg">
-              <code>{`boxincloudctl storage add monminio s3 \\
-    endpoint=localhost:9000 bucket=comics \\
-    access_key=… secret_key=… path_style=true
-
-boxincloudctl library add BD monminio bd/
-boxincloudctl scan-now BD`}</code>
-            </pre>
-          </div>
-
           <Button size="lg" className="mt-6 w-full" onClick={onContinue}>
-            Continuer
+            {t("action.continue")}
           </Button>
         </div>
       </div>

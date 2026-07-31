@@ -68,7 +68,7 @@ export default function LoginPage() {
 
         <div className="rounded-xl border border-border bg-surface p-6 shadow-[var(--shadow-md)]">
           <h1 className="mb-1 text-xl font-semibold">{t("login.title")}</h1>
-          <p className="mb-6 text-sm text-muted">Accédez à votre bibliothèque.</p>
+          <p className="mb-6 text-sm text-muted">{t("login.subtitle")}</p>
 
           <form onSubmit={onSubmit} className="flex flex-col gap-4">
             <Input

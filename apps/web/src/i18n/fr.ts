@@ -493,6 +493,34 @@ export const fr = {
   "storage.endpoint": "Endpoint",
   "storage.bucket": "Bucket",
   "account.language": "Langue",
+
+  "login.subtitle": "Accédez à votre bibliothèque.",
+  "setup.createAccount": "Créer le compte",
+  "action.continue": "Continuer",
+  "download.title": "boxincloud sur votre téléphone",
+  "download.subtitle":
+    "Votre bibliothèque, lisible hors ligne, avec la progression synchronisée avec ce serveur.",
+  "download.androidWarning":
+    "Android demandera d'autoriser l'installation depuis cette source : l'application n'est pas distribuée par le Play Store.",
+  "download.allVersions": "Toutes les versions",
+  "download.noFile": "Le bouton ne trouve pas de fichier ?",
+  "download.noFileDetail":
+    "Aucune version signée n'a encore été publiée. Une version de test existe peut-être. Elle s'installe et fonctionne, mais ne se mettra pas à jour vers la version définitive : il faudra la désinstaller le moment venu.",
+  "download.testVersion": "version de test",
+  "download.iosTitle": "iPhone et iPad",
+  "download.iosDetail":
+    "L'application iOS n'est pas encore publiée. En attendant, ce site fonctionne sur mobile : ouvrez-le et ajoutez-le à votre écran d'accueil depuis le menu de partage.",
+  "accounts.pickFromLeft": "Choisissez un compte à gauche, ou créez-en un.",
+  "accounts.saved": "Enregistré.",
+  "detail.pickAlbum": "Sélectionnez un album pour voir son détail",
+  "detail.lockedFields":
+    "Les champs modifiés sont verrouillés : un nouveau scan ne les écrasera pas.",
+  "manage.destination": "Dossier de destination",
+  "manage.typeWord": "Tapez",
+  "search.hint": "Cherchez dans toute la bibliothèque",
+  "search.tolerance":
+    "Les accents et les fautes de frappe sont tolérés — « asterics » trouve « Astérix ».",
+  "ingest.formatsShort": "CBZ, CBR, PDF, ZIP, RAR",
 } as const;
 
 /** Les clés du catalogue. Toute traduction doit les couvrir toutes. */
