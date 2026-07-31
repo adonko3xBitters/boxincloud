@@ -46,9 +46,27 @@ jobs:
             exit 1
           fi
 
-      - uses: golangci/golangci-lint-action@v6
+      # v9 et une version explicite, pas `latest`.
+      #
+      # `latest` sur l'action v6 installait golangci-lint v1.64.8 — la dernière
+      # des v1. Or `.golangci.yml` déclare `version: "2"`, que v1 ne sait pas
+      # lire, et ce binaire est compilé avec Go 1.24 quand le module cible
+      # 1.26.5 :
+      #
+      #   can't load config: the Go language version (go1.24) used to build
+      #   golangci-lint is lower than the targeted Go version (1.26.5)
+      #
+      # L'étape échouait donc à chaque exécution sans jamais analyser une ligne,
+      # ce qui est pire qu'une analyse absente : la CI paraissait sévère alors
+      # qu'elle ne vérifiait rien.
+      #
+      # La version est FIXÉE plutôt que flottante. Deux pannes de la même
+      # famille sont apparues le même jour — celle-ci, et une image Flutter
+      # `:stable` qui avait pris du retard. Un outil qui avance tout seul finit
+      # par casser une publication sans qu'une ligne de code ait bougé.
+      - uses: golangci/golangci-lint-action@v9
         with:
-          version: latest
+          version: v2.12.2
           working-directory: apps/server
 
   test:
