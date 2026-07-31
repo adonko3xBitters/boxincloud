@@ -12,6 +12,35 @@
 #
 # Construire depuis la racine du dépôt, pas depuis ce répertoire :
 #   docker build -f deploy/docker/Dockerfile -t boxincloud .
+#
+# ─── WITH_MOBILE ─────────────────────────────────────────────────────────────
+#
+# `--build-arg WITH_MOBILE=0` construit le serveur SANS l'application Android.
+# Le défaut est 1 : la CI et la publication ne changent pas de comportement, et
+# l'image officielle embarque toujours l'APK.
+#
+# Cette porte existe pour une raison précise, découverte en essayant. L'étape
+# mobile fait télécharger et exécuter le NDK Android par Gradle ; or le NDK ne
+# publie ses binaires hôtes qu'en x86-64 pour Linux. Sur une machine arm64 —
+# un Mac Apple Silicon, un serveur Ampere — le conteneur doit les émuler, et
+# l'émulation casse :
+#
+#   rosetta error: failed to open elf at /lib64/ld-linux-x86-64.so.2
+#   Process 'cmake' finished with non-zero exit value 133
+#
+# Sans cette porte, le serveur devenait donc INCONSTRUCTIBLE sur ces machines,
+# pour un APK dont il n'a pas besoin pour fonctionner. Le couplage n'est pas
+# gratuit et il ne doit pas être imposé à qui n'en veut pas.
+#
+# Ce qu'on ne perd pas : quand l'étape tourne — c'est-à-dire en CI et à la
+# publication — l'application et le serveur restent construits ensemble et
+# verrouillés sur la même version. La garantie défendue plus bas tient, elle
+# n'est simplement plus une condition pour compiler.
+#
+# Le côté Go était déjà prêt : `//go:embed all:dist` s'accommode d'un répertoire
+# vide, et `mobile.Available()` existe pour que la page de téléchargement
+# s'adapte au lieu de proposer un lien mort.
+ARG WITH_MOBILE=1
 
 # ─── Interface web ───────────────────────────────────────────────────────────
 
@@ -62,6 +91,24 @@ COPY apps/mobile ./
 
 RUN flutter build apk --release
 
+# ─── L'APK, présent ou absent ────────────────────────────────────────────────
+
+# Deux étapes qui rendent la MÊME chose — un répertoire `/apk` — et dont une
+# seule sera construite. C'est le seul moyen d'avoir un `COPY --from` conditionnel :
+# BuildKit ne construit que les étapes atteignables, donc avec WITH_MOBILE=0 la
+# chaîne Flutter n'est même pas téléchargée.
+FROM mobile AS apk-1
+RUN mkdir -p /apk && \
+    cp build/app/outputs/flutter-apk/app-release.apk /apk/boxincloud.apk
+
+# alpine plutôt qu'une image de plus : elle est déjà tirée pour l'étape finale.
+FROM alpine:3.21 AS apk-0
+RUN mkdir -p /apk
+
+# `WITH_MOBILE` est déclaré tout en haut, AVANT le premier `FROM` : c'est la
+# seule portée depuis laquelle un argument peut être lu dans une ligne `FROM`.
+FROM apk-${WITH_MOBILE} AS apk
+
 # ─── Serveur ─────────────────────────────────────────────────────────────────
 
 # Construit sur l'architecture du constructeur et croise-compile vers la cible.
@@ -82,9 +129,12 @@ COPY apps/server ./
 COPY --from=web /src/apps/web/out ./web/dist
 
 # L'APK de même : embarqué à la compilation, servi par l'instance.
-COPY --from=mobile \
-     /src/apps/mobile/build/app/outputs/flutter-apk/app-release.apk \
-     ./mobile/dist/boxincloud.apk
+#
+# Le contenu du répertoire, pas le fichier : avec WITH_MOBILE=0 il est vide, et
+# `COPY` d'un fichier absent ferait échouer la construction là où on veut
+# précisément qu'elle continue. Le `.gitkeep` déjà présent dans `dist/` suffit à
+# ce que `//go:embed all:dist` compile.
+COPY --from=apk /apk/. ./mobile/dist/
 
 ARG TARGETOS
 ARG TARGETARCH

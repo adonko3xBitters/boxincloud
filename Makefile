@@ -200,9 +200,23 @@ build-apk: ## Compile l'application Android dans le répertoire embarqué du ser
 .PHONY: build-all
 build-all: build-web build ## Compile le web puis le binaire complet
 
+# WITH_MOBILE=0 construit le serveur sans l'application Android.
+#
+# Nécessaire sur une machine arm64 — Mac Apple Silicon, serveur Ampere : le NDK
+# Android ne publie ses binaires hôtes qu'en x86-64, l'émulation les casse, et
+# l'image devenait inconstructible pour un APK dont le serveur n'a pas besoin.
+# Voir l'en-tête du Dockerfile.
+WITH_MOBILE ?= 1
+
 .PHONY: docker
-docker: ## Construit l'image Docker
-	docker build -f deploy/docker/Dockerfile -t boxincloud:$(VERSION) .
+docker: ## Construit l'image Docker (WITH_MOBILE=0 pour se passer d'Android)
+	docker build -f deploy/docker/Dockerfile \
+		--build-arg WITH_MOBILE=$(WITH_MOBILE) \
+		-t boxincloud:$(VERSION) .
+
+.PHONY: docker-server
+docker-server: ## Image serveur seule, sans la chaîne Android
+	$(MAKE) docker WITH_MOBILE=0
 
 .PHONY: clean
 clean: ## Supprime les artefacts de build
