@@ -175,56 +175,68 @@ make migrate-new name=xxx
 
 ---
 
-## Publication mobile
+## Distribution de l'application mobile
 
-L'interface web propose l'application Android derrière un code QR
-(« Application mobile » dans le menu de compte). Le code mène à
-`/telecharger`, page publique servie par l'instance elle-même : le téléphone
-qui scanne apprend ainsi l'adresse du serveur — celle par laquelle il vient
-d'arriver — en même temps qu'il récupère l'application.
+L'instance sert elle-même l'APK. Le code QR de l'interface (« Application
+mobile » dans le menu de compte) mène à `/telecharger`, page publique servie
+par l'instance, dont le bouton pointe vers `/api/v1/app/android.apk` — servi
+par la même instance.
 
-L'APK n'est pas servi par l'instance mais par les versions GitHub du projet.
-Il pèse une soixantaine de mégaoctets, identiques d'une installation à l'autre :
-les embarquer dans chaque image self-hosted les ferait payer à tout le monde
-pour un fichier que la plupart ne serviront jamais.
+**Rien ne sort de votre réseau.** Le téléphone qui scanne ne parle à aucun
+service tiers, et une installation coupée d'Internet fonctionne exactement
+comme les autres. C'est la moindre des choses pour un projet auto-hébergé
+qu'aucun magasin d'applications ne distribue.
 
-Le lien pointe vers `releases/latest/download/boxincloud-android.apk`, sans
-numéro de version. Une instance qui n'a pas été mise à jour depuis six mois
-propose donc quand même l'application courante — c'est le protocole qui est
-versionné, pas le client. **Ce nom d'artefact est un contrat** entre
-`.github/workflows/release-mobile.yml` et `apps/web/src/lib/mobile-app.ts` :
-le renommer casserait le bouton de téléchargement de toutes les instances déjà
-déployées, sans que rien n'échoue à la construction.
+Le bénéfice moins visible est plus durable : l'application et le serveur sont
+construits ensemble, donc **verrouillés sur la même version**. Il n'existe
+aucun couple app/serveur non testé, et donc aucune dérive de compatibilité à
+gérer — ni côté protocole, ni côté message d'erreur.
 
-### Secrets requis
+### Ce que cela coûte
 
-La publication est déclenchée par un tag `v*`. Elle échoue franchement si la
-clé de signature manque, plutôt que de produire un APK signé avec la clé de
-debug : Android identifie une application par sa clé autant que par son
-identifiant, et publier une fois avec la clé de debug interdirait toute mise à
-jour signée autrement.
+L'image passe d'environ quinze à quatre-vingts méga-octets. C'est le bon
+échange pour ce public : un self-hosted tire son image une fois, et n'a pas
+envie de dépendre de la disponibilité d'un tiers pour installer l'application
+de sa propre bibliothèque.
 
-| Secret | Contenu |
-| --- | --- |
-| `ANDROID_KEYSTORE_BASE64` | Le fichier `.jks`, encodé en base64 |
-| `ANDROID_KEYSTORE_PASSWORD` | Mot de passe du magasin |
-| `ANDROID_KEY_ALIAS` | Alias de la clé |
-| `ANDROID_KEY_PASSWORD` | Mot de passe de la clé |
+### Compiler
 
-Créer la clé, une fois pour toutes — et la sauvegarder ailleurs qu'ici, sa
-perte étant définitive :
+```sh
+make build-apk    # produit apps/server/mobile/dist/boxincloud.apk
+make build        # l'embarque dans le binaire
+```
+
+La cible est **séparée de `make build`** : un contributeur backend n'a aucune
+raison d'installer Flutter pour compiler le serveur. Un binaire sans
+application fonctionne, et la page de téléchargement le dit plutôt que
+d'afficher un bouton qui répondrait 404.
+
+L'image Docker, elle, construit toujours l'APK — c'est une étape dédiée du
+`Dockerfile`, jetée après avoir livré ses soixante méga-octets.
+
+### Signature
+
+L'APK est signé avec la clé de release si `android/key.properties` existe,
+avec la clé de debug sinon. Sur une instance auto-hébergée qui sert sa propre
+application, la clé de debug fonctionne — mais **Android identifie une
+application par sa clé** : changer de clé entre deux versions oblige à
+désinstaller avant de réinstaller.
+
+Produire une vraie clé, une fois pour toutes, et la sauvegarder ailleurs que
+dans le dépôt :
 
 ```sh
 keytool -genkey -v -keystore release.jks -keyalg RSA -keysize 2048 \
         -validity 10000 -alias boxincloud
-base64 -i release.jks | pbcopy   # à coller dans ANDROID_KEYSTORE_BASE64
 ```
 
-Sans ces secrets, la publication ne bloque pas : elle produit un APK signé
-avec la clé de debug, nommé `boxincloud-android-non-signe.apk`. Il s.installe
-et fonctionne, mais son identité est figée sur une clé publiquement connue —
-il ne se mettra jamais à jour vers la version signée. La page /telecharger le
-dit avant de le proposer. C.est un dépannage, pas une distribution.
+Puis `apps/mobile/android/key.properties` :
 
-En local, aucun secret n'est nécessaire : sans `android/key.properties`, la
-release retombe sur la clé de debug et `flutter run --release` fonctionne.
+```
+storeFile=release.jks
+storePassword=…
+keyAlias=boxincloud
+keyPassword=…
+```
+
+Ce fichier n'est jamais versionné.

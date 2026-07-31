@@ -1,32 +1,34 @@
+import { API_BASE } from "./api/client";
+
 /**
  * Où trouver l'application mobile.
  *
- * L'APK est publié sur les versions GitHub du projet plutôt que servi par
- * l'instance : il pèse quelques dizaines de mégaoctets, que chaque installation
- * self-hosted aurait alors à embarquer dans son image — pour un fichier
- * identique partout, et que la plupart des instances ne serviront jamais.
+ * **L'instance la sert elle-même.** Le téléphone qui scanne le code QR ne parle
+ * jamais à un service tiers, et une installation coupée d'Internet fonctionne
+ * exactement comme les autres — ce qui est la moindre des choses pour un projet
+ * auto-hébergé qu'aucun magasin d'applications ne distribue.
  *
- * L'alias `latest` évite de coupler la page à un numéro de version : une
- * instance qui n'a pas été mise à jour depuis six mois pointe quand même vers
- * l'application courante, ce qui est le comportement voulu — le protocole est
- * versionné, pas le client.
+ * Le bénéfice moins visible est plus durable : l'application et le serveur sont
+ * construits ensemble, donc verrouillés sur la même version. Il n'existe aucun
+ * couple app/serveur non testé, et donc aucune dérive de compatibilité à gérer.
+ *
+ * Le prix est une image Docker qui passe de quinze à quatre-vingts méga-octets.
+ * C'est le bon échange pour ce public : un self-hosted tire son image une fois,
+ * et n'a pas envie de dépendre de la disponibilité d'un tiers pour installer
+ * l'application de sa propre bibliothèque.
  */
+
 export const REPO_URL = "https://github.com/adonko3xBitters/boxincloud";
 
-export const ANDROID_APK_URL = `${REPO_URL}/releases/latest/download/boxincloud-android.apk`;
+/** L'APK, servi par cette instance. */
+export const ANDROID_APK_URL = `${API_BASE}/app/android.apk`;
 
-/**
- * L'APK de test, signé avec la clé de debug.
- *
- * Publié tant qu'aucune clé de release n'existe, pour que le code QR mène à
- * quelque chose dès la première version. Il porte un autre nom, exprès :
- * Android identifie une application par sa clé autant que par son identifiant,
- * et la clé de debug est publiquement connue — passer ensuite à une vraie clé
- * exigera une désinstallation. Personne ne doit l'installer sans le savoir.
- */
-export const ANDROID_TEST_APK_URL = `${REPO_URL}/releases/latest/download/boxincloud-android-non-signe.apk`;
-
-export const RELEASES_URL = `${REPO_URL}/releases/latest`;
+/** Ce que l'instance embarque, pour ne proposer que ce qui existe. */
+export type AppInfo = {
+  android: boolean;
+  version: string;
+  sizeBytes: number;
+};
 
 export type Platform = "android" | "ios" | "other";
 
@@ -46,4 +48,10 @@ export function detectPlatform(userAgent: string): Platform {
   if (/iphone|ipad|ipod/.test(ua)) return "ios";
 
   return "other";
+}
+
+/** Taille lisible, pour annoncer le poids avant de lancer le téléchargement. */
+export function formatSize(bytes: number): string {
+  if (bytes <= 0) return "";
+  return `${Math.round(bytes / (1024 * 1024))} Mo`;
 }

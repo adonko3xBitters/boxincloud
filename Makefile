@@ -180,6 +180,23 @@ build-web: ## Compile l'application web dans le répertoire embarqué du serveur
 	@# Le répertoire doit rester versionné même vide : `//go:embed` échoue sinon.
 	@touch $(SERVER_DIR)/web/dist/.gitkeep
 
+.PHONY: build-apk
+build-apk: ## Compile l'application Android dans le répertoire embarqué du serveur
+	@# L'instance sert elle-même l'APK : le téléphone qui scanne le code QR ne
+	@# parle jamais à un service tiers, et une installation coupée d'Internet
+	@# fonctionne comme les autres.
+	@#
+	@# La cible est séparée de `build` : un contributeur backend n'a aucune
+	@# raison d'installer Flutter pour compiler le serveur, et le binaire
+	@# fonctionne sans — la page de téléchargement s'adapte alors.
+	cd $(MOBILE_DIR) && flutter pub get && flutter build apk --release
+	rm -rf $(SERVER_DIR)/mobile/dist
+	mkdir -p $(SERVER_DIR)/mobile/dist
+	cp $(MOBILE_DIR)/build/app/outputs/flutter-apk/app-release.apk \
+	   $(SERVER_DIR)/mobile/dist/boxincloud.apk
+	@touch $(SERVER_DIR)/mobile/dist/.gitkeep
+	@echo "→ APK embarqué : $$(du -h $(SERVER_DIR)/mobile/dist/boxincloud.apk | cut -f1)"
+
 .PHONY: build-all
 build-all: build-web build ## Compile le web puis le binaire complet
 

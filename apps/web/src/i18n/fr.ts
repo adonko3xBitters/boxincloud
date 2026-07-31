@@ -576,6 +576,13 @@ export const fr = {
   "comic.indexing": "Indexation…",
   "comic.hydrating": "Conversion…",
   "comic.failed": "Échec de l'indexation",
+
+  "download.notBundled": "Cette instance n'embarque pas l'application",
+  "download.notBundledDetail":
+    "L'application Android est construite avec le serveur. Cette instance a été compilée sans elle — `make build-apk` la produit, et l'image officielle l'embarque toujours.",
+  "download.servedByInstance":
+    "L'application est servie par ce serveur, pas par un tiers : rien ne sort de votre réseau, et sa version correspond exactement à celle de votre instance.",
+  "download.size": "{size}",
 } as const;
 
 /** Les clés du catalogue. Toute traduction doit les couvrir toutes. */

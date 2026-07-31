@@ -572,4 +572,11 @@ export const en: Record<MessageKey, string> = {
   "comic.indexing": "Indexing\u2026",
   "comic.hydrating": "Converting\u2026",
   "comic.failed": "Indexing failed",
+
+  "download.notBundled": "This instance does not bundle the app",
+  "download.notBundledDetail":
+    "The Android app is built alongside the server. This instance was compiled without it \u2014 `make build-apk` produces it, and the official image always bundles it.",
+  "download.servedByInstance":
+    "The app is served by this server, not by a third party: nothing leaves your network, and its version matches your instance exactly.",
+  "download.size": "{size}",
 };

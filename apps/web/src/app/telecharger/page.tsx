@@ -7,11 +7,12 @@ import { cx } from "@/components/ui";
 import { useT } from "@/i18n";
 import {
   ANDROID_APK_URL,
-  ANDROID_TEST_APK_URL,
-  RELEASES_URL,
   detectPlatform,
+  formatSize,
+  type AppInfo,
   type Platform,
 } from "@/lib/mobile-app";
+import { API_BASE } from "@/lib/api/client";
 
 /**
  * Page d'installation de l'application mobile.
@@ -30,11 +31,21 @@ export default function Page() {
   const [platform, setPlatform] = useState<Platform>("other");
   const [origin, setOrigin] = useState("");
 
+  // Ce que l'instance embarque réellement. Sans cette question, la page
+  // proposerait un bouton qui répondrait 404 sur un binaire compilé sans
+  // application — le cas normal en développement backend.
+  const [app, setApp] = useState<AppInfo | null>(null);
+
   // Rien de tout cela n'existe au rendu statique : la page est exportée à la
   // construction, sans savoir sous quelle adresse ni sur quel appareil.
   useEffect(() => {
     setPlatform(detectPlatform(navigator.userAgent));
     setOrigin(window.location.origin);
+
+    fetch(`${API_BASE}/app`)
+      .then((response) => (response.ok ? response.json() : null))
+      .then(setApp)
+      .catch(() => setApp(null));
   }, []);
 
   return (
@@ -52,45 +63,44 @@ export default function Page() {
 
       {platform !== "ios" && (
         <section className="flex flex-col gap-3">
-          <a
-            href={ANDROID_APK_URL}
-            className={cx(
-              "pressable grid h-11 place-items-center rounded-lg bg-accent px-4",
-              "font-semibold text-accent-fg",
-            )}
-          >
-            {t("mobile.download")}
-          </a>
-          <p className="text-meta leading-relaxed text-subtle">
-{t("download.androidWarning")}{" "}
-            <a
-              href={RELEASES_URL}
-              className="text-accent-text underline underline-offset-2 hover:no-underline"
-            >
-              {t("download.allVersions")}
-            </a>
-            .
-          </p>
+          {app?.android === false ? (
+            /*
+              Un binaire compilé sans application — le cas normal en
+              développement backend, où personne n'a Flutter. On le dit plutôt
+              que d'afficher un bouton qui répondrait 404.
+            */
+            <div className="rounded-lg border border-border bg-surface-sunken p-4">
+              <h2 className="font-semibold text-fg">{t("download.notBundled")}</h2>
+              <p className="mt-1 text-meta leading-relaxed text-muted">
+                {t("download.notBundledDetail")}
+              </p>
+            </div>
+          ) : (
+            <>
+              <a
+                href={ANDROID_APK_URL}
+                className={cx(
+                  "pressable flex h-11 items-center justify-center gap-2 rounded-lg bg-accent px-4",
+                  "font-semibold text-accent-fg",
+                )}
+              >
+                {t("mobile.download")}
+                {app && app.sizeBytes > 0 && (
+                  <span className="font-normal opacity-80">
+                    {formatSize(app.sizeBytes)}
+                  </span>
+                )}
+              </a>
 
-          {/*
-            Le lien de test est là parce qu'il doit y être tant qu'aucune clé
-            de signature n'existe — mais en second, et en le disant. Un APK
-            signé avec la clé de debug s'installe très bien ; il ne se met
-            simplement jamais à jour vers la version signée, ce qui se découvre
-            trop tard si personne ne l'a écrit.
-          */}
-          <details className="text-meta text-subtle">
-            <summary className="cursor-pointer select-none hover:text-muted">
-              {t("download.noFile")}
-            </summary>
-            <p className="mt-2 leading-relaxed">{t("download.noFileDetail")}</p>
-            <a
-              href={ANDROID_TEST_APK_URL}
-              className="mt-1 inline-block text-accent-text underline underline-offset-2 hover:no-underline"
-            >
-              {t("download.testVersion")}
-            </a>
-          </details>
+              <p className="text-meta leading-relaxed text-subtle">
+                {t("download.androidWarning")}
+              </p>
+
+              <p className="text-meta leading-relaxed text-subtle">
+                {t("download.servedByInstance")}
+              </p>
+            </>
+          )}
         </section>
       )}
 

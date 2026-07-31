@@ -32,6 +32,36 @@ COPY apps/web ./apps/web
 
 RUN cd apps/web && npm run build
 
+# ─── Application Android ─────────────────────────────────────────────────────
+
+# L'APK est construit ICI, dans la même image que le serveur, et embarqué dans
+# le binaire. L'instance le sert donc elle-même : le téléphone qui scanne le
+# code QR ne parle jamais à un service tiers, et une installation coupée
+# d'Internet fonctionne comme les autres.
+#
+# Le bénéfice moins visible est plus durable : l'application et le serveur sont
+# construits ensemble, donc verrouillés sur la même version. Il n'existe aucun
+# couple app/serveur non testé.
+#
+# L'étape est la plus lourde de la construction — le SDK Flutter et la chaîne
+# Android pèsent plusieurs gigaoctets. Elle est jetée à la fin ; seuls les
+# soixante méga-octets de l'APK survivent.
+FROM --platform=$BUILDPLATFORM ghcr.io/cirruslabs/flutter:stable AS mobile
+
+WORKDIR /src/apps/mobile
+
+# Les manifestes d'abord : tant qu'ils ne changent pas, la résolution des
+# dépendances est réutilisée d'une construction à l'autre.
+COPY apps/mobile/pubspec.yaml apps/mobile/pubspec.lock ./
+RUN flutter pub get
+
+COPY packages ../../packages
+COPY api ../../api
+COPY tools ../../tools
+COPY apps/mobile ./
+
+RUN flutter build apk --release
+
 # ─── Serveur ─────────────────────────────────────────────────────────────────
 
 # Construit sur l'architecture du constructeur et croise-compile vers la cible.
@@ -50,6 +80,11 @@ COPY apps/server ./
 # L'interface compilée est embarquée par `//go:embed all:dist` : elle doit être
 # en place AVANT la compilation, sinon le binaire sert une page blanche.
 COPY --from=web /src/apps/web/out ./web/dist
+
+# L'APK de même : embarqué à la compilation, servi par l'instance.
+COPY --from=mobile \
+     /src/apps/mobile/build/app/outputs/flutter-apk/app-release.apk \
+     ./mobile/dist/boxincloud.apk
 
 ARG TARGETOS
 ARG TARGETARCH

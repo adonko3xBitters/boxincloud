@@ -52,3 +52,8 @@ build/
 apps/mobile/android/key.properties
 *.jks
 *.keystore
+
+# Application Android embarquée : construite par `make build-apk`, jamais
+# versionnée — soixante méga-octets de binaire n'ont rien à faire dans un dépôt.
+apps/server/mobile/dist/*
+!apps/server/mobile/dist/.gitkeep

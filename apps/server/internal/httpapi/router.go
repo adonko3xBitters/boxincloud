@@ -130,6 +130,7 @@ func NewRouter(d Deps) http.Handler {
 	}
 
 	health := handlers.NewHealth(d.DB, d.Build)
+	mobileHandler := handlers.NewMobile(d.Build)
 
 	// Sondes hors /api : elles ne font pas partie du contrat public et ne
 	// doivent pas être versionnées avec lui.
@@ -140,6 +141,21 @@ func NewRouter(d Deps) http.Handler {
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Get("/version", health.Version)
+
+		/*
+			L'application Android, servie par l'instance elle-même.
+
+			Publique, et elle ne peut pas être autre chose : on y arrive en
+			scannant un code QR depuis un téléphone qui n'a par construction ni
+			application installée ni session ouverte. Exiger un jeton reviendrait
+			à demander de se connecter dans l'application pour pouvoir
+			l'installer.
+
+			Ce n'est pas une fuite : l'APK est le même pour tout le monde, publié
+			sous licence AGPL, et ne contient aucune donnée de l'instance.
+		*/
+		r.Get("/app/android.apk", mobileHandler.APK)
+		r.Get("/app", mobileHandler.Info)
 
 		// ── Routes publiques ────────────────────────────────────────────
 		r.Route("/auth", func(r chi.Router) {

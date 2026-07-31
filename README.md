@@ -61,8 +61,12 @@ changer, et pourquoi.
 ### Sur téléphone
 
 Depuis l'interface web : menu du compte → **Application mobile**. Un code QR mène à une
-page qui propose l'APK Android et rappelle l'adresse du serveur, à saisir au premier
-lancement. iOS n'est pas encore publié.
+page servie par votre instance, qui propose l'APK Android et rappelle l'adresse du
+serveur.
+
+**L'application est servie par votre serveur**, pas par un magasin ni par un tiers :
+elle est embarquée dans l'image, donc rien ne sort de votre réseau et sa version
+correspond exactement à celle de votre instance. iOS n'existe pas encore.
 
 ## Ce qui marche aujourd'hui
 

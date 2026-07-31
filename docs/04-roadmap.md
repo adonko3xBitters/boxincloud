@@ -235,7 +235,7 @@ page.
 - [x] Passe de sécurité : limitation de débit, en-têtes, protection SSRF sur les URL de backend, `SECURITY.md`.
 - [x] Tests de charge sur une bibliothèque de 10 000 titres.
 - [x] Étiquettes préparées dans `.github/labels.yml`.
-- [x] Distribution mobile : workflow de publication de l'APK sur les versions GitHub.
+- [x] Distribution mobile : **l'APK est embarqué dans l'image et servi par l'instance**.
 - [ ] Roadmap publique en GitHub Projects — action sortante, à faire par le mainteneur.
 - [ ] TestFlight — demande un compte Apple Developer et Xcode, absents de la machine.
 
