@@ -38,6 +38,15 @@ class CachedComics extends Table {
   TextColumn get coverPlaceholder => text().nullable()();
 
   IntColumn get fileSize => integer().withDefault(const Constant(0))();
+
+  /// Date d'ajout au catalogue, telle que le serveur la donne.
+  ///
+  /// Distincte de `cachedAt`, qui dit quand *cet appareil* a vu l'album. Les
+  /// deux divergent dès le premier téléphone qui se connecte à une
+  /// bibliothèque existante : tout y aurait été « ajouté » le même jour.
+  /// Nullable pour les lignes écrites avant que la colonne n'existe ; le
+  /// premier rafraîchissement les remplit.
+  DateTimeColumn get createdAt => dateTime().nullable()();
   DateTimeColumn get cachedAt => dateTime()();
 
   @override
@@ -101,6 +110,20 @@ class LocalProgress extends Table {
   Set<Column> get primaryKey => {comicId, serverId};
 }
 
+/// Favoris du compte, par serveur.
+///
+/// Une table à part plutôt qu'une colonne sur `CachedComics` : le cache des
+/// albums est remplacé en bloc à chaque rafraîchissement, ce qui effacerait la
+/// marque. Les favoris viennent d'ailleurs d'un autre appel — ils appartiennent
+/// au compte, pas au catalogue.
+class Favorites extends Table {
+  TextColumn get serverId => text()();
+  TextColumn get comicId => text()();
+
+  @override
+  Set<Column> get primaryKey => {serverId, comicId};
+}
+
 /// Préférences locales, en clé-valeur.
 ///
 /// Pas dans le stockage sécurisé, qui garde les jetons : chiffrer un sens de
@@ -125,6 +148,7 @@ class Preferences extends Table {
     CachedFolders,
     CachedLibraries,
     LocalProgress,
+    Favorites,
     Preferences,
   ],
 )
@@ -135,7 +159,7 @@ class BoxDatabase extends _$BoxDatabase {
   BoxDatabase.forTesting(super.executor);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   /*
   Migrations.
@@ -151,6 +175,10 @@ class BoxDatabase extends _$BoxDatabase {
         onCreate: (m) => m.createAll(),
         onUpgrade: (m, from, to) async {
           if (from < 2) await m.createTable(preferences);
+          if (from < 3) {
+            await m.createTable(favorites);
+            await m.addColumn(cachedComics, cachedComics.createdAt);
+          }
         },
       );
 
@@ -205,6 +233,110 @@ class BoxDatabase extends _$BoxDatabase {
 
     query.orderBy([(c) => OrderingTerm(expression: c.title)]);
     return query.get();
+  }
+
+  // ─── Listes de lecture ─────────────────────────────────────────────────────
+
+  /*
+  Les trois listes se lisent en local, pas sur le serveur.
+
+  Ce n'est pas un repli hors ligne mais le choix par défaut, et il tient à ce
+  que ces listes sont : « en cours » sort de la progression, qui est locale et
+  fait autorité jusqu'à synchronisation — demander au serveur donnerait une
+  réponse en retard sur ce que l'appareil sait déjà. « Favoris » et « récents »
+  se lisent du cache par cohérence, et parce qu'une liste de lecture qui
+  disparaît dans le métro n'est pas une liste de lecture.
+  */
+
+  /// Albums en cours, le plus récemment lu d'abord.
+  Future<List<CachedComic>> inProgressComics(String serverId) async {
+    final query = select(localProgress).join([
+      innerJoin(
+        cachedComics,
+        cachedComics.id.equalsExp(localProgress.comicId) &
+            cachedComics.serverId.equalsExp(localProgress.serverId),
+      ),
+    ])
+      ..where(localProgress.serverId.equals(serverId) &
+          localProgress.status.equals('in_progress'))
+      ..orderBy([OrderingTerm.desc(localProgress.updatedAt)]);
+
+    final rows = await query.get();
+    return rows.map((r) => r.readTable(cachedComics)).toList();
+  }
+
+  /// Albums en favori, par titre.
+  Future<List<CachedComic>> favoriteComics(String serverId) async {
+    final query = select(cachedComics).join([
+      innerJoin(
+        favorites,
+        favorites.comicId.equalsExp(cachedComics.id) &
+            favorites.serverId.equalsExp(cachedComics.serverId),
+      ),
+    ])
+      ..where(cachedComics.serverId.equals(serverId))
+      ..orderBy([OrderingTerm(expression: cachedComics.title)]);
+
+    final rows = await query.get();
+    return rows.map((r) => r.readTable(cachedComics)).toList();
+  }
+
+  /// Derniers albums ajoutés au catalogue.
+  ///
+  /// Les albums sans date d'ajout — ceux mis en cache avant que la colonne
+  /// n'existe — passent en fin plutôt que d'être écartés : ils sont réels, et
+  /// le prochain rafraîchissement leur rendra leur date.
+  Future<List<CachedComic>> recentComics(String serverId, {int limit = 100}) =>
+      (select(cachedComics)
+            ..where((c) => c.serverId.equals(serverId))
+            ..orderBy([
+              (c) => OrderingTerm(
+                    expression: c.createdAt,
+                    mode: OrderingMode.desc,
+                    nulls: NullsOrder.last,
+                  ),
+            ])
+            ..limit(limit))
+          .get();
+
+  // ─── Favoris ───────────────────────────────────────────────────────────────
+
+  /// Remplace les favoris d'un serveur par ce que le compte dit en avoir.
+  Future<void> replaceFavorites(String serverId, List<String> comicIds) async {
+    await transaction(() async {
+      await (delete(favorites)..where((f) => f.serverId.equals(serverId))).go();
+      await batch((b) => b.insertAll(
+            favorites,
+            comicIds.map((id) =>
+                FavoritesCompanion.insert(serverId: serverId, comicId: id)),
+          ));
+    });
+  }
+
+  Future<Set<String>> favoriteIds(String serverId) async {
+    final rows =
+        await (select(favorites)..where((f) => f.serverId.equals(serverId))).get();
+    return rows.map((r) => r.comicId).toSet();
+  }
+
+  Future<bool> isFavorite(String serverId, String comicId) async {
+    final row = await (select(favorites)
+          ..where((f) => f.serverId.equals(serverId) & f.comicId.equals(comicId)))
+        .getSingleOrNull();
+    return row != null;
+  }
+
+  /// Marque ou démarque localement, sans attendre le serveur.
+  Future<void> setFavorite(String serverId, String comicId, bool favorite) async {
+    if (favorite) {
+      await into(favorites).insertOnConflictUpdate(
+        FavoritesCompanion.insert(serverId: serverId, comicId: comicId),
+      );
+    } else {
+      await (delete(favorites)
+            ..where((f) => f.serverId.equals(serverId) & f.comicId.equals(comicId)))
+          .go();
+    }
   }
 
   Future<CachedComic?> comic(String serverId, String id) =>
@@ -304,6 +436,7 @@ class BoxDatabase extends _$BoxDatabase {
       await (delete(cachedFolders)..where((f) => f.serverId.equals(serverId))).go();
       await (delete(cachedLibraries)..where((l) => l.serverId.equals(serverId))).go();
       await (delete(localProgress)..where((p) => p.serverId.equals(serverId))).go();
+      await (delete(favorites)..where((f) => f.serverId.equals(serverId))).go();
     });
   }
 }

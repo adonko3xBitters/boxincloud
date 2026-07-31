@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/api/client.dart';
 import '../../core/auth/session.dart';
 import '../../core/db/database.dart';
 import '../../core/sync/progress_sync.dart';
@@ -30,7 +31,10 @@ class ComicDetailScreen extends ConsumerWidget {
     final progress = ref.watch(progressProvider(comic.id));
 
     return Scaffold(
-      appBar: AppBar(title: Text(comic.title, overflow: TextOverflow.ellipsis)),
+      appBar: AppBar(
+        title: Text(comic.title, overflow: TextOverflow.ellipsis),
+        actions: [_FavoriteButton(comicId: comic.id)],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(BoxSpace.s4),
         children: [
@@ -151,6 +155,90 @@ class _ResumeButton extends StatelessWidget {
     );
   }
 }
+
+/*
+Bascule de favori.
+
+Le changement est écrit localement d'abord, pour que le cœur réponde au doigt
+et non au réseau. Mais il est annulé si le serveur refuse ou ne répond pas :
+le favori vit là-bas, et le prochain rafraîchissement remplacerait de toute
+façon la table locale par ce que le compte dit en avoir. Garder une marque que
+le serveur ignore ne ferait que la faire disparaître plus tard, sans
+explication.
+
+C'est le seul geste de l'application qui exige le réseau. La progression de
+lecture, elle, s'accumule hors ligne et se pousse au retour — parce qu'elle est
+produite en lisant, ce qui est précisément ce qu'on fait sans réseau. Mettre en
+favori se remet à plus tard sans rien coûter.
+*/
+class _FavoriteButton extends ConsumerWidget {
+  final String comicId;
+
+  const _FavoriteButton({required this.comicId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final session = ref.watch(sessionProvider);
+    final favorite = ref.watch(isFavoriteProvider(comicId)).valueOrNull ?? false;
+
+    if (session is! SessionActive) return const SizedBox.shrink();
+
+    return IconButton(
+      tooltip: favorite ? 'Retirer des favoris' : 'Mettre en favori',
+      icon: Icon(
+        favorite ? Icons.favorite : Icons.favorite_outline,
+        color: favorite ? context.colors.danger : null,
+      ),
+      onPressed: () async {
+        final db = ref.read(databaseProvider);
+        final serverId = session.server.id;
+        final target = !favorite;
+
+        // Capturé avant toute attente : après un `await`, le widget peut avoir
+        // quitté l'arbre et son contexte ne désigne plus rien.
+        final messenger = ScaffoldMessenger.of(context);
+
+        await db.setFavorite(serverId, comicId, target);
+        ref.invalidate(isFavoriteProvider(comicId));
+
+        try {
+          await session.client.setFavorite(comicId, target);
+          ref.invalidate(libraryProvider);
+        } on NetworkException {
+          await _revert(ref, db, serverId, favorite, messenger);
+        } on ApiException {
+          await _revert(ref, db, serverId, favorite, messenger);
+        }
+      },
+    );
+  }
+
+  Future<void> _revert(
+    WidgetRef ref,
+    BoxDatabase db,
+    String serverId,
+    bool previous,
+    ScaffoldMessengerState messenger,
+  ) async {
+    await db.setFavorite(serverId, comicId, previous);
+    ref.invalidate(isFavoriteProvider(comicId));
+
+    messenger.showSnackBar(
+      const SnackBar(
+        content: Text('Serveur injoignable — le favori n\'a pas été enregistré.'),
+      ),
+    );
+  }
+}
+
+/// Cet album est-il en favori ? Réponse locale, donc immédiate et hors ligne.
+final isFavoriteProvider =
+    FutureProvider.family<bool, String>((ref, comicId) async {
+  final session = ref.watch(sessionProvider);
+  if (session is! SessionActive) return false;
+
+  return ref.watch(databaseProvider).isFavorite(session.server.id, comicId);
+});
 
 /// Métadonnées, en grille de deux colonnes.
 class _Facts extends StatelessWidget {

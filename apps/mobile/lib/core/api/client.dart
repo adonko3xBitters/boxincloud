@@ -297,6 +297,23 @@ extension BoxincloudApi on ApiClient {
   Future<Comic> comic(String id) =>
       get('/comics/$id', (json) => Comic.fromJson(json as Map<String, dynamic>));
 
+  /// Identifiants des albums mis en favori par le compte.
+  ///
+  /// L'endpoint retourne aussi les notes, dont l'application mobile ne fait
+  /// rien pour l'instant : les décoder ici obligerait à un modèle généré pour
+  /// un champ ignoré.
+  Future<List<String>> favorites() => get(
+        '/me/marks',
+        (json) => ((json as Map<String, dynamic>)['favorites'] as List<dynamic>)
+            .cast<String>(),
+      );
+
+  Future<bool> setFavorite(String comicId, bool favorite) => put(
+        '/comics/$comicId/favorite',
+        (json) => (json as Map<String, dynamic>)['favorite'] as bool,
+        body: {'favorite': favorite},
+      );
+
   Future<List<Folder>> folders({String? libraryId}) => get(
         '/folders',
         (json) => ((json as Map<String, dynamic>)['folders'] as List<dynamic>)

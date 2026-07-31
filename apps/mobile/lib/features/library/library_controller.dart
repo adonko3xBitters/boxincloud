@@ -27,17 +27,29 @@ class LibraryView {
   });
 }
 
+/// Listes de lecture.
+///
+/// Trois façons de retrouver un album qui ne passent ni par le rangement ni par
+/// la série : ce qu'on aime, ce qu'on a commencé, ce qui vient d'arriver.
+enum ReadingList { favorites, inProgress, recent }
+
 /// Portée courante de l'affichage.
 class LibraryScope {
   final String? libraryId;
   final String? folderPath;
   final String? seriesId;
+
+  /// Quand elle est renseignée, elle prime : une liste de lecture traverse les
+  /// bibliothèques et les dossiers, elle ne s'y range pas.
+  final ReadingList? list;
+
   final String title;
 
   const LibraryScope({
     this.libraryId,
     this.folderPath,
     this.seriesId,
+    this.list,
     this.title = 'Tous les albums',
   });
 }
@@ -62,13 +74,26 @@ final libraryProvider = FutureProvider<LibraryView>((ref) async {
   final scope = ref.watch(scopeProvider);
   final serverId = session.server.id;
 
-  Future<LibraryView> fromCache({bool offline = false}) async => LibraryView(
-        comics: await db.comicsOf(
+  Future<List<CachedComic>> comicsForScope() async {
+    switch (scope.list) {
+      case ReadingList.favorites:
+        return db.favoriteComics(serverId);
+      case ReadingList.inProgress:
+        return db.inProgressComics(serverId);
+      case ReadingList.recent:
+        return db.recentComics(serverId);
+      case null:
+        return db.comicsOf(
           serverId,
           libraryId: scope.libraryId,
           folderPath: scope.folderPath,
           seriesId: scope.seriesId,
-        ),
+        );
+    }
+  }
+
+  Future<LibraryView> fromCache({bool offline = false}) async => LibraryView(
+        comics: await comicsForScope(),
         folders: await db.foldersOf(serverId),
         offline: offline,
       );
@@ -102,6 +127,11 @@ final libraryProvider = FutureProvider<LibraryView>((ref) async {
               ))
           .toList(),
     );
+
+    // Les favoris appartiennent au compte, pas au catalogue : ils viennent
+    // d'un appel à part, et sont conservés dans leur propre table pour
+    // survivre au remplacement du cache des albums.
+    await db.replaceFavorites(serverId, await session.client.favorites());
 
     // Les séries sont mises en cache ici plutôt qu'à l'ouverture de l'écran qui
     // les liste : elles servent aussi à la recherche hors ligne, qu'on n'a
@@ -144,6 +174,7 @@ final libraryProvider = FutureProvider<LibraryView>((ref) async {
                   coverPath: Value(c.coverPath),
                   coverPlaceholder: Value(c.coverPlaceholder),
                   fileSize: Value(c.fileSize),
+                  createdAt: Value(DateTime.tryParse(c.createdAt)?.toUtc()),
                   cachedAt: DateTime.now().toUtc(),
                 ))
             .toList(),

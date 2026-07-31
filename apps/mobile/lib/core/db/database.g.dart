@@ -141,6 +141,17 @@ class $CachedComicsTable extends CachedComics
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    true,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+  );
   static const VerificationMeta _cachedAtMeta = const VerificationMeta(
     'cachedAt',
   );
@@ -166,6 +177,7 @@ class $CachedComicsTable extends CachedComics
     coverPath,
     coverPlaceholder,
     fileSize,
+    createdAt,
     cachedAt,
   ];
   @override
@@ -260,6 +272,12 @@ class $CachedComicsTable extends CachedComics
         fileSize.isAcceptableOrUnknown(data['file_size']!, _fileSizeMeta),
       );
     }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    }
     if (data.containsKey('cached_at')) {
       context.handle(
         _cachedAtMeta,
@@ -325,6 +343,10 @@ class $CachedComicsTable extends CachedComics
         DriftSqlType.int,
         data['${effectivePrefix}file_size'],
       )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      ),
       cachedAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}cached_at'],
@@ -353,6 +375,15 @@ class CachedComic extends DataClass implements Insertable<CachedComic> {
   /// Aperçu flouté encodé en data-URI, affiché pendant le chargement.
   final String? coverPlaceholder;
   final int fileSize;
+
+  /// Date d'ajout au catalogue, telle que le serveur la donne.
+  ///
+  /// Distincte de `cachedAt`, qui dit quand *cet appareil* a vu l'album. Les
+  /// deux divergent dès le premier téléphone qui se connecte à une
+  /// bibliothèque existante : tout y aurait été « ajouté » le même jour.
+  /// Nullable pour les lignes écrites avant que la colonne n'existe ; le
+  /// premier rafraîchissement les remplit.
+  final DateTime? createdAt;
   final DateTime cachedAt;
   const CachedComic({
     required this.id,
@@ -367,6 +398,7 @@ class CachedComic extends DataClass implements Insertable<CachedComic> {
     required this.coverPath,
     this.coverPlaceholder,
     required this.fileSize,
+    this.createdAt,
     required this.cachedAt,
   });
   @override
@@ -388,6 +420,9 @@ class CachedComic extends DataClass implements Insertable<CachedComic> {
       map['cover_placeholder'] = Variable<String>(coverPlaceholder);
     }
     map['file_size'] = Variable<int>(fileSize);
+    if (!nullToAbsent || createdAt != null) {
+      map['created_at'] = Variable<DateTime>(createdAt);
+    }
     map['cached_at'] = Variable<DateTime>(cachedAt);
     return map;
   }
@@ -410,6 +445,9 @@ class CachedComic extends DataClass implements Insertable<CachedComic> {
           ? const Value.absent()
           : Value(coverPlaceholder),
       fileSize: Value(fileSize),
+      createdAt: createdAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(createdAt),
       cachedAt: Value(cachedAt),
     );
   }
@@ -432,6 +470,7 @@ class CachedComic extends DataClass implements Insertable<CachedComic> {
       coverPath: serializer.fromJson<String>(json['coverPath']),
       coverPlaceholder: serializer.fromJson<String?>(json['coverPlaceholder']),
       fileSize: serializer.fromJson<int>(json['fileSize']),
+      createdAt: serializer.fromJson<DateTime?>(json['createdAt']),
       cachedAt: serializer.fromJson<DateTime>(json['cachedAt']),
     );
   }
@@ -451,6 +490,7 @@ class CachedComic extends DataClass implements Insertable<CachedComic> {
       'coverPath': serializer.toJson<String>(coverPath),
       'coverPlaceholder': serializer.toJson<String?>(coverPlaceholder),
       'fileSize': serializer.toJson<int>(fileSize),
+      'createdAt': serializer.toJson<DateTime?>(createdAt),
       'cachedAt': serializer.toJson<DateTime>(cachedAt),
     };
   }
@@ -468,6 +508,7 @@ class CachedComic extends DataClass implements Insertable<CachedComic> {
     String? coverPath,
     Value<String?> coverPlaceholder = const Value.absent(),
     int? fileSize,
+    Value<DateTime?> createdAt = const Value.absent(),
     DateTime? cachedAt,
   }) => CachedComic(
     id: id ?? this.id,
@@ -484,6 +525,7 @@ class CachedComic extends DataClass implements Insertable<CachedComic> {
         ? coverPlaceholder.value
         : this.coverPlaceholder,
     fileSize: fileSize ?? this.fileSize,
+    createdAt: createdAt.present ? createdAt.value : this.createdAt,
     cachedAt: cachedAt ?? this.cachedAt,
   );
   CachedComic copyWithCompanion(CachedComicsCompanion data) {
@@ -506,6 +548,7 @@ class CachedComic extends DataClass implements Insertable<CachedComic> {
           ? data.coverPlaceholder.value
           : this.coverPlaceholder,
       fileSize: data.fileSize.present ? data.fileSize.value : this.fileSize,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       cachedAt: data.cachedAt.present ? data.cachedAt.value : this.cachedAt,
     );
   }
@@ -525,6 +568,7 @@ class CachedComic extends DataClass implements Insertable<CachedComic> {
           ..write('coverPath: $coverPath, ')
           ..write('coverPlaceholder: $coverPlaceholder, ')
           ..write('fileSize: $fileSize, ')
+          ..write('createdAt: $createdAt, ')
           ..write('cachedAt: $cachedAt')
           ..write(')'))
         .toString();
@@ -544,6 +588,7 @@ class CachedComic extends DataClass implements Insertable<CachedComic> {
     coverPath,
     coverPlaceholder,
     fileSize,
+    createdAt,
     cachedAt,
   );
   @override
@@ -562,6 +607,7 @@ class CachedComic extends DataClass implements Insertable<CachedComic> {
           other.coverPath == this.coverPath &&
           other.coverPlaceholder == this.coverPlaceholder &&
           other.fileSize == this.fileSize &&
+          other.createdAt == this.createdAt &&
           other.cachedAt == this.cachedAt);
 }
 
@@ -578,6 +624,7 @@ class CachedComicsCompanion extends UpdateCompanion<CachedComic> {
   final Value<String> coverPath;
   final Value<String?> coverPlaceholder;
   final Value<int> fileSize;
+  final Value<DateTime?> createdAt;
   final Value<DateTime> cachedAt;
   final Value<int> rowid;
   const CachedComicsCompanion({
@@ -593,6 +640,7 @@ class CachedComicsCompanion extends UpdateCompanion<CachedComic> {
     this.coverPath = const Value.absent(),
     this.coverPlaceholder = const Value.absent(),
     this.fileSize = const Value.absent(),
+    this.createdAt = const Value.absent(),
     this.cachedAt = const Value.absent(),
     this.rowid = const Value.absent(),
   });
@@ -609,6 +657,7 @@ class CachedComicsCompanion extends UpdateCompanion<CachedComic> {
     this.coverPath = const Value.absent(),
     this.coverPlaceholder = const Value.absent(),
     this.fileSize = const Value.absent(),
+    this.createdAt = const Value.absent(),
     required DateTime cachedAt,
     this.rowid = const Value.absent(),
   }) : id = Value(id),
@@ -629,6 +678,7 @@ class CachedComicsCompanion extends UpdateCompanion<CachedComic> {
     Expression<String>? coverPath,
     Expression<String>? coverPlaceholder,
     Expression<int>? fileSize,
+    Expression<DateTime>? createdAt,
     Expression<DateTime>? cachedAt,
     Expression<int>? rowid,
   }) {
@@ -645,6 +695,7 @@ class CachedComicsCompanion extends UpdateCompanion<CachedComic> {
       if (coverPath != null) 'cover_path': coverPath,
       if (coverPlaceholder != null) 'cover_placeholder': coverPlaceholder,
       if (fileSize != null) 'file_size': fileSize,
+      if (createdAt != null) 'created_at': createdAt,
       if (cachedAt != null) 'cached_at': cachedAt,
       if (rowid != null) 'rowid': rowid,
     });
@@ -663,6 +714,7 @@ class CachedComicsCompanion extends UpdateCompanion<CachedComic> {
     Value<String>? coverPath,
     Value<String?>? coverPlaceholder,
     Value<int>? fileSize,
+    Value<DateTime?>? createdAt,
     Value<DateTime>? cachedAt,
     Value<int>? rowid,
   }) {
@@ -679,6 +731,7 @@ class CachedComicsCompanion extends UpdateCompanion<CachedComic> {
       coverPath: coverPath ?? this.coverPath,
       coverPlaceholder: coverPlaceholder ?? this.coverPlaceholder,
       fileSize: fileSize ?? this.fileSize,
+      createdAt: createdAt ?? this.createdAt,
       cachedAt: cachedAt ?? this.cachedAt,
       rowid: rowid ?? this.rowid,
     );
@@ -723,6 +776,9 @@ class CachedComicsCompanion extends UpdateCompanion<CachedComic> {
     if (fileSize.present) {
       map['file_size'] = Variable<int>(fileSize.value);
     }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
     if (cachedAt.present) {
       map['cached_at'] = Variable<DateTime>(cachedAt.value);
     }
@@ -747,6 +803,7 @@ class CachedComicsCompanion extends UpdateCompanion<CachedComic> {
           ..write('coverPath: $coverPath, ')
           ..write('coverPlaceholder: $coverPlaceholder, ')
           ..write('fileSize: $fileSize, ')
+          ..write('createdAt: $createdAt, ')
           ..write('cachedAt: $cachedAt, ')
           ..write('rowid: $rowid')
           ..write(')'))
@@ -2346,6 +2403,223 @@ class LocalProgressCompanion extends UpdateCompanion<LocalProgressData> {
   }
 }
 
+class $FavoritesTable extends Favorites
+    with TableInfo<$FavoritesTable, Favorite> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $FavoritesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _serverIdMeta = const VerificationMeta(
+    'serverId',
+  );
+  @override
+  late final GeneratedColumn<String> serverId = GeneratedColumn<String>(
+    'server_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _comicIdMeta = const VerificationMeta(
+    'comicId',
+  );
+  @override
+  late final GeneratedColumn<String> comicId = GeneratedColumn<String>(
+    'comic_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [serverId, comicId];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'favorites';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Favorite> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('server_id')) {
+      context.handle(
+        _serverIdMeta,
+        serverId.isAcceptableOrUnknown(data['server_id']!, _serverIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_serverIdMeta);
+    }
+    if (data.containsKey('comic_id')) {
+      context.handle(
+        _comicIdMeta,
+        comicId.isAcceptableOrUnknown(data['comic_id']!, _comicIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_comicIdMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {serverId, comicId};
+  @override
+  Favorite map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Favorite(
+      serverId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}server_id'],
+      )!,
+      comicId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}comic_id'],
+      )!,
+    );
+  }
+
+  @override
+  $FavoritesTable createAlias(String alias) {
+    return $FavoritesTable(attachedDatabase, alias);
+  }
+}
+
+class Favorite extends DataClass implements Insertable<Favorite> {
+  final String serverId;
+  final String comicId;
+  const Favorite({required this.serverId, required this.comicId});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['server_id'] = Variable<String>(serverId);
+    map['comic_id'] = Variable<String>(comicId);
+    return map;
+  }
+
+  FavoritesCompanion toCompanion(bool nullToAbsent) {
+    return FavoritesCompanion(
+      serverId: Value(serverId),
+      comicId: Value(comicId),
+    );
+  }
+
+  factory Favorite.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Favorite(
+      serverId: serializer.fromJson<String>(json['serverId']),
+      comicId: serializer.fromJson<String>(json['comicId']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'serverId': serializer.toJson<String>(serverId),
+      'comicId': serializer.toJson<String>(comicId),
+    };
+  }
+
+  Favorite copyWith({String? serverId, String? comicId}) => Favorite(
+    serverId: serverId ?? this.serverId,
+    comicId: comicId ?? this.comicId,
+  );
+  Favorite copyWithCompanion(FavoritesCompanion data) {
+    return Favorite(
+      serverId: data.serverId.present ? data.serverId.value : this.serverId,
+      comicId: data.comicId.present ? data.comicId.value : this.comicId,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Favorite(')
+          ..write('serverId: $serverId, ')
+          ..write('comicId: $comicId')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(serverId, comicId);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Favorite &&
+          other.serverId == this.serverId &&
+          other.comicId == this.comicId);
+}
+
+class FavoritesCompanion extends UpdateCompanion<Favorite> {
+  final Value<String> serverId;
+  final Value<String> comicId;
+  final Value<int> rowid;
+  const FavoritesCompanion({
+    this.serverId = const Value.absent(),
+    this.comicId = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  FavoritesCompanion.insert({
+    required String serverId,
+    required String comicId,
+    this.rowid = const Value.absent(),
+  }) : serverId = Value(serverId),
+       comicId = Value(comicId);
+  static Insertable<Favorite> custom({
+    Expression<String>? serverId,
+    Expression<String>? comicId,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (serverId != null) 'server_id': serverId,
+      if (comicId != null) 'comic_id': comicId,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  FavoritesCompanion copyWith({
+    Value<String>? serverId,
+    Value<String>? comicId,
+    Value<int>? rowid,
+  }) {
+    return FavoritesCompanion(
+      serverId: serverId ?? this.serverId,
+      comicId: comicId ?? this.comicId,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (serverId.present) {
+      map['server_id'] = Variable<String>(serverId.value);
+    }
+    if (comicId.present) {
+      map['comic_id'] = Variable<String>(comicId.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('FavoritesCompanion(')
+          ..write('serverId: $serverId, ')
+          ..write('comicId: $comicId, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 class $PreferencesTable extends Preferences
     with TableInfo<$PreferencesTable, Preference> {
   @override
@@ -2564,6 +2838,7 @@ abstract class _$BoxDatabase extends GeneratedDatabase {
     this,
   );
   late final $LocalProgressTable localProgress = $LocalProgressTable(this);
+  late final $FavoritesTable favorites = $FavoritesTable(this);
   late final $PreferencesTable preferences = $PreferencesTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
@@ -2575,6 +2850,7 @@ abstract class _$BoxDatabase extends GeneratedDatabase {
     cachedFolders,
     cachedLibraries,
     localProgress,
+    favorites,
     preferences,
   ];
 }
@@ -2593,6 +2869,7 @@ typedef $$CachedComicsTableCreateCompanionBuilder =
       Value<String> coverPath,
       Value<String?> coverPlaceholder,
       Value<int> fileSize,
+      Value<DateTime?> createdAt,
       required DateTime cachedAt,
       Value<int> rowid,
     });
@@ -2610,6 +2887,7 @@ typedef $$CachedComicsTableUpdateCompanionBuilder =
       Value<String> coverPath,
       Value<String?> coverPlaceholder,
       Value<int> fileSize,
+      Value<DateTime?> createdAt,
       Value<DateTime> cachedAt,
       Value<int> rowid,
     });
@@ -2680,6 +2958,11 @@ class $$CachedComicsTableFilterComposer
 
   ColumnFilters<int> get fileSize => $composableBuilder(
     column: $table.fileSize,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -2758,6 +3041,11 @@ class $$CachedComicsTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get cachedAt => $composableBuilder(
     column: $table.cachedAt,
     builder: (column) => ColumnOrderings(column),
@@ -2815,6 +3103,9 @@ class $$CachedComicsTableAnnotationComposer
   GeneratedColumn<int> get fileSize =>
       $composableBuilder(column: $table.fileSize, builder: (column) => column);
 
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
   GeneratedColumn<DateTime> get cachedAt =>
       $composableBuilder(column: $table.cachedAt, builder: (column) => column);
 }
@@ -2862,6 +3153,7 @@ class $$CachedComicsTableTableManager
                 Value<String> coverPath = const Value.absent(),
                 Value<String?> coverPlaceholder = const Value.absent(),
                 Value<int> fileSize = const Value.absent(),
+                Value<DateTime?> createdAt = const Value.absent(),
                 Value<DateTime> cachedAt = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => CachedComicsCompanion(
@@ -2877,6 +3169,7 @@ class $$CachedComicsTableTableManager
                 coverPath: coverPath,
                 coverPlaceholder: coverPlaceholder,
                 fileSize: fileSize,
+                createdAt: createdAt,
                 cachedAt: cachedAt,
                 rowid: rowid,
               ),
@@ -2894,6 +3187,7 @@ class $$CachedComicsTableTableManager
                 Value<String> coverPath = const Value.absent(),
                 Value<String?> coverPlaceholder = const Value.absent(),
                 Value<int> fileSize = const Value.absent(),
+                Value<DateTime?> createdAt = const Value.absent(),
                 required DateTime cachedAt,
                 Value<int> rowid = const Value.absent(),
               }) => CachedComicsCompanion.insert(
@@ -2909,6 +3203,7 @@ class $$CachedComicsTableTableManager
                 coverPath: coverPath,
                 coverPlaceholder: coverPlaceholder,
                 fileSize: fileSize,
+                createdAt: createdAt,
                 cachedAt: cachedAt,
                 rowid: rowid,
               ),
@@ -3806,6 +4101,143 @@ typedef $$LocalProgressTableProcessedTableManager =
       LocalProgressData,
       PrefetchHooks Function()
     >;
+typedef $$FavoritesTableCreateCompanionBuilder =
+    FavoritesCompanion Function({
+      required String serverId,
+      required String comicId,
+      Value<int> rowid,
+    });
+typedef $$FavoritesTableUpdateCompanionBuilder =
+    FavoritesCompanion Function({
+      Value<String> serverId,
+      Value<String> comicId,
+      Value<int> rowid,
+    });
+
+class $$FavoritesTableFilterComposer
+    extends Composer<_$BoxDatabase, $FavoritesTable> {
+  $$FavoritesTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get comicId => $composableBuilder(
+    column: $table.comicId,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$FavoritesTableOrderingComposer
+    extends Composer<_$BoxDatabase, $FavoritesTable> {
+  $$FavoritesTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get serverId => $composableBuilder(
+    column: $table.serverId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get comicId => $composableBuilder(
+    column: $table.comicId,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$FavoritesTableAnnotationComposer
+    extends Composer<_$BoxDatabase, $FavoritesTable> {
+  $$FavoritesTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get serverId =>
+      $composableBuilder(column: $table.serverId, builder: (column) => column);
+
+  GeneratedColumn<String> get comicId =>
+      $composableBuilder(column: $table.comicId, builder: (column) => column);
+}
+
+class $$FavoritesTableTableManager
+    extends
+        RootTableManager<
+          _$BoxDatabase,
+          $FavoritesTable,
+          Favorite,
+          $$FavoritesTableFilterComposer,
+          $$FavoritesTableOrderingComposer,
+          $$FavoritesTableAnnotationComposer,
+          $$FavoritesTableCreateCompanionBuilder,
+          $$FavoritesTableUpdateCompanionBuilder,
+          (Favorite, BaseReferences<_$BoxDatabase, $FavoritesTable, Favorite>),
+          Favorite,
+          PrefetchHooks Function()
+        > {
+  $$FavoritesTableTableManager(_$BoxDatabase db, $FavoritesTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$FavoritesTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$FavoritesTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$FavoritesTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<String> serverId = const Value.absent(),
+                Value<String> comicId = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => FavoritesCompanion(
+                serverId: serverId,
+                comicId: comicId,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required String serverId,
+                required String comicId,
+                Value<int> rowid = const Value.absent(),
+              }) => FavoritesCompanion.insert(
+                serverId: serverId,
+                comicId: comicId,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map((e) => (e.readTable(table), BaseReferences(db, table, e)))
+              .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$FavoritesTableProcessedTableManager =
+    ProcessedTableManager<
+      _$BoxDatabase,
+      $FavoritesTable,
+      Favorite,
+      $$FavoritesTableFilterComposer,
+      $$FavoritesTableOrderingComposer,
+      $$FavoritesTableAnnotationComposer,
+      $$FavoritesTableCreateCompanionBuilder,
+      $$FavoritesTableUpdateCompanionBuilder,
+      (Favorite, BaseReferences<_$BoxDatabase, $FavoritesTable, Favorite>),
+      Favorite,
+      PrefetchHooks Function()
+    >;
 typedef $$PreferencesTableCreateCompanionBuilder =
     PreferencesCompanion Function({
       required String key,
@@ -3959,6 +4391,8 @@ class $BoxDatabaseManager {
       $$CachedLibrariesTableTableManager(_db, _db.cachedLibraries);
   $$LocalProgressTableTableManager get localProgress =>
       $$LocalProgressTableTableManager(_db, _db.localProgress);
+  $$FavoritesTableTableManager get favorites =>
+      $$FavoritesTableTableManager(_db, _db.favorites);
   $$PreferencesTableTableManager get preferences =>
       $$PreferencesTableTableManager(_db, _db.preferences);
 }

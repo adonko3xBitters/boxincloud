@@ -274,6 +274,27 @@ class _FolderSheet extends ConsumerWidget {
               );
             },
           ),
+
+          const Divider(),
+
+          // Les listes avant les dossiers : on ouvre l'application pour
+          // reprendre une lecture bien plus souvent que pour ranger.
+          _ListTile(
+            icon: Icons.play_circle_outline,
+            label: 'En cours',
+            list: ReadingList.inProgress,
+          ),
+          _ListTile(
+            icon: Icons.favorite_outline,
+            label: 'Favoris',
+            list: ReadingList.favorites,
+          ),
+          _ListTile(
+            icon: Icons.schedule,
+            label: 'Ajouts récents',
+            list: ReadingList.recent,
+          ),
+
           const Divider(),
           for (final folder in folders)
             if (folder.path.isNotEmpty)
@@ -299,6 +320,31 @@ class _FolderSheet extends ConsumerWidget {
               ),
         ],
       ),
+    );
+  }
+}
+
+/// Une entrée de liste de lecture dans la feuille de navigation.
+class _ListTile extends ConsumerWidget {
+  final IconData icon;
+  final String label;
+  final ReadingList list;
+
+  const _ListTile({required this.icon, required this.label, required this.list});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final active = ref.watch(scopeProvider).list == list;
+
+    return ListTile(
+      leading: Icon(icon),
+      title: Text(label),
+      selected: active,
+      onTap: () {
+        ref.read(scopeProvider.notifier).state =
+            LibraryScope(list: list, title: label);
+        Navigator.pop(context);
+      },
     );
   }
 }

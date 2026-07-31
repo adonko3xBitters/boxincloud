@@ -20,5 +20,6 @@ CachedComic cachedFromApi(api.Comic comic, String serverId) => CachedComic(
       coverPath: comic.coverPath,
       coverPlaceholder: comic.coverPlaceholder,
       fileSize: comic.fileSize,
+      createdAt: DateTime.tryParse(comic.createdAt)?.toUtc(),
       cachedAt: DateTime.now().toUtc(),
     );
