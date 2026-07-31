@@ -6,6 +6,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { buttonClass, cx } from "./ui";
 import { ApiError } from "@/lib/api/client";
 import * as api from "@/lib/api/endpoints";
+import { useLocale, useT } from "@/i18n";
 
 /**
  * Création, renommage et suppression de dossiers.
@@ -93,6 +94,7 @@ function CreateFolder({
   parent: string;
   onClose: () => void;
 }) {
+  const t = useT();
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [busy, setBusy] = useState(false);
@@ -116,7 +118,7 @@ function CreateFolder({
   }
 
   return (
-    <Shell title="Nouveau dossier" onClose={onClose}>
+    <Shell title={t("folderDialog.newTitle")} onClose={onClose}>
       <form onSubmit={run} className="flex flex-col gap-3">
         <label className="flex flex-col gap-1">
           <span className="text-micro uppercase tracking-wide text-subtle">Nom</span>
@@ -125,34 +127,32 @@ function CreateFolder({
             onChange={(e) => setName(e.target.value)}
             required
             autoFocus
-            placeholder="Tintin"
+            placeholder={t("folderDialog.namePlaceholder")}
             className="h-9 rounded-md border border-border bg-surface px-2.5 text-ui text-fg"
           />
           <span className="text-meta text-subtle">
             {parent ? (
               <>
-                Sera créé dans <code className="text-muted">{parent}</code>.
+                {t("folderDialog.createdIn")} <code className="text-muted">{parent}</code>.
               </>
             ) : (
-              "Sera créé à la racine de la bibliothèque."
+              t("folderDialog.createdInRoot")
             )}
           </span>
         </label>
 
         <p className="text-meta leading-relaxed text-subtle">
-          Rien n&apos;est écrit dans votre stockage : un magasin d&apos;objets
-          n&apos;a pas de répertoires. Le dossier prendra corps au premier album
-          déposé.
+{t("folderDialog.noWriteYet")}
         </p>
 
         {error && <ErrorNote>{error}</ErrorNote>}
 
         <div className="flex justify-end gap-2">
           <button type="button" onClick={onClose} className={buttonClass("secondary", "sm")}>
-            Annuler
+            {t("action.cancel")}
           </button>
           <button type="submit" disabled={busy} className={buttonClass("primary", "sm")}>
-            {busy ? "Création…" : "Créer"}
+            {busy ? t("storage.creating") : t("action.create")}
           </button>
         </div>
       </form>
@@ -173,6 +173,7 @@ function RenameFolder({
   name: string;
   onClose: () => void;
 }) {
+  const t = useT();
   const queryClient = useQueryClient();
   const [next, setNext] = useState(name);
   const [busy, setBusy] = useState(false);
@@ -198,7 +199,7 @@ function RenameFolder({
   }
 
   return (
-    <Shell title="Renommer le dossier" onClose={onClose}>
+    <Shell title={t("folderDialog.renameTitle")} onClose={onClose}>
       <form onSubmit={run} className="flex flex-col gap-3">
         <label className="flex flex-col gap-1">
           <span className="text-micro uppercase tracking-wide text-subtle">Nom</span>
@@ -212,18 +213,17 @@ function RenameFolder({
         </label>
 
         <p className="text-meta leading-relaxed text-subtle">
-          Chaque album du dossier est renommé dans votre stockage. Sur un backend
-          distant, une branche volumineuse peut demander plusieurs minutes.
+{t("folderDialog.renameWarning")}
         </p>
 
         {error && <ErrorNote>{error}</ErrorNote>}
 
         <div className="flex justify-end gap-2">
           <button type="button" onClick={onClose} className={buttonClass("secondary", "sm")}>
-            Annuler
+            {t("action.cancel")}
           </button>
           <button type="submit" disabled={busy} className={buttonClass("primary", "sm")}>
-            {busy ? "Renommage…" : "Renommer"}
+            {busy ? t("folderDialog.renaming") : t("folderDialog.rename")}
           </button>
         </div>
       </form>
@@ -244,6 +244,7 @@ function DeleteFolder({
   comicCount: number;
   onClose: () => void;
 }) {
+  const t = useT();
   const queryClient = useQueryClient();
   const [deleteFiles, setDeleteFiles] = useState(false);
   const [confirmed, setConfirmed] = useState("");
@@ -252,7 +253,9 @@ function DeleteFolder({
 
   useEscape(onClose);
 
-  const armed = !deleteFiles || confirmed.trim().toLowerCase() === "supprimer";
+  const armed =
+    !deleteFiles ||
+    confirmed.trim().toLowerCase() === t("storage.confirmWord").toLowerCase();
 
   async function run() {
     setBusy(true);
@@ -272,7 +275,7 @@ function DeleteFolder({
   }
 
   return (
-    <Shell title="Supprimer le dossier" onClose={onClose}>
+    <Shell title={t("folderDialog.deleteTitle")} onClose={onClose}>
       <div className="flex flex-col gap-3">
         <p className="text-ui text-fg">
           <code className="text-muted">{path}</code>
@@ -280,13 +283,15 @@ function DeleteFolder({
 
         {comicCount === 0 ? (
           <p className="text-meta leading-relaxed text-muted">
-            Ce dossier est vide. Sa suppression ne touche à rien d&apos;autre.
+{t("folderDialog.emptyFolder")}
           </p>
         ) : (
           <>
             <p className="text-meta leading-relaxed text-muted">
-              Ce dossier et ses sous-dossiers contiennent{" "}
-              <strong className="text-fg">{comicCount} album{comicCount > 1 ? "s" : ""}</strong>.
+              {t(
+                comicCount > 1 ? "folderDialog.containsOther" : "folderDialog.containsOne",
+                { count: comicCount },
+              )}
             </p>
 
             <label className="flex items-start gap-2.5 rounded-md border border-border p-3">
@@ -301,12 +306,10 @@ function DeleteFolder({
               />
               <span>
                 <span className="block text-ui font-medium text-fg">
-                  Supprimer aussi les fichiers
+                  {t("folderDialog.deleteFiles")}
                 </span>
                 <span className="block text-meta leading-relaxed text-muted">
-                  Sans cette option, les albums sont retirés du catalogue et les
-                  fichiers restent dans votre stockage. Avec, ils sont effacés —
-                  irréversible.
+{t("folderDialog.deleteFilesHint")}
                 </span>
               </span>
             </label>
@@ -314,7 +317,7 @@ function DeleteFolder({
             {deleteFiles && (
               <label className="flex flex-col gap-1">
                 <span className="text-meta text-muted">
-                  Tapez <strong className="text-danger">supprimer</strong> pour confirmer.
+                  {t("storage.typeToConfirm", { word: t("storage.confirmWord") })}
                 </span>
                 <input
                   value={confirmed}
@@ -331,7 +334,7 @@ function DeleteFolder({
 
         <div className="flex justify-end gap-2">
           <button onClick={onClose} className={buttonClass("secondary", "sm")}>
-            Annuler
+            {t("action.cancel")}
           </button>
           <button
             onClick={() => void run()}
@@ -341,7 +344,7 @@ function DeleteFolder({
               deleteFiles ? "bg-danger hover:opacity-90" : "bg-accent hover:bg-accent-hover",
             )}
           >
-            {busy ? "Suppression…" : "Supprimer"}
+            {busy ? t("folderDialog.deleting") : t("action.delete")}
           </button>
         </div>
       </div>
@@ -360,6 +363,8 @@ function Shell({
   onClose: () => void;
   children: React.ReactNode;
 }) {
+  const t = useT();
+
   return (
     <div className="fixed inset-0 z-[65] grid place-items-center bg-[var(--overlay)] p-4">
       <div
@@ -372,7 +377,7 @@ function Shell({
           <h2 className="text-title font-semibold text-fg">{title}</h2>
           <button
             onClick={onClose}
-            aria-label="Fermer"
+            aria-label={t("action.close")}
             className="pressable grid size-8 place-items-center rounded text-subtle hover:bg-surface-hover hover:text-fg"
           >
             <svg viewBox="0 0 16 16" fill="none" className="size-4" aria-hidden="true">
@@ -449,6 +454,7 @@ export function LockFolder({
   hasCode: boolean;
   onClose: () => void;
 }) {
+  const t = useT();
   const queryClient = useQueryClient();
   const [protectedMode, setProtected] = useState(readOnly);
   const [code, setCode] = useState("");
@@ -481,7 +487,7 @@ export function LockFolder({
   }
 
   return (
-    <Shell title="Verrouiller le dossier" onClose={onClose}>
+    <Shell title={t("lock.title")} onClose={onClose}>
       <form onSubmit={run} className="flex flex-col gap-4">
         <p className="text-meta text-muted">
           <code className="text-fg">{path}</code>
@@ -495,20 +501,17 @@ export function LockFolder({
             className="mt-0.5 size-4 accent-[var(--accent)]"
           />
           <span>
-            <span className="block text-ui font-medium text-fg">Lecture seule</span>
+            <span className="block text-ui font-medium text-fg">{t("lock.readOnly")}</span>
             <span className="block text-meta leading-relaxed text-muted">
-              Le dossier reste visible de tous, mais ne peut plus être renommé,
-              déplacé, ni recevoir ou perdre un album. La protection s&apos;étend
-              aux sous-dossiers.
+{t("lock.readOnlyHint")}
             </span>
           </span>
         </label>
 
         <div className="rounded-md border border-border p-3">
-          <p className="text-ui font-medium text-fg">Code d&apos;accès</p>
+          <p className="text-ui font-medium text-fg">{t("lock.accessCode")}</p>
           <p className="mt-0.5 text-meta leading-relaxed text-muted">
-            Masque le dossier et son contenu — listes, recherche, accès direct —
-            tant que le code n&apos;a pas été saisi. Utile sur un serveur partagé.
+{t("lock.accessCodeHint")}
           </p>
 
           {hasCode && (
@@ -522,20 +525,20 @@ export function LockFolder({
                 }}
                 className="size-4 accent-[var(--accent)]"
               />
-              <span className="text-meta text-muted">Retirer le code existant</span>
+              <span className="text-meta text-muted">{t("lock.removeCode")}</span>
             </label>
           )}
 
           {!removeCode && (
             <label className="mt-2.5 flex flex-col gap-1">
               <span className="text-micro uppercase tracking-wide text-subtle">
-                {hasCode ? "Nouveau code" : "Code"}
+                {hasCode ? t("lock.newCode") : t("lock.code")}
               </span>
               <input
                 type="password"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
-                placeholder={hasCode ? "Laisser vide pour ne pas changer" : "Quatre caractères minimum"}
+                placeholder={hasCode ? t("lock.keepCode") : t("lock.minLength")}
                 autoComplete="new-password"
                 className="h-9 rounded-md border border-border bg-surface px-2.5 text-ui text-fg placeholder:text-subtle"
               />
@@ -554,10 +557,10 @@ export function LockFolder({
 
         <div className="flex justify-end gap-2">
           <button type="button" onClick={onClose} className={buttonClass("secondary", "sm")}>
-            Annuler
+            {t("action.cancel")}
           </button>
           <button type="submit" disabled={busy} className={buttonClass("primary", "sm")}>
-            {busy ? "Enregistrement…" : "Enregistrer"}
+            {busy ? t("storage.saving") : t("action.save")}
           </button>
         </div>
       </form>
@@ -575,6 +578,7 @@ export function UnlockFolder({
   path: string;
   onClose: () => void;
 }) {
+  const t = useT();
   const queryClient = useQueryClient();
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
@@ -598,14 +602,14 @@ export function UnlockFolder({
   }
 
   return (
-    <Shell title="Dossier verrouillé" onClose={onClose}>
+    <Shell title={t("unlock.title")} onClose={onClose}>
       <form onSubmit={run} className="flex flex-col gap-3">
         <p className="text-meta text-muted">
           <code className="text-fg">{path}</code>
         </p>
 
         <label className="flex flex-col gap-1">
-          <span className="text-micro uppercase tracking-wide text-subtle">Code d&apos;accès</span>
+          <span className="text-micro uppercase tracking-wide text-subtle">{t("lock.accessCode")}</span>
           <input
             type="password"
             value={code}
@@ -615,7 +619,7 @@ export function UnlockFolder({
             className="h-9 rounded-md border border-border bg-surface px-2.5 text-ui text-fg"
           />
           <span className="text-meta text-subtle">
-            Le dossier reste ouvert deux heures, puis se referme de lui-même.
+{t("unlock.duration")}
           </span>
         </label>
 
@@ -623,10 +627,10 @@ export function UnlockFolder({
 
         <div className="flex justify-end gap-2">
           <button type="button" onClick={onClose} className={buttonClass("secondary", "sm")}>
-            Annuler
+            {t("action.cancel")}
           </button>
           <button type="submit" disabled={busy} className={buttonClass("primary", "sm")}>
-            {busy ? "Vérification…" : "Ouvrir"}
+            {busy ? t("storage.verifying") : t("unlock.open")}
           </button>
         </div>
       </form>
@@ -656,8 +660,9 @@ export function ShareFolder({
 }) {
   useEscape(onClose);
 
+  const t = useT();
   return (
-    <Shell title="Partager le dossier" onClose={onClose}>
+    <Shell title={t("share.title")} onClose={onClose}>
       <p className="text-meta text-muted">
         <code className="text-fg">{path}</code>
       </p>
@@ -676,6 +681,7 @@ export function ShareFolder({
 
 /** Partage entre comptes du serveur. */
 function AccountSharing({ libraryId, path }: { libraryId: string; path: string }) {
+  const t = useT();
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
 
@@ -707,10 +713,9 @@ function AccountSharing({ libraryId, path }: { libraryId: string; path: string }
 
   return (
     <section className="rounded-md border border-border p-3">
-      <h3 className="text-ui font-medium text-fg">Comptes du serveur</h3>
+      <h3 className="text-ui font-medium text-fg">{t("share.accounts")}</h3>
       <p className="mt-0.5 text-meta leading-relaxed text-muted">
-        Un dossier sans accès explicite est visible de tous ceux qui voient la
-        bibliothèque. En accorder un ici le referme pour tous les autres.
+{t("share.accountsHint")}
       </p>
 
       <ul className="mt-2.5 flex flex-col gap-1">
@@ -724,7 +729,7 @@ function AccountSharing({ libraryId, path }: { libraryId: string; path: string }
                 type="checkbox"
                 checked={on}
                 onChange={(e) => void toggle(account.id, e.target.checked, canWrite)}
-                aria-label={`Partager avec ${account.username}`}
+                aria-label={t("share.with", { name: account.username })}
                 className="size-4 accent-[var(--accent)]"
               />
               <span className="min-w-0 flex-1 truncate text-ui text-fg">
@@ -738,12 +743,12 @@ function AccountSharing({ libraryId, path }: { libraryId: string; path: string }
                   onChange={(e) => void toggle(account.id, true, e.target.checked)}
                   className="size-3.5 accent-[var(--accent)]"
                 />
-                écriture
+                {t("share.write")}
               </label>
             </li>
           );
         })}
-        {list.length === 0 && <li className="text-meta text-subtle">Aucun autre compte.</li>}
+        {list.length === 0 && <li className="text-meta text-subtle">{t("share.noOtherAccount")}</li>}
       </ul>
 
       {error && <div className="mt-2"><ErrorNote>{error}</ErrorNote></div>}
@@ -767,6 +772,7 @@ function PublicLink({
   path: string;
   hasCode: boolean;
 }) {
+  const { locale, t } = useLocale();
   const queryClient = useQueryClient();
   const [days, setDays] = useState(7);
   const [label, setLabel] = useState("");
@@ -801,10 +807,9 @@ function PublicLink({
   if (hasCode) {
     return (
       <section className="rounded-md border border-border p-3">
-        <h3 className="text-ui font-medium text-fg">Lien public</h3>
+        <h3 className="text-ui font-medium text-fg">{t("share.publicLink")}</h3>
         <p className="mt-0.5 text-meta leading-relaxed text-muted">
-          Indisponible : ce dossier est masqué par un code d&apos;accès. Publier
-          ce qu&apos;on vient de cacher annulerait le code sans le dire.
+          {t("share.blockedByCode")}
         </p>
       </section>
     );
@@ -812,10 +817,9 @@ function PublicLink({
 
   return (
     <section className="rounded-md border border-border p-3">
-      <h3 className="text-ui font-medium text-fg">Lien public</h3>
+      <h3 className="text-ui font-medium text-fg">{t("share.publicLink")}</h3>
       <p className="mt-0.5 text-meta leading-relaxed text-warning">
-        Un lien public ouvre ce dossier <strong>sans aucun compte</strong> : qui
-        a l&apos;adresse voit le contenu, et peut la transmettre.
+        {t("share.publicWarning")}
       </p>
 
       {mine.length > 0 && (
@@ -823,17 +827,22 @@ function PublicLink({
           {mine.map((link) => (
             <li key={link.id} className="flex items-center gap-2 rounded-md border border-border px-2.5 py-1.5">
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-ui text-fg">{link.label || "Sans nom"}</span>
+                <span className="block truncate text-ui text-fg">{link.label || t("share.unnamed")}</span>
                 <span className="block text-meta text-subtle">
-                  expire le {new Date(link.expiresAt).toLocaleDateString("fr-FR")} ·{" "}
-                  {link.useCount} ouverture{link.useCount > 1 ? "s" : ""}
+                  {t("share.expiresOn", {
+                    date: new Date(link.expiresAt).toLocaleDateString(locale),
+                  })}{" "}
+                  ·{" "}
+                  {t(link.useCount > 1 ? "share.openedOther" : "share.openedOne", {
+                    count: link.useCount,
+                  })}
                 </span>
               </span>
               <button
                 onClick={() => void revoke(link.id)}
                 className="pressable rounded px-2 py-1 text-meta text-danger hover:bg-danger/10"
               >
-                Révoquer
+                {t("share.revoke")}
               </button>
             </li>
           ))}
@@ -843,7 +852,7 @@ function PublicLink({
       {created && (
         <div className="mt-2.5 rounded-md border border-success/40 bg-success/10 p-2.5">
           <p className="text-meta text-muted">
-            Copiez ce lien maintenant : il ne sera plus affiché.
+{t("share.copyNow")}
           </p>
           <input
             readOnly
@@ -860,27 +869,27 @@ function PublicLink({
           <input
             value={label}
             onChange={(e) => setLabel(e.target.value)}
-            placeholder="Pour Camille"
+            placeholder={t("share.labelPlaceholder")}
             className="h-8 w-40 rounded-md border border-border bg-surface px-2 text-meta text-fg placeholder:text-subtle"
           />
         </label>
 
         <label className="flex flex-col gap-1">
-          <span className="text-micro uppercase tracking-wide text-subtle">Expire dans</span>
+          <span className="text-micro uppercase tracking-wide text-subtle">{t("share.expiresIn")}</span>
           <select
             value={days}
             onChange={(e) => setDays(Number(e.target.value))}
             className="h-8 rounded-md border border-border bg-surface px-2 text-meta text-fg"
           >
-            <option value={1}>1 jour</option>
-            <option value={7}>7 jours</option>
-            <option value={30}>30 jours</option>
-            <option value={365}>1 an</option>
+            <option value={1}>{t("share.oneDay")}</option>
+            <option value={7}>{t("share.sevenDays")}</option>
+            <option value={30}>{t("share.thirtyDays")}</option>
+            <option value={365}>{t("share.oneYear")}</option>
           </select>
         </label>
 
         <button onClick={() => void create()} disabled={busy} className={buttonClass("primary", "sm")}>
-          {busy ? "Création…" : "Créer un lien"}
+          {busy ? t("storage.creating") : t("share.createLink")}
         </button>
       </div>
 

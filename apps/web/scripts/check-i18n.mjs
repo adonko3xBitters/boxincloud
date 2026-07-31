@@ -33,11 +33,20 @@ restent en français comme le reste de la documentation du projet. Les laisser
 dans le compte le rendrait insensible au travail réel — on aurait traduit toute
 l'interface sans que le chiffre bouge de moitié.
 */
-const IGNORED = new Set([
-  join(SRC, "i18n", "fr.ts"),
-  join(SRC, "i18n", "en.ts"),
-  join(SRC, "lib", "api", "schema.d.ts"),
-]);
+const IGNORED = new Set([join(SRC, "i18n", "fr.tsx")]);
+
+/*
+Seuls les fichiers `.tsx` sont parcourus.
+
+C'est là que vit le texte affiché. Les `.ts` — client d'API, jetons, réglages —
+contiennent surtout des identifiants que la majuscule initiale suffisait à
+faire passer pour du français : « POST », « Tokens », « Device ». Les compter
+noyait la mesure sous des faux positifs qu'aucune traduction ne concerne.
+
+Les rares chaînes visibles qui y traînent — noms de plateformes, messages
+d'erreur du client — sont traitées en même temps que le reste, sans que le
+compteur ait besoin de les voir.
+*/
 
 /**
  * Une chaîne littérale contenant du texte destiné à être lu.
@@ -63,13 +72,13 @@ const NOT_TEXT = [
 ];
 
 /** Un caractère accentué ou une majuscule initiale suffit à trahir du français. */
-const FRENCH = /[éèêëàâäîïôöùûüçœæ]|^[A-ZÀ-Ü]/;
+const FRENCH = /[éèêëàâäîïôöùûüçœæÉÈÊÀÂÎÔÙÛÇ]|^[A-ZÀ-Ü]/;
 
 async function* walk(dir) {
   for (const entry of await readdir(dir, { withFileTypes: true })) {
     const full = join(dir, entry.name);
     if (entry.isDirectory()) yield* walk(full);
-    else if (/\.tsx?$/.test(entry.name)) yield full;
+    else if (/\.tsx$/.test(entry.name)) yield full;
   }
 }
 

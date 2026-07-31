@@ -50,13 +50,33 @@ function isLocale(value: string | null): value is Locale {
   return value !== null && (LOCALES as readonly string[]).includes(value);
 }
 
-type Translate = (key: MessageKey) => string;
+/**
+ * Traduit une clé, en substituant d'éventuels paramètres.
+ *
+ * Les paramètres s'écrivent `{nom}` dans le catalogue. C'est ce qui permet aux
+ * deux langues d'ordonner la phrase différemment — « 3 albums ajoutés » et
+ * « added 3 albums » n'ont pas les morceaux dans le même ordre, et concaténer
+ * des fragments obligerait l'anglais à suivre la grammaire française.
+ *
+ * Pas de pluriel automatique : le catalogue porte deux clés et l'appelant
+ * choisit. Un système de pluriels générique demanderait `Intl.PluralRules` et
+ * une convention de nommage, pour deux langues qui n'ont toutes deux qu'une
+ * forme au singulier et une au pluriel.
+ */
+type Translate = (key: MessageKey, params?: Record<string, string | number>) => string;
+
+function interpolate(template: string, params?: Record<string, string | number>): string {
+  if (!params) return template;
+  return template.replace(/\{(\w+)\}/g, (whole, name: string) =>
+    name in params ? String(params[name]) : whole,
+  );
+}
 
 const LocaleContext = createContext<{
   locale: Locale;
   setLocale: (locale: Locale) => void;
   t: Translate;
-}>({ locale: "fr", setLocale: () => {}, t: (key) => fr[key] });
+}>({ locale: "fr", setLocale: () => {}, t: (key, params) => interpolate(fr[key], params) });
 
 export function LocaleProvider({ children }: { children: React.ReactNode }) {
   // Le français au premier rendu, toujours. L'export statique produit une page
@@ -76,7 +96,10 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     setLocaleState(next);
   }, []);
 
-  const t = useCallback<Translate>((key) => catalogues[locale][key] ?? fr[key], [locale]);
+  const t = useCallback<Translate>(
+    (key, params) => interpolate(catalogues[locale][key] ?? fr[key], params),
+    [locale],
+  );
 
   return (
     <LocaleContext.Provider value={{ locale, setLocale, t }}>

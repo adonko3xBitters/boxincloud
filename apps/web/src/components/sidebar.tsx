@@ -10,6 +10,7 @@ import { FolderDialogs, type FolderDialog } from "./folder-dialogs";
 import * as api from "@/lib/api/endpoints";
 import type { Folder } from "@/lib/api/endpoints";
 import { useWorkspace, type Scope } from "@/lib/workspace";
+import { useT, type MessageKey } from "@/i18n";
 
 /**
  * Barre latérale.
@@ -19,6 +20,7 @@ import { useWorkspace, type Scope } from "@/lib/workspace";
  * de se gérer sur une seule page, sans navigation.
  */
 export function Sidebar() {
+  const t = useT();
   const { scope, setScope } = useWorkspace();
   const [dialog, setDialog] = useState<FolderDialog | null>(null);
 
@@ -40,12 +42,12 @@ export function Sidebar() {
 
   return (
     <aside className="flex h-full w-[var(--layout-sidebar-width)] shrink-0 flex-col overflow-y-auto border-r border-border bg-surface-sunken">
-      <Section id="libraries" title="Bibliothèques" count={libraries.data?.libraries.length}>
+      <Section id="libraries" title={t("sidebar.libraries")} count={libraries.data?.libraries.length}>
         <Row
           active={scope.kind === "all"}
           onClick={() => setScope({ kind: "all" })}
           icon={<StackIcon />}
-          label="Tous les albums"
+          label={t("sidebar.allAlbums")}
         />
         {libraries.data?.libraries.map((library) => (
           <Row
@@ -61,13 +63,13 @@ export function Sidebar() {
 
       <Section
         id="folders"
-        title="Dossiers"
+        title={t("sidebar.folders")}
         action={
           firstLibrary && (
             <button
               onClick={() => setDialog({ kind: "create", libraryId: firstLibrary, parent: "" })}
-              aria-label="Nouveau dossier à la racine"
-              title="Nouveau dossier"
+              aria-label={t("sidebar.newRootFolder")}
+              title={t("sidebar.newFolder")}
               className="pressable grid size-5 place-items-center rounded text-subtle hover:bg-surface-hover hover:text-fg"
             >
               <svg viewBox="0 0 16 16" fill="none" className="size-3.5" aria-hidden="true">
@@ -86,7 +88,7 @@ export function Sidebar() {
         />
       </Section>
 
-      <Section id="series" title="Séries" count={series.data?.items.length}>
+      <Section id="series" title={t("sidebar.series")} count={series.data?.items.length}>
         <div className="max-h-72 overflow-y-auto">
           {series.data?.items.map((item) => (
             <Row
@@ -101,24 +103,24 @@ export function Sidebar() {
         </div>
       </Section>
 
-      <Section id="lists" title="Listes de lecture">
+      <Section id="lists" title={t("sidebar.lists")}>
         <Row
           active={scope.kind === "favorites"}
           onClick={() => setScope({ kind: "favorites" })}
           icon={<HeartIcon className="text-danger" />}
-          label="Favoris"
+          label={t("sidebar.favorites")}
         />
         <Row
           active={scope.kind === "reading"}
           onClick={() => setScope({ kind: "reading" })}
           icon={<BookmarkIcon className="text-accent" />}
-          label="En cours"
+          label={t("sidebar.reading")}
         />
         <Row
           active={scope.kind === "recent"}
           onClick={() => setScope({ kind: "recent" })}
           icon={<DotIcon className="text-warning" />}
-          label="Récents"
+          label={t("sidebar.recent")}
         />
       </Section>
       <FolderDialogs dialog={dialog} onClose={() => setDialog(null)} />
@@ -160,6 +162,8 @@ function FolderTree({
   libraryId?: string;
   onAction: (dialog: FolderDialog) => void;
 }) {
+  const t = useT();
+
   // Les dossiers de premier niveau sont dépliés d'emblée : replier tout
   // obligerait à cliquer avant de voir quoi que ce soit.
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -185,7 +189,7 @@ function FolderTree({
     folders.some((other) => isDescendant(other.path, folder.path));
 
   if (folders.length === 0) {
-    return <p className="px-3 py-2 text-meta text-subtle">Aucun dossier</p>;
+    return <p className="px-3 py-2 text-meta text-subtle">{t("sidebar.noFolders")}</p>;
   }
 
   return (
@@ -211,7 +215,7 @@ function FolderTree({
                     return next;
                   })
                 }
-                aria-label={isCollapsed ? "Déplier" : "Replier"}
+                aria-label={isCollapsed ? t("sidebar.expand") : t("sidebar.collapse")}
                 className="grid size-6 shrink-0 place-items-center rounded text-subtle transition-colors hover:bg-surface-hover hover:text-fg"
                 style={{ marginLeft: folder.depth * 12 }}
               >
@@ -241,10 +245,10 @@ function FolderTree({
               {/* Les cadenas disent lequel des deux verrous est posé : le plein
                   protège, l'ouvert signale un dossier masqué qu'on a ouvert. */}
               {folder.readOnly && (
-                <LockIcon className="size-3.5 shrink-0 opacity-60" title="Lecture seule" />
+                <LockIcon className="size-3.5 shrink-0 opacity-60" title={t("sidebar.readOnly")} />
               )}
               {folder.hasCode && (
-                <KeyIcon className="size-3.5 shrink-0 opacity-60" title="Déverrouillé pour le moment" />
+                <KeyIcon className="size-3.5 shrink-0 opacity-60" title={t("sidebar.unlockedForNow")} />
               )}
               <span className={cx("ml-auto shrink-0 text-meta tabular-nums", active ? "opacity-80" : "text-subtle")}>
                 {folder.comicCount}
@@ -259,7 +263,7 @@ function FolderTree({
       <ContextMenu
         position={menu.position}
         onClose={menu.close}
-        items={menu.target ? folderMenuItems(menu.target, onSelect, onAction, libraryId) : []}
+        items={menu.target ? folderMenuItems(menu.target, onSelect, onAction, t, libraryId) : []}
       />
     </>
   );
@@ -275,18 +279,19 @@ function folderMenuItems(
   folder: Folder,
   onSelect: (scope: Scope) => void,
   onAction: (dialog: FolderDialog) => void,
+  t: (key: MessageKey, params?: Record<string, string | number>) => string,
   libraryId?: string,
 ): MenuItem[] {
   const isRoot = folder.path === "";
 
   return [
     {
-      label: "Ouvrir",
+      label: t("folder.open"),
       onSelect: () => onSelect({ kind: "folder", path: folder.path, libraryId }),
     },
     { kind: "separator" },
     {
-      label: "Nouveau sous-dossier…",
+      label: t("folder.newChild"),
       onSelect: () =>
         onAction({ kind: "create", libraryId: folder.libraryId, parent: folder.path }),
     },
@@ -294,7 +299,7 @@ function folderMenuItems(
       ? []
       : ([
           {
-            label: "Renommer…",
+            label: t("folder.rename"),
             onSelect: () =>
               onAction({
                 kind: "rename",
@@ -305,7 +310,7 @@ function folderMenuItems(
           },
           { kind: "separator" },
           {
-            label: "Verrouiller…",
+            label: t("folder.lock"),
             onSelect: () =>
               onAction({
                 kind: "lock",
@@ -316,7 +321,7 @@ function folderMenuItems(
               }),
           },
           {
-            label: "Partager…",
+            label: t("folder.share"),
             onSelect: () =>
               onAction({
                 kind: "share",
@@ -327,7 +332,7 @@ function folderMenuItems(
           },
           { kind: "separator" },
           {
-            label: "Supprimer…",
+            label: t("folder.delete"),
             destructive: true,
             onSelect: () =>
               onAction({
@@ -358,6 +363,7 @@ function FolderMenu({
   folder: Folder;
   onAction: (dialog: FolderDialog) => void;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const close = useCallback(() => setOpen(false), []);
@@ -374,7 +380,7 @@ function FolderMenu({
           e.stopPropagation();
           setOpen((v) => !v);
         }}
-        aria-label={`Actions sur ${folder.name || "la racine"}`}
+        aria-label={t("sidebar.actionsOn", { name: folder.name || t("sidebar.root") })}
         className={cx(
           "pressable grid size-6 place-items-center rounded text-subtle",
           "opacity-0 transition-opacity focus-visible:opacity-100 group-hover/tree:opacity-100",

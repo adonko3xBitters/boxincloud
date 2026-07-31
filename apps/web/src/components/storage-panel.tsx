@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button, Spinner, buttonClass, cx } from "./ui";
 import { ApiError } from "@/lib/api/client";
 import * as api from "@/lib/api/endpoints";
+import { useLocale, useT, type MessageKey } from "@/i18n";
 
 /**
  * Stockages et bibliothèques.
@@ -16,6 +17,7 @@ import * as api from "@/lib/api/endpoints";
  * tout ce qui s'y rattachait.
  */
 export function StoragePanel({ onClose }: { onClose: () => void }) {
+  const t = useT();
   const [tab, setTab] = useState<"libraries" | "backends" | "cache">("libraries");
 
   useEffect(() => {
@@ -34,11 +36,11 @@ export function StoragePanel({ onClose }: { onClose: () => void }) {
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Stockage et bibliothèques"
+        aria-label={t("storage.dialogLabel")}
         className="rise-in flex h-[80vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-border bg-surface shadow-2xl"
       >
         <header className="flex items-center gap-3 border-b border-border px-4 py-3">
-          <h2 className="text-title font-semibold text-fg">Stockage</h2>
+          <h2 className="text-title font-semibold text-fg">{t("storage.title")}</h2>
 
           <div className="ml-2 flex items-center gap-0.5 rounded-md border border-border p-0.5">
             {(["libraries", "backends", "cache"] as const).map((option) => (
@@ -53,14 +55,14 @@ export function StoragePanel({ onClose }: { onClose: () => void }) {
                     : "text-muted hover:bg-surface-hover hover:text-fg",
                 )}
               >
-                {TAB_LABELS[option]}
+                {t(TAB_KEYS[option])}
               </button>
             ))}
           </div>
 
           <button
             onClick={onClose}
-            aria-label="Fermer"
+            aria-label={t("action.close")}
             className="pressable ml-auto grid size-8 place-items-center rounded text-subtle hover:bg-surface-hover hover:text-fg"
           >
             <svg viewBox="0 0 16 16" fill="none" className="size-4" aria-hidden="true">
@@ -79,11 +81,11 @@ export function StoragePanel({ onClose }: { onClose: () => void }) {
   );
 }
 
-const TAB_LABELS = {
-  libraries: "Bibliothèques",
-  backends: "Espaces de stockage",
-  cache: "Cache",
-} as const;
+const TAB_KEYS: Record<"libraries" | "backends" | "cache", MessageKey> = {
+  libraries: "storage.libraries",
+  backends: "storage.backends",
+  cache: "cache.tab",
+};
 
 // ─── Cache dérivé ────────────────────────────────────────────────────────────
 
@@ -96,6 +98,7 @@ const TAB_LABELS = {
  * risque de perte.
  */
 function CacheSection() {
+  const { locale, t } = useLocale();
   const queryClient = useQueryClient();
   const [confirming, setConfirming] = useState(false);
   const [freed, setFreed] = useState<{ entries: number; bytes: number } | null>(null);
@@ -125,9 +128,9 @@ function CacheSection() {
         <div className="flex items-baseline gap-2">
           <span className="text-2xl font-semibold text-fg">{formatBytes(data.bytes)}</span>
           {data.maxBytes ? (
-            <span className="text-meta text-subtle">sur {formatBytes(data.maxBytes)}</span>
+            <span className="text-meta text-subtle">{t("cache.of")} {formatBytes(data.maxBytes)}</span>
           ) : (
-            <span className="text-meta text-subtle">cache non borné</span>
+            <span className="text-meta text-subtle">{t("cache.unbounded")}</span>
           )}
         </div>
 
@@ -141,24 +144,21 @@ function CacheSection() {
         ) : null}
 
         <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-1 text-meta sm:grid-cols-3">
-          <Stat label="Entrées" value={data.entries.toLocaleString("fr-FR")} />
-          <Stat label="Lectures servies" value={data.hits.toLocaleString("fr-FR")} />
+          <Stat label={t("cache.entries")} value={data.entries.toLocaleString("fr-FR")} />
+          <Stat label={t("cache.hits")} value={data.hits.toLocaleString("fr-FR")} />
           {data.oldestAt && (
-            <Stat label="Plus ancienne" value={formatDate(data.oldestAt)} />
+            <Stat label={t("cache.oldest")} value={formatDate(data.oldestAt)} />
           )}
         </dl>
       </div>
 
       <p className="text-meta leading-relaxed text-subtle">
-        Vignettes, couvertures et pages transcodées. Tout s&apos;y régénère depuis
-        les archives d&apos;origine : vider ce cache ne perd aucune donnée, cela
-        coûte seulement une régénération à la prochaine lecture.
+{t("cache.explain")}
       </p>
 
       {freed && (
         <p className="rounded-md border border-border bg-surface-sunken px-3 py-2 text-meta text-muted">
-          {freed.entries.toLocaleString("fr-FR")} entrées supprimées,{" "}
-          {formatBytes(freed.bytes)} libérés.
+{t("cache.freed", { entries: freed.entries.toLocaleString(locale), bytes: formatBytes(freed.bytes) })}
         </p>
       )}
 
@@ -167,10 +167,10 @@ function CacheSection() {
       {confirming ? (
         <div className="flex items-center gap-2">
           <Button variant="danger" loading={purge.isPending} onClick={() => purge.mutate()}>
-            Confirmer la purge
+            {t("cache.purgeConfirm")}
           </Button>
           <Button variant="ghost" onClick={() => setConfirming(false)}>
-            Annuler
+            {t("action.cancel")}
           </Button>
         </div>
       ) : (
@@ -180,7 +180,7 @@ function CacheSection() {
             disabled={data.entries === 0}
             onClick={() => setConfirming(true)}
           >
-            Vider le cache
+            {t("cache.purge")}
           </Button>
         </div>
       )}
@@ -223,6 +223,7 @@ function formatDate(iso: string): string {
 // ─── Bibliothèques ───────────────────────────────────────────────────────────
 
 function Libraries() {
+  const t = useT();
   const [creating, setCreating] = useState(false);
 
   const libraries = useQuery({ queryKey: ["libraries"], queryFn: api.listLibraries });
@@ -232,7 +233,7 @@ function Libraries() {
   const hasBackend = (backends.data?.backends.length ?? 0) > 0;
 
   if (libraries.isLoading) {
-    return <p className="text-ui text-muted">Chargement…</p>;
+    return <p className="text-ui text-muted">{t("state.loading")}</p>;
   }
 
   return (
@@ -244,8 +245,8 @@ function Libraries() {
       */}
       {!hasBackend ? (
         <Notice
-          title="Aucun espace de stockage"
-          detail="Une bibliothèque désigne un emplacement dans un espace de stockage. Commencez par en déclarer un dans l'onglet « Espaces de stockage »."
+          title={t("storage.noBackendTitle")}
+          detail={t("storage.noBackendDetail")}
         />
       ) : creating ? (
         <NewLibrary
@@ -254,12 +255,12 @@ function Libraries() {
         />
       ) : (
         <button onClick={() => setCreating(true)} className={buttonClass("primary", "sm")}>
-          Nouvelle bibliothèque
+          {t("storage.newLibrary")}
         </button>
       )}
 
       {list.length === 0 && hasBackend && !creating && (
-        <p className="text-ui text-muted">Aucune bibliothèque pour l&apos;instant.</p>
+        <p className="text-ui text-muted">{t("storage.noLibraries")}</p>
       )}
 
       {list.map((library) => (
@@ -283,6 +284,7 @@ function NewLibrary({
   backends: api.StorageBackend[];
   onDone: () => void;
 }) {
+  const t = useT();
   const queryClient = useQueryClient();
   const [name, setName] = useState("");
   const [backendId, setBackendId] = useState(
@@ -309,12 +311,17 @@ function NewLibrary({
 
   return (
     <form onSubmit={create} className="flex flex-col gap-3 rounded-lg border border-accent/40 bg-accent/5 p-3">
-      <h3 className="text-ui font-semibold text-fg">Nouvelle bibliothèque</h3>
+      <h3 className="text-ui font-semibold text-fg">{t("storage.newLibrary")}</h3>
 
-      <Field label="Nom" value={name} onChange={setName} placeholder="Mes BD" />
+      <Field
+        label={t("storage.fieldName")}
+        value={name}
+        onChange={setName}
+        placeholder={t("storage.libraryNamePlaceholder")}
+      />
 
       <label className="flex flex-col gap-1">
-        <span className="text-micro uppercase tracking-wide text-subtle">Espace de stockage</span>
+        <span className="text-micro uppercase tracking-wide text-subtle">{t("storage.backendField")}</span>
         <select
           value={backendId}
           onChange={(e) => setBackendId(e.target.value)}
@@ -329,22 +336,22 @@ function NewLibrary({
       </label>
 
       <Field
-        label="Sous-dossier"
+        label={t("storage.subfolder")}
         value={prefix}
         onChange={setPrefix}
         placeholder="bd/"
         mono
-        hint="Emplacement dans le stockage. Laissez vide pour prendre tout le contenu."
+        hint={t("storage.subfolderHint")}
       />
 
       {error && <ErrorNote>{error}</ErrorNote>}
 
       <div className="flex justify-end gap-2">
         <button type="button" onClick={onDone} className={buttonClass("secondary", "sm")}>
-          Annuler
+          {t("action.cancel")}
         </button>
         <button type="submit" disabled={busy || !name || !backendId} className={buttonClass("primary", "sm")}>
-          {busy ? "Création…" : "Créer"}
+          {busy ? t("storage.creating") : t("action.create")}
         </button>
       </div>
     </form>
@@ -352,6 +359,7 @@ function NewLibrary({
 }
 
 function LibraryCard({ id, name, count }: { id: string; name: string; count: number }) {
+  const t = useT();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [nextName, setNextName] = useState(name);
@@ -411,34 +419,34 @@ function LibraryCard({ id, name, count }: { id: string; name: string; count: num
         <div className="min-w-0 flex-1">
           <p className="truncate text-ui font-medium text-fg">{name}</p>
           <p className="text-meta text-subtle">
-            {count} album{count > 1 ? "s" : ""}
-            {last && ` · dernier parcours ${statusLabel(last.status)}`}
+            {t(count > 1 ? "storage.albumOther" : "storage.albumOne", { count })}
+            {last && ` · ${t("storage.lastScan", { status: t(statusKey(last.status)) })}`}
           </p>
         </div>
 
         <button onClick={() => void scan()} className={buttonClass("secondary", "sm")}>
-          Analyser
+          {t("storage.scan")}
         </button>
         <button onClick={() => setEditing((v) => !v)} className={buttonClass("secondary", "sm")}>
-          {editing ? "Annuler" : "Modifier"}
+          {editing ? t("action.cancel") : t("storage.edit")}
         </button>
       </div>
 
       {editing && (
         <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3">
-          <Field label="Nom" value={nextName} onChange={setNextName} />
+          <Field label={t("storage.fieldName")} value={nextName} onChange={setNextName} />
           <Field
-            label="Préfixe racine"
+            label={t("storage.rootPrefix")}
             value={prefix}
             onChange={setPrefix}
-            placeholder="inchangé"
+            placeholder={t("storage.unchanged")}
             mono
-            hint="Changer le préfixe ne déplace rien : les albums déjà indexés pointent l'ancien. Le changement dit où chercher désormais, et un nouveau parcours reconstruit le catalogue."
+            hint={t("storage.rootPrefixHint")}
           />
 
           <div className="flex justify-end gap-2">
             <button onClick={() => void save()} disabled={busy} className={buttonClass("primary", "sm")}>
-              {busy ? "Enregistrement…" : "Enregistrer"}
+              {busy ? t("storage.saving") : t("action.save")}
             </button>
           </div>
 
@@ -448,19 +456,16 @@ function LibraryCard({ id, name, count }: { id: string; name: string; count: num
                 onClick={() => setConfirming(true)}
                 className="pressable rounded-md border border-danger/40 px-3 py-1.5 text-ui font-medium text-danger hover:bg-danger/10"
               >
-                Supprimer cette bibliothèque
+                {t("storage.deleteLibrary")}
               </button>
             ) : (
               <div className="flex flex-col gap-2 rounded-md border border-danger/40 bg-danger/10 p-3">
                 <p className="text-meta leading-relaxed text-fg">
-                  Albums, dossiers, progression de lecture, favoris, notes et
-                  partages disparaissent. <strong>Vos fichiers restent intacts</strong> —
-                  recréer la bibliothèque sur le même préfixe les retrouve tous.
-                  L&apos;historique de lecture, lui, ne revient pas.
+                  {t("storage.deleteLibraryWarning")}
                 </p>
                 <label className="flex flex-col gap-1">
                   <span className="text-meta text-muted">
-                    Tapez <strong className="text-danger">supprimer</strong> pour confirmer.
+                    {t("storage.typeToConfirm", { word: t("storage.confirmWord") })}
                   </span>
                   <input
                     value={confirmed}
@@ -471,14 +476,17 @@ function LibraryCard({ id, name, count }: { id: string; name: string; count: num
                 </label>
                 <div className="flex justify-end gap-2">
                   <button onClick={() => setConfirming(false)} className={buttonClass("secondary", "sm")}>
-                    Annuler
+                    {t("action.cancel")}
                   </button>
                   <button
                     onClick={() => void remove()}
-                    disabled={confirmed.trim().toLowerCase() !== "supprimer" || busy}
+                    disabled={
+                      confirmed.trim().toLowerCase() !== t("storage.confirmWord").toLowerCase() ||
+                      busy
+                    }
                     className="pressable rounded-md bg-danger px-3 py-1.5 text-ui font-medium text-white disabled:opacity-40"
                   >
-                    Supprimer définitivement
+                    {t("storage.deleteForever")}
                   </button>
                 </div>
               </div>
@@ -502,6 +510,7 @@ function LibraryCard({ id, name, count }: { id: string; name: string; count: num
  * sans le moindre indice.
  */
 function ScanHistory({ runs }: { runs: api.ScanRun[] }) {
+  const { locale, t } = useLocale();
   const [open, setOpen] = useState(false);
 
   return (
@@ -510,7 +519,7 @@ function ScanHistory({ runs }: { runs: api.ScanRun[] }) {
         onClick={() => setOpen((v) => !v)}
         className="pressable text-meta text-accent-text hover:underline"
       >
-        {open ? "Masquer" : "Voir"} les {runs.length} derniers parcours
+        {open ? t("scan.hide") : t("scan.show")} {t("scan.lastRuns", { count: runs.length })}
       </button>
 
       {open && (
@@ -528,14 +537,18 @@ function ScanHistory({ runs }: { runs: api.ScanRun[] }) {
                         : "bg-danger",
                   )}
                 />
-                <span className="text-meta text-fg">{statusLabel(run.status)}</span>
+                <span className="text-meta text-fg">{t(statusKey(run.status))}</span>
                 <span className="text-meta tabular-nums text-subtle">
-                  {new Date(run.startedAt).toLocaleString("fr-FR")}
+                  {new Date(run.startedAt).toLocaleString(locale)}
                 </span>
                 <span className="ml-auto text-meta tabular-nums text-subtle">
-                  {run.objectsSeen} vus · {run.added} ajoutés · {run.updated} modifiés
-                  {run.removed > 0 && ` · ${run.removed} disparus`}
-                  {run.errors > 0 && ` · ${run.errors} erreurs`}
+                  {t("scan.counts", {
+                    seen: run.objectsSeen,
+                    added: run.added,
+                    updated: run.updated,
+                  })}
+                  {run.removed > 0 && t("scan.removed", { count: run.removed })}
+                  {run.errors > 0 && t("scan.errors", { count: run.errors })}
                 </span>
               </div>
               {run.detail && run.detail !== "{}" && (
@@ -552,11 +565,12 @@ function ScanHistory({ runs }: { runs: api.ScanRun[] }) {
 // ─── Espaces de stockage ─────────────────────────────────────────────────────
 
 function Backends() {
+  const t = useT();
   const [creating, setCreating] = useState(false);
   const backends = useQuery({ queryKey: ["backends"], queryFn: api.listBackends });
   const list = backends.data?.backends ?? [];
 
-  if (backends.isLoading) return <p className="text-ui text-muted">Chargement…</p>;
+  if (backends.isLoading) return <p className="text-ui text-muted">{t("state.loading")}</p>;
 
   return (
     <div className="flex flex-col gap-3">
@@ -564,14 +578,14 @@ function Backends() {
         <NewBackend onDone={() => setCreating(false)} />
       ) : (
         <button onClick={() => setCreating(true)} className={buttonClass("primary", "sm")}>
-          Nouvel espace de stockage
+          {t("storage.newBackend")}
         </button>
       )}
 
       {list.length === 0 && !creating && (
         <Notice
-          title="Aucun espace de stockage"
-          detail="Un espace de stockage est l'endroit où vivent réellement vos fichiers : un dossier du serveur, ou un bucket S3 / MinIO. boxincloud n'en héberge aucun — il lit le vôtre."
+          title={t("storage.noBackendTitle")}
+          detail={t("storage.noBackendsDetail")}
         />
       )}
 
@@ -590,6 +604,7 @@ function Backends() {
  * quelqu'un qui veut juste lire les fichiers de son NAS.
  */
 function NewBackend({ onDone }: { onDone: () => void }) {
+  const t = useT();
   const queryClient = useQueryClient();
   const [kind, setKind] = useState<"local" | "s3">("local");
   const [name, setName] = useState("");
@@ -626,12 +641,17 @@ function NewBackend({ onDone }: { onDone: () => void }) {
 
   return (
     <form onSubmit={create} className="flex flex-col gap-3 rounded-lg border border-accent/40 bg-accent/5 p-3">
-      <h3 className="text-ui font-semibold text-fg">Nouvel espace de stockage</h3>
+      <h3 className="text-ui font-semibold text-fg">{t("storage.newBackend")}</h3>
 
-      <Field label="Nom" value={name} onChange={setName} placeholder="NAS du salon" />
+      <Field
+        label={t("storage.fieldName")}
+        value={name}
+        onChange={setName}
+        placeholder={t("storage.backendNamePlaceholder")}
+      />
 
       <div className="flex flex-col gap-1">
-        <span className="text-micro uppercase tracking-wide text-subtle">Type</span>
+        <span className="text-micro uppercase tracking-wide text-subtle">{t("storage.type")}</span>
         <div className="flex gap-1.5">
           {(["local", "s3"] as const).map((option) => (
             <button
@@ -646,7 +666,7 @@ function NewBackend({ onDone }: { onDone: () => void }) {
                   : "border-border text-muted hover:bg-surface-hover hover:text-fg",
               )}
             >
-              {option === "local" ? "Dossier du serveur" : "S3 / MinIO"}
+              {option === "local" ? t("storage.kindLocal") : t("storage.kindS3")}
             </button>
           ))}
         </div>
@@ -654,19 +674,24 @@ function NewBackend({ onDone }: { onDone: () => void }) {
 
       {kind === "local" ? (
         <Field
-          label="Chemin du dossier"
+          label={t("storage.folderPath")}
           value={root}
           onChange={setRoot}
           placeholder="/var/lib/boxincloud/bd"
           mono
-          hint="Chemin tel que le SERVEUR le voit, pas votre poste."
+          hint={t("storage.folderPathHint")}
         />
       ) : (
         <>
           <Field label="Endpoint" value={endpoint} onChange={setEndpoint} mono />
           <Field label="Bucket" value={bucket} onChange={setBucket} mono />
-          <Field label="Clé d'accès" value={accessKey} onChange={setAccessKey} />
-          <Field label="Clé secrète" value={secretKey} onChange={setSecretKey} type="password" />
+          <Field label={t("storage.accessKey")} value={accessKey} onChange={setAccessKey} />
+          <Field
+            label={t("storage.secretKey")}
+            value={secretKey}
+            onChange={setSecretKey}
+            type="password"
+          />
         </>
       )}
 
@@ -674,16 +699,15 @@ function NewBackend({ onDone }: { onDone: () => void }) {
 
       <div className="flex justify-end gap-2">
         <button type="button" onClick={onDone} className={buttonClass("secondary", "sm")}>
-          Annuler
+          {t("action.cancel")}
         </button>
         <button type="submit" disabled={busy || !name} className={buttonClass("primary", "sm")}>
-          {busy ? "Vérification du stockage…" : "Déclarer"}
+          {busy ? t("storage.checking") : t("storage.declare")}
         </button>
       </div>
 
       <p className="text-meta leading-relaxed text-subtle">
-        Le stockage est joint avant d&apos;être enregistré : un chemin ou des
-        identifiants erronés sont signalés tout de suite, pas au premier scan.
+{t("storage.checkedBeforeSaving")}
       </p>
     </form>
   );
@@ -700,6 +724,7 @@ function Notice({ title, detail }: { title: string; detail: string }) {
 }
 
 function BackendCard({ backend }: { backend: api.StorageBackend }) {
+  const t = useT();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(backend.name);
@@ -732,7 +757,7 @@ function BackendCard({ backend }: { backend: api.StorageBackend }) {
   async function test() {
     setTested(null);
     const result = await api.testBackend(backend.id);
-    setTested(result.ok ? "Le stockage répond." : (result.detail ?? "Injoignable."));
+    setTested(result.ok ? t("storage.reachable") : (result.detail ?? t("storage.unreachable")));
   }
 
   async function remove() {
@@ -759,26 +784,26 @@ function BackendCard({ backend }: { backend: api.StorageBackend }) {
             {backend.name}
             {backend.isDefault && (
               <span className="rounded bg-accent-subtle px-1.5 py-0.5 text-micro text-accent-text">
-                par défaut
+                {t("storage.isDefault")}
               </span>
             )}
             {backend.readOnly && (
               <span className="rounded bg-surface-sunken px-1.5 py-0.5 text-micro text-subtle">
-                lecture seule
+                {t("storage.readOnly")}
               </span>
             )}
           </p>
           <p className="text-meta text-subtle">
-            {backend.kind === "local" ? "Dossier local" : "S3 / MinIO"} ·{" "}
+            {backend.kind === "local" ? t("storage.localFolder") : t("storage.kindS3")} ·{" "}
             {backend.kind === "local" ? backend.config.root : backend.config.endpoint}
           </p>
         </div>
 
         <button onClick={() => void test()} className={buttonClass("secondary", "sm")}>
-          Tester
+          {t("storage.test")}
         </button>
         <button onClick={() => setEditing((v) => !v)} className={buttonClass("secondary", "sm")}>
-          {editing ? "Annuler" : "Modifier"}
+          {editing ? t("action.cancel") : t("storage.edit")}
         </button>
       </div>
 
@@ -790,7 +815,7 @@ function BackendCard({ backend }: { backend: api.StorageBackend }) {
 
       {editing && (
         <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3">
-          <Field label="Nom" value={name} onChange={setName} />
+          <Field label={t("storage.fieldName")} value={name} onChange={setName} />
 
           {keys.map((key) => (
             <Field
@@ -811,12 +836,11 @@ function BackendCard({ backend }: { backend: api.StorageBackend }) {
                   value={secrets[key] ?? ""}
                   onChange={(v) => setSecrets((s) => ({ ...s, [key]: v }))}
                   type="password"
-                  placeholder="inchangé"
+                  placeholder={t("storage.unchanged")}
                 />
               ))}
               <p className="text-meta leading-relaxed text-subtle">
-                Laissez vides pour conserver les identifiants actuels : ils ne
-                ressortent jamais de la base, pas même pour un administrateur.
+{t("storage.keepSecrets")}
               </p>
             </>
           )}
@@ -832,7 +856,7 @@ function BackendCard({ backend }: { backend: api.StorageBackend }) {
                 }}
                 className={buttonClass("secondary", "sm")}
               >
-                Définir par défaut
+                {t("storage.setDefault")}
               </button>
             )}
 
@@ -841,7 +865,7 @@ function BackendCard({ backend }: { backend: api.StorageBackend }) {
               disabled={busy}
               className="pressable rounded-md border border-danger/40 px-3 py-1.5 text-ui font-medium text-danger hover:bg-danger/10"
             >
-              Supprimer
+              {t("action.delete")}
             </button>
 
             <button
@@ -849,14 +873,12 @@ function BackendCard({ backend }: { backend: api.StorageBackend }) {
               disabled={busy}
               className={cx(buttonClass("primary", "sm"), "ml-auto")}
             >
-              {busy ? "Vérification…" : "Enregistrer"}
+              {busy ? t("storage.verifying") : t("action.save")}
             </button>
           </div>
 
           <p className="text-meta leading-relaxed text-subtle">
-            Le stockage est joint avant d&apos;être enregistré. Sa suppression est
-            refusée tant qu&apos;une bibliothèque s&apos;y appuie — vos fichiers ne
-            sont jamais touchés.
+{t("storage.backendFooter")}
           </p>
         </div>
       )}
@@ -910,18 +932,25 @@ function ErrorNote({ children }: { children: React.ReactNode }) {
   );
 }
 
-function statusLabel(status: string): string {
+/**
+ * Clé de traduction d'un statut de parcours.
+ *
+ * Une clé plutôt qu'un libellé : la fonction n'a pas accès au catalogue, et lui
+ * passer `t` en paramètre pour qu'elle rende une chaîne reviendrait au même en
+ * plus indirect. Un statut inconnu retombe sur « en cours » — le serveur n'en
+ * produit pas d'autre, et inventer un libellé pour une valeur qu'on ne connaît
+ * pas serait pire que d'en supposer une.
+ */
+function statusKey(status: string): MessageKey {
   switch (status) {
     case "success":
-      return "réussi";
-    case "running":
-      return "en cours";
+      return "scan.status.success";
     case "failed":
-      return "en échec";
+      return "scan.status.failed";
     case "cancelled":
-      return "interrompu";
+      return "scan.status.cancelled";
     default:
-      return status;
+      return "scan.status.running";
   }
 }
 
