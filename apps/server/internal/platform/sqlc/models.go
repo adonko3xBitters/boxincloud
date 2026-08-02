@@ -485,6 +485,8 @@ type DiscoverySource struct {
 	LastError     string
 	LastCheckedAt pgtype.Timestamptz
 	CreatedAt     pgtype.Timestamptz
+	// Règles d'extraction pour kind = web. Nul pour les autres genres.
+	Template []byte
 }
 
 type Favorite struct {

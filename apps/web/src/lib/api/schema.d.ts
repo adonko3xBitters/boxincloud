@@ -1672,8 +1672,12 @@ export interface components {
              *     auxquels l'utilisateur a déjà accès, publics ou ouverts par des
              *     identifiants qu'il fournit lui-même.
              *
-             *     `scraper:<gabarit>` désigne un site du domaine public qui n'expose
-             *     ni API ni flux, et qui est lu à partir d'un gabarit déclaratif. Le
+             *     `web` désigne un site décrit DEPUIS L'INTERFACE : ses règles
+             *     d'extraction voyagent avec la source, dans `template`. C'est la voie
+             *     à suivre pour brancher un site qui n'expose pas d'OPDS.
+             *
+             *     `scraper:<gabarit>` désigne un site lu à partir d'un gabarit
+             *     déclaratif chargé au démarrage, depuis un fichier. Le
              *     nom du gabarit entre dans le genre parce que deux sites lus ainsi
              *     n'ont rien en commun à l'exécution — ni adresse, ni règles
              *     d'extraction, ni débit. Ce sont bien deux genres de catalogue.
@@ -1696,6 +1700,48 @@ export interface components {
             lastCheckedAt?: string;
             /** Format: date-time */
             createdAt: string;
+        };
+        /**
+         * @description Les règles de lecture d'un site, telles qu'elles se saisissent dans le
+         *     formulaire. Requises pour `kind: web`, interdites ailleurs.
+         *
+         *     Délibérément pauvres : une adresse et quatre sélecteurs. Un formulaire à
+         *     trente champs ne serait rempli correctement par personne, et chaque
+         *     possibilité offerte est une possibilité de se tromper sans que rien ne
+         *     le signale. Qui a besoin de plus écrit un gabarit sur disque — voir
+         *     docs/06-gabarits-scraper.md.
+         */
+        WebTemplate: {
+            /**
+             * @description L'adresse de recherche complète, avec `{terms}` à la place des mots
+             *     cherchés. On la copie depuis la barre du navigateur après avoir
+             *     cherché sur le site, et on remplace le mot par `{terms}`.
+             * @example https://exemple.org/recherche?q={terms}
+             */
+            searchUrl: string;
+            /**
+             * @description Sélecteur CSS du conteneur d'UN résultat — celui qui se répète.
+             *     Tous les autres sélecteurs sont cherchés à l'intérieur de lui, ce
+             *     qui évite d'apparier des listes parallèles par position.
+             * @example ul.results > li
+             */
+            row: string;
+            /** @description Sélecteur du titre, dans la ligne. */
+            title: string;
+            /** @description Sélecteur de l'auteur. Tous les nœuds trouvés sont retenus. */
+            author?: string;
+            /** @description Sélecteur de l'image de couverture ; son `src` est lu. */
+            cover?: string;
+            /**
+             * @description Sélecteur du lien ; son `href` est lu. Servi à la fois comme fiche
+             *     et comme lien de téléchargement, faute de savoir lequel il est.
+             */
+            link?: string;
+            /**
+             * @description Type MIME du lien, que le HTML n'annonce jamais.
+             * @example application/vnd.comicbook+zip
+             */
+            mediaType?: string;
         };
         ScraperTemplate: {
             /**
@@ -4908,6 +4954,7 @@ export interface operations {
                      *     recompiler.
                      */
                     url?: string;
+                    template?: components["schemas"]["WebTemplate"];
                     /** @default true */
                     enabled?: boolean;
                     /** @description Vide pour un catalogue public. */
@@ -4997,6 +5044,7 @@ export interface operations {
                      *     annule un changement de miroir qu'on regrette.
                      */
                     url?: string;
+                    template?: components["schemas"]["WebTemplate"];
                     enabled?: boolean;
                     username?: string;
                     password?: string;

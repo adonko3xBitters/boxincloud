@@ -1,6 +1,6 @@
 -- name: CreateDiscoverySource :one
-INSERT INTO discovery_sources (id, name, url, kind, enabled, username, secret_enc)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
+INSERT INTO discovery_sources (id, name, url, kind, enabled, username, secret_enc, template)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
 RETURNING *;
 
 -- name: GetDiscoverySource :one
@@ -24,6 +24,10 @@ SET name     = $2,
     url      = $3,
     enabled  = $4,
     username = $5,
+    -- Les règles d'extraction ne se vident pas : une source `web` sans elles
+    -- serait interrogée sans qu'on sache quoi lire, et la contrainte de la base
+    -- refuserait la ligne. Ne pas les envoyer conserve celles en place.
+    template = COALESCE(sqlc.narg(template)::jsonb, template),
     -- Le mot de passe n'est remplacé que si l'appelant le demande : un
     -- formulaire qui renvoie un champ vide ne doit pas effacer ce qui marche.
     secret_enc = CASE WHEN sqlc.arg(replace_secret)::boolean

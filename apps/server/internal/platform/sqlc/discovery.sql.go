@@ -67,9 +67,9 @@ func (q *Queries) CreateDiscoveryImport(ctx context.Context, arg CreateDiscovery
 }
 
 const createDiscoverySource = `-- name: CreateDiscoverySource :one
-INSERT INTO discovery_sources (id, name, url, kind, enabled, username, secret_enc)
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, name, url, kind, enabled, username, secret_enc, last_error, last_checked_at, created_at
+INSERT INTO discovery_sources (id, name, url, kind, enabled, username, secret_enc, template)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+RETURNING id, name, url, kind, enabled, username, secret_enc, last_error, last_checked_at, created_at, template
 `
 
 type CreateDiscoverySourceParams struct {
@@ -80,6 +80,7 @@ type CreateDiscoverySourceParams struct {
 	Enabled   bool
 	Username  string
 	SecretEnc []byte
+	Template  []byte
 }
 
 func (q *Queries) CreateDiscoverySource(ctx context.Context, arg CreateDiscoverySourceParams) (DiscoverySource, error) {
@@ -91,6 +92,7 @@ func (q *Queries) CreateDiscoverySource(ctx context.Context, arg CreateDiscovery
 		arg.Enabled,
 		arg.Username,
 		arg.SecretEnc,
+		arg.Template,
 	)
 	var i DiscoverySource
 	err := row.Scan(
@@ -104,6 +106,7 @@ func (q *Queries) CreateDiscoverySource(ctx context.Context, arg CreateDiscovery
 		&i.LastError,
 		&i.LastCheckedAt,
 		&i.CreatedAt,
+		&i.Template,
 	)
 	return i, err
 }
@@ -274,7 +277,7 @@ func (q *Queries) GetDiscoveryImport(ctx context.Context, id uuid.UUID) (Discove
 }
 
 const getDiscoverySource = `-- name: GetDiscoverySource :one
-SELECT id, name, url, kind, enabled, username, secret_enc, last_error, last_checked_at, created_at FROM discovery_sources WHERE id = $1
+SELECT id, name, url, kind, enabled, username, secret_enc, last_error, last_checked_at, created_at, template FROM discovery_sources WHERE id = $1
 `
 
 func (q *Queries) GetDiscoverySource(ctx context.Context, id uuid.UUID) (DiscoverySource, error) {
@@ -291,6 +294,7 @@ func (q *Queries) GetDiscoverySource(ctx context.Context, id uuid.UUID) (Discove
 		&i.LastError,
 		&i.LastCheckedAt,
 		&i.CreatedAt,
+		&i.Template,
 	)
 	return i, err
 }
@@ -357,7 +361,7 @@ func (q *Queries) ListDiscoveryImports(ctx context.Context, limit int32) ([]Disc
 }
 
 const listDiscoverySources = `-- name: ListDiscoverySources :many
-SELECT id, name, url, kind, enabled, username, secret_enc, last_error, last_checked_at, created_at FROM discovery_sources ORDER BY name
+SELECT id, name, url, kind, enabled, username, secret_enc, last_error, last_checked_at, created_at, template FROM discovery_sources ORDER BY name
 `
 
 func (q *Queries) ListDiscoverySources(ctx context.Context) ([]DiscoverySource, error) {
@@ -380,6 +384,7 @@ func (q *Queries) ListDiscoverySources(ctx context.Context) ([]DiscoverySource, 
 			&i.LastError,
 			&i.LastCheckedAt,
 			&i.CreatedAt,
+			&i.Template,
 		); err != nil {
 			return nil, err
 		}
@@ -425,13 +430,17 @@ SET name     = $2,
     url      = $3,
     enabled  = $4,
     username = $5,
+    -- Les règles d'extraction ne se vident pas : une source ` + "`" + `web` + "`" + ` sans elles
+    -- serait interrogée sans qu'on sache quoi lire, et la contrainte de la base
+    -- refuserait la ligne. Ne pas les envoyer conserve celles en place.
+    template = COALESCE($6::jsonb, template),
     -- Le mot de passe n'est remplacé que si l'appelant le demande : un
     -- formulaire qui renvoie un champ vide ne doit pas effacer ce qui marche.
-    secret_enc = CASE WHEN $6::boolean
-                      THEN $7::bytea
+    secret_enc = CASE WHEN $7::boolean
+                      THEN $8::bytea
                       ELSE secret_enc END
 WHERE id = $1
-RETURNING id, name, url, kind, enabled, username, secret_enc, last_error, last_checked_at, created_at
+RETURNING id, name, url, kind, enabled, username, secret_enc, last_error, last_checked_at, created_at, template
 `
 
 type UpdateDiscoverySourceParams struct {
@@ -440,6 +449,7 @@ type UpdateDiscoverySourceParams struct {
 	URL           string
 	Enabled       bool
 	Username      string
+	Template      []byte
 	ReplaceSecret bool
 	SecretEnc     []byte
 }
@@ -451,6 +461,7 @@ func (q *Queries) UpdateDiscoverySource(ctx context.Context, arg UpdateDiscovery
 		arg.URL,
 		arg.Enabled,
 		arg.Username,
+		arg.Template,
 		arg.ReplaceSecret,
 		arg.SecretEnc,
 	)
@@ -466,6 +477,7 @@ func (q *Queries) UpdateDiscoverySource(ctx context.Context, arg UpdateDiscovery
 		&i.LastError,
 		&i.LastCheckedAt,
 		&i.CreatedAt,
+		&i.Template,
 	)
 	return i, err
 }

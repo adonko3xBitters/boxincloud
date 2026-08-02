@@ -690,12 +690,22 @@ function SourceForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => 
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
 
+  // Les règles d'un site décrit ici. Inertes tant que « Site web » n'est pas
+  // choisi ; le serveur refuse d'ailleurs des règles sur un autre genre.
+  const [searchUrl, setSearchUrl] = useState("");
+  const [row, setRow] = useState("");
+  const [selTitle, setSelTitle] = useState("");
+  const [selAuthor, setSelAuthor] = useState("");
+  const [selCover, setSelCover] = useState("");
+  const [selLink, setSelLink] = useState("");
+
   const templates = useQuery({
     queryKey: ["discovery", "scraper-templates"],
     queryFn: api.listScraperTemplates,
   });
 
   const chosen = templates.data?.items.find((item) => item.kind === kind);
+  const isWeb = kind === "web";
 
   const create = useMutation({
     mutationFn: () =>
@@ -706,6 +716,19 @@ function SourceForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => 
         // transmettre vide plutôt que de l'omettre ne changerait rien côté
         // serveur, mais l'omission dit mieux ce qu'on veut.
         url: url || undefined,
+        // Les champs vides sont omis : le serveur ne distingue pas « absent »
+        // de « vide », et lui envoyer des sélecteurs blancs le ferait chercher
+        // ce que personne n'a désigné.
+        template: isWeb
+          ? {
+              searchUrl,
+              row,
+              title: selTitle,
+              author: selAuthor || undefined,
+              cover: selCover || undefined,
+              link: selLink || undefined,
+            }
+          : undefined,
         username: username || undefined,
         password: password || undefined,
       }),
@@ -746,6 +769,13 @@ function SourceForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => 
           className="h-9 rounded-md border border-border bg-surface px-2 text-ui text-fg"
         >
           <option value="">{t("discovery.sources.kindOpds")}</option>
+          {/*
+            « Site web » est proposé en dur, et toujours. Il ne dépend d'aucun
+            gabarit chargé — le serveur l'enregistre systématiquement — et c'est
+            lui qui rend le moteur d'extraction atteignable sans toucher au
+            disque de l'instance.
+          */}
+          <option value="web">{t("discovery.sources.kindWeb")}</option>
           {(templates.data?.items ?? []).map((template) => (
             <option key={template.kind} value={template.kind}>
               {template.name}
@@ -759,28 +789,51 @@ function SourceForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => 
         {chosen?.license && <span className="text-subtle">{chosen.license}</span>}
       </label>
 
-      <label className="flex flex-col gap-1 text-meta text-muted">
-        {chosen ? t("discovery.sources.mirror") : t("discovery.sources.url")}
-        <Input
-          value={url}
-          onChange={(event) => setUrl(event.target.value)}
-          placeholder={chosen ? (chosen.mirrors?.[0] ?? "https://…") : "https://…/opds"}
-          // Un gabarit déclare déjà ses miroirs : l'adresse ne se saisit que le
-          // jour où l'un d'eux change.
-          required={!chosen}
-        />
-        <span className="text-subtle">
-          {chosen ? t("discovery.sources.mirrorHint") : t("discovery.sources.urlHint")}
-        </span>
-      </label>
+      {/*
+        Le champ d'adresse OPDS disparaît pour un site web : ce n'est pas un flux
+        qu'on désigne, c'est une recherche. Le laisser afficherait deux champs
+        d'adresse dont un seul compte.
+      */}
+      {!isWeb && (
+        <label className="flex flex-col gap-1 text-meta text-muted">
+          {chosen ? t("discovery.sources.mirror") : t("discovery.sources.url")}
+          <Input
+            value={url}
+            onChange={(event) => setUrl(event.target.value)}
+            placeholder={chosen ? (chosen.mirrors?.[0] ?? "https://…") : "https://…/opds"}
+            // Un gabarit déclare déjà ses miroirs : l'adresse ne se saisit que le
+            // jour où l'un d'eux change.
+            required={!chosen}
+          />
+          <span className="text-subtle">
+            {chosen ? t("discovery.sources.mirrorHint") : t("discovery.sources.urlHint")}
+          </span>
+        </label>
+      )}
 
-      <label className="flex flex-col gap-1 text-meta text-muted">
-        {t("discovery.sources.username")}
-        <Input value={username} onChange={(event) => setUsername(event.target.value)} />
-        <span className="text-subtle">{t("discovery.sources.usernameHint")}</span>
-      </label>
+      {isWeb && <WebFields
+        searchUrl={searchUrl} setSearchUrl={setSearchUrl}
+        row={row} setRow={setRow}
+        title={selTitle} setTitle={setSelTitle}
+        author={selAuthor} setAuthor={setSelAuthor}
+        cover={selCover} setCover={setSelCover}
+        link={selLink} setLink={setSelLink}
+      />}
 
-      {username && (
+      {/*
+        Ni identifiant ni mot de passe pour un site web : on lit des pages
+        publiques, il n'y a pas de session à ouvrir. Les afficher suggérerait
+        une authentification que le moteur ne sait pas faire.
+      */}
+      {!isWeb && (
+        <label className="flex flex-col gap-1 text-meta text-muted">
+          {t("discovery.sources.username")}
+          <Input value={username} onChange={(event) => setUsername(event.target.value)} />
+          <span className="text-subtle">{t("discovery.sources.usernameHint")}</span>
+        </label>
+      )}
+
+      {!isWeb && username && (
         <label className="flex flex-col gap-1 text-meta text-muted">
           {t("discovery.sources.password")}
           <Input
@@ -817,5 +870,110 @@ function SourceForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => 
         </Button>
       </div>
     </form>
+  );
+}
+
+/*
+WebFields — décrire où lire les résultats d'un site.
+
+Six champs, pas trente. Le moteur en accepte davantage dans un gabarit sur
+disque — miroirs, expressions rationnelles, suivi de fiche — et rien de tout
+cela n'est ici : un formulaire long ne serait rempli correctement par personne,
+et chaque possibilité offerte est une possibilité de se tromper sans que rien ne
+le signale.
+
+L'ordre suit celui dans lequel on s'y prend réellement. On cherche d'abord sur
+le site pour obtenir une adresse ; on repère ensuite le bloc qui se répète ; on
+désigne enfin ce qu'il contient. Demander les sélecteurs avant l'adresse
+obligerait à faire les choses dans le désordre.
+*/
+function WebFields(props: {
+  searchUrl: string;
+  setSearchUrl: (v: string) => void;
+  row: string;
+  setRow: (v: string) => void;
+  title: string;
+  setTitle: (v: string) => void;
+  author: string;
+  setAuthor: (v: string) => void;
+  cover: string;
+  setCover: (v: string) => void;
+  link: string;
+  setLink: (v: string) => void;
+}) {
+  const t = useT();
+
+  return (
+    <div className="flex flex-col gap-3 rounded-md border border-border bg-surface-hover/40 p-3">
+      <p className="text-meta text-muted">{t("discovery.sources.webIntro")}</p>
+
+      <label className="flex flex-col gap-1 text-meta text-muted">
+        {t("discovery.sources.searchUrl")}
+        <Input
+          value={props.searchUrl}
+          onChange={(event) => props.setSearchUrl(event.target.value)}
+          placeholder="https://exemple.org/recherche?q={terms}"
+          required
+        />
+        <span className="text-subtle">{t("discovery.sources.searchUrlHint")}</span>
+      </label>
+
+      <label className="flex flex-col gap-1 text-meta text-muted">
+        {t("discovery.sources.row")}
+        <Input
+          value={props.row}
+          onChange={(event) => props.setRow(event.target.value)}
+          placeholder="ul.results > li"
+          required
+        />
+        <span className="text-subtle">{t("discovery.sources.rowHint")}</span>
+      </label>
+
+      {/*
+        Les quatre sélecteurs de champ tiennent sur deux colonnes : ils sont
+        courts, de même nature, et les empiler sur quatre lignes ferait paraître
+        le formulaire deux fois plus long qu'il ne l'est.
+      */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <label className="flex flex-col gap-1 text-meta text-muted">
+          {t("discovery.sources.selTitle")}
+          <Input
+            value={props.title}
+            onChange={(event) => props.setTitle(event.target.value)}
+            placeholder="h3 a"
+            required
+          />
+        </label>
+
+        <label className="flex flex-col gap-1 text-meta text-muted">
+          {t("discovery.sources.selLink")}
+          <Input
+            value={props.link}
+            onChange={(event) => props.setLink(event.target.value)}
+            placeholder="a.download"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1 text-meta text-muted">
+          {t("discovery.sources.selAuthor")}
+          <Input
+            value={props.author}
+            onChange={(event) => props.setAuthor(event.target.value)}
+            placeholder="span.author"
+          />
+        </label>
+
+        <label className="flex flex-col gap-1 text-meta text-muted">
+          {t("discovery.sources.selCover")}
+          <Input
+            value={props.cover}
+            onChange={(event) => props.setCover(event.target.value)}
+            placeholder="img"
+          />
+        </label>
+      </div>
+
+      <span className="text-meta text-subtle">{t("discovery.sources.webProbeHint")}</span>
+    </div>
   );
 }

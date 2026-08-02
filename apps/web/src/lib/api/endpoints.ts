@@ -645,10 +645,32 @@ export const discoverySearch = (query: string, limit = 40) =>
 export const listDiscoverySources = () =>
   request<{ items: DiscoverySource[] }>("/discovery/sources");
 
+/**
+ * Les règles de lecture d'un site, saisies dans le formulaire.
+ *
+ * Requises pour `kind: "web"`, refusées ailleurs. Volontairement pauvres :
+ * qui a besoin de miroirs, d'expressions rationnelles ou d'un suivi de fiche
+ * écrit un gabarit sur disque — voir docs/06-gabarits-scraper.md.
+ */
+export type WebTemplate = {
+  /** Adresse de recherche complète, avec `{terms}` à la place des mots cherchés. */
+  searchUrl: string;
+  /** Sélecteur CSS du bloc qui se répète pour chaque résultat. */
+  row: string;
+  /** Sélecteurs cherchés À L'INTÉRIEUR de ce bloc. */
+  title: string;
+  author?: string;
+  cover?: string;
+  link?: string;
+  mediaType?: string;
+};
+
 export const createDiscoverySource = (input: {
   name: string;
-  /** `opds` quand il est omis. Sinon, le `kind` d'un ScraperTemplate. */
+  /** `opds` quand il est omis, `web` pour un site décrit ici. */
   kind?: string;
+  /** Requis pour `kind: "web"`. */
+  template?: WebTemplate;
   /**
    * Requise pour `opds`. Facultative sur un gabarit, qui déclare déjà ses
    * miroirs — on ne la saisit que le jour où l'un d'eux change.

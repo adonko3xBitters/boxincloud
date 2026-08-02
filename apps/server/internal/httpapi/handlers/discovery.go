@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strings"
@@ -445,11 +446,20 @@ type createDiscoverySourceRequest struct {
 	// Kind vaut OPDS quand il est absent. Le défaut est côté serveur plutôt
 	// que dans le formulaire : l'API doit rester utilisable par un client qui
 	// ignore que d'autres genres existent.
-	Kind     string `json:"kind"`
-	URL      string `json:"url"`
-	Enabled  *bool  `json:"enabled"`
-	Username string `json:"username"`
-	Password string `json:"password"`
+	Kind string `json:"kind"`
+	URL  string `json:"url"`
+	/*
+		Template est repris TEL QUEL, sans être relu ici.
+
+		Le gestionnaire ne connaît pas les sélecteurs CSS, et n'a pas à les
+		connaître : c'est le client du genre qui les compile, et son refus
+		remonte par l'essai avant l'enregistrement. Le décoder puis le
+		réencoder ne ferait qu'ajouter un endroit où la forme peut diverger.
+	*/
+	Template json.RawMessage `json:"template"`
+	Enabled  *bool           `json:"enabled"`
+	Username string          `json:"username"`
+	Password string          `json:"password"`
 }
 
 func (h *Discovery) CreateSource(w http.ResponseWriter, r *http.Request) {
@@ -471,6 +481,7 @@ func (h *Discovery) CreateSource(w http.ResponseWriter, r *http.Request) {
 		Name:     req.Name,
 		Kind:     discovery.Kind(strings.TrimSpace(req.Kind)),
 		URL:      req.URL,
+		Template: req.Template,
 		Enabled:  enabled,
 		Username: req.Username,
 		Password: req.Password,
@@ -491,6 +502,9 @@ type updateDiscoverySourceRequest struct {
 	// enregistré, une chaîne vide l'efface. Un formulaire qui renvoie tous ses
 	// champs ne doit pas effacer un secret qu'il n'affiche pas.
 	Password *string `json:"password"`
+	// Absent, les règles en place sont conservées : une source `web` ne peut
+	// pas les perdre par distraction.
+	Template json.RawMessage `json:"template"`
 }
 
 func (h *Discovery) UpdateSource(w http.ResponseWriter, r *http.Request) {
@@ -511,6 +525,7 @@ func (h *Discovery) UpdateSource(w http.ResponseWriter, r *http.Request) {
 	params := discovery.UpdateParams{
 		Name:     req.Name,
 		URL:      req.URL,
+		Template: req.Template,
 		Enabled:  req.Enabled == nil || *req.Enabled,
 		Username: req.Username,
 	}

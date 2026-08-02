@@ -72,6 +72,7 @@ func (r *PostgresRepository) CreateSource(
 		Enabled:   s.Enabled,
 		Username:  s.Username,
 		SecretEnc: secret,
+		Template:  s.Template,
 	})
 	if err != nil {
 		return Source{}, fmt.Errorf("discovery : création du catalogue : %w", err)
@@ -90,6 +91,9 @@ func (r *PostgresRepository) UpdateSource(
 		Username:      s.Username,
 		ReplaceSecret: replaceSecret,
 		SecretEnc:     secret,
+		// Nul conserve les règles en place : la requête applique un COALESCE.
+		// Une source `web` ne peut pas les perdre par distraction.
+		Template: s.Template,
 	})
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Source{}, ErrSourceNotFound
@@ -126,6 +130,7 @@ func toSource(row sqlc.DiscoverySource) Source {
 		Kind:      Kind(row.Kind),
 		Enabled:   row.Enabled,
 		Username:  row.Username,
+		Template:  row.Template,
 		LastError: row.LastError,
 	}
 	if row.LastCheckedAt.Valid {

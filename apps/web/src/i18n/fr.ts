@@ -654,6 +654,21 @@ export const fr = {
   "discovery.sources.name": "Nom",
   "discovery.sources.kind": "Type de catalogue",
   "discovery.sources.kindOpds": "Flux OPDS",
+  "discovery.sources.kindWeb": "Site web (personnalisé)",
+  "discovery.sources.webIntro":
+    "Un site sans flux OPDS ne dit pas où sont ses titres. Indiquez-le une fois : cherchez sur le site, copiez l'adresse obtenue, puis désignez les éléments de la page.",
+  "discovery.sources.searchUrl": "Adresse de recherche",
+  "discovery.sources.searchUrlHint":
+    "Faites une recherche sur le site, copiez l'adresse de la barre du navigateur, et remplacez le mot cherché par {terms}.",
+  "discovery.sources.row": "Un résultat",
+  "discovery.sources.rowHint":
+    "Sélecteur CSS du bloc qui se répète pour chaque résultat. Les champs ci-dessous sont cherchés à l'intérieur de lui.",
+  "discovery.sources.selTitle": "Titre",
+  "discovery.sources.selAuthor": "Auteur (facultatif)",
+  "discovery.sources.selCover": "Couverture (facultatif)",
+  "discovery.sources.selLink": "Lien (facultatif)",
+  "discovery.sources.webProbeHint":
+    "\u00c0 l'enregistrement, le site est interrog\u00e9 une fois pour v\u00e9rifier que ces r\u00e8gles y trouvent des r\u00e9sultats.",
   "discovery.sources.noTemplates":
     "Aucun gabarit de site n'est chargé. Les sites sans flux OPDS se lisent \u00e0 partir de gabarits d\u00e9clar\u00e9s dans BOXINCLOUD_SCRAPER_TEMPLATES_DIR — voir docs/06-gabarits-scraper.md.",
   "discovery.sources.url": "Adresse du flux OPDS",

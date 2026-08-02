@@ -225,6 +225,15 @@ type CreateParams struct {
 	Enabled  bool
 	Username string
 	Password string
+	/*
+		Template porte les règles d'extraction d'une source `web`, en JSON.
+
+		Le service ne les interprète pas — il ne connaît pas les sélecteurs CSS.
+		C'est le client du genre qui les compile, et son refus remonte par
+		l'essai, avant l'enregistrement. Un formulaire fautif ne crée donc
+		jamais de source.
+	*/
+	Template []byte
 }
 
 /*
@@ -247,6 +256,21 @@ func (s *Service) Create(ctx context.Context, p CreateParams) (Source, error) {
 		Kind:     kind,
 		Enabled:  p.Enabled,
 		Username: strings.TrimSpace(p.Username),
+		Template: p.Template,
+	}
+
+	// Une source `web` n'existe que par ses règles, et la base le vérifie aussi.
+	// Le refuser ici donne un message utile plutôt qu'une violation de
+	// contrainte.
+	if kind == KindWeb && len(source.Template) == 0 {
+		return Source{}, fmt.Errorf(
+			"%w : une source de type site web doit décrire où lire ses résultats",
+			ErrInvalidSource)
+	}
+	if kind != KindWeb && len(source.Template) > 0 {
+		return Source{}, fmt.Errorf(
+			"%w : des règles d'extraction n'ont de sens que pour un site web",
+			ErrInvalidSource)
 	}
 
 	if source.Name == "" {
@@ -261,7 +285,7 @@ func (s *Service) Create(ctx context.Context, p CreateParams) (Source, error) {
 		miroir de repli à connaître, et le protocole n'est pas lié à un site
 		particulier.
 	*/
-	if _, templated := kind.ScraperTemplate(); !templated && source.URL == "" {
+	if _, templated := kind.ScraperTemplate(); !templated && kind != KindWeb && source.URL == "" {
 		return Source{}, fmt.Errorf("%w : l'adresse est requise", ErrInvalidSource)
 	}
 	if source.URL != "" &&
@@ -297,6 +321,8 @@ type UpdateParams struct {
 	Username    string
 	Password    string
 	PasswordSet bool
+	// Template ne se vide pas : absent, les règles en place sont conservées.
+	Template []byte
 }
 
 func (s *Service) Update(ctx context.Context, id uuid.UUID, p UpdateParams) (Source, error) {
@@ -309,6 +335,9 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, p UpdateParams) (Sou
 	current.URL = strings.TrimSpace(p.URL)
 	current.Enabled = p.Enabled
 	current.Username = strings.TrimSpace(p.Username)
+	if len(p.Template) > 0 {
+		current.Template = p.Template
+	}
 
 	if current.Name == "" {
 		return Source{}, fmt.Errorf("%w : le nom est requis", ErrInvalidSource)
@@ -316,7 +345,8 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, p UpdateParams) (Sou
 	// Même nuance qu'à la création : une source lue au gabarit peut rendre son
 	// adresse pour retomber sur les miroirs déclarés. C'est d'ailleurs la façon
 	// d'annuler un changement de miroir qu'on regrette.
-	if _, templated := current.Kind.ScraperTemplate(); !templated && current.URL == "" {
+	if _, templated := current.Kind.ScraperTemplate(); !templated &&
+		current.Kind != KindWeb && current.URL == "" {
 		return Source{}, fmt.Errorf("%w : l'adresse est requise", ErrInvalidSource)
 	}
 

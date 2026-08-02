@@ -645,6 +645,21 @@ export const en: Record<MessageKey, string> = {
   "discovery.sources.name": "Name",
   "discovery.sources.kind": "Catalogue type",
   "discovery.sources.kindOpds": "OPDS feed",
+  "discovery.sources.kindWeb": "Custom website",
+  "discovery.sources.webIntro":
+    "A site without an OPDS feed does not say where its titles are. Tell it once: search on the site, copy the address you get, then point at the elements on the page.",
+  "discovery.sources.searchUrl": "Search address",
+  "discovery.sources.searchUrlHint":
+    "Search on the site, copy the address from the browser bar, and replace the search word with {terms}.",
+  "discovery.sources.row": "One result",
+  "discovery.sources.rowHint":
+    "CSS selector for the block that repeats for each result. The fields below are looked up inside it.",
+  "discovery.sources.selTitle": "Title",
+  "discovery.sources.selAuthor": "Author (optional)",
+  "discovery.sources.selCover": "Cover (optional)",
+  "discovery.sources.selLink": "Link (optional)",
+  "discovery.sources.webProbeHint":
+    "On save, the site is queried once to check that these rules find results there.",
   "discovery.sources.noTemplates":
     "No site template is loaded. Sites without an OPDS feed are read from templates declared in BOXINCLOUD_SCRAPER_TEMPLATES_DIR \u2014 see docs/06-gabarits-scraper.md.",
   "discovery.sources.url": "OPDS feed address",

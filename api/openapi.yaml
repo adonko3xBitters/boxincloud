@@ -2724,7 +2724,7 @@ paths:
                 name: { type: string, minLength: 1 }
                 kind:
                   type: string
-                  pattern: '^(opds|scraper:[a-z0-9][a-z0-9-]*)$'
+                  pattern: '^(opds|web|scraper:[a-z0-9][a-z0-9-]*)$'
                   default: opds
                   description: |
                     `opds` par défaut, ce qui reste le cas de l'écrasante
@@ -2741,6 +2741,8 @@ paths:
                     où l'un d'eux change. Elle passe alors devant ceux du gabarit,
                     ce qui permet de suivre un changement de domaine sans
                     recompiler.
+                template:
+                  $ref: "#/components/schemas/WebTemplate"
                 enabled: { type: boolean, default: true }
                 username:
                   type: string
@@ -2823,6 +2825,8 @@ paths:
                     Requise pour `opds`. Sur une source lue au gabarit, la vider
                     fait retomber sur les miroirs déclarés — c'est ainsi qu'on
                     annule un changement de miroir qu'on regrette.
+                template:
+                  $ref: "#/components/schemas/WebTemplate"
                 enabled: { type: boolean }
                 username: { type: string }
                 password: { type: string }
@@ -2986,7 +2990,7 @@ components:
         url: { type: string }
         kind:
           type: string
-          pattern: '^(opds|scraper:[a-z0-9][a-z0-9-]*)$'
+          pattern: '^(opds|web|scraper:[a-z0-9][a-z0-9-]*)$'
           description: |
             Deux familles.
 
@@ -2995,8 +2999,12 @@ components:
             auxquels l'utilisateur a déjà accès, publics ou ouverts par des
             identifiants qu'il fournit lui-même.
 
-            `scraper:<gabarit>` désigne un site du domaine public qui n'expose
-            ni API ni flux, et qui est lu à partir d'un gabarit déclaratif. Le
+            `web` désigne un site décrit DEPUIS L'INTERFACE : ses règles
+            d'extraction voyagent avec la source, dans `template`. C'est la voie
+            à suivre pour brancher un site qui n'expose pas d'OPDS.
+
+            `scraper:<gabarit>` désigne un site lu à partir d'un gabarit
+            déclaratif chargé au démarrage, depuis un fichier. Le
             nom du gabarit entre dans le genre parce que deux sites lus ainsi
             n'ont rien en commun à l'exécution — ni adresse, ni règles
             d'extraction, ni débit. Ce sont bien deux genres de catalogue.
@@ -3016,6 +3024,53 @@ components:
             simplement moins. Cette colonne le rend visible.
         lastCheckedAt: { type: string, format: date-time }
         createdAt: { type: string, format: date-time }
+
+    WebTemplate:
+      type: object
+      required: [searchUrl, row, title]
+      description: |
+        Les règles de lecture d'un site, telles qu'elles se saisissent dans le
+        formulaire. Requises pour `kind: web`, interdites ailleurs.
+
+        Délibérément pauvres : une adresse et quatre sélecteurs. Un formulaire à
+        trente champs ne serait rempli correctement par personne, et chaque
+        possibilité offerte est une possibilité de se tromper sans que rien ne
+        le signale. Qui a besoin de plus écrit un gabarit sur disque — voir
+        docs/06-gabarits-scraper.md.
+      properties:
+        searchUrl:
+          type: string
+          description: |
+            L'adresse de recherche complète, avec `{terms}` à la place des mots
+            cherchés. On la copie depuis la barre du navigateur après avoir
+            cherché sur le site, et on remplace le mot par `{terms}`.
+          example: https://exemple.org/recherche?q={terms}
+        row:
+          type: string
+          description: |
+            Sélecteur CSS du conteneur d'UN résultat — celui qui se répète.
+            Tous les autres sélecteurs sont cherchés à l'intérieur de lui, ce
+            qui évite d'apparier des listes parallèles par position.
+          example: ul.results > li
+        title:
+          type: string
+          description: Sélecteur du titre, dans la ligne.
+        author:
+          type: string
+          description: Sélecteur de l'auteur. Tous les nœuds trouvés sont retenus.
+        cover:
+          type: string
+          description: Sélecteur de l'image de couverture ; son `src` est lu.
+        link:
+          type: string
+          description: |
+            Sélecteur du lien ; son `href` est lu. Servi à la fois comme fiche
+            et comme lien de téléchargement, faute de savoir lequel il est.
+        mediaType:
+          type: string
+          description: |
+            Type MIME du lien, que le HTML n'annonce jamais.
+          example: application/vnd.comicbook+zip
 
     ScraperTemplate:
       type: object

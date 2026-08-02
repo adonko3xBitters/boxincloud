@@ -70,7 +70,11 @@ sort jamais de ce paquet.
 */
 func (c *Client) Kinds() []discovery.KindInfo {
 	templates := c.catalog.List()
-	out := make([]discovery.KindInfo, 0, len(templates))
+	out := make([]discovery.KindInfo, 0, len(templates)+1)
+
+	// `web` d'abord, et toujours : il ne dépend d'aucun gabarit chargé. C'est
+	// lui qui rend le moteur atteignable sur une instance qui n'en a aucun.
+	out = append(out, discovery.KindInfo{Kind: discovery.KindWeb, Name: "Site web"})
 
 	for _, template := range templates {
 		out = append(out, discovery.KindInfo{
@@ -446,8 +450,28 @@ func fieldValue(result discovery.Result, name string) string {
 
 // ─── Divers ──────────────────────────────────────────────────────────────────
 
-// templateFor retrouve le gabarit d'une source.
+/*
+templateFor retrouve les règles d'une source, d'où qu'elles viennent.
+
+Deux origines, un seul type en sortie. Une source `web` porte sa description
+dans sa propre ligne ; un genre `scraper:<gabarit>` renvoie à un fichier chargé
+au démarrage. À partir d'ici, plus rien ne les distingue — c'est ce qui évite
+que la version saisie au formulaire dérive de l'autre.
+
+La compilation d'une source `web` a lieu à chaque appel, sans cache. Compiler
+cinq sélecteurs coûte quelques microsecondes contre plusieurs centaines de
+millisecondes de réseau ; un cache ajouterait sa propre invalidation à traiter
+quand l'administrateur modifie la source, pour un gain invisible.
+*/
 func (c *Client) templateFor(source discovery.Source) (*Compiled, error) {
+	if source.Kind == discovery.KindWeb {
+		if len(source.Template) == 0 {
+			return nil, fmt.Errorf("%w : cette source n'a pas de règles d'extraction",
+				ErrUnknownTemplate)
+		}
+		return ParseWebSpec(source.Template)
+	}
+
 	id, ok := source.Kind.ScraperTemplate()
 	if !ok {
 		return nil, fmt.Errorf("%w : %s n'est pas un genre de gabarit",

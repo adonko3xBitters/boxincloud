@@ -74,6 +74,16 @@ type Kind string
 const (
 	KindOPDS Kind = "opds"
 
+	/*
+		KindWeb désigne un site décrit DEPUIS L'INTERFACE.
+
+		Distinct de `scraper:<gabarit>`, qui renvoie à un fichier chargé au
+		démarrage : ici la description voyage avec la source, dans sa propre
+		ligne. Supprimer la source suffit à la faire disparaître, et deux
+		instances ne partagent rien.
+	*/
+	KindWeb Kind = "web"
+
 	// scraperPrefix ouvre l'espace de noms des gabarits.
 	scraperPrefix = "scraper:"
 )
@@ -98,6 +108,16 @@ type Source struct {
 	// pas ici : il ne sort de la base que chiffré, et seulement pour construire
 	// une requête.
 	Username string
+	/*
+		Template porte les règles d'extraction d'une source `web`, en JSON.
+
+		Nul pour tous les autres genres, et la base le vérifie : une source
+		`web` sans règles serait interrogée sans qu'on sache quoi lire, et des
+		règles sur un catalogue OPDS n'auraient aucun effet. Deux incohérences
+		silencieuses qu'une contrainte rend impossibles.
+	*/
+	Template []byte
+
 	// LastError garde le dernier échec rencontré, pour que l'administration
 	// puisse montrer un catalogue en panne sans qu'il faille lire les journaux.
 	LastError   string

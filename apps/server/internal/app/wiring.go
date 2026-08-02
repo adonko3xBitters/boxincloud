@@ -465,10 +465,15 @@ func registerScrapers(
 		return fmt.Errorf("gabarits d'opérateur : %w", err)
 	}
 
+	/*
+		Le client est enregistré MÊME sans gabarit chargé.
+
+		Il porte aussi le genre `web`, celui des sources décrites depuis
+		l'interface, qui ne dépend d'aucun fichier. Repartir ici quand le
+		catalogue est vide — ce qu'on faisait — rendait cette porte
+		inatteignable sur une instance par défaut, c'est-à-dire sur toutes.
+	*/
 	templates := catalog.List()
-	if len(templates) == 0 {
-		return nil
-	}
 
 	// Le débit de chaque hôte est déclaré au limiteur partagé AVANT que le
 	// client ne serve : un compartiment sans débit déclaré ne limite rien, et
@@ -484,9 +489,11 @@ func registerScrapers(
 	names := make([]string, 0, len(templates))
 	for _, info := range client.Kinds() {
 		service.RegisterClient(info, client)
-		names = append(names, info.ID)
+		if info.ID != "" {
+			names = append(names, info.ID)
+		}
 	}
-	log.Info("gabarits de scraping chargés", slog.Any("templates", names))
+	log.Info("moteur de sites web prêt", slog.Any("gabarits", names))
 
 	return nil
 }
