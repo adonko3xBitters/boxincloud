@@ -1,0 +1,11 @@
+# Seuls les gabarits d'EXEMPLE du projet sont versionnés ici.
+#
+# Ce répertoire est aussi celui vers lequel on pointe
+# BOXINCLOUD_SCRAPER_TEMPLATES_DIR pour essayer l'exemple. Les deux usages se
+# sont mélangés : un gabarit personnel déposé à côté s'est retrouvé pris par un
+# `git add -A` et publié sous le nom du projet.
+#
+# Un gabarit à vous n'a rien à faire dans le dépôt. Rangez-le ailleurs et
+# pointez la variable dessus — c'est le sens de « gabarit d'opérateur ».
+*.yaml
+!standardebooks.yaml
