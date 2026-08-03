@@ -218,6 +218,25 @@ remplacées.
 compris. Sans elle, dix fiches à huit secondes feraient quatre-vingts secondes
 d'attente sans qu'aucun délai unitaire ne soit dépassé.
 
+### Déroger, sans se déguiser
+
+`ignoreRobots: true` — dans un gabarit, ou la case correspondante du formulaire
+— désactive la lecture de `robots.txt` **pour cette source**. Faux par défaut.
+
+L'option existe parce que l'administrateur a souvent autorité sur la cible :
+l'intranet qu'il opère, un site partenaire, ou un `Disallow: /search` posé
+contre les moissonneurs et non contre une requête qu'un humain vient de taper.
+
+Ce qu'elle ne change pas, et c'est le point : **l'agent reste `boxincloud`**.
+Passer outre un avis consultatif en restant identifiable n'est pas se faire
+passer pour quelqu'un d'autre — le site peut toujours refuser par agent ou par
+adresse, et son refus sera alors sans ambiguïté. Chaque requête concernée est
+journalisée, parce qu'une dérogation silencieuse serait pire que pas de
+dérogation.
+
+Elle ne rend rien licite qui ne l'était pas. Le critère d'admission ne bouge
+pas.
+
 ### L'agent n'est pas configurable
 
 boxincloud s'annonce, avec l'adresse de son dépôt, et un gabarit ne peut pas le

@@ -658,6 +658,9 @@ export const en: Record<MessageKey, string> = {
   "discovery.sources.selAuthor": "Author (optional)",
   "discovery.sources.selCover": "Cover (optional)",
   "discovery.sources.selLink": "Link (optional)",
+  "discovery.sources.ignoreRobots": "Ignore this site's robots.txt",
+  "discovery.sources.ignoreRobotsHint":
+    "Only tick this if you have authority over the site. boxincloud still identifies itself by name: the site can refuse anyway, and every affected request is logged.",
   "discovery.sources.webProbeHint":
     "On save, the site is queried once to check that these rules find results there.",
   "discovery.sources.noTemplates":

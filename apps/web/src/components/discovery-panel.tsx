@@ -698,6 +698,7 @@ function SourceForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => 
   const [selAuthor, setSelAuthor] = useState("");
   const [selCover, setSelCover] = useState("");
   const [selLink, setSelLink] = useState("");
+  const [ignoreRobots, setIgnoreRobots] = useState(false);
 
   const templates = useQuery({
     queryKey: ["discovery", "scraper-templates"],
@@ -727,6 +728,7 @@ function SourceForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => 
               author: selAuthor || undefined,
               cover: selCover || undefined,
               link: selLink || undefined,
+              ignoreRobots: ignoreRobots || undefined,
             }
           : undefined,
         username: username || undefined,
@@ -818,6 +820,7 @@ function SourceForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => 
         author={selAuthor} setAuthor={setSelAuthor}
         cover={selCover} setCover={setSelCover}
         link={selLink} setLink={setSelLink}
+        ignoreRobots={ignoreRobots} setIgnoreRobots={setIgnoreRobots}
       />}
 
       {/*
@@ -900,6 +903,8 @@ function WebFields(props: {
   setCover: (v: string) => void;
   link: string;
   setLink: (v: string) => void;
+  ignoreRobots: boolean;
+  setIgnoreRobots: (v: boolean) => void;
 }) {
   const t = useT();
 
@@ -974,6 +979,26 @@ function WebFields(props: {
       </div>
 
       <span className="text-meta text-subtle">{t("discovery.sources.webProbeHint")}</span>
+
+      {/*
+        La dérogation est en bas, décochée, et assortie de sa conséquence.
+        La mettre en évidence inviterait à la cocher « au cas où » ; l'omettre
+        laisserait sans issue un administrateur qui a autorité sur le site.
+      */}
+      <label className="flex items-start gap-2 text-meta text-muted">
+        <input
+          type="checkbox"
+          checked={props.ignoreRobots}
+          onChange={(event) => props.setIgnoreRobots(event.target.checked)}
+          className="mt-0.5"
+        />
+        <span>
+          {t("discovery.sources.ignoreRobots")}
+          <span className="block text-subtle">
+            {t("discovery.sources.ignoreRobotsHint")}
+          </span>
+        </span>
+      </label>
     </div>
   );
 }

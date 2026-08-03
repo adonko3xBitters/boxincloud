@@ -663,6 +663,14 @@ export type WebTemplate = {
   cover?: string;
   link?: string;
   mediaType?: string;
+  /**
+   * Désactive la lecture de robots.txt pour cette source.
+   *
+   * Faux par défaut. L'agent reste `boxincloud` quoi qu'il arrive — ce n'est
+   * pas une usurpation, c'est une dérogation à un avis consultatif, sous la
+   * responsabilité de l'administrateur.
+   */
+  ignoreRobots?: boolean;
 };
 
 export const createDiscoverySource = (input: {

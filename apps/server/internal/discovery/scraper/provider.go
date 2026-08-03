@@ -212,8 +212,14 @@ func (c *Client) Open(
 	// pages de recherche et ferme son répertoire de fichiers l'a écrit
 	// exprès ; le lire pour la liste et l'ignorer pour le fichier reviendrait à
 	// ne pas le lire du tout.
-	if allowed, err := c.fetch.robots.allows(ctx, template, href); err == nil && !allowed {
-		return discovery.Fetched{}, fmt.Errorf("%w : %s", ErrDisallowed, href)
+	//
+	// La dérogation vaut pour les deux, et c'est cohérent : une source dispensée
+	// pour chercher mais pas pour télécharger rendrait des résultats sur
+	// lesquels rien n'est possible.
+	if !template.IgnoreRobots {
+		if allowed, err := c.fetch.robots.allows(ctx, template, href); err == nil && !allowed {
+			return discovery.Fetched{}, fmt.Errorf("%w : %s", ErrDisallowed, href)
+		}
 	}
 
 	if c.fetch.throttle != nil {

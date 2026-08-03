@@ -96,6 +96,29 @@ type Template struct {
 	*/
 	Mirrors []string `yaml:"mirrors"`
 
+	/*
+		IgnoreRobots désactive la lecture de robots.txt pour CE site.
+
+		Faux par défaut, et il faut que ça le reste : ce fichier est la frontière
+		que le site a publiée, et la respecter est ce qui distingue un client
+		toléré d'un client bloqué par adresse — au détriment de tous les
+		utilisateurs de l'instance, pas seulement de celui qui a insisté.
+
+		L'option existe parce que l'administrateur a souvent autorité sur la
+		cible : l'intranet qu'il opère, un site partenaire, ou un `Disallow:
+		/search` posé contre les moissonneurs et non contre une requête qu'un
+		humain vient de taper.
+
+		Ce qu'elle ne change PAS : l'agent reste `boxincloud`, avec l'adresse du
+		dépôt. Passer outre un avis consultatif en restant identifiable n'est pas
+		se faire passer pour quelqu'un d'autre — le site peut toujours refuser,
+		et son refus sera alors sans ambiguïté.
+
+		Elle est journalisée à chaque activation. Une dérogation silencieuse
+		serait pire que pas de dérogation du tout.
+	*/
+	IgnoreRobots bool `yaml:"ignoreRobots"`
+
 	Rate    RateSpec    `yaml:"rate"`
 	Limits  LimitsSpec  `yaml:"limits"`
 	Search  SearchSpec  `yaml:"search"`

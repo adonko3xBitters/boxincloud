@@ -1742,6 +1742,27 @@ export interface components {
              * @example application/vnd.comicbook+zip
              */
             mediaType?: string;
+            /**
+             * @description Désactive la lecture de `robots.txt` pour cette source.
+             *
+             *     **Faux par défaut, et il vaut mieux que ça le reste.** Ce fichier est
+             *     la frontière que le site a publiée ; la respecter est ce qui
+             *     distingue un client toléré d'un client bloqué par adresse — au
+             *     détriment de tous les utilisateurs de l'instance, pas seulement de
+             *     celui qui a insisté.
+             *
+             *     L'option existe parce que l'administrateur a souvent autorité sur la
+             *     cible : l'intranet qu'il opère, un site partenaire, ou un
+             *     `Disallow: /search` posé contre les moissonneurs et non contre une
+             *     requête qu'un humain vient de taper.
+             *
+             *     Ce qu'elle ne change pas : l'agent reste `boxincloud`, avec l'adresse
+             *     du dépôt, et n'est configurable nulle part. Passer outre un avis
+             *     consultatif en restant identifiable n'est pas se faire passer pour
+             *     quelqu'un d'autre. Chaque requête concernée est journalisée.
+             * @default false
+             */
+            ignoreRobots: boolean;
         };
         ScraperTemplate: {
             /**

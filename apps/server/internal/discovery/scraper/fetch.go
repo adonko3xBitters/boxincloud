@@ -186,6 +186,16 @@ func (f *fetcher) fetch(
 	}
 
 	allowed, err := f.robots.allows(ctx, template, target)
+	if template.IgnoreRobots {
+		// Journalisé à chaque requête, pas une fois au chargement : c'est en
+		// lisant les journaux d'une instance qu'on doit pouvoir constater qu'une
+		// source passe outre, sans avoir à retrouver sa configuration.
+		f.log.Info("robots.txt ignoré pour cette source",
+			slog.String("template", template.ID),
+			slog.String("url", target),
+			slog.Bool("aurait_été_refusé", err == nil && !allowed))
+		allowed, err = true, nil
+	}
 	if err != nil {
 		// Un robots.txt illisible n'interdit rien : la spécification traite
 		// l'absence comme une autorisation, et faire l'inverse rendrait toute

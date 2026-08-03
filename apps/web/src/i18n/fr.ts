@@ -667,6 +667,9 @@ export const fr = {
   "discovery.sources.selAuthor": "Auteur (facultatif)",
   "discovery.sources.selCover": "Couverture (facultatif)",
   "discovery.sources.selLink": "Lien (facultatif)",
+  "discovery.sources.ignoreRobots": "Ignorer le robots.txt de ce site",
+  "discovery.sources.ignoreRobotsHint":
+    "\u00c0 ne cocher que si vous avez autorit\u00e9 sur ce site. boxincloud continue de s'annoncer sous son nom : le site peut toujours refuser, et chaque requ\u00eate concern\u00e9e est journalis\u00e9e.",
   "discovery.sources.webProbeHint":
     "\u00c0 l'enregistrement, le site est interrog\u00e9 une fois pour v\u00e9rifier que ces r\u00e8gles y trouvent des r\u00e9sultats.",
   "discovery.sources.noTemplates":

@@ -82,6 +82,10 @@ type WebSpec struct {
 
 	// MediaType renseigne le type du lien, que le HTML n'annonce jamais.
 	MediaType string `json:"mediaType,omitempty"`
+
+	// IgnoreRobots désactive la lecture de robots.txt pour ce site. Voir
+	// Template.IgnoreRobots : même sens, mêmes réserves.
+	IgnoreRobots bool `json:"ignoreRobots,omitempty"`
 }
 
 // ParseWebSpec lit une description saisie, la valide et la compile.
@@ -155,6 +159,7 @@ func (s WebSpec) Compile() (*Compiled, error) {
 	}
 
 	template := Template{
+		IgnoreRobots: s.IgnoreRobots,
 		// L'identifiant ne sert qu'au journal et aux compartiments de débit :
 		// une source décrite ici est désignée par son genre `web` et son
 		// identifiant de ligne, pas par un nom de gabarit.
