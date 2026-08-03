@@ -16,13 +16,14 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-# Suit la version du projet, et non celle du gabarit Flutter — l'APK de la
-# 0.1.0 s'annonçait en 1.0.0, ce qui désigne une version qui n'existe pas.
+# Valeur de repli, utilisée seulement hors publication : `flutter build` lancé
+# à la main, et l'APK de debug de la CI.
 #
-# Le nombre après « + » est le versionCode Android : il doit croître à chaque
-# publication, sans quoi le système ne reconnaît pas une installation comme
-# plus récente que la précédente. Il est ici incrémenté à la main ; le dériver
-# du tag au moment de la construction reste à faire.
+# Les APK publiés sont construits par deploy/docker/Dockerfile, qui dérive
+# `--build-name` et `--build-number` du tag git et écrase donc cette ligne. La
+# tenir à jour n'est plus nécessaire ; le nombre après « + » — le versionCode
+# Android — était resté à 1 pendant toute la 0.1.0 parce qu'il dépendait d'un
+# geste manuel.
 version: 0.1.1+2
 
 environment:

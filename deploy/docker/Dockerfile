@@ -89,7 +89,49 @@ COPY api ../../api
 COPY tools ../../tools
 COPY apps/mobile ./
 
-RUN flutter build apk --release
+# La version de l'APK vient du tag, pas du pubspec.
+#
+# Le nombre après « + » dans pubspec.yaml est le versionCode Android. Il doit
+# croître à chaque publication, sans quoi le système ne reconnaît pas une
+# installation comme plus récente que la précédente. Laissé à la main, il est
+# resté à 1 pendant toute la 0.1.0, sur un APK qui s'annonçait par ailleurs en
+# 1.0.0 — une version qui n'a jamais existé.
+#
+# Le rang choisi est majeur × 10000 + mineur × 100 + correctif : 0.1.1 donne
+# 101, 1.0.0 donne 10000. Croissant tant que mineur et correctif restent sous
+# 100, ce que la dérivation vérifie plutôt que de le supposer.
+#
+# Une construction hors tag — `VERSION=dev`, le défaut — reçoit 0.0.0 et le
+# code 1. Surtout pas un code élevé : il empêcherait ensuite d'installer une
+# vraie version par-dessus.
+#
+# Les préversions partagent le code de la version finale qu'elles visent :
+# v0.2.0-rc1 et v0.2.0 donnent tous deux 20000. Installer la finale par-dessus
+# la préversion fonctionne, sans être vu comme une mise à jour.
+ARG VERSION=dev
+RUN set -eu; \
+    name="${VERSION#v}"; \
+    name="${name%%-*}"; \
+    major="${name%%.*}"; \
+    rest="${name#*.}"; \
+    minor="${rest%%.*}"; \
+    patch="${rest#*.}"; \
+    valid=1; \
+    case "$name" in *.*.*) ;; *) valid=0 ;; esac; \
+    for part in "$major" "$minor" "$patch"; do \
+        case "$part" in '' | *[!0-9]*) valid=0 ;; esac; \
+    done; \
+    if [ "$valid" -eq 1 ] && { [ "$minor" -gt 99 ] || [ "$patch" -gt 99 ]; }; then \
+        valid=0; \
+    fi; \
+    if [ "$valid" -eq 1 ]; then \
+        code=$(( major * 10000 + minor * 100 + patch )); \
+    else \
+        echo "VERSION=$VERSION n'est pas un tag de version : APK en 0.0.0 (code 1)"; \
+        name=0.0.0; code=1; \
+    fi; \
+    echo "APK $name (versionCode $code)"; \
+    flutter build apk --release --build-name="$name" --build-number="$code"
 
 # ─── L'APK, présent ou absent ────────────────────────────────────────────────
 
