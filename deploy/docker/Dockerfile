@@ -153,16 +153,40 @@ COPY --from=apk /apk/. ./mobile/dist/
 ARG VERSION=dev
 ARG COMMIT=unknown
 
+# L'interpréteur ELF est FIXÉ, et il faut expliquer pourquoi.
+#
+# `CGO_ENABLED=0` ne suffit pas ici. L'encodeur AVIF passe par
+# `gen2brain/avif`, qui passe par `ebitengine/purego`, lequel charge sa
+# bibliothèque à l'exécution avec `//go:cgo_import_dynamic` — un mécanisme qui
+# impose un interpréteur ELF SANS utiliser cgo. Le binaire n'est donc jamais
+# statique, quoi qu'on demande.
+#
+# En compilation native, Go écrit le chemin de la libc qu'il voit : musl, dans
+# alpine. En compilation CROISÉE il ne peut pas la deviner et écrit le chemin
+# conventionnel, celui de la glibc — `/lib/ld-linux-aarch64.so.1`, absent
+# d'alpine. C'est exactement ce qui a rendu l'image arm64 de la v0.0.1-rc1
+# inutilisable, alors que l'amd64, compilée nativement, fonctionnait.
+#
+# Bissection qui a mené là : un « hello world » croisé vers arm64 sort statique
+# dans cette même image ; le nôtre non. La chaîne d'outils était donc saine, et
+# la cause dans nos dépendances.
+#
+# `-I` dit au lieur quel interpréteur inscrire. Il vaut mieux qu'un binaire
+# statique qu'on ne peut pas obtenir, et mieux qu'une image de base glibc qui
+# pèserait dix fois plus.
 RUN --mount=type=cache,target=/go/pkg/mod,id=gomod-$TARGETARCH \
     --mount=type=cache,target=/root/.cache/go-build,id=gobuild-$TARGETARCH \
-    CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
-    go build -trimpath \
-        -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT}" \
-        -o /out/boxincloud ./cmd/boxincloud && \
-    CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
-    go build -trimpath \
-        -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT}" \
-        -o /out/boxincloudctl ./cmd/boxincloudctl
+    case "$TARGETARCH" in \
+        amd64) MUSL=/lib/ld-musl-x86_64.so.1 ;; \
+        arm64) MUSL=/lib/ld-musl-aarch64.so.1 ;; \
+        *) echo "architecture non prévue : $TARGETARCH"; exit 1 ;; \
+    esac && \
+    for target in boxincloud boxincloudctl; do \
+        CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
+        go build -trimpath -tags osusergo,netgo \
+            -ldflags "-s -w -I $MUSL -X main.version=${VERSION} -X main.commit=${COMMIT}" \
+            -o "/out/$target" "./cmd/$target" || exit 1; \
+    done
 
 # Le binaire tournera-t-il dans l'image finale ?
 #
