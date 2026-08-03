@@ -699,6 +699,7 @@ function SourceForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => 
   const [selCover, setSelCover] = useState("");
   const [selLink, setSelLink] = useState("");
   const [ignoreRobots, setIgnoreRobots] = useState(false);
+  const [format, setFormat] = useState<"html" | "json">("html");
 
   const templates = useQuery({
     queryKey: ["discovery", "scraper-templates"],
@@ -821,6 +822,7 @@ function SourceForm({ onDone, onCancel }: { onDone: () => void; onCancel: () => 
         cover={selCover} setCover={setSelCover}
         link={selLink} setLink={setSelLink}
         ignoreRobots={ignoreRobots} setIgnoreRobots={setIgnoreRobots}
+        format={format} setFormat={setFormat}
       />}
 
       {/*
@@ -905,33 +907,63 @@ function WebFields(props: {
   setLink: (v: string) => void;
   ignoreRobots: boolean;
   setIgnoreRobots: (v: boolean) => void;
+  format: "html" | "json";
+  setFormat: (v: "html" | "json") => void;
 }) {
   const t = useT();
+  const json = props.format === "json";
 
   return (
     <div className="flex flex-col gap-3 rounded-md border border-border bg-surface-hover/40 p-3">
-      <p className="text-meta text-muted">{t("discovery.sources.webIntro")}</p>
+      <p className="text-meta text-muted">
+        {json ? t("discovery.sources.jsonIntro") : t("discovery.sources.webIntro")}
+      </p>
+
+      {/*
+        Le format d'abord : il change la NATURE des champs suivants — sélecteurs
+        CSS ou chemins — et le demander après les avoir fait remplir obligerait
+        à tout reprendre.
+      */}
+      <label className="flex flex-col gap-1 text-meta text-muted">
+        {t("discovery.sources.format")}
+        <select
+          value={props.format}
+          onChange={(event) => props.setFormat(event.target.value as "html" | "json")}
+          className="h-9 rounded-md border border-border bg-surface px-2 text-ui text-fg"
+        >
+          <option value="html">{t("discovery.sources.formatHtml")}</option>
+          <option value="json">{t("discovery.sources.formatJson")}</option>
+        </select>
+      </label>
 
       <label className="flex flex-col gap-1 text-meta text-muted">
         {t("discovery.sources.searchUrl")}
         <Input
           value={props.searchUrl}
           onChange={(event) => props.setSearchUrl(event.target.value)}
-          placeholder="https://exemple.org/recherche?q={terms}"
+          placeholder={
+            json
+              ? "https://exemple.org/api/search?q={terms}&output=json"
+              : "https://exemple.org/recherche?q={terms}"
+          }
           required
         />
         <span className="text-subtle">{t("discovery.sources.searchUrlHint")}</span>
       </label>
 
       <label className="flex flex-col gap-1 text-meta text-muted">
-        {t("discovery.sources.row")}
+        {json ? t("discovery.sources.rowJson") : t("discovery.sources.row")}
         <Input
           value={props.row}
           onChange={(event) => props.setRow(event.target.value)}
-          placeholder="ul.results > li"
-          required
+          placeholder={json ? "response.docs" : "ul.results > li"}
+          // En JSON, une racine tableau est légitime : certaines API rendent
+          // directement la liste, sans objet enveloppant.
+          required={!json}
         />
-        <span className="text-subtle">{t("discovery.sources.rowHint")}</span>
+        <span className="text-subtle">
+          {json ? t("discovery.sources.rowJsonHint") : t("discovery.sources.rowHint")}
+        </span>
       </label>
 
       {/*
@@ -945,7 +977,7 @@ function WebFields(props: {
           <Input
             value={props.title}
             onChange={(event) => props.setTitle(event.target.value)}
-            placeholder="h3 a"
+            placeholder={json ? "title" : "h3 a"}
             required
           />
         </label>
@@ -955,7 +987,7 @@ function WebFields(props: {
           <Input
             value={props.link}
             onChange={(event) => props.setLink(event.target.value)}
-            placeholder="a.download"
+            placeholder={json ? "formats.application/epub+zip" : "a.download"}
           />
         </label>
 
@@ -964,7 +996,7 @@ function WebFields(props: {
           <Input
             value={props.author}
             onChange={(event) => props.setAuthor(event.target.value)}
-            placeholder="span.author"
+            placeholder={json ? "authors.#.name" : "span.author"}
           />
         </label>
 
@@ -973,7 +1005,7 @@ function WebFields(props: {
           <Input
             value={props.cover}
             onChange={(event) => props.setCover(event.target.value)}
-            placeholder="img"
+            placeholder={json ? "cover_url" : "img"}
           />
         </label>
       </div>

@@ -653,10 +653,12 @@ export const listDiscoverySources = () =>
  * écrit un gabarit sur disque — voir docs/06-gabarits-scraper.md.
  */
 export type WebTemplate = {
+  /** `html` lit une page avec des sélecteurs CSS, `json` une API avec des chemins. */
+  format?: "html" | "json";
   /** Adresse de recherche complète, avec `{terms}` à la place des mots cherchés. */
   searchUrl: string;
-  /** Sélecteur CSS du bloc qui se répète pour chaque résultat. */
-  row: string;
+  /** Bloc qui se répète (html) ou chemin du tableau de résultats (json). */
+  row?: string;
   /** Sélecteurs cherchés À L'INTÉRIEUR de ce bloc. */
   title: string;
   author?: string;

@@ -657,6 +657,14 @@ export const fr = {
   "discovery.sources.kindWeb": "Site web (personnalisé)",
   "discovery.sources.webIntro":
     "Un site sans flux OPDS ne dit pas où sont ses titres. Indiquez-le une fois : cherchez sur le site, copiez l'adresse obtenue, puis désignez les éléments de la page.",
+  "discovery.sources.format": "Format de la source",
+  "discovery.sources.formatHtml": "Page web (HTML)",
+  "discovery.sources.formatJson": "API JSON",
+  "discovery.sources.jsonIntro":
+    "Une API JSON r\u00e9pond une structure. Indiquez le chemin du tableau de r\u00e9sultats, puis celui de chaque champ : un point s\u00e9pare les niveaux, # parcourt un tableau.",
+  "discovery.sources.rowJson": "Chemin des r\u00e9sultats",
+  "discovery.sources.rowJsonHint":
+    "Chemin du tableau dans la r\u00e9ponse, par exemple response.docs. Laissez vide si l'API rend directement un tableau.",
   "discovery.sources.searchUrl": "Adresse de recherche",
   "discovery.sources.searchUrlHint":
     "Faites une recherche sur le site, copiez l'adresse de la barre du navigateur, et remplacez le mot cherché par {terms}.",

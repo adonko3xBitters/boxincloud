@@ -86,6 +86,16 @@ type WebSpec struct {
 	// IgnoreRobots désactive la lecture de robots.txt pour ce site. Voir
 	// Template.IgnoreRobots : même sens, mêmes réserves.
 	IgnoreRobots bool `json:"ignoreRobots,omitempty"`
+
+	/*
+		Format vaut `html` — le défaut — ou `json`.
+
+		Les six champs gardent leur sens, seule leur nature change : des
+		sélecteurs CSS deviennent des chemins JSON. C'est ce qui permet au
+		formulaire de ne pas doubler ses champs, et à qui a déjà décrit un site
+		de comprendre une API sans rien réapprendre.
+	*/
+	Format string `json:"format,omitempty"`
 }
 
 // ParseWebSpec lit une description saisie, la valide et la compile.
@@ -118,7 +128,17 @@ func (s WebSpec) Compile() (*Compiled, error) {
 		problems = append(problems,
 			"l'adresse doit contenir {terms} à l'endroit des mots cherchés")
 	}
-	if strings.TrimSpace(s.Row) == "" {
+	format := strings.ToLower(strings.TrimSpace(s.Format))
+	if format == "" {
+		format = FormatHTML
+	}
+	if format != FormatHTML && format != FormatJSON {
+		problems = append(problems, "le format doit être html ou json")
+	}
+
+	// En JSON, une racine tableau est légitime : certaines API rendent
+	// directement la liste, sans objet enveloppant.
+	if strings.TrimSpace(s.Row) == "" && format == FormatHTML {
 		problems = append(problems, "le sélecteur de résultat est requis")
 	}
 	if strings.TrimSpace(s.Title) == "" {
@@ -159,6 +179,7 @@ func (s WebSpec) Compile() (*Compiled, error) {
 	}
 
 	template := Template{
+		Format:       format,
 		IgnoreRobots: s.IgnoreRobots,
 		// L'identifiant ne sert qu'au journal et aux compartiments de débit :
 		// une source décrite ici est désignée par son genre `web` et son
@@ -181,22 +202,42 @@ func (s WebSpec) Compile() (*Compiled, error) {
 	}
 
 	if author := strings.TrimSpace(s.Author); author != "" {
-		template.Results.Fields[fieldAuthors] = FieldSpec{Select: author, All: true}
-	}
-	if cover := strings.TrimSpace(s.Cover); cover != "" {
-		template.Results.Fields[fieldCoverURL] = FieldSpec{
-			Select: cover, From: "attr", Attr: "src",
+		// `All` ne vaut qu'en HTML : en JSON, un chemin qui traverse un tableau
+		// rend déjà plusieurs valeurs, et la validation refuse les options
+		// propres au HTML.
+		field := FieldSpec{Select: author}
+		if format == FormatHTML {
+			field.All = true
 		}
+		template.Results.Fields[fieldAuthors] = field
+	}
+	/*
+		En HTML, une couverture est un `<img>` dont on lit `src`, et un lien un
+		`<a>` dont on lit `href`. En JSON, le chemin désigne DÉJÀ la valeur :
+		réclamer un attribut n'aurait pas de sens, et la validation le refuse.
+	*/
+	attr := func(name string) FieldSpec {
+		if format == FormatJSON {
+			return FieldSpec{}
+		}
+		return FieldSpec{From: "attr", Attr: name}
+	}
+
+	if cover := strings.TrimSpace(s.Cover); cover != "" {
+		field := attr("src")
+		field.Select = cover
+		template.Results.Fields[fieldCoverURL] = field
 	}
 	if link := strings.TrimSpace(s.Link); link != "" {
 		// Le même lien sert de fiche et d'acquisition : voir WebSpec.Link.
-		template.Results.Fields[fieldPageURL] = FieldSpec{
-			Select: link, From: "attr", Attr: "href",
-		}
-		template.Results.Fields[fieldAcquisition] = FieldSpec{
-			Select: link, From: "attr", Attr: "href",
-			MediaType: strings.TrimSpace(s.MediaType),
-		}
+		page := attr("href")
+		page.Select = link
+		template.Results.Fields[fieldPageURL] = page
+
+		acquisition := attr("href")
+		acquisition.Select = link
+		acquisition.MediaType = strings.TrimSpace(s.MediaType)
+		template.Results.Fields[fieldAcquisition] = acquisition
 	}
 
 	template.applyDefaults()

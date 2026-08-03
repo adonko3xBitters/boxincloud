@@ -107,3 +107,45 @@ func TestWebSpecExplainsTheMissingMarker(t *testing.T) {
 		t.Fatalf("message = %v", err)
 	}
 }
+
+/*
+Une API JSON décrite au formulaire.
+
+Les six champs gardent leur sens, seule leur nature change. Ce test vérifie que
+la traduction n'emporte pas d'options propres au HTML — `from: attr` sur un
+chemin JSON ferait un gabarit qui se charge et ne remplit rien, la panne la plus
+coûteuse à diagnostiquer.
+*/
+func TestWebSpecCompilesJSON(t *testing.T) {
+	compiled, err := WebSpec{
+		Format:    FormatJSON,
+		SearchURL: "https://archive.org/advancedsearch.php?q={terms}&output=json",
+		Row:       "response.docs",
+		Title:     "title",
+		Author:    "creator",
+		Cover:     "cover_url",
+		Link:      "identifier",
+	}.Compile()
+	if err != nil {
+		t.Fatalf("description refusée : %v", err)
+	}
+
+	if compiled.Format != FormatJSON {
+		t.Fatalf("format = %q", compiled.Format)
+	}
+	for name, field := range compiled.fields {
+		if field.From != "" || field.Attr != "" || field.All {
+			t.Errorf("%s porte une option HTML : %+v", name, field.FieldSpec)
+		}
+	}
+
+	body := []byte(`{"response":{"docs":[{"title":"Un titre","creator":"Une autrice"}]}}`)
+	results := extractJSON(body, compiled, "https://archive.org/", 10)
+
+	if len(results) != 1 || results[0].Title != "Un titre" {
+		t.Fatalf("résultats = %+v", results)
+	}
+	if len(results[0].Authors) == 0 || results[0].Authors[0] != "Une autrice" {
+		t.Errorf("auteurs = %v", results[0].Authors)
+	}
+}

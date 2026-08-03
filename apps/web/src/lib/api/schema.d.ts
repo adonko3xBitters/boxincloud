@@ -1702,8 +1702,11 @@ export interface components {
             createdAt: string;
         };
         /**
-         * @description Les règles de lecture d'un site, telles qu'elles se saisissent dans le
-         *     formulaire. Requises pour `kind: web`, interdites ailleurs.
+         * @description Les règles de lecture d'une source, telles qu'elles se saisissent dans
+         *     le formulaire. Requises pour `kind: web`, interdites ailleurs.
+         *
+         *     Les six champs gardent leur sens quel que soit le `format` : seule leur
+         *     nature change, sélecteurs CSS en HTML, chemins en JSON.
          *
          *     Délibérément pauvres : une adresse et quatre sélecteurs. Un formulaire à
          *     trente champs ne serait rempli correctement par personne, et chaque
@@ -1713,6 +1716,14 @@ export interface components {
          */
         WebTemplate: {
             /**
+             * @description `html` lit une page de résultats avec des sélecteurs CSS.
+             *     `json` lit une API avec des chemins — un point sépare les niveaux,
+             *     `#` parcourt un tableau.
+             * @default html
+             * @enum {string}
+             */
+            format: "html" | "json";
+            /**
              * @description L'adresse de recherche complète, avec `{terms}` à la place des mots
              *     cherchés. On la copie depuis la barre du navigateur après avoir
              *     cherché sur le site, et on remplace le mot par `{terms}`.
@@ -1720,12 +1731,15 @@ export interface components {
              */
             searchUrl: string;
             /**
-             * @description Sélecteur CSS du conteneur d'UN résultat — celui qui se répète.
-             *     Tous les autres sélecteurs sont cherchés à l'intérieur de lui, ce
-             *     qui évite d'apparier des listes parallèles par position.
+             * @description En `html`, le sélecteur CSS du conteneur d'UN résultat — celui qui
+             *     se répète. Les autres sélecteurs sont cherchés à l'intérieur de lui,
+             *     ce qui évite d'apparier des listes parallèles par position.
+             *
+             *     En `json`, le chemin du TABLEAU de résultats. Peut être vide quand
+             *     l'API rend un tableau à la racine.
              * @example ul.results > li
              */
-            row: string;
+            row?: string;
             /** @description Sélecteur du titre, dans la ligne. */
             title: string;
             /** @description Sélecteur de l'auteur. Tous les nœuds trouvés sont retenus. */

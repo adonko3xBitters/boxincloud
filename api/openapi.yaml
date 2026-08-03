@@ -3027,10 +3027,13 @@ components:
 
     WebTemplate:
       type: object
-      required: [searchUrl, row, title]
+      required: [searchUrl, title]
       description: |
-        Les règles de lecture d'un site, telles qu'elles se saisissent dans le
-        formulaire. Requises pour `kind: web`, interdites ailleurs.
+        Les règles de lecture d'une source, telles qu'elles se saisissent dans
+        le formulaire. Requises pour `kind: web`, interdites ailleurs.
+
+        Les six champs gardent leur sens quel que soit le `format` : seule leur
+        nature change, sélecteurs CSS en HTML, chemins en JSON.
 
         Délibérément pauvres : une adresse et quatre sélecteurs. Un formulaire à
         trente champs ne serait rempli correctement par personne, et chaque
@@ -3038,6 +3041,14 @@ components:
         le signale. Qui a besoin de plus écrit un gabarit sur disque — voir
         docs/06-gabarits-scraper.md.
       properties:
+        format:
+          type: string
+          enum: [html, json]
+          default: html
+          description: |
+            `html` lit une page de résultats avec des sélecteurs CSS.
+            `json` lit une API avec des chemins — un point sépare les niveaux,
+            `#` parcourt un tableau.
         searchUrl:
           type: string
           description: |
@@ -3048,9 +3059,12 @@ components:
         row:
           type: string
           description: |
-            Sélecteur CSS du conteneur d'UN résultat — celui qui se répète.
-            Tous les autres sélecteurs sont cherchés à l'intérieur de lui, ce
-            qui évite d'apparier des listes parallèles par position.
+            En `html`, le sélecteur CSS du conteneur d'UN résultat — celui qui
+            se répète. Les autres sélecteurs sont cherchés à l'intérieur de lui,
+            ce qui évite d'apparier des listes parallèles par position.
+
+            En `json`, le chemin du TABLEAU de résultats. Peut être vide quand
+            l'API rend un tableau à la racine.
           example: ul.results > li
         title:
           type: string

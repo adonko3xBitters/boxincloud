@@ -648,6 +648,14 @@ export const en: Record<MessageKey, string> = {
   "discovery.sources.kindWeb": "Custom website",
   "discovery.sources.webIntro":
     "A site without an OPDS feed does not say where its titles are. Tell it once: search on the site, copy the address you get, then point at the elements on the page.",
+  "discovery.sources.format": "Source format",
+  "discovery.sources.formatHtml": "Web page (HTML)",
+  "discovery.sources.formatJson": "JSON API",
+  "discovery.sources.jsonIntro":
+    "A JSON API answers with a structure. Give the path to the results array, then to each field: a dot separates levels, # walks an array.",
+  "discovery.sources.rowJson": "Results path",
+  "discovery.sources.rowJsonHint":
+    "Path to the array in the response, for example response.docs. Leave empty if the API returns an array directly.",
   "discovery.sources.searchUrl": "Search address",
   "discovery.sources.searchUrlHint":
     "Search on the site, copy the address from the browser bar, and replace the search word with {terms}.",
