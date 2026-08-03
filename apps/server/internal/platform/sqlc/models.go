@@ -454,41 +454,6 @@ type Device struct {
 	CreatedAt  pgtype.Timestamptz
 }
 
-type DiscoveryImport struct {
-	ID          uuid.UUID
-	SourceID    uuid.NullUUID
-	SourceName  string
-	Href        string
-	LibraryID   uuid.UUID
-	Folder      string
-	Title       string
-	Status      string
-	ErrorCode   string
-	ErrorDetail string
-	ComicID     uuid.NullUUID
-	ObjectKey   string
-	FileSize    int64
-	RequestedBy uuid.NullUUID
-	CreatedAt   pgtype.Timestamptz
-	StartedAt   pgtype.Timestamptz
-	FinishedAt  pgtype.Timestamptz
-}
-
-type DiscoverySource struct {
-	ID            uuid.UUID
-	Name          string
-	URL           string
-	Kind          string
-	Enabled       bool
-	Username      string
-	SecretEnc     []byte
-	LastError     string
-	LastCheckedAt pgtype.Timestamptz
-	CreatedAt     pgtype.Timestamptz
-	// Règles d'extraction pour kind = web. Nul pour les autres genres.
-	Template []byte
-}
-
 type Favorite struct {
 	UserID    uuid.UUID
 	ComicID   uuid.UUID

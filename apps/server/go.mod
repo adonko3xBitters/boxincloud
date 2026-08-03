@@ -3,8 +3,6 @@ module github.com/adonko3xBitters/boxincloud/server
 go 1.26.5
 
 require (
-	github.com/PuerkitoBio/goquery v1.12.0
-	github.com/andybalholm/cascadia v1.3.3
 	github.com/bodgit/sevenzip v1.6.5
 	github.com/gen2brain/avif v0.6.0
 	github.com/gen2brain/webp v0.6.4
@@ -21,12 +19,10 @@ require (
 	github.com/riverqueue/river v0.41.1
 	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.41.1
 	github.com/testcontainers/testcontainers-go v0.43.0
-	github.com/tidwall/gjson v1.19.0
 	golang.org/x/crypto v0.54.0
 	golang.org/x/image v0.44.0
 	golang.org/x/sync v0.22.0
 	golang.org/x/text v0.40.0
-	gopkg.in/yaml.v3 v3.0.1
 )
 
 require (
@@ -104,6 +100,7 @@ require (
 	github.com/stangelandcl/ppmd v0.1.1 // indirect
 	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/tetratelabs/wazero v1.12.0 // indirect
+	github.com/tidwall/gjson v1.19.0 // indirect
 	github.com/tidwall/match v1.2.0 // indirect
 	github.com/tidwall/pretty v1.2.1 // indirect
 	github.com/tidwall/sjson v1.2.5 // indirect
@@ -126,4 +123,5 @@ require (
 	golang.org/x/sys v0.47.0 // indirect
 	gopkg.in/ini.v1 v1.67.2 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
+	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

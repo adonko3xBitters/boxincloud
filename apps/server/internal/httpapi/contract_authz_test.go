@@ -62,20 +62,6 @@ func adminOnlyRoutes(h *contractHarness) []adminRoute {
 		{http.MethodGet, "/api/v1/libraries/" + library + "/scans", nil},
 
 		{http.MethodGet, "/api/v1/accounts", nil},
-
-		{http.MethodGet, "/api/v1/discovery/sources", nil},
-		{http.MethodPost, "/api/v1/discovery/sources", map[string]any{
-			"name": "essai", "url": "https://exemple.test/opds",
-		}},
-		{http.MethodPatch, "/api/v1/discovery/sources/" + absent, map[string]any{
-			"name": "essai", "url": "https://exemple.test/opds",
-		}},
-		{http.MethodDelete, "/api/v1/discovery/sources/" + absent, nil},
-		{http.MethodPost, "/api/v1/discovery/sources/" + absent + "/test", nil},
-
-		// Les gabarits disent quels sites cette instance sait lire, et depuis
-		// quelles adresses. C'est de la configuration, pas du catalogue.
-		{http.MethodGet, "/api/v1/discovery/scraper-templates", nil},
 	}
 }
 
@@ -128,7 +114,6 @@ func TestIntegrationContractSearchStaysOpen(t *testing.T) {
 	h := newContractHarness(t)
 
 	open := []string{
-		"/api/v1/discovery/search?q=incal",
 		"/api/v1/search?q=tintin",
 		"/api/v1/libraries",
 		"/api/v1/home",

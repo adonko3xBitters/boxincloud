@@ -609,115 +609,13 @@ export const en: Record<MessageKey, string> = {
   "settings.discoverHint": "Search the federated catalogues",
 
   // ── Federated search ───────────────────────────────────────────────────────
+  "discovery.soon": "Coming soon",
+  "discovery.soonHint":
+    "Searching external catalogues is not available yet. The shortcut stays in place: this is where it will open when it lands.",
   "discovery.title": "Discover",
   "discovery.dialogLabel": "Federated search",
-  "discovery.tab.search": "Search",
-  "discovery.tab.sources": "Catalogues",
-  "discovery.placeholder": "Search the federated catalogues\u2026",
-  "discovery.intro":
-    "Queries the OPDS catalogues you have declared, all at once: another boxincloud instance, your Komga or Kavita, a public digital library.",
-  "discovery.noSources": "No catalogue declared",
-  "discovery.noSourcesHint":
-    "Add the address of an OPDS feed you already have access to in order to search it.",
-  "discovery.noResults": "No results",
-  "discovery.noResultsPartial": "No results \u2014 but not every catalogue answered.",
-  "discovery.searching": "Querying the catalogues\u2026",
-  "discovery.resultCount": "{count} result(s)",
-  "discovery.inLibrary": "Already in your library",
-  "discovery.download": "Download",
-  "discovery.openPage": "Open page",
-  "discovery.from": "From {source}",
 
-  "discovery.status.ok": "{count} result(s) in {ms} ms",
-  "discovery.status.unreachable": "Unreachable",
-  "discovery.status.timeout": "Too slow, gave up",
-  "discovery.status.canceled": "Interrupted",
-  "discovery.status.no-search": "Exposes no search",
-  "discovery.status.invalid": "Invalid address",
-  "discovery.status.unknown-kind": "Template or protocol missing from this instance",
-  "discovery.partial": "Some catalogues did not answer: the list is incomplete.",
 
-  "discovery.sources.title": "Federated catalogues",
-  "discovery.sources.intro":
-    "Addresses declared here are fetched by the server. Administrators only.",
-  "discovery.sources.empty": "No catalogue",
-  "discovery.sources.add": "Add a catalogue",
-  "discovery.sources.name": "Name",
-  "discovery.sources.kind": "Catalogue type",
-  "discovery.sources.kindOpds": "OPDS feed",
-  "discovery.sources.kindWeb": "Custom website",
-  "discovery.sources.webIntro":
-    "A site without an OPDS feed does not say where its titles are. Tell it once: search on the site, copy the address you get, then point at the elements on the page.",
-  "discovery.sources.format": "Source format",
-  "discovery.sources.formatHtml": "Web page (HTML)",
-  "discovery.sources.formatJson": "JSON API",
-  "discovery.sources.jsonIntro":
-    "A JSON API answers with a structure. Give the path to the results array, then to each field: a dot separates levels, # walks an array.",
-  "discovery.sources.rowJson": "Results path",
-  "discovery.sources.rowJsonHint":
-    "Path to the array in the response, for example response.docs. Leave empty if the API returns an array directly.",
-  "discovery.sources.searchUrl": "Search address",
-  "discovery.sources.searchUrlHint":
-    "Search on the site, copy the address from the browser bar, and replace the search word with {terms}.",
-  "discovery.sources.row": "One result",
-  "discovery.sources.rowHint":
-    "CSS selector for the block that repeats for each result. The fields below are looked up inside it.",
-  "discovery.sources.selTitle": "Title",
-  "discovery.sources.selAuthor": "Author (optional)",
-  "discovery.sources.selCover": "Cover (optional)",
-  "discovery.sources.selLink": "Link (optional)",
-  "discovery.sources.ignoreRobots": "Ignore this site's robots.txt",
-  "discovery.sources.ignoreRobotsHint":
-    "Only tick this if you have authority over the site. boxincloud still identifies itself by name: the site can refuse anyway, and every affected request is logged.",
-  "discovery.sources.webProbeHint":
-    "On save, the site is queried once to check that these rules find results there.",
-  "discovery.sources.noTemplates":
-    "No site template is loaded. Sites without an OPDS feed are read from templates declared in BOXINCLOUD_SCRAPER_TEMPLATES_DIR \u2014 see docs/06-gabarits-scraper.md.",
-  "discovery.sources.url": "OPDS feed address",
-  "discovery.sources.urlHint":
-    "For example https://komga.example.com/opds/v2 \u2014 OPDS 1.2 and 2.0 are detected automatically.",
-  "discovery.sources.mirror": "Address (optional)",
-  "discovery.sources.mirrorHint":
-    "The template already declares its mirrors. Fill this in only if the site changed address.",
-  "discovery.sources.templateMirrors": "Template mirrors",
-  "discovery.sources.username": "Username",
-  "discovery.sources.usernameHint": "Leave empty for a public catalogue.",
-  "discovery.sources.password": "Password",
-  "discovery.sources.passwordKept": "Leave empty to keep the stored password.",
-  "discovery.sources.enabled": "Enabled",
-  "discovery.sources.test": "Test",
-  "discovery.sources.testOk": "The catalogue answers",
-  "discovery.sources.testFailed": "The catalogue did not answer",
-  "discovery.sources.lastError": "Last failure",
-  "discovery.sources.confirmDelete": "Remove this catalogue?",
-  "discovery.sources.checking": "Testing\u2026",
 
-  "discovery.import": "Import",
-  "discovery.import.title": "Import into a library",
-  "discovery.import.library": "Library",
-  "discovery.import.folder": "Folder",
-  "discovery.import.folderHint": "Leave empty for the library root.",
-  "discovery.import.running": "Downloading\u2026",
-  "discovery.import.explain":
-    "The server downloads from the catalogue and writes straight into your storage: the file does not pass through this browser.",
-  "discovery.import.done": "Imported",
-  "discovery.import.noLibrary": "No library to import into",
-  "discovery.import.queued": "Queued",
-  "discovery.import.failed": "Import failed",
-  "discovery.import.background":
-    "The import continues in the background: you can close this window.",
-  "discovery.import.open": "Open album",
 
-  "discovery.import.err.unreachable": "The catalogue did not answer",
-  "discovery.import.err.timeout": "The download timed out",
-  "discovery.import.err.foreign-host": "Address foreign to the catalogue",
-  "discovery.import.err.invalid": "Address refused",
-  "discovery.import.err.source-gone": "The catalogue was removed",
-  "discovery.import.err.unknown-kind": "Template or protocol missing from this instance",
-  "discovery.import.err.queue": "The job queue did not accept the import",
-  "discovery.import.err.unsupported-format": "Unsupported format",
-  "discovery.import.err.content-mismatch": "The content does not match its extension",
-  "discovery.import.err.exists": "A file with this name already exists",
-  "discovery.import.err.too-large": "File too large",
-  "discovery.import.err.deposit-failed": "Writing into the library failed",
 };

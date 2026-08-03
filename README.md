@@ -109,9 +109,9 @@ correspond exactement à celle de votre instance. iOS n'existe pas encore.
 | **Comptes** | rôles · bibliothèques restreintes · profils enfants filtrés par classification d'âge · révocation d'appareil |
 | **Android** | lecture en ligne et hors ligne · téléchargement d'un album ou d'une série · budget disque · réconciliation au retour du réseau |
 | **OPDS** | votre instance **publie** son catalogue en OPDS 1.2 et 2.0 — lisible depuis Panels, Chunky, KyBook, Thorium |
-| **Découvrir** | recherche fédérée sur des catalogues OPDS tiers · import direct vers un backend · enrichissement des métadonnées depuis Open Library, Internet Archive et Google Books |
 
-Ce qui n'y est pas encore : iOS et les applications de bureau. Voir la
+Ce qui n'y est pas encore : la recherche dans des catalogues extérieurs, iOS et
+les applications de bureau. Voir la
 [feuille de route](docs/04-roadmap.md#après-la-v010).
 
 ## Documentation
@@ -123,7 +123,6 @@ Ce qui n'y est pas encore : iOS et les applications de bureau. Voir la
 | [Structure du dépôt](docs/03-repo-structure.md) | Arborescence et conventions |
 | [Feuille de route](docs/04-roadmap.md) | Jalons jusqu'à la v0.1.0 et au-delà |
 | [Installation](docs/05-installation.md) | Compose, Unraid, TrueNAS, Synology, sources, migration |
-| [Gabarits de scraping](docs/06-gabarits-scraper.md) | Lire un site sans API : format, miroirs, politesse |
 | [Journal des modifications](CHANGELOG.md) | Ce qui change d'une version à l'autre |
 | [Contribuer](CONTRIBUTING.md) | Installer l'environnement, conventions, workflow |
 

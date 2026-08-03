@@ -6,7 +6,6 @@ import { useEffect, useState } from "react";
 
 import { buttonClass, cx } from "./ui";
 import { imageURL } from "@/lib/api/client";
-import { MetadataMatch } from "./metadata-match";
 import * as api from "@/lib/api/endpoints";
 import { useT } from "@/i18n";
 import { useWorkspace } from "@/lib/workspace";
@@ -286,21 +285,6 @@ function EditForm({
         />
       </label>
 
-      {/*
-        Le rapprochement est ICI, dans le formulaire, et non ailleurs : ce qu'il
-        rend remplit des champs qu'on relit avant d'enregistrer. Placé dans un
-        écran séparé qui écrirait lui-même, il remplacerait une fiche par celle
-        d'un homonyme sans que personne s'en aperçoive.
-      */}
-      <MetadataMatch
-        title={title}
-        onApply={(fill) => {
-          // Ne remplit que ce qui est vide : ce que l'utilisateur a saisi
-          // l'emporte toujours sur une proposition automatique.
-          if (fill.summary && !summary.trim()) setSummary(fill.summary);
-          if (fill.language && !language.trim()) setLanguage(fill.language);
-        }}
-      />
 
       <p className="text-micro leading-relaxed text-subtle">
         {t("detail.lockedFields")}

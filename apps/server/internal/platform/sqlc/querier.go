@@ -61,9 +61,6 @@ type Querier interface {
 	// Sert à l'assistant de première installation : tant qu'il n'y a personne,
 	// l'inscription du premier administrateur est ouverte.
 	CountUsers(ctx context.Context) (int64, error)
-	// ─── Imports ─────────────────────────────────────────────────────────────────
-	CreateDiscoveryImport(ctx context.Context, arg CreateDiscoveryImportParams) (DiscoveryImport, error)
-	CreateDiscoverySource(ctx context.Context, arg CreateDiscoverySourceParams) (DiscoverySource, error)
 	CreateLibrary(ctx context.Context, arg CreateLibraryParams) (Library, error)
 	// ─── Sessions ────────────────────────────────────────────────────────────────
 	CreateSession(ctx context.Context, arg CreateSessionParams) (Session, error)
@@ -76,7 +73,6 @@ type Querier interface {
 	// ─── Pages ───────────────────────────────────────────────────────────────────
 	DeleteComicPages(ctx context.Context, comicID uuid.UUID) error
 	DeleteDevice(ctx context.Context, arg DeleteDeviceParams) error
-	DeleteDiscoverySource(ctx context.Context, id uuid.UUID) error
 	DeleteExpiredSessions(ctx context.Context) (int64, error)
 	DeleteFolderTree(ctx context.Context, arg DeleteFolderTreeParams) (int64, error)
 	DeleteLibrary(ctx context.Context, id uuid.UUID) error
@@ -97,32 +93,12 @@ type Querier interface {
 	// jamais écraser une saisie manuelle. C'est la contrepartie de l'automatisme —
 	// sans elle, corriger un titre serait inutile.
 	EditComic(ctx context.Context, arg EditComicParams) (Comic, error)
-	// ─── Enrichissement ──────────────────────────────────────────────────────────
-	// Complète un album avec une fiche de métadonnées.
-	//
-	// Trois garde-fous inscrits dans la requête plutôt que laissés au code.
-	//
-	// `nullif(champ, '')` : seuls les champs VIDES sont remplis. Une fiche
-	// généraliste ne doit pas écraser ce que l'archive elle-même déclarait — le
-	// ComicInfo.xml d'un éditeur en sait plus sur son album qu'Open Library.
-	//
-	// `NOT (... = ANY(locked_fields))` : une saisie manuelle est intouchable. C'est
-	// la contrepartie de tout automatisme dans ce projet, et l'enrichissement n'y
-	// fait pas exception — corriger un titre à la main serait inutile s'il pouvait
-	// être défait par une requête vers un service tiers.
-	//
-	// `locked_fields` n'est PAS modifié : l'enrichissement est automatique, et
-	// verrouiller ce qu'il pose empêcherait une réindexation de le corriger avec
-	// une meilleure source.
-	EnrichComic(ctx context.Context, arg EnrichComicParams) (Comic, error)
 	// ─── Suppression et déplacement ──────────────────────────────────────────────
 	// Retire l'album du catalogue sans effacer sa ligne.
 	//
 	// La progression de lecture, les favoris et les notes y sont rattachés : les
 	// détruire priverait d'historique quelqu'un qui remettrait le fichier en place.
 	ExcludeComic(ctx context.Context, id uuid.UUID) error
-	FailDiscoveryImport(ctx context.Context, arg FailDiscoveryImportParams) error
-	FinishDiscoveryImport(ctx context.Context, arg FinishDiscoveryImportParams) error
 	FinishScanRun(ctx context.Context, arg FinishScanRunParams) error
 	GetComic(ctx context.Context, id uuid.UUID) (Comic, error)
 	GetComicByObjectKey(ctx context.Context, arg GetComicByObjectKeyParams) (Comic, error)
@@ -139,15 +115,6 @@ type Querier interface {
 	GetComicPage(ctx context.Context, arg GetComicPageParams) (ComicPage, error)
 	GetDefaultStorageBackend(ctx context.Context) (StorageBackend, error)
 	GetDevice(ctx context.Context, id uuid.UUID) (Device, error)
-	GetDiscoveryImport(ctx context.Context, id uuid.UUID) (DiscoveryImport, error)
-	GetDiscoverySource(ctx context.Context, id uuid.UUID) (DiscoverySource, error)
-	// Le secret est lu seul, par une requête distincte.
-	//
-	// Ce n'est pas une contrainte technique : `GetDiscoverySource` le rapporte déjà.
-	// C'est une contrainte de lecture. Un développeur qui écrit un gestionnaire voit
-	// qu'il faut une deuxième requête pour obtenir le mot de passe, ce qui rend
-	// difficile de le laisser filer dans une réponse par distraction.
-	GetDiscoverySourceSecret(ctx context.Context, id uuid.UUID) ([]byte, error)
 	GetFolder(ctx context.Context, arg GetFolderParams) (Folder, error)
 	GetFolderAccessCode(ctx context.Context, arg GetFolderAccessCodeParams) (GetFolderAccessCodeRow, error)
 	GetFolderByID(ctx context.Context, id uuid.UUID) (Folder, error)
@@ -205,8 +172,6 @@ type Querier interface {
 	// conviendrait pas aux deux.
 	ListComicsPage(ctx context.Context, arg ListComicsPageParams) ([]ListComicsPageRow, error)
 	ListDevicesByUser(ctx context.Context, userID uuid.UUID) ([]Device, error)
-	ListDiscoveryImports(ctx context.Context, limit int32) ([]DiscoveryImport, error)
-	ListDiscoverySources(ctx context.Context) ([]DiscoverySource, error)
 	ListExcludedComics(ctx context.Context, libraryID uuid.UUID) ([]Comic, error)
 	ListFavoriteIDs(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error)
 	ListFavorites(ctx context.Context, arg ListFavoritesParams) ([]ListFavoritesRow, error)
@@ -302,7 +267,6 @@ type Querier interface {
 	PurgeComic(ctx context.Context, id uuid.UUID) error
 	// ─── Cache dérivé ────────────────────────────────────────────────────────────
 	RecordCacheEntry(ctx context.Context, arg RecordCacheEntryParams) error
-	RecordDiscoveryProbe(ctx context.Context, arg RecordDiscoveryProbeParams) error
 	// Recompte les albums d'une bibliothèque.
 	//
 	// Le compteur est une colonne stockée, et il ne l'était rafraîchi qu'en fin de
@@ -382,7 +346,6 @@ type Querier interface {
 	SetUserRole(ctx context.Context, arg SetUserRoleParams) error
 	SetUserRoleReturning(ctx context.Context, arg SetUserRoleReturningParams) (User, error)
 	SoftDeleteUser(ctx context.Context, id uuid.UUID) error
-	StartDiscoveryImport(ctx context.Context, id uuid.UUID) error
 	// ─── Scans ───────────────────────────────────────────────────────────────────
 	StartScanRun(ctx context.Context, arg StartScanRunParams) (ScanRun, error)
 	TotalCacheSize(ctx context.Context) (int64, error)
@@ -398,7 +361,6 @@ type Querier interface {
 	TreeHasAccessCode(ctx context.Context, arg TreeHasAccessCodeParams) (bool, error)
 	UnlockFolder(ctx context.Context, arg UnlockFolderParams) error
 	UnsetFavorite(ctx context.Context, arg UnsetFavoriteParams) error
-	UpdateDiscoverySource(ctx context.Context, arg UpdateDiscoverySourceParams) (DiscoverySource, error)
 	// ─── Administration ──────────────────────────────────────────────────────────
 	UpdateLibrary(ctx context.Context, arg UpdateLibraryParams) (Library, error)
 	UpdateStorageBackend(ctx context.Context, arg UpdateStorageBackendParams) (StorageBackend, error)

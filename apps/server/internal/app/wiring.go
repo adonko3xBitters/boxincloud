@@ -2,11 +2,9 @@ package app
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"os"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/riverqueue/river"
@@ -16,8 +14,6 @@ import (
 	"github.com/adonko3xBitters/boxincloud/server/internal/cache"
 	"github.com/adonko3xBitters/boxincloud/server/internal/catalog"
 	"github.com/adonko3xBitters/boxincloud/server/internal/config"
-	"github.com/adonko3xBitters/boxincloud/server/internal/discovery"
-	"github.com/adonko3xBitters/boxincloud/server/internal/discovery/scraper"
 	"github.com/adonko3xBitters/boxincloud/server/internal/folders"
 	"github.com/adonko3xBitters/boxincloud/server/internal/imaging"
 	"github.com/adonko3xBitters/boxincloud/server/internal/indexer"
@@ -50,7 +46,6 @@ type Core struct {
 	Imaging   imaging.Processor
 	Indexer   indexer.Repository
 	Ingest    *ingest.Service
-	Discovery *discovery.Service
 	Jobs      *jobs.Client
 }
 
@@ -98,10 +93,6 @@ func BuildCore(ctx context.Context, cfg *config.Config, pool *db.Pool, log *slog
 	enqueuer := &deferredEnqueuer{}
 	indexerRepo := indexer.NewPostgresRepository(queries, pool, enqueuer)
 
-	// Même indirection que ci-dessus, pour la même raison : le worker d'import
-	// écrit par l'ingestion, et l'ingestion est construite plus bas.
-	var deferredIngest *ingest.Service
-
 	processor := imaging.NewPureGo()
 	catalogService := catalog.NewService(catalog.NewPostgresRepository(queries))
 
@@ -115,40 +106,7 @@ func BuildCore(ctx context.Context, cfg *config.Config, pool *db.Pool, log *slog
 	// dépendre du paquet folders créerait un cycle.
 	catalogService.SetLockResolver(folderService.HiddenPaths)
 
-	discoveryService := discovery.NewService(
-		discovery.NewPostgresRepository(queries),
-		discovery.NewOPDSClient(),
-		sealer,
-		log,
-	)
-
-	/*
-		Le débit sortant et le cache sont construits UNE fois et partagés par
-		tout ce qui sort vers un service tiers — bases de métadonnées et sites
-		lus au gabarit.
-
-		C'est la seule façon qu'ils valent quelque chose : un limiteur par
-		fournisseur laisserait passer autant de requêtes qu'on a construit
-		d'objets, et deux caches se partageraient une mémoire sans se partager
-		leurs réponses.
-
-		Cinq minutes et cinq cents entrées : de quoi absorber les recherches
-		répétées d'une session sans jamais servir une page franchement périmée,
-		pour moins d'un méga-octet.
-	*/
-	throttle := discovery.NewThrottle()
-	memo := discovery.NewMemo(5*time.Minute, 500)
-
-	discoveryService.SetMetadata(buildMetadataRegistry(cfg, log, throttle, memo))
-	discoveryService.SetComicWriter(discovery.NewPostgresRepository(queries))
-
-	if err := registerScrapers(discoveryService, cfg, log, throttle, memo); err != nil {
-		return nil, err
-	}
-
 	jobClient, err := jobs.New(pool, cfg.Jobs, log, func(w *river.Workers) {
-		discovery.Register(w, discoveryService, depositTo(&deferredIngest))
-
 		indexer.Register(w, indexer.Deps{
 			Libraries: libraries,
 			Repo:      indexerRepo,
@@ -162,7 +120,6 @@ func BuildCore(ctx context.Context, cfg *config.Config, pool *db.Pool, log *slog
 		return nil, err
 	}
 	enqueuer.client = jobClient
-	discoveryService.SetImportQueue(&importQueue{client: jobClient})
 
 	ingestService := ingest.NewService(
 		libraries,
@@ -177,8 +134,6 @@ func BuildCore(ctx context.Context, cfg *config.Config, pool *db.Pool, log *slog
 	// Supprimer un dossier peut emporter les albums qu'il contient. La règle de
 	// suppression — exclusion ou effacement, dans le bon ordre — appartient à
 	// l'ingestion : elle est empruntée plutôt que réécrite.
-	deferredIngest = ingestService
-
 	folderService.SetComicRemover(ingestService.BulkDelete)
 	ingestService.SetFolderRegistrar(folderService.Ensure)
 	ingestService.SetWriteGuard(folderService.EnsureWritable)
@@ -198,7 +153,6 @@ func BuildCore(ctx context.Context, cfg *config.Config, pool *db.Pool, log *slog
 		Indexer:   indexerRepo,
 		Ingest:    ingestService,
 		Folders:   folderService,
-		Discovery: discoveryService,
 		Jobs:      jobClient,
 	}, nil
 }
@@ -215,137 +169,9 @@ func (s *jobScanner) EnqueueScanLibrary(ctx context.Context, libraryID uuid.UUID
 	return s.client.Insert(ctx, indexer.ScanLibraryArgs{LibraryID: libraryID})
 }
 
-/*
-RunImport exécute un import sans passer par la file.
-
-Même intention que `ScanLibrary` côté direct : permettre au harnais de tests et
-à la ligne de commande de dérouler le travail sans démarrer de workers. Le
-chemin exécuté est exactement celui du worker — c'est ce qui donne au test sa
-valeur.
-*/
-func (c *Core) RunImport(ctx context.Context, importID uuid.UUID) error {
-	return c.Discovery.RunImport(ctx, importID, depositTo(&c.Ingest))
-}
-
 // ScanLibrary enfile un scan de bibliothèque.
 func (c *Core) ScanLibrary(ctx context.Context, libraryID uuid.UUID) error {
 	return c.Jobs.Insert(ctx, indexer.ScanLibraryArgs{LibraryID: libraryID})
-}
-
-/*
-importQueue enfile un import, et rien d'autre.
-
-Comme `jobScanner` : le service de découverte ne connaît que cette opération de
-la file, et lui passer le client entier lui donnerait le pouvoir d'enfiler
-n'importe quoi.
-*/
-type importQueue struct {
-	client *jobs.Client
-}
-
-func (q *importQueue) EnqueueImport(ctx context.Context, importID uuid.UUID) error {
-	return q.client.Insert(ctx, discovery.ImportArgs{ImportID: importID})
-}
-
-/*
-depositTo branche l'import sur l'ingestion.
-
-L'adaptateur vaut mieux qu'une dépendance directe : le paquet `discovery`
-décrit ce dont il a besoin, l'ingestion garde ses types, et les règles
-d'écriture — borne de taille sur le flux, signature vérifiée avant d'écrire,
-refus d'écraser, contrôle du dossier de destination — ne sont pas réécrites une
-seconde fois.
-
-C'est aussi ici, et nulle part ailleurs, que les deux vocabulaires d'erreur se
-rencontrent : les échecs d'ingestion en ressortent porteurs d'un code stable que
-l'interface saura traduire.
-
-Le pointeur est indirect parce que le worker est déclaré avant l'ingestion.
-*/
-func depositTo(service **ingest.Service) discovery.Deposit {
-	return func(ctx context.Context, p discovery.DepositParams) (discovery.Deposited, error) {
-		result, err := (*service).Upload(ctx, ingest.UploadParams{
-			LibraryID: p.LibraryID,
-			Folder:    p.Folder,
-			Filename:  p.Filename,
-			Size:      p.Size,
-			Content:   p.Content,
-		})
-		if err != nil {
-			return discovery.Deposited{}, discovery.ErrDeposit{
-				Code:   depositCode(err),
-				Detail: err.Error(),
-			}
-		}
-		return discovery.Deposited{
-			ComicID:   result.ComicID,
-			ObjectKey: result.ObjectKey,
-			Title:     result.Title,
-			Format:    result.Format,
-			Size:      result.Size,
-		}, nil
-	}
-}
-
-// depositCode nomme un échec d'ingestion pour l'interface.
-//
-// Le code, pas la phrase : le serveur ne devine pas la langue du lecteur, ici
-// pas plus qu'ailleurs.
-func depositCode(err error) string {
-	switch {
-	case errors.Is(err, ingest.ErrUnsupportedFormat):
-		return "unsupported-format"
-	case errors.Is(err, ingest.ErrContentMismatch):
-		return "content-mismatch"
-	case errors.Is(err, ingest.ErrAlreadyExists):
-		return "exists"
-	case errors.Is(err, ingest.ErrTooLarge):
-		return "too-large"
-	default:
-		return "deposit-failed"
-	}
-}
-
-/*
-buildMetadataRegistry enregistre les bases de métadonnées disponibles.
-
-Aucun fournisseur n'est indispensable. Une instance coupée d'Internet — le cas
-d'un serveur familial sur un réseau fermé — voit simplement le rapprochement
-rendre une liste vide, sans que rien d'autre en pâtisse.
-*/
-func buildMetadataRegistry(
-	cfg *config.Config,
-	log *slog.Logger,
-	throttle *discovery.Throttle,
-	memo *discovery.Memo,
-) *discovery.Registry {
-	throttle.SetRate("openlibrary", discovery.RateOpenLibrary)
-	throttle.SetRate("internetarchive", discovery.RateInternetArchive)
-	throttle.SetRate("googlebooks", discovery.RateGoogleBooks)
-	throttle.SetRate("opds", discovery.RateOPDS)
-
-	deps := discovery.MetadataDeps{Throttle: throttle, Memo: memo}
-
-	registry := discovery.NewRegistry()
-
-	// Un registre vide est un cas normal, pas dégradé : le rapprochement rend
-	// alors une liste vide et rien d'autre n'en pâtit.
-	if !cfg.Discovery.Metadata {
-		log.Info("bases de métadonnées désactivées")
-		return registry
-	}
-
-	registry.Register(discovery.NewOpenLibrary(deps))
-	registry.Register(discovery.NewInternetArchive(deps))
-
-	// Voir config.Discovery : sans clé, Google Books échoue une fois sur deux,
-	// ce qui vaut moins que son absence.
-	if key := cfg.Discovery.GoogleBooksKey; key != "" {
-		registry.Register(discovery.NewGoogleBooks(key, deps))
-		log.Info("Google Books activé")
-	}
-
-	return registry
 }
 
 // deferredEnqueuer permet de construire le repository avant le client de jobs.
@@ -434,66 +260,4 @@ func (s *cacheStore) PurgeEntries(ctx context.Context) ([]cache.Entry, error) {
 		out = append(out, cache.Entry{Key: row.Key, Size: row.Size})
 	}
 	return out, nil
-}
-
-/*
-registerScrapers branche les sites lus au gabarit.
-
-Deux origines, deux traitements, et l'asymétrie est délibérée. Un gabarit
-EMBARQUÉ fautif fait échouer le démarrage : il est passé par une revue, donc son
-échec est un défaut de livraison. Un gabarit d'OPÉRATEUR fautif est ignoré avec
-un message : il n'a été revu par personne, et faire tomber l'instance pour un
-fichier déposé à la main serait disproportionné.
-
-Un catalogue vide est un cas NORMAL, pas dégradé — c'est même la situation
-livrée aujourd'hui, faute de site admissible qui soit joignable (voir
-internal/discovery/scraper/templates/README.md). Rien n'est alors enregistré, et
-le reste de la découverte fonctionne à l'identique.
-*/
-func registerScrapers(
-	service *discovery.Service,
-	cfg *config.Config,
-	log *slog.Logger,
-	throttle *discovery.Throttle,
-	memo *discovery.Memo,
-) error {
-	catalog, err := scraper.LoadEmbedded()
-	if err != nil {
-		return fmt.Errorf("gabarits livrés : %w", err)
-	}
-	if err := catalog.LoadDir(cfg.Discovery.ScraperTemplatesDir, log); err != nil {
-		return fmt.Errorf("gabarits d'opérateur : %w", err)
-	}
-
-	/*
-		Le client est enregistré MÊME sans gabarit chargé.
-
-		Il porte aussi le genre `web`, celui des sources décrites depuis
-		l'interface, qui ne dépend d'aucun fichier. Repartir ici quand le
-		catalogue est vide — ce qu'on faisait — rendait cette porte
-		inatteignable sur une instance par défaut, c'est-à-dire sur toutes.
-	*/
-	templates := catalog.List()
-
-	// Le débit de chaque hôte est déclaré au limiteur partagé AVANT que le
-	// client ne serve : un compartiment sans débit déclaré ne limite rien, et
-	// la première recherche partirait sans retenue.
-	catalog.ApplyRates(throttle)
-
-	client := scraper.New(catalog, scraper.Deps{
-		Throttle: throttle,
-		Memo:     memo,
-		Log:      log,
-	})
-
-	names := make([]string, 0, len(templates))
-	for _, info := range client.Kinds() {
-		service.RegisterClient(info, client)
-		if info.ID != "" {
-			names = append(names, info.ID)
-		}
-	}
-	log.Info("moteur de sites web prêt", slog.Any("gabarits", names))
-
-	return nil
 }

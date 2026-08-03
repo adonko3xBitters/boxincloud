@@ -615,121 +615,17 @@ export const fr = {
   "settings.discoverHint": "Chercher dans les catalogues fédérés",
 
   // ── Recherche fédérée ──────────────────────────────────────────────────────
+  "discovery.soon": "Fonctionnalité à venir",
+  "discovery.soonHint":
+    "La recherche dans des catalogues extérieurs n'est pas encore disponible. Le raccourci reste en place : cet écran s'ouvrira ici le jour où elle arrivera.",
   "discovery.title": "Découvrir",
   "discovery.dialogLabel": "Recherche fédérée",
-  "discovery.tab.search": "Rechercher",
-  "discovery.tab.sources": "Catalogues",
-  "discovery.placeholder": "Chercher dans les catalogues fédérés\u2026",
-  "discovery.intro":
-    "Interroge en même temps les catalogues OPDS que vous avez déclarés : une autre instance boxincloud, votre Komga ou Kavita, une biblioth\u00e8que publique num\u00e9rique.",
-  "discovery.noSources": "Aucun catalogue déclaré",
-  "discovery.noSourcesHint":
-    "Ajoutez l'adresse d'un flux OPDS auquel vous avez déj\u00e0 acc\u00e8s pour chercher dedans.",
-  "discovery.noResults": "Aucun résultat",
-  "discovery.noResultsPartial":
-    "Aucun résultat — mais tous les catalogues n'ont pas répondu.",
-  "discovery.searching": "Interrogation des catalogues\u2026",
-  "discovery.resultCount": "{count} résultat(s)",
-  "discovery.inLibrary": "Déj\u00e0 dans votre biblioth\u00e8que",
-  "discovery.download": "Télécharger",
-  "discovery.openPage": "Voir la fiche",
-  "discovery.from": "Depuis {source}",
 
   // États d'un catalogue, traduits ici : le serveur rend un code stable.
-  "discovery.status.ok": "{count} résultat(s) en {ms} ms",
-  "discovery.status.unreachable": "Injoignable",
-  "discovery.status.timeout": "Trop lent, abandonné",
-  "discovery.status.canceled": "Interrompu",
-  "discovery.status.no-search": "N'expose pas de recherche",
-  "discovery.status.invalid": "Adresse invalide",
-  "discovery.status.unknown-kind": "Gabarit ou protocole absent de cette instance",
-  "discovery.partial":
-    "Certains catalogues n'ont pas répondu : la liste est incompl\u00e8te.",
 
-  "discovery.sources.title": "Catalogues fédérés",
-  "discovery.sources.intro":
-    "Les adresses déclarées ici sont jointes par le serveur. R\u00e9serv\u00e9 aux administrateurs.",
-  "discovery.sources.empty": "Aucun catalogue",
-  "discovery.sources.add": "Ajouter un catalogue",
-  "discovery.sources.name": "Nom",
-  "discovery.sources.kind": "Type de catalogue",
-  "discovery.sources.kindOpds": "Flux OPDS",
-  "discovery.sources.kindWeb": "Site web (personnalisé)",
-  "discovery.sources.webIntro":
-    "Un site sans flux OPDS ne dit pas où sont ses titres. Indiquez-le une fois : cherchez sur le site, copiez l'adresse obtenue, puis désignez les éléments de la page.",
-  "discovery.sources.format": "Format de la source",
-  "discovery.sources.formatHtml": "Page web (HTML)",
-  "discovery.sources.formatJson": "API JSON",
-  "discovery.sources.jsonIntro":
-    "Une API JSON r\u00e9pond une structure. Indiquez le chemin du tableau de r\u00e9sultats, puis celui de chaque champ : un point s\u00e9pare les niveaux, # parcourt un tableau.",
-  "discovery.sources.rowJson": "Chemin des r\u00e9sultats",
-  "discovery.sources.rowJsonHint":
-    "Chemin du tableau dans la r\u00e9ponse, par exemple response.docs. Laissez vide si l'API rend directement un tableau.",
-  "discovery.sources.searchUrl": "Adresse de recherche",
-  "discovery.sources.searchUrlHint":
-    "Faites une recherche sur le site, copiez l'adresse de la barre du navigateur, et remplacez le mot cherché par {terms}.",
-  "discovery.sources.row": "Un résultat",
-  "discovery.sources.rowHint":
-    "Sélecteur CSS du bloc qui se répète pour chaque résultat. Les champs ci-dessous sont cherchés à l'intérieur de lui.",
-  "discovery.sources.selTitle": "Titre",
-  "discovery.sources.selAuthor": "Auteur (facultatif)",
-  "discovery.sources.selCover": "Couverture (facultatif)",
-  "discovery.sources.selLink": "Lien (facultatif)",
-  "discovery.sources.ignoreRobots": "Ignorer le robots.txt de ce site",
-  "discovery.sources.ignoreRobotsHint":
-    "\u00c0 ne cocher que si vous avez autorit\u00e9 sur ce site. boxincloud continue de s'annoncer sous son nom : le site peut toujours refuser, et chaque requ\u00eate concern\u00e9e est journalis\u00e9e.",
-  "discovery.sources.webProbeHint":
-    "\u00c0 l'enregistrement, le site est interrog\u00e9 une fois pour v\u00e9rifier que ces r\u00e8gles y trouvent des r\u00e9sultats.",
-  "discovery.sources.noTemplates":
-    "Aucun gabarit de site n'est chargé. Les sites sans flux OPDS se lisent \u00e0 partir de gabarits d\u00e9clar\u00e9s dans BOXINCLOUD_SCRAPER_TEMPLATES_DIR — voir docs/06-gabarits-scraper.md.",
-  "discovery.sources.url": "Adresse du flux OPDS",
-  "discovery.sources.urlHint":
-    "Par exemple https://komga.chez-moi.fr/opds/v2 — OPDS 1.2 et 2.0 sont reconnus automatiquement.",
-  "discovery.sources.mirror": "Adresse (facultative)",
-  "discovery.sources.mirrorHint":
-    "Le gabarit déclare déjà ses miroirs. À remplir seulement si le site a changé d'adresse.",
-  "discovery.sources.templateMirrors": "Miroirs du gabarit",
-  "discovery.sources.username": "Identifiant",
-  "discovery.sources.usernameHint": "Laissez vide pour un catalogue public.",
-  "discovery.sources.password": "Mot de passe",
-  "discovery.sources.passwordKept": "Laissez vide pour conserver le mot de passe enregistré.",
-  "discovery.sources.enabled": "Activé",
-  "discovery.sources.test": "Essayer",
-  "discovery.sources.testOk": "Le catalogue répond",
-  "discovery.sources.testFailed": "Le catalogue n'a pas répondu",
-  "discovery.sources.lastError": "Dernier échec",
-  "discovery.sources.confirmDelete": "Retirer ce catalogue ?",
-  "discovery.sources.checking": "Essai en cours\u2026",
 
-  "discovery.import": "Importer",
-  "discovery.import.title": "Importer dans une bibliothèque",
-  "discovery.import.library": "Biblioth\u00e8que",
-  "discovery.import.folder": "Dossier",
-  "discovery.import.folderHint": "Laissez vide pour la racine de la biblioth\u00e8que.",
-  "discovery.import.running": "Téléchargement en cours\u2026",
-  "discovery.import.explain":
-    "Le serveur télécharge depuis le catalogue et écrit directement dans votre stockage : le fichier ne passe pas par ce navigateur.",
-  "discovery.import.done": "Importé",
-  "discovery.import.noLibrary": "Aucune biblioth\u00e8que o\u00f9 importer",
-  "discovery.import.queued": "En attente",
-  "discovery.import.failed": "Échec de l'import",
-  "discovery.import.background":
-    "L'import continue en arri\u00e8re-plan : vous pouvez fermer cette fen\u00eatre.",
-  "discovery.import.open": "Ouvrir l'album",
 
   // Codes d'échec rendus par le serveur, traduits ici.
-  "discovery.import.err.unreachable": "Le catalogue n'a pas répondu",
-  "discovery.import.err.timeout": "Le téléchargement a expiré",
-  "discovery.import.err.foreign-host": "Adresse étrang\u00e8re au catalogue",
-  "discovery.import.err.invalid": "Adresse refusée",
-  "discovery.import.err.source-gone": "Le catalogue a été retiré",
-  "discovery.import.err.unknown-kind": "Gabarit ou protocole absent de cette instance",
-  "discovery.import.err.queue": "La file de tâches n'a pas accepté l'import",
-  "discovery.import.err.unsupported-format": "Format non pris en charge",
-  "discovery.import.err.content-mismatch": "Le contenu ne correspond pas \u00e0 son extension",
-  "discovery.import.err.exists": "Un fichier de ce nom existe déj\u00e0",
-  "discovery.import.err.too-large": "Fichier trop volumineux",
-  "discovery.import.err.deposit-failed": "L'écriture dans la biblioth\u00e8que a échoué",
 } as const;
 
 /** Les clés du catalogue. Toute traduction doit les couvrir toutes. */

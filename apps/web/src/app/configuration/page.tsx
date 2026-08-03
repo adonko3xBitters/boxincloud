@@ -6,7 +6,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { AccountsPanel } from "@/components/accounts-panel";
 import { BrandLockup } from "@/components/brand";
-import { DiscoverySources } from "@/components/discovery-panel";
 import { MobileAppDialog } from "@/components/mobile-app-dialog";
 import { SessionsPanel } from "@/components/sessions-panel";
 import { StoragePanel } from "@/components/storage-panel";
@@ -31,7 +30,7 @@ import { useT, type MessageKey } from "@/i18n";
  * au bon endroit après un retour arrière.
  */
 
-type SectionKey = "stockage" | "comptes" | "catalogues" | "appareils" | "application";
+type SectionKey = "stockage" | "comptes" | "appareils" | "application";
 
 type Section = {
   key: SectionKey;
@@ -65,20 +64,6 @@ const SECTIONS: Section[] = [
     icon: (
       <path
         d="M9 9a2.75 2.75 0 1 0 0-5.5A2.75 2.75 0 0 0 9 9Zm-5.5 5.5c0-2.5 2.5-4 5.5-4s5.5 1.5 5.5 4"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinecap="round"
-      />
-    ),
-  },
-  {
-    key: "catalogues",
-    title: "discovery.sources.title",
-    description: "settings.sources.hint",
-    adminOnly: true,
-    icon: (
-      <path
-        d="M9 15.5a6.5 6.5 0 1 0 0-13 6.5 6.5 0 0 0 0 13Zm-6.5-6.5h13M9 2.5c1.8 2 2.7 4.2 2.7 6.5S10.8 13.5 9 15.5C7.2 13.5 6.3 11.3 6.3 9S7.2 4.5 9 2.5Z"
         stroke="currentColor"
         strokeWidth="1.4"
         strokeLinecap="round"
@@ -221,8 +206,6 @@ function SectionBody({ section, onDone }: { section: SectionKey; onDone: () => v
       return <SessionsPanel embedded onClose={onDone} />;
     case "application":
       return <MobileAppDialog embedded onClose={onDone} />;
-    case "catalogues":
-      return <DiscoverySources />;
   }
 }
 

@@ -41,12 +41,11 @@ type Config struct {
 	LogLevel  slog.Level
 	LogFormat string // "json" | "text"
 
-	Database  Database
-	Jobs      Jobs
-	Auth      Auth
-	Cache     Cache
-	Upload    Upload
-	Discovery Discovery
+	Database Database
+	Jobs     Jobs
+	Auth     Auth
+	Cache    Cache
+	Upload   Upload
 
 	// SecretKey chiffre les identifiants des backends de stockage en base.
 	SecretKey []byte
@@ -76,61 +75,6 @@ type Cache struct {
 }
 
 // Upload borne ce qu'un client peut envoyer.
-/*
-Discovery règle la recherche fédérée et les bases de métadonnées.
-
-Open Library et Internet Archive ne demandent rien : leurs API sont ouvertes,
-sans clé, et sont donc toujours actives.
-
-Google Books demande une clé, et ce n'est pas un caprice de configuration : sans
-clé, son quota est partagé par adresse IP et s'épuise en quelques centaines de
-requêtes. Un fournisseur qui échoue une fois sur deux est PIRE qu'un fournisseur
-absent — il fait douter de la fonctionnalité entière au lieu de manquer
-proprement, et l'utilisateur n'a aucun moyen de comprendre pourquoi son
-rapprochement rend un album sur trois.
-
-Sans clé, il n'est donc pas enregistré du tout.
-*/
-type Discovery struct {
-	/*
-		Metadata autorise l'instance à joindre les bases publiques.
-
-		Vrai par défaut. Deux raisons de le couper, et la seconde s'est imposée
-		d'elle-même :
-
-		  - une instance délibérément coupée d'Internet — un serveur familial
-		    sur un réseau fermé — pour qui ces requêtes ne feraient qu'échouer ;
-		  - la suite de tests, qui ne doit joindre aucun service tiers. Des
-		    tests qui sortent sur le réseau sont lents, instables, et impolis
-		    envers des services financés par des dons.
-
-		Le second cas a été découvert en écrivant le test de contrat : il
-		interrogeait réellement Open Library.
-	*/
-	Metadata bool
-
-	// GoogleBooksKey active Google Books. Vide, le fournisseur est absent.
-	GoogleBooksKey string
-
-	/*
-		ScraperTemplatesDir charge des gabarits de scraping écrits par
-		l'opérateur, en plus de ceux livrés dans le binaire.
-
-		Vide par défaut, et ce défaut est une position, pas une prudence. Les
-		gabarits livrés sont revus comme du code et soumis au critère
-		d'admission de la feuille de route ; ceux d'un répertoire ne le sont par
-		personne.
-
-		Ouvrir la porte reste légitime — c'est le pendant exact de la fédération
-		OPDS en configuration libre, où l'administrateur désigne un service dont
-		il répond. Mais elle s'ouvre par un geste explicite d'exploitation, et
-		non parce que le produit l'a laissée entrouverte.
-
-		Voir internal/discovery/scraper.
-	*/
-	ScraperTemplatesDir string
-}
-
 type Upload struct {
 	// MaxSize est la taille maximale d'un fichier téléversé, en octets.
 	//
@@ -230,12 +174,6 @@ func Load() (*Config, error) {
 		fail("BOXINCLOUD_UPLOAD_MAX_SIZE : %w", err)
 	}
 	cfg.Upload = Upload{MaxSize: uploadSize}
-
-	cfg.Discovery = Discovery{
-		Metadata:            envBool("BOXINCLOUD_METADATA_ENABLED", true),
-		GoogleBooksKey:      envString("BOXINCLOUD_GOOGLE_BOOKS_KEY", ""),
-		ScraperTemplatesDir: envString("BOXINCLOUD_SCRAPER_TEMPLATES_DIR", ""),
-	}
 
 	// ── Cache dérivé ─────────────────────────────────────────────────────
 	size, err := parseByteSize(envString("BOXINCLOUD_CACHE_MAX_SIZE", "10GB"))

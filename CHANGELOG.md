@@ -54,17 +54,6 @@ autre sur Backblaze B2, une troisième sur un disque local.
   exactement à celle du serveur.
 - **OPDS** — votre instance **publie** son catalogue en OPDS 1.2 et 2.0. Panels,
   Chunky, KyBook et Thorium s'y branchent directement.
-- **Découvrir** — recherche fédérée sur des catalogues OPDS tiers, import direct
-  vers un backend de stockage, enrichissement des métadonnées depuis Open
-  Library, Internet Archive et Google Books.
-- **Moteur de gabarits** — les sites du domaine public sans API ni flux OPDS se
-  lisent à partir de gabarits YAML déclaratifs : sélecteurs CSS, miroirs de
-  repli, débit sortant, `robots.txt` respecté.
-  **Aucun gabarit n'est livré dans cette version** — les deux sites visés ne sont
-  pas exploitables aujourd'hui, c'est expliqué dans
-  [`docs/06-gabarits-scraper.md`](docs/06-gabarits-scraper.md). Le moteur sert
-  aux gabarits que vous déclarez vous-même via
-  `BOXINCLOUD_SCRAPER_TEMPLATES_DIR`.
 - **Déploiement** — image multi-architecture amd64 et arm64, `docker-compose.yml`
   qui démarre sans édition préalable, modèle Unraid, notes TrueNAS et Synology.
 - **Interface en français et en anglais**, avec passe d'accessibilité — clavier,
@@ -72,13 +61,11 @@ autre sur Backblaze B2, une troisième sur un disque local.
 
 ### Sécurité
 
-- **Garde SSRF** sur toute adresse jointe par le serveur — backends de stockage
-  et catalogues fédérés. Les adresses de lien-local, dont les services de
-  métadonnées d'instance des fournisseurs de nuage, sont refusées. Le contrôle
-  s'applique aussi après redirection.
-- **Import confiné au catalogue déclaré** : une adresse téléchargée doit
-  appartenir à une source enregistrée par un administrateur, sans quoi la route
-  serait un relais anonyme doublé d'un sondeur de réseau interne.
+- **Garde SSRF** sur toute adresse jointe par le serveur — l'adresse d'un backend
+  de stockage est saisie depuis l'interface et jointe par le serveur lui-même.
+  Les adresses de lien-local, dont les services de métadonnées d'instance des
+  fournisseurs de nuage, sont refusées. Le contrôle s'applique aussi après
+  redirection.
 - Limitation de débit entrante, en-têtes de sécurité, secrets chiffrés au repos.
 - Politique de divulgation dans [`SECURITY.md`](SECURITY.md).
 
@@ -90,19 +77,20 @@ autre sur Backblaze B2, une troisième sur un disque local.
 - Les valeurs par défaut du `docker-compose.yml` conviennent à un essai sur une
   machine personnelle, **pas** à une instance exposée sur Internet. Voir
   [« Avant d'exposer »](docs/05-installation.md#avant-dexposer-sur-internet).
-- Le moteur de gabarits est livré **sans gabarit** (voir plus haut).
 
-### Périmètre des sources de la fonction « Découvrir »
+### Retirée avant publication : la recherche fédérée
 
-Le registre livré est une **liste fermée, embarquée dans le binaire**. Le critère
-d'admission est explicite : la diffusion des œuvres doit être autorisée —
-domaine public, licence libre, autorisation de l'auteur, ou accès fourni par
-l'utilisateur avec ses propres identifiants.
+Elle a existé et fonctionné : interrogation de catalogues OPDS distants, import
+vers un backend de stockage, lecture de sites sans API à partir de gabarits
+déclaratifs, enrichissement des métadonnées depuis des bases publiques.
 
-Deux portes restent ouvertes, et toutes deux s'ouvrent par un geste explicite
-d'administration plutôt que par un défaut du produit : la fédération OPDS, où
-vous désignez un catalogue dont vous avez les clés, et le répertoire de gabarits
-d'opérateur, désactivé par défaut, où vous décrivez un site dont vous répondez.
+Elle est retirée du projet avant sa première version. Le raccourci
+`Cmd/Ctrl + Maj + F` reste et annonce une fonctionnalité à venir : le supprimer
+aurait fait croire à une régression silencieuse.
+
+À ne pas confondre avec le **serveur OPDS**, qui reste et figure ci-dessus :
+publier son propre catalogue et aller chercher ailleurs sont deux choses
+différentes.
 
 [Non publié]: https://github.com/adonko3xBitters/boxincloud/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/adonko3xBitters/boxincloud/releases/tag/v0.1.0

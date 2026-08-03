@@ -342,191 +342,26 @@ Par ordre de valeur décroissante pour l'adoption :
 
 ---
 
-## « Découvrir » — recherche fédérée
+## « Découvrir » — retirée avant la v0.1.0
 
-Un champ de recherche unique qui interroge en parallèle plusieurs catalogues
-externes et agrège les résultats.
+La recherche fédérée a été **retirée du projet**. Elle interrogeait des
+catalogues extérieurs, importait vers un backend, lisait des sites sans API à
+partir de gabarits déclaratifs, et enrichissait les métadonnées depuis des bases
+publiques. Tout cela existait et fonctionnait ; l'historique git le garde.
 
-### État : la fédération OPDS est faite
+Ce qui subsiste est la porte : le raccourci `Cmd/Ctrl + Maj + F` ouvre une
+feuille qui annonce une fonctionnalité à venir. La supprimer aurait fait croire à
+une régression silencieuse — on appuie, rien ne se passe, et rien ne dit si
+c'est cassé ou voulu.
 
-`internal/discovery` interroge des catalogues **OPDS 1.2 (Atom) et 2.0 (JSON)**
-— une autre instance boxincloud, un Komga, un Kavita, un Calibre-Web, Standard
-Ebooks, Gutenberg, une bibliothèque publique numérique. La version du protocole
-est reconnue automatiquement : un administrateur colle l'adresse qu'il a sous
-les yeux, il n'a pas à savoir laquelle elle parle.
+À ne pas confondre avec le **serveur OPDS**, qui reste : votre instance publie
+son propre catalogue, lisible depuis Panels, Chunky, KyBook ou Thorium. Publier
+ce qu'on possède et aller chercher ailleurs sont deux fonctionnalités
+distinctes ; seule la seconde est partie.
 
-Trois décisions valent d'être retenues.
-
-**La recherche réussit partiellement, et le dit.** Un catalogue éteint, lent ou
-qui a changé d'adresse ne fait pas échouer les autres : la réponse porte les
-résultats ET l'état de chaque catalogue. Sans cette seconde moitié, une liste
-courte voudrait dire deux choses opposées — le titre n'existe nulle part, ou la
-moitié des catalogues n'a pas répondu — et l'utilisateur conclurait toujours la
-première.
-
-**Ce qu'on possède déjà est marqué.** Quand on fédère ses propres instances,
-l'issue la plus fréquente d'une recherche est « vous l'avez déjà ». La
-comparaison respecte les droits du lecteur : un profil restreint n'apprend rien
-de ce qu'il n'a pas le droit de voir.
-
-**L'adresse d'un catalogue est jointe par le serveur.** C'est une SSRF, traitée
-comme celle des backends de stockage — même garde-fou, désormais partagé dans
-`internal/platform/netguard`, et le contrôle s'applique aussi aux redirections.
-Déclarer un catalogue est réservé aux administrateurs ; chercher est ouvert à
-tout compte.
-
-**L'import est fait aussi**, et il est asynchrone. Le serveur télécharge chez le
-catalogue et écrit directement dans le backend de stockage : le fichier ne
-transite pas par le navigateur, ce qui compte quand l'instance a une bien
-meilleure liaison que le téléphone qui la pilote.
-
-La requête enregistre la demande, l'enfile et rend 202. Le téléchargement
-survit donc à la fermeture de l'onglet, et n'oblige plus le navigateur à garder
-une connexion ouverte pendant plusieurs minutes.
-
-Ce découpage impose de trancher ce qui est vérifié tout de suite et ce qui ne
-peut l'être qu'en essayant. La règle : **tout ce qui ne demande pas le réseau
-est refusé avant le 202** — catalogue inconnu, adresse étrangère, bibliothèque
-inaccessible. Ce qui dépend du catalogue distant atterrit dans une ligne de
-suivi que l'interface interroge, avec un code d'échec stable qu'elle traduit.
-
-Le job ne retente pas. Les échecs d'un import sont déterministes dans leur
-immense majorité — catalogue éteint, format refusé, fichier déjà présent — et
-les rejouer trois fois à intervalles croissants ferait patienter l'utilisateur
-devant un « en cours » qui ne peut pas aboutir, tout en martelant un serveur
-tiers. Il relance lui-même s'il pense que la cause a disparu ; il sait, lui,
-s'il vient de rallumer son Komga.
-
-Une règle gouverne cette route : **l'adresse téléchargée doit appartenir au
-catalogue annoncé** — même schéma, même hôte, même port. Ce n'est pas une
-vérification de forme. C'est le client qui choisit l'adresse et le serveur qui
-va la chercher ; sans cette contrainte, la route serait un relais anonyme
-doublé d'un sondeur de réseau interne.
-
-Le reste des garde-fous est hérité de l'ingestion plutôt que réécrit : borne de
-taille appliquée au flux, signature du contenu vérifiée avant d'écrire, refus
-d'écraser un objet existant, contrôle d'écriture sur le dossier de destination.
-Les redire ici les aurait fait diverger.
-
-**Le découpage est achevé.** D2 et D3 ont été livrés depuis : l'import dépose
-dans un backend, le moteur de gabarits lit les sites sans API, l'enrichissement
-comble les métadonnées d'un album qui arrive, et l'écran de rapprochement permet
-de corriger à la main. La seule réserve porte sur les gabarits eux-mêmes, et
-elle est documentée plus bas : aucun n'est livré, faute de site admissible qui
-soit lisible aujourd'hui.
-
-### Périmètre des sources
-
-Le registre des sources livrées est une **liste fermée, embarquée dans le
-binaire** : sources en dur pour les protocoles, gabarits embarqués pour les
-sites lus au HTML. Cette contrainte est délibérée — elle empêche que la
-fonctionnalité soit livrée en agrégateur de sites de contrefaçon, ce qui ferait
-sortir le projet d'awesome-selfhosted et de F-Droid, l'exposerait à des retraits
-DMCA et découragerait les contributeurs.
-
-Deux portes existent, et toutes deux s'ouvrent par un geste explicite
-d'administration plutôt que par un défaut du produit : la **fédération OPDS**,
-où l'utilisateur désigne un catalogue dont il a les clés, et le **répertoire de
-gabarits d'opérateur** (`BOXINCLOUD_SCRAPER_TEMPLATES_DIR`, vide par défaut),
-où il décrit un site dont il répond. Le critère d'admission ci-dessous vaut pour
-les deux ; ce qui change est qui l'applique.
-
-**Critère d'admission d'une source :** la diffusion des œuvres doit être
-autorisée — domaine public, licence libre, autorisation de l'auteur, ou accès
-fourni par l'utilisateur lui-même avec ses propres identifiants.
-
-**Domaine public** — téléchargement direct et import
-
-| Source | Contenu |
-|---|---|
-| Digital Comic Museum | Comics Golden Age, domaine public, déjà en CBZ — **bloqué**, voir ci-dessous |
-| Comic Book Plus | Comics, pulps, journaux illustrés du domaine public — **sans recherche serveur**, voir ci-dessous |
-| Internet Archive | Collections vérifiées domaine public |
-| Project Gutenberg | Livres, pour les bibliothèques `kind = book` |
-| Standard Ebooks | Livres du domaine public, EPUB soignés |
-
-**Métadonnées** — enrichir la collection existante
-
-| Source | Couverture |
-|---|---|
-| Bedetheque / BDGest | BD franco-belge — la référence pour le public francophone |
-| Grand Comics Database | International, données ouvertes |
-| ComicVine · Metron | Comics US |
-| MangaUpdates · AniList | Mangas |
-| Open Library | Livres |
-
-**Fédération OPDS** — catalogues auxquels l'utilisateur a déjà accès : une autre
-instance boxincloud, un Komga ou Kavita tiers, une bibliothèque publique
-numérique. La légitimité vient des identifiants que l'utilisateur fournit.
-
-### Les sites sans API : moteur de gabarits
-
-Les deux premières sources du tableau n'ont ni API ni OPDS. Écrire un client Go
-par site aurait donné autant de livraisons que de fois où l'un d'eux change de
-mise en page — deux ou trois par an et par site.
-
-`internal/discovery/scraper` les lit à partir de **gabarits YAML déclaratifs** :
-sélecteurs CSS, miroirs de repli, débit sortant, bornes de temps et de taille,
-respect de `robots.txt`. Un gabarit implémente `discovery.Client`, la même
-interface que le client OPDS ; recherche fédérée, déduplication, import
-asynchrone et marquage « déjà possédé » fonctionnent sans une ligne de plus.
-Format et raisons : [`06-gabarits-scraper.md`](06-gabarits-scraper.md).
-
-**Le moteur est fait ; aucun gabarit n'est livré.** Vérification faite en
-juillet 2026, les deux sites visés ne sont pas lisibles :
-
-- **Digital Comic Museum** répond `403` à toute requête non issue d'un
-  navigateur — un défi Cloudflare — alors même que son `robots.txt` nous
-  autorise explicitement. Passer outre demanderait d'usurper un agent de
-  navigateur ; c'est refusé, et ce refus est écrit dans le code plutôt que
-  laissé à l'appréciation d'un gabarit.
-- **Comic Book Plus** est joignable, mais sa recherche est un Google Custom
-  Search exécuté dans le navigateur : il n'y a aucun point d'entrée serveur à
-  interroger. Un gabarit devrait parcourir les pages de catalogue — un autre
-  travail, bien plus coûteux pour le site.
-
-C'est un résultat, pas un échec : D2b se heurte à l'état réel de ces deux sites,
-et le savoir vaut mieux que de livrer deux gabarits qui ne fonctionnent pas. Le
-moteur, lui, sert dès aujourd'hui aux gabarits d'opérateur, et accueillera un
-site admissible le jour où il s'en présente un.
-
-### Architecture
-
-Même patron que `storage.Provider`, qui a fait ses preuves en M1 :
-
-```go
-// internal/discovery
-type Source interface {
-    ID() string
-    Kind() SourceKind        // public_domain | metadata | opds
-    Search(ctx context.Context, q Query) ([]Result, error)
-    Fetch(ctx context.Context, r Result) (io.ReadCloser, error) // nil si métadonnées seules
-}
-```
-
-Recherche en éventail sur les sources activées, agrégation et déduplication,
-affichage progressif au fil des réponses. Chaque source est un fichier,
-activable ou désactivable depuis l'administration.
-
-### Découpage
-
-| Étape | Contenu | Durée |
-|---|---|---|
-| **D1** | Registre `discovery.Source`, recherche fédérée, interface web | **fait** |
-| **D4** | Fédération OPDS (client OPDS 1.2 + 2.0) | **fait** |
-| **D2a** | Import d'un résultat vers un backend de stockage | **fait** |
-| **D2b** | Moteur de gabarits (scraping) | **fait** — sans gabarit livré, voir ci-dessus |
-| **D3** | Métadonnées + écran de rapprochement manuel | **fait** |
-
-D1 et D4 ont été faits ensemble, et l'ordre initial était le mauvais : le client
-OPDS n'est pas une source parmi d'autres à ajouter à la fin, c'est celui qui
-sert le plus de catalogues d'un coup. Standard Ebooks et Gutenberg publient tous
-deux des flux OPDS, et sont donc déjà interrogeables sans écrire une ligne de
-plus.
-
-D3 a une valeur immédiate même isolé : il corrige rétroactivement les
-métadonnées de toute la collection déjà indexée, là où M1 ne sait que déduire
-série et numéro d'un nom de fichier.
+Le jour où elle reviendra, deux questions se poseront avant la première ligne de
+code : quelles sources, et sous quelle responsabilité. Ce sont elles qui
+décident de la forme, pas l'inverse.
 
 ---
 
