@@ -11,6 +11,24 @@ cela, l'historique git et les documents d'architecture sont plus précis.
 
 ### Corrigé
 
+- **Le `.env.example` ne documentait pas l'installation par Docker.** Sur les
+  douze variables lues par `deploy/compose/docker-compose.yml`, huit
+  n'apparaissaient nulle part — dont `MINIO_BUCKET` et `MINIO_ROOT_PASSWORD`,
+  c'est-à-dire deux des quatre valeurs à saisir pour connecter le stockage.
+
+  Le `.env.example` de la racine configure un serveur lancé depuis les sources
+  et n'a presque aucune variable en commun avec le compose ; rien ne le disait,
+  et les deux fichiers portent le même nom. Il existe désormais un
+  `deploy/compose/.env.example` aligné sur le compose, variable pour variable,
+  et chaque fichier renvoie à l'autre.
+
+- **Le guide d'installation devient un pas-à-pas.** Six étapes numérotées avec
+  leurs commandes Docker et leurs vérifications, les valeurs exactes du
+  formulaire de stockage, et un tableau de dépannage qui associe un symptôme à
+  sa cause. Les deux pièges qui se déclenchent le plus — `localhost` au lieu de
+  `minio`, et `BOXINCLOUD_SECRET_KEY` prise pour la clé secrète du stockage —
+  y sont nommés à l'endroit où on les rencontre.
+
 - **Un stockage injoignable répondait 500.** Clé fausse, port fermé, `https://`
   sur un service en clair : autant d'erreurs de saisie que le formulaire
   annonçait par « une erreur inattendue est survenue », sans rien dire de plus.

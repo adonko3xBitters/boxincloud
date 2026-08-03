@@ -8,28 +8,136 @@ connecter.
 
 ## Le chemin court : Docker Compose
 
+Rien à éditer avant de démarrer, et c'est délibéré. Le fichier embarque
+PostgreSQL et MinIO, crée le bucket, applique les migrations et sert
+l'interface.
+
+Comptez cinq minutes, dont quatre d'attente de téléchargement.
+
+### 1. Récupérer le fichier compose
+
 ```sh
+mkdir boxincloud && cd boxincloud
 curl -O https://raw.githubusercontent.com/adonko3xBitters/boxincloud/main/deploy/compose/docker-compose.yml
+```
+
+Un répertoire dédié : `docker compose` nomme le projet d'après lui, et vos
+volumes en dépendent.
+
+Optionnellement, le fichier d'exemple qui documente toutes les variables — le
+compose démarre sans, il ne sert qu'à savoir ce qui est réglable :
+
+```sh
+curl -O https://raw.githubusercontent.com/adonko3xBitters/boxincloud/main/deploy/compose/.env.example
+```
+
+### 2. Démarrer
+
+```sh
 docker compose up -d
 ```
 
-Puis <http://localhost:8080>.
+Quatre conteneurs se lancent. Le troisième, `minio-init`, crée le bucket puis
+s'arrête — **son état `Exited (0)` est le résultat attendu**, pas une panne.
 
-Rien à éditer avant de démarrer, et c'est délibéré. Le fichier embarque
-PostgreSQL et MinIO, crée le bucket, applique les migrations et sert
-l'interface. L'assistant de première installation prend le relais : créer
-l'administrateur, connecter le stockage, créer une bibliothèque, lancer le
-scan.
+### 3. Vérifier avant d'ouvrir le navigateur
 
-Les identifiants MinIO à saisir dans l'assistant :
+```sh
+docker compose ps
+```
 
-| Champ | Valeur |
+Attendu : `boxincloud`, `postgres` et `minio` en `Up`, ce dernier `(healthy)`.
+Si `boxincloud` redémarre en boucle, la cause est dans ses journaux :
+
+```sh
+docker compose logs boxincloud
+```
+
+Puis, quand le serveur répond :
+
+```sh
+curl http://localhost:8080/readyz
+```
+
+`/readyz` interroge la base ; `/healthz`, à côté, ne prouve que la présence du
+processus. C'est le premier des deux qui répond à « puis-je m'en servir ».
+
+### 4. Créer le compte administrateur
+
+Ouvrez <http://localhost:8080>. L'assistant demande un identifiant et un mot de
+passe : ce premier compte est administrateur, les suivants ne le seront pas.
+
+Mot de passe oublié, plus tard :
+
+```sh
+docker compose exec boxincloud boxincloudctl user set-password votre-compte
+```
+
+### 5. Connecter le stockage
+
+L'étape qui se rate le plus souvent, parce que les quatre valeurs sont des
+défauts et non des évidences. Recopiez-les à l'identique :
+
+| Champ | Valeur | Remarque |
+| --- | --- | --- |
+| Type | `S3 / MinIO` | |
+| Endpoint | `http://minio:9000` | nom du service, **pas** `localhost` |
+| Clé d'accès | `boxincloud` | |
+| Clé secrète | `boxincloud` | **pas** `BOXINCLOUD_SECRET_KEY` |
+| Bucket | `comics` | et non `boxincloud` |
+| SSL | non | |
+
+Deux pièges, et ce sont exactement ceux qui se déclenchent :
+
+**`localhost` ne désigne pas votre machine ici.** C'est le serveur qui joint
+MinIO, depuis l'intérieur du réseau du compose, où `localhost` est son propre
+conteneur. `minio` est le nom du service, et c'est ce nom qu'il faut. Il reste
+`http://minio:9000` même si vous avez changé `MINIO_PORT` : cette variable ne
+déplace que le port publié sur l'hôte.
+
+**La clé secrète du stockage n'est pas `BOXINCLOUD_SECRET_KEY`.** Cette
+dernière chiffre vos identifiants en base ; elle n'ouvre pas MinIO. Coller les
+64 caractères hexadécimaux à la place de `boxincloud` donne une erreur de
+signature qui ne ressemble pas à une faute de frappe, alors que c'en est une.
+
+Si vous avez renseigné un `.env`, les valeurs à saisir sont vos
+`MINIO_ROOT_USER`, `MINIO_ROOT_PASSWORD` et `MINIO_BUCKET`.
+
+### 6. Créer une bibliothèque et lancer le scan
+
+Choisissez le backend qui vient d'être connecté, donnez un préfixe (`/` pour la
+racine du bucket), puis démarrez le scan.
+
+Le bucket est vide au premier démarrage — c'est normal, et l'interface le dira.
+Déposez des fichiers par glisser-déposer depuis l'interface, ou versez-les
+directement dans MinIO via sa console sur <http://localhost:9001>, mêmes
+identifiants. Relancez le scan ensuite.
+
+### Quand ça ne marche pas
+
+Le serveur écrit la cause exacte dans ses journaux, y compris ce que le service
+distant a répondu mot pour mot. C'est presque toujours la réponse la plus
+rapide :
+
+```sh
+docker compose logs -f boxincloud
+```
+
+| Symptôme | Cause la plus fréquente |
 | --- | --- |
-| Endpoint | `minio:9000` |
-| Clé d'accès | `boxincloud` |
-| Clé secrète | `boxincloud` |
-| Bucket | `comics` |
-| SSL | non |
+| `bind: address already in use` | Le port 8080 est pris. Mettez `BOXINCLOUD_PORT=8081` dans `.env`, puis `docker compose up -d`. |
+| Le stockage refuse l'enregistrement | Les valeurs de l'étape 5. Les journaux nomment laquelle. |
+| `signature does not match` | Clé d'accès ou clé secrète. Voir les deux pièges ci-dessus. |
+| `bucket does not exist` | Bucket saisi ≠ `MINIO_BUCKET`. Le recréer : `docker compose up minio-init`. |
+| `connection refused` sur l'endpoint | `localhost` au lieu de `minio`. |
+| `boxincloud` redémarre en boucle | Configuration refusée au démarrage : les journaux nomment la variable. |
+
+Repartir de zéro, volumes compris — **cela efface la base et le contenu du
+bucket** :
+
+```sh
+docker compose down -v && docker compose up -d
+```
 
 ### Avant d'exposer sur Internet
 

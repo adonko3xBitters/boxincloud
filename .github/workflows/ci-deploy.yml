@@ -1,0 +1,91 @@
+# Garde contre la dérive entre le compose de déploiement et son .env.example.
+#
+# Ces deux fichiers se modifient séparément et rien ne les relie : ajouter une
+# variable au compose sans la documenter ne casse rien, ne se voit pas, et
+# n'apparaît qu'au moment où quelqu'un installe le projet et cherche une valeur
+# qui n'est écrite nulle part. C'est arrivé pour MINIO_BUCKET.
+#
+# Le test est symétrique : une variable non documentée est une lacune, une
+# variable documentée mais absente du compose est un mensonge.
+
+name: CI · déploiement
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "deploy/compose/**"
+      - ".github/workflows/ci-deploy.yml"
+  pull_request:
+    paths:
+      - "deploy/compose/**"
+      - ".github/workflows/ci-deploy.yml"
+
+jobs:
+  compose:
+    name: compose et variables
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Valide la syntaxe et l'interpolation. Sans `.env`, docker applique les
+      # défauts `${VAR:-…}` : c'est exactement ce que voit quelqu'un qui suit
+      # le chemin court du guide d'installation.
+      - name: Le compose est valide
+        working-directory: deploy/compose
+        run: docker compose config --quiet
+
+      - name: Le .env.example couvre le compose, ni plus ni moins
+        working-directory: deploy/compose
+        run: |
+          grep -oE '\$\{[A-Z_]+' docker-compose.yml | sed 's/\${//' | sort -u > /tmp/compose.txt
+          # Les variables du .env.example sont commentées : le fichier documente
+          # sans imposer, puisque le compose démarre sans lui.
+          grep -oE '^#? ?[A-Z_]+=' .env.example | tr -d '# =' | sort -u > /tmp/env.txt
+
+          status=0
+
+          missing=$(comm -23 /tmp/compose.txt /tmp/env.txt)
+          if [ -n "$missing" ]; then
+            echo "::error::Variables lues par le compose mais absentes de .env.example :"
+            echo "$missing" | sed 's/^/  /'
+            status=1
+          fi
+
+          extra=$(comm -13 /tmp/compose.txt /tmp/env.txt)
+          if [ -n "$extra" ]; then
+            echo "::error::Variables documentées dans .env.example mais inutilisées par le compose :"
+            echo "$extra" | sed 's/^/  /'
+            status=1
+          fi
+
+          if [ "$status" -eq 0 ]; then
+            echo "$(wc -l < /tmp/compose.txt) variables, alignées de part et d'autre."
+          fi
+          exit $status
+
+      # Le guide donne ces valeurs à recopier dans le formulaire de stockage.
+      # Fausses, elles produisent une erreur de signature illisible — le motif
+      # exact du problème qui a motivé ce job.
+      - name: Le guide cite les vraies valeurs par défaut
+        run: |
+          resolved=$(docker compose -f deploy/compose/docker-compose.yml config)
+          status=0
+
+          for pair in "MINIO_ROOT_USER: boxincloud" \
+                      "MINIO_ROOT_PASSWORD: boxincloud" \
+                      "MINIO_BUCKET: comics"; do
+            if ! echo "$resolved" | grep -qF "$pair"; then
+              echo "::error::Le compose ne résout plus « $pair », que docs/05-installation.md donne à saisir."
+              status=1
+            fi
+          done
+
+          for value in 'http://minio:9000' '`boxincloud`' '`comics`'; do
+            if ! grep -qF "$value" docs/05-installation.md; then
+              echo "::error::docs/05-installation.md ne mentionne plus $value."
+              status=1
+            fi
+          done
+
+          exit $status
