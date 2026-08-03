@@ -9,6 +9,11 @@ cela, l'historique git et les documents d'architecture sont plus précis.
 
 ## [Non publié]
 
+## [0.1.3] — 2026-08-03
+
+Le lecteur mobile. Rien ne change côté serveur ; mettre à jour l'image sert à
+obtenir le nouvel APK.
+
 ### Corrigé
 
 - **Agrandir une planche empêchait de l'explorer.** Une fois zoomé, tirer pour
@@ -197,7 +202,8 @@ aurait fait croire à une régression silencieuse.
 publier son propre catalogue et aller chercher ailleurs sont deux choses
 différentes.
 
-[Non publié]: https://github.com/adonko3xBitters/boxincloud/compare/v0.1.2...HEAD
+[Non publié]: https://github.com/adonko3xBitters/boxincloud/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/adonko3xBitters/boxincloud/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/adonko3xBitters/boxincloud/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/adonko3xBitters/boxincloud/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/adonko3xBitters/boxincloud/releases/tag/v0.1.0
