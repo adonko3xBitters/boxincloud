@@ -68,7 +68,7 @@ jobs:
         run: flutter test
 
   build:
-    name: APK de debug
+    name: APK de release
     runs-on: ubuntu-latest
     needs: analyze
     defaults:
@@ -93,11 +93,51 @@ jobs:
       # Compiler pour de vrai : l'analyse statique ne dit rien des dépendances
       # natives — SQLite, trousseau système — qui ne se révèlent qu'à l'édition
       # de liens.
+      #
+      # En RELEASE, et c'est le point : c'est la variante que l'image Docker
+      # embarque et que les utilisateurs installent. Ce job construisait le
+      # debug, qui diffère précisément là où le défaut se logeait — Flutter
+      # injecte la permission INTERNET dans les manifestes debug et profile,
+      # pas dans celui de main. La CI validait donc le seul APK incapable de
+      # révéler le problème.
       - name: Construire l'APK
-        run: flutter build apk --debug
+        run: flutter build apk --release
+
+      # Inspecter l'artefact lui-même, pas les sources : ce qui compte est ce
+      # que le manifeste fusionné contient une fois l'APK assemblé.
+      #
+      # Un APK sans INTERNET s'installe et démarre normalement. Il n'échoue
+      # qu'à la première requête, sur un message d'erreur qui désigne le
+      # réseau ou le serveur — jamais l'application. Rien, en amont, ne le
+      # signale.
+      - name: L'APK déclare ses accès réseau
+        run: |
+          aapt2=$(find "$ANDROID_HOME/build-tools" -name aapt2 -type f | sort -V | tail -1)
+          apk=build/app/outputs/flutter-apk/app-release.apk
+          echo "aapt2 : $aapt2"
+
+          permissions=$($aapt2 dump permissions "$apk")
+          echo "$permissions"
+
+          if ! echo "$permissions" | grep -q 'android.permission.INTERNET'; then
+            echo "::error::L'APK de release ne déclare pas INTERNET. L'application ne pourra joindre aucun serveur ; elle échouera sur « serveur injoignable » après une installation en apparence réussie."
+            exit 1
+          fi
+
+          # Le trafic en clair reste indispensable tant qu'une instance
+          # auto-hébergée peut vivre en http sur un réseau local ou une IP nue.
+          # Le perdre casserait ces installations sans autre symptôme qu'un
+          # échec de connexion.
+          if ! $aapt2 dump xmltree "$apk" --file AndroidManifest.xml \
+               | grep -q 'networkSecurityConfig'; then
+            echo "::error::L'APK de release ne référence plus de network_security_config. Les serveurs en http deviendront injoignables."
+            exit 1
+          fi
+
+          echo "INTERNET déclaré, politique réseau présente."
 
       - uses: actions/upload-artifact@v4
         with:
-          name: boxincloud-debug-apk
-          path: apps/mobile/build/app/outputs/flutter-apk/app-debug.apk
+          name: boxincloud-release-apk
+          path: apps/mobile/build/app/outputs/flutter-apk/app-release.apk
           retention-days: 7

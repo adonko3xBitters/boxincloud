@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Trafic en clair autorisé, délibérément.
+
+    Depuis Android 9, une application ne peut joindre une adresse `http://`
+    que si elle le déclare. boxincloud doit le déclarer : l'adresse du serveur
+    est saisie par l'utilisateur au moment de la connexion, et une instance
+    auto-hébergée vit très souvent sans TLS — sur un NAS du réseau local, ou
+    derrière une adresse IP nue sans nom de domaine, donc sans certificat
+    possible.
+
+    Refuser le clair reviendrait à exclure ces installations sans rien dire :
+    l'échec se présente comme « serveur injoignable », ce qui envoie chercher
+    la panne du côté du réseau alors qu'elle est dans cette politique.
+
+    Ce que cela ne dit pas : que le clair soit sans risque. Sur un réseau
+    partagé, identifiants et pages transitent lisibles. L'écran de connexion
+    rappelle donc que `https` est la valeur par défaut et qu'écrire `http://`
+    est un choix explicite ; le guide d'installation recommande un
+    reverse-proxy dès que l'instance sort du réseau local.
+
+    Les ancres de confiance restent celles du système : autoriser le clair
+    n'affaiblit pas la validation des certificats sur les instances en TLS.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

@@ -11,6 +11,25 @@ cela, l'historique git et les documents d'architecture sont plus précis.
 
 ### Corrigé
 
+- **L'application Android ne pouvait joindre aucun serveur.** L'APK de la
+  version 0.1.0 ne déclarait pas la permission `INTERNET` : il s'installait,
+  se lançait, affichait l'écran de connexion, puis échouait sur « serveur
+  injoignable » quelle que soit l'adresse saisie.
+
+  Le gabarit Flutter ne déclare cette permission que dans les manifestes
+  `debug` et `profile`. Une compilation en release n'en hérite pas, et c'est
+  la release qui est embarquée dans l'image. La CI construisait l'APK de
+  debug — la seule variante où le défaut ne pouvait pas apparaître. Elle
+  construit désormais la release et inspecte l'artefact produit.
+
+  Les serveurs en `http://` sont également joignables de nouveau : depuis
+  Android 9, le trafic en clair doit être déclaré, et une instance
+  auto-hébergée derrière une IP nue ou sur un réseau local n'a souvent pas de
+  certificat. Le chiffrement reste recommandé, et l'écran de connexion
+  continue de traiter `https` comme la valeur par défaut.
+
+  **Mettez à jour l'application** : l'APK de la 0.1.0 est inutilisable.
+
 - **Le `.env.example` ne documentait pas l'installation par Docker.** Sur les
   douze variables lues par `deploy/compose/docker-compose.yml`, huit
   n'apparaissaient nulle part — dont `MINIO_BUCKET` et `MINIO_ROOT_PASSWORD`,
