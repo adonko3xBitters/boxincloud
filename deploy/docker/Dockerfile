@@ -118,8 +118,22 @@ FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS server
 
 WORKDIR /src/apps/server
 
+ARG TARGETOS
+ARG TARGETARCH
+
+# Les caches sont NOMMÉS PAR ARCHITECTURE.
+#
+# Sans `id`, BuildKit donne à tous les montages visant le même chemin un cache
+# unique — partagé, ici, entre la construction amd64 et la construction arm64
+# qui tournent en parallèle. C'est le défaut qui a produit une image arm64
+# inutilisable : le binaire livré réclamait le chargeur glibc
+# `/lib/ld-linux-aarch64.so.1`, absent d'alpine, alors que la commande de
+# compilation portait bien `CGO_ENABLED=0`.
+#
+# Un binaire Go sans cgo n'a pas d'interpréteur. Celui-là en avait un : il ne
+# venait donc pas de cette compilation, mais du cache d'une autre.
 COPY apps/server/go.mod apps/server/go.sum ./
-RUN --mount=type=cache,target=/go/pkg/mod \
+RUN --mount=type=cache,target=/go/pkg/mod,id=gomod-$TARGETARCH \
     go mod download
 
 COPY apps/server ./
@@ -136,13 +150,11 @@ COPY --from=web /src/apps/web/out ./web/dist
 # ce que `//go:embed all:dist` compile.
 COPY --from=apk /apk/. ./mobile/dist/
 
-ARG TARGETOS
-ARG TARGETARCH
 ARG VERSION=dev
 ARG COMMIT=unknown
 
-RUN --mount=type=cache,target=/go/pkg/mod \
-    --mount=type=cache,target=/root/.cache/go-build \
+RUN --mount=type=cache,target=/go/pkg/mod,id=gomod-$TARGETARCH \
+    --mount=type=cache,target=/root/.cache/go-build,id=gobuild-$TARGETARCH \
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
     go build -trimpath \
         -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT}" \
@@ -151,6 +163,29 @@ RUN --mount=type=cache,target=/go/pkg/mod \
     go build -trimpath \
         -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT}" \
         -o /out/boxincloudctl ./cmd/boxincloudctl
+
+# Le binaire tournera-t-il dans l'image finale ?
+#
+# La question n'est pas rhétorique : elle a déjà eu la mauvaise réponse. La
+# v0.0.1-rc1 a publié une image arm64 dont le binaire réclamait le chargeur
+# glibc `/lib/ld-linux-aarch64.so.1`, absent d'alpine. Elle s'installait sans
+# bruit et échouait au premier `exec`, chez l'utilisateur.
+#
+# Ce qu'on vérifie est donc l'INTERPRÉTEUR, pas la staticité. Ces binaires sont
+# légitimement dynamiques et liés à musl — ce qu'alpine fournit. Exiger un
+# binaire statique refuserait toutes les constructions saines ; exiger musl
+# attrape exactement le défaut rencontré.
+RUN apk add --no-cache file >/dev/null && \
+    for binary in /out/boxincloud /out/boxincloudctl; do \
+        description=$(file "$binary"); \
+        case "$description" in \
+            *"statically linked"*|*ld-musl*) ;; \
+            *) echo "✗ $binary ne tournera pas sur alpine :"; \
+               echo "  $description"; \
+               exit 1 ;; \
+        esac; \
+    done && \
+    echo "✓ binaires compatibles avec l'image finale"
 
 # ─── Image finale ────────────────────────────────────────────────────────────
 

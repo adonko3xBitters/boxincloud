@@ -73,7 +73,20 @@ jobs:
       # Une image qui se construit n'est pas une image qui démarre. Le contrôle
       # ne coûte que quelques secondes et attrape la classe de panne la plus
       # embarrassante : une release publiée qui ne se lance pas.
-      - name: Vérifier que l'image démarre
+      # CHAQUE architecture publiée est démarrée, pas seulement celle du runner.
+      #
+      # C'est ce contrôle-là qui manquait. Le précédent lançait l'image sans
+      # préciser de plateforme : sur un runner amd64 il ne testait donc que
+      # l'amd64, et l'arm64 partait chez les utilisateurs sans que personne ne
+      # l'ait vue démarrer une seule fois. Elle ne démarrait pas.
+      #
+      # QEMU est déjà en place pour la construction ; l'émulation suffit
+      # largement à exécuter `version`.
+      - name: Vérifier que l'image démarre, sur les deux architectures
         run: |
           IMAGE=$(echo "${{ steps.meta.outputs.tags }}" | head -1)
-          docker run --rm --entrypoint boxincloud "$IMAGE" version
+          for platform in linux/amd64 linux/arm64; do
+            echo "── $platform ──"
+            docker run --rm --platform "$platform" \
+              --entrypoint boxincloud "$IMAGE" version
+          done
