@@ -9,6 +9,23 @@ cela, l'historique git et les documents d'architecture sont plus précis.
 
 ## [Non publié]
 
+### Corrigé
+
+- **L'application Android s'installait sous le logo de Flutter.** Le projet a
+  une icône — celle du site — mais elle n'était branchée nulle part côté
+  mobile : les cinq PNG livrés par `flutter create` n'avaient jamais été
+  remplacés.
+
+  Elles sont désormais produites depuis `apps/web/public/icon.svg`, source
+  unique du web et du mobile, avec une **icône adaptative** — fond et motif en
+  deux couches, comme Android 8 et suivants l'attendent pour appliquer leurs
+  masques sans rogner le dessin.
+
+- **Le numéro de version de l'APK ne dépend plus d'un geste manuel.** Il est
+  dérivé du tag git au moment de la construction. Le versionCode Android était
+  resté à 1 pendant toute la 0.1.0 : tant qu'il ne croît pas, le système ne
+  reconnaît pas une installation comme plus récente que la précédente.
+
 ## [0.1.1] — 2026-08-03
 
 Correctifs. **Si vous utilisez l'application Android, cette mise à jour est

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Généré par tools/generate-app-icons.mjs — ne pas modifier à la main.
+     Reprise du rectangle de fond d'apps/web/public/icon.svg. -->
+<resources>
+    <color name="ic_launcher_background">#0f172a</color>
+</resources>

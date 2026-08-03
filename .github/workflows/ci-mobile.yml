@@ -8,6 +8,8 @@ on:
       - "api/openapi.yaml"
       - "packages/design-tokens/**"
       - "tools/generate-dart-models.mjs"
+      - "tools/generate-app-icons.mjs"
+      - "apps/web/public/icon.svg"
       - ".github/workflows/ci-mobile.yml"
   pull_request:
     paths:
@@ -15,6 +17,8 @@ on:
       - "api/openapi.yaml"
       - "packages/design-tokens/**"
       - "tools/generate-dart-models.mjs"
+      - "tools/generate-app-icons.mjs"
+      - "apps/web/public/icon.svg"
 
 concurrency:
   group: mobile-${{ github.ref }}
@@ -60,6 +64,53 @@ jobs:
             echo "::error::Code Drift obsolète. Lancez 'dart run build_runner build' et committez."
             exit 1
           fi
+
+      # Les icônes de lancement sont produites par tools/generate-app-icons.mjs,
+      # qui dépend de `sharp` — installé côté web, pas ici. Elles sont donc
+      # versionnées, et ce contrôle vérifie seulement qu'elles ne sont pas
+      # redevenues celles du gabarit Flutter.
+      #
+      # C'est le défaut exact qui a été publié en 0.1.0 et 0.1.1 : le projet
+      # avait une icône, elle n'était branchée nulle part, et l'application
+      # s'installait sous le logo bleu de Flutter. Rien ne le signalait.
+      - name: Les icônes ne sont pas celles du gabarit Flutter
+        working-directory: apps/mobile/android/app/src/main/res
+        run: |
+          # Empreintes des cinq PNG livrés par `flutter create`.
+          template="
+          7d18d43e4eb8fe59ea46cf51cc659be6a7f4cab5
+          ea2b064031f64e11892f4dedc3e43c373b97c645
+          45963ffb5dda7e9df4a26eda4459111d7bf1fe94
+          e373f4f6fa753c8a6df8465b1a70f2a749c202c8
+          dd0452802ca0cd6c81b9b5982aeb56b051b73829
+          "
+          failed=0
+
+          for density in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+            for icon in ic_launcher ic_launcher_foreground; do
+              path="mipmap-$density/$icon.png"
+              if [ ! -f "$path" ]; then
+                echo "::error::$path manque. Lancez : node tools/generate-app-icons.mjs"
+                failed=1
+                continue
+              fi
+              sum=$(sha1sum "$path" | cut -d' ' -f1)
+              if echo "$template" | grep -q "$sum"; then
+                echo "::error::$path est l'icône du gabarit Flutter. Lancez : node tools/generate-app-icons.mjs"
+                failed=1
+              fi
+            done
+          done
+
+          for declaration in mipmap-anydpi-v26/ic_launcher.xml values/ic_launcher_background.xml; do
+            if [ ! -f "$declaration" ]; then
+              echo "::error::$declaration manque : l'icône adaptative ne serait pas déclarée."
+              failed=1
+            fi
+          done
+
+          [ "$failed" -eq 0 ] && echo "Icônes propres au projet, icône adaptative déclarée."
+          exit $failed
 
       - name: Analyse statique
         run: flutter analyze
