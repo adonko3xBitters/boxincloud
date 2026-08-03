@@ -64,6 +64,33 @@ jobs:
           fi
           exit $status
 
+      # Le .env.example n'est pas lu par docker : il est COPIÉ puis décommenté
+      # à la main. Ce qu'il faut donc vérifier n'est pas ce qu'il contient,
+      # mais ce qu'il produit une fois activé.
+      #
+      # L'invariant est net : ses valeurs SONT les défauts du compose, donc
+      # tout décommenter ne doit rien changer. Toute divergence signale une
+      # valeur qui a dérivé, ou un caractère parasite entré dans une variable.
+      #
+      # Ce test existe parce que le cas s'est produit : une annotation « → »
+      # placée après la valeur y restait collée une fois la ligne décommentée,
+      # et MinIO refusait alors une clé d'accès pourtant saisie correctement.
+      - name: Décommenter le .env.example ne change pas la configuration
+        working-directory: deploy/compose
+        run: |
+          docker compose config > /tmp/defauts.txt
+
+          sed -E 's/^# ?([A-Z_]+=)/\1/' .env.example > .env
+          echo "$(grep -cE '^[A-Z_]+=' .env) variables activées."
+          docker compose config > /tmp/actives.txt
+          rm -f .env
+
+          if ! diff -u /tmp/defauts.txt /tmp/actives.txt; then
+            echo "::error::Activer le .env.example modifie la configuration. Ses valeurs ne sont plus les défauts du compose, ou une annotation traîne après un « = »."
+            exit 1
+          fi
+          echo "Aucune divergence."
+
       # Le guide donne ces valeurs à recopier dans le formulaire de stockage.
       # Fausses, elles produisent une erreur de signature illisible — le motif
       # exact du problème qui a motivé ce job.
