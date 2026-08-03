@@ -9,6 +9,35 @@ cela, l'historique git et les documents d'architecture sont plus précis.
 
 ## [Non publié]
 
+### Corrigé
+
+- **Agrandir une planche empêchait de l'explorer.** Une fois zoomé, tirer pour
+  voir le reste de la page tournait la page. Les deux gestes sont le même — un
+  glissement horizontal — et le défilement des pages l'emportait toujours.
+
+  Le déplacement dans l'image l'emporte désormais tant qu'on est agrandi ;
+  tourner la page redevient possible en revenant à l'échelle 1, d'un double tap
+  ou d'un pincement.
+
+### Ajouté
+
+- **Les pages en vignettes, dans le lecteur mobile.** Le curseur dit où l'on
+  est, il ne dit pas ce qu'il y a : retrouver une planche précise dans un album
+  qu'on relit demande de la voir. Le lecteur web l'avait déjà ; le mobile en
+  était privé.
+
+- **Les bords de l'écran tournent la page.** Ils ne faisaient rien, et le seul
+  moyen d'avancer était de balayer — un geste qui demande le pouce au milieu de
+  l'écran et se tient mal à une main. En lecture manga, c'est le bord gauche qui
+  avance, comme le sens de lecture.
+
+### Modifié
+
+- **Tirer le curseur de progression n'inonde plus le serveur.** Chaque cran
+  écrivait en base et appelait le serveur : parcourir un album de deux cents
+  planches déclenchait deux cents requêtes pour une seule intention. Seule la
+  position d'arrivée est envoyée.
+
 ## [0.1.2] — 2026-08-03
 
 Deux correctifs sur l'empaquetage de l'application Android. Rien ne change côté
