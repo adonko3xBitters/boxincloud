@@ -480,6 +480,24 @@ func writeLibraryError(w http.ResponseWriter, r *http.Request, err error) {
 		problem.Write(w, r, problem.Validation(map[string]string{"backendId": "unknown"}))
 	case errors.Is(err, library.ErrInvalidConfig):
 		problem.Write(w, r, problem.Validation(map[string]string{"config": err.Error()}))
+
+	/*
+		Un stockage injoignable est une erreur de SAISIE, pas une panne.
+
+		Une clé mal recopiée, un port fermé, un `https://` sur un service en
+		clair : l'utilisateur corrige cela devant son formulaire. Le renvoyer en
+		500 lui disait « une erreur inattendue est survenue » alors que le
+		serveur connaissait la cause et l'écrivait dans son message.
+
+		Le diagnostic BRUT est joint. Il vient de la bibliothèque cliente, en
+		anglais le plus souvent — intraduisible, mais seul à distinguer un refus
+		d'authentification d'un échec de connexion.
+	*/
+	case errors.Is(err, library.ErrBackendUnreachable):
+		p := problem.Validation(map[string]string{"endpoint": "unreachable"})
+		p.Detail = err.Error()
+		problem.Write(w, r, p)
+
 	default:
 		writeInternal(w, r, err)
 	}

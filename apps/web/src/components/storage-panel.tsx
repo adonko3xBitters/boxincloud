@@ -5,8 +5,27 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { Button, Shell, Spinner, buttonClass, cx } from "./ui";
 import * as api from "@/lib/api/endpoints";
-import { describeError } from "@/lib/api/problem";
+import { describeError, rawDetail } from "@/lib/api/problem";
 import { useLocale, useT, type MessageKey } from "@/i18n";
+
+/*
+describeStorageError joint le diagnostic du serveur au message traduit.
+
+Un stockage refuse pour des raisons très différentes — port fermé, clé fausse,
+bucket absent — que la règle « injoignable » ne distingue pas. Le serveur, lui,
+sait laquelle : « signature does not match » et « connection refused » ne se
+corrigent pas du tout de la même façon, et l'un des deux se corrige en dix
+secondes quand on le lit.
+
+Ce texte vient de la bibliothèque cliente S3, en anglais. Il n'est pas
+traduisible et n'a pas à l'être : il est présenté comme une trace technique à la
+suite d'un libellé traduit, jamais comme une phrase à lire.
+*/
+function describeStorageError(err: unknown, t: (k: MessageKey) => string): string {
+  const detail = rawDetail(err);
+  const message = describeError(err, t);
+  return detail ? `${message} — ${detail}` : message;
+}
 
 /**
  * Stockages et bibliothèques.
@@ -320,7 +339,7 @@ function NewLibrary({
       await queryClient.invalidateQueries({ queryKey: ["libraries"] });
       onDone();
     } catch (err) {
-      setError(describeError(err, t));
+      setError(describeStorageError(err, t));
     } finally {
       setBusy(false);
     }
@@ -404,7 +423,7 @@ function LibraryCard({ id, name, count }: { id: string; name: string; count: num
       await queryClient.invalidateQueries({ queryKey: ["libraries"] });
       setEditing(false);
     } catch (err) {
-      setError(describeError(err, t));
+      setError(describeStorageError(err, t));
     } finally {
       setBusy(false);
     }
@@ -419,7 +438,7 @@ function LibraryCard({ id, name, count }: { id: string; name: string; count: num
       await queryClient.invalidateQueries({ queryKey: ["comics"] });
       await queryClient.invalidateQueries({ queryKey: ["folders"] });
     } catch (err) {
-      setError(describeError(err, t));
+      setError(describeStorageError(err, t));
     } finally {
       setBusy(false);
     }
@@ -650,7 +669,7 @@ function NewBackend({ onDone }: { onDone: () => void }) {
       await queryClient.invalidateQueries({ queryKey: ["backends"] });
       onDone();
     } catch (err) {
-      setError(describeError(err, t));
+      setError(describeStorageError(err, t));
     } finally {
       setBusy(false);
     }
@@ -765,7 +784,7 @@ function BackendCard({ backend }: { backend: api.StorageBackend }) {
       setSecrets({});
       setEditing(false);
     } catch (err) {
-      setError(describeError(err, t));
+      setError(describeStorageError(err, t));
     } finally {
       setBusy(false);
     }
@@ -784,7 +803,7 @@ function BackendCard({ backend }: { backend: api.StorageBackend }) {
       await api.deleteBackend(backend.id);
       await queryClient.invalidateQueries({ queryKey: ["backends"] });
     } catch (err) {
-      setError(describeError(err, t));
+      setError(describeStorageError(err, t));
     } finally {
       setBusy(false);
     }

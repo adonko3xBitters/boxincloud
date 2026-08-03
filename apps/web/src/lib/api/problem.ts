@@ -48,6 +48,7 @@ const FIELD_RULES: Record<string, MessageKey> = {
   mismatch: "field.mismatch",
   range: "field.range",
   "one-of": "field.one-of",
+  unreachable: "field.unreachable",
   self: "field.self",
   protected: "field.protected",
   "no-code": "field.no-code",

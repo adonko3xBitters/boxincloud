@@ -567,6 +567,7 @@ export const fr = {
   "field.format": "Caractères non autorisés.",
   "field.mismatch": "Le contenu du fichier ne correspond pas à son extension.",
   "field.range": "Valeur hors des limites permises.",
+  "field.unreachable": "Injoignable avec ces param\u00e8tres.",
   "field.one-of": "Valeur non reconnue.",
   "field.self": "Cette action vous viserait vous-même.",
   "field.protected": "Cet élément ne peut pas être modifié.",

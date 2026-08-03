@@ -363,3 +363,52 @@ func TestIntegrationContractMoveBetweenLibraries(t *testing.T) {
 		}
 	})
 }
+
+/*
+Un stockage injoignable se dit à la saisie, pas en 500.
+
+Le formulaire annonce lui-même que « le stockage est joint avant d'être
+enregistré ». Un échec de connexion est donc un RÉSULTAT attendu de cette
+vérification, pas une panne du serveur.
+
+Il répondait pourtant « une erreur inattendue est survenue », sans rien dire de
+plus, à quelqu'un qui avait simplement écrit `https://` devant un service en
+clair. Le serveur connaissait la cause et la jetait.
+
+Ce test vérifie les deux moitiés du correctif : le code de statut, et la
+présence du diagnostic brut — sans lui, l'utilisateur sait qu'il s'est trompé
+mais pas où.
+*/
+func TestIntegrationContractUnreachableBackendIsAValidationError(t *testing.T) {
+	h := newContractHarness(t)
+
+	rec := h.expect(t, http.MethodPost, "/api/v1/storage-backends", map[string]any{
+		"name": "MinIO éteint",
+		"kind": "s3",
+		"config": map[string]string{
+			// Port fermé : la connexion échoue sans ambiguïté.
+			"endpoint": "127.0.0.1:1",
+			"bucket":   "comics",
+		},
+		"secrets": map[string]string{
+			"access_key": "x", "secret_key": "y",
+		},
+	}, http.StatusUnprocessableEntity)
+
+	var payload struct {
+		Detail string            `json:"detail"`
+		Errors map[string]string `json:"errors"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+		t.Fatal(err)
+	}
+
+	if payload.Errors["endpoint"] != "unreachable" {
+		t.Errorf("champ fautif = %+v, attendu endpoint: unreachable", payload.Errors)
+	}
+
+	// Le diagnostic doit dire ce qui s'est passé, pas répéter la règle.
+	if payload.Detail == "" || payload.Detail == "One or more fields are invalid." {
+		t.Errorf("diagnostic générique : %q", payload.Detail)
+	}
+}

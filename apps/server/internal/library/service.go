@@ -25,8 +25,20 @@ import (
 
 var (
 	ErrBackendNotFound = errors.New("library : backend de stockage introuvable")
-	ErrLibraryNotFound = errors.New("library : bibliothèque introuvable")
-	ErrInvalidConfig   = errors.New("library : configuration de backend invalide")
+
+	/*
+		ErrBackendUnreachable signale un stockage qui n'a pas répondu.
+
+		Distinct d'une configuration invalide, et il faut les séparer : une clé
+		mal recopiée, un port fermé, un `https://` sur un service en clair sont
+		des erreurs de SAISIE, que l'utilisateur corrige devant son formulaire.
+		Sans sentinelle, elles remontaient en 500 — « une erreur inattendue est
+		survenue » — alors que le serveur connaissait la cause exacte et
+		l'écrivait dans son message.
+	*/
+	ErrBackendUnreachable = errors.New("library : le stockage n'a pas répondu")
+	ErrLibraryNotFound    = errors.New("library : bibliothèque introuvable")
+	ErrInvalidConfig      = errors.New("library : configuration de backend invalide")
 )
 
 // Backend est la vue applicative d'un backend de stockage.
@@ -119,7 +131,7 @@ func (s *Service) CreateBackend(ctx context.Context, p CreateBackendParams) (Bac
 		return Backend{}, err
 	}
 	if err := provider.Ping(ctx); err != nil {
-		return Backend{}, fmt.Errorf("le backend ne répond pas : %w", err)
+		return Backend{}, fmt.Errorf("%w : %w", ErrBackendUnreachable, err)
 	}
 
 	secretsEnc, err := s.sealSecrets(p.Secrets)
@@ -241,7 +253,7 @@ func (s *Service) CreateLibrary(ctx context.Context, p CreateLibraryParams) (Lib
 		return Library{}, err
 	}
 	if err := provider.Ping(ctx); err != nil {
-		return Library{}, fmt.Errorf("le backend de cette bibliothèque ne répond pas : %w", err)
+		return Library{}, fmt.Errorf("%w : %w", ErrBackendUnreachable, err)
 	}
 
 	return s.repo.CreateLibrary(ctx, Library{

@@ -9,6 +9,18 @@ cela, l'historique git et les documents d'architecture sont plus précis.
 
 ## [Non publié]
 
+### Corrigé
+
+- **Un stockage injoignable répondait 500.** Clé fausse, port fermé, `https://`
+  sur un service en clair : autant d'erreurs de saisie que le formulaire
+  annonçait par « une erreur inattendue est survenue », sans rien dire de plus.
+  Le serveur connaissait pourtant la cause et l'écrivait dans ses journaux.
+
+  Ces échecs sont désormais des erreurs de validation, et le diagnostic du
+  service distant est joint au message. « The request signature we calculated
+  does not match » et « connection refused » ne se corrigent pas de la même
+  façon, et l'un des deux se règle en dix secondes quand on le lit.
+
 ## [0.1.0] — 2026-07-31
 
 Première version publique. Le serveur, l'interface web et l'application Android

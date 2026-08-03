@@ -116,7 +116,7 @@ func (s *Service) UpdateBackend(
 		return Backend{}, err
 	}
 	if err := provider.Ping(ctx); err != nil {
-		return Backend{}, fmt.Errorf("le backend ne répond pas : %w", err)
+		return Backend{}, fmt.Errorf("%w : %w", ErrBackendUnreachable, err)
 	}
 
 	updated, err := s.admin.UpdateBackend(ctx, id, p)

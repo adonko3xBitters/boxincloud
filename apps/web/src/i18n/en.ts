@@ -563,6 +563,7 @@ export const en: Record<MessageKey, string> = {
   "field.format": "Characters not allowed.",
   "field.mismatch": "The file contents do not match its extension.",
   "field.range": "Value outside the allowed range.",
+  "field.unreachable": "Unreachable with these settings.",
   "field.one-of": "Unrecognised value.",
   "field.self": "This action would target yourself.",
   "field.protected": "This item cannot be changed.",
