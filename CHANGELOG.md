@@ -9,6 +9,11 @@ cela, l'historique git et les documents d'architecture sont plus précis.
 
 ## [Non publié]
 
+## [0.1.1] — 2026-08-03
+
+Correctifs. **Si vous utilisez l'application Android, cette mise à jour est
+nécessaire** : celle de la 0.1.0 ne fonctionne pas du tout.
+
 ### Corrigé
 
 - **L'application Android ne pouvait joindre aucun serveur.** L'APK de la
@@ -141,5 +146,6 @@ aurait fait croire à une régression silencieuse.
 publier son propre catalogue et aller chercher ailleurs sont deux choses
 différentes.
 
-[Non publié]: https://github.com/adonko3xBitters/boxincloud/compare/v0.1.0...HEAD
+[Non publié]: https://github.com/adonko3xBitters/boxincloud/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/adonko3xBitters/boxincloud/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/adonko3xBitters/boxincloud/releases/tag/v0.1.0

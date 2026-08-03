@@ -16,7 +16,14 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+1
+# Suit la version du projet, et non celle du gabarit Flutter — l'APK de la
+# 0.1.0 s'annonçait en 1.0.0, ce qui désigne une version qui n'existe pas.
+#
+# Le nombre après « + » est le versionCode Android : il doit croître à chaque
+# publication, sans quoi le système ne reconnaît pas une installation comme
+# plus récente que la précédente. Il est ici incrémenté à la main ; le dériver
+# du tag au moment de la construction reste à faire.
+version: 0.1.1+2
 
 environment:
   # 3.12.0 et non 3.12.2 : cette contrainte n'a jamais été un besoin, c'est
