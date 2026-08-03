@@ -9,6 +9,32 @@ cela, l'historique git et les documents d'architecture sont plus précis.
 
 ## [Non publié]
 
+### Ajouté
+
+- **Défilement continu dans le lecteur mobile.** Les planches s'enchaînent sans
+  coupure, à la largeur de l'écran. C'est le mode des webtoons, dont les
+  planches sont des bandes verticales conçues pour se suivre : les tourner une
+  par une coupe le récit au milieu d'une case. Le lecteur web l'avait déjà.
+
+- **Une marge de lecture réglable.** Sur un grand écran tenu à une main, une
+  planche à fond perdu pousse le regard jusqu'aux bords, là où sont la paume et
+  la courbure de la dalle. Quatre niveaux, de rien à 16 % de chaque côté.
+
+  La marge ne s'applique qu'à l'image : les zones de toucher gardent toute la
+  largeur, sans quoi le bord qui tourne la page s'éloignerait du pouce — soit
+  l'inverse du but.
+
+- **Un panneau de réglages** réunit le mode, le sens de lecture et la marge,
+  comme sur le web. Le sens de lecture, qui était une bascule dans la barre, s'y
+  range : il se choisit une fois, alors que les deux autres s'essaient.
+
+### Corrigé
+
+- **Les panneaux du lecteur recouvraient les boutons qui les ouvrent.** Passer
+  des vignettes aux réglages demandait de fermer, viser la barre réapparue, et
+  rouvrir ; le voyant d'activité de ces boutons n'était jamais visible. La barre
+  est désormais au-dessus du panneau ouvert.
+
 ## [0.1.3] — 2026-08-03
 
 Le lecteur mobile. Rien ne change côté serveur ; mettre à jour l'image sert à

@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+// Pour `ScrollCacheExtent`, que material.dart ne réexporte pas.
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -15,9 +17,11 @@ import '../../core/offline/storage.dart';
 import '../../core/sync/progress_sync.dart';
 import '../library/library_controller.dart';
 import '../../shared/tokens.dart';
+import 'reader_settings.dart';
 
-/// Sens de lecture.
-enum ReadingDirection { leftToRight, rightToLeft }
+// Réexporté : les réglages ont été sortis d'ici, et tout ce qui importait le
+// lecteur pour son sens de lecture continue de fonctionner.
+export 'reader_settings.dart';
 
 /// Ce que déclenche un toucher, selon l'endroit de l'écran.
 enum ReaderTapZone { backward, chrome, forward }
@@ -48,50 +52,6 @@ ReaderTapZone readerTapZone({
       ? ReaderTapZone.forward
       : ReaderTapZone.backward;
 }
-
-/*
-Sens de lecture, retenu d'une session à l'autre.
-
-Quelqu'un qui lit des mangas en lit rarement un seul. Un réglage oublié à
-chaque lancement l'obligerait à rebasculer avant chaque album — une correction
-manuelle, systématique, d'un défaut de mémoire de l'application.
-
-La préférence n'est pas rattachée à un serveur : c'est une habitude de
-personne, pas de bibliothèque.
-*/
-class ReadingDirectionNotifier extends Notifier<ReadingDirection> {
-  static const _key = 'reader.direction';
-
-  @override
-  ReadingDirection build() => ReadingDirection.leftToRight;
-
-  /// Relit la préférence enregistrée.
-  ///
-  /// Appelée par le lecteur pendant son chargement, donc avant que le sens ne
-  /// serve à quoi que ce soit : la lire dans `build()` ferait rendre une
-  /// première image dans le mauvais sens, puis basculer sous les yeux.
-  Future<void> restore() async {
-    final stored = await ref.read(databaseProvider).preference(_key);
-    if (stored == null) return;
-
-    state = ReadingDirection.values.firstWhere(
-      (d) => d.name == stored,
-      orElse: () => ReadingDirection.leftToRight,
-    );
-  }
-
-  Future<void> toggle() async {
-    state = state == ReadingDirection.leftToRight
-        ? ReadingDirection.rightToLeft
-        : ReadingDirection.leftToRight;
-
-    await ref.read(databaseProvider).setPreference(_key, state.name);
-  }
-}
-
-final directionProvider =
-    NotifierProvider<ReadingDirectionNotifier, ReadingDirection>(
-        ReadingDirectionNotifier.new);
 
 /*
 Lecteur.
@@ -144,6 +104,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   bool _zoomed = false;
 
   bool _filmstripOpen = false;
+  bool _settingsOpen = false;
 
   /*
     Écriture de la progression, différée.
@@ -194,6 +155,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     _flushProgress();
 
     _controller?.dispose();
+    _webtoonScroll?.dispose();
     super.dispose();
   }
 
@@ -204,24 +166,29 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     if (page == null || sync == null) return;
 
     _pendingPage = null;
-    unawaited(sync.record(
-      _progressClient,
-      comicId: widget.comicId,
-      page: page,
-      pageCount: _manifest?.pageCount ?? 0,
-    ));
+    unawaited(
+      sync.record(
+        _progressClient,
+        comicId: widget.comicId,
+        page: page,
+        pageCount: _manifest?.pageCount ?? 0,
+      ),
+    );
   }
 
   DownloadManager? _manager(SessionActive session) => DownloadManager(
-        db: ref.read(databaseProvider),
-        client: session.client,
-        serverId: session.server.id,
-      );
+    db: ref.read(databaseProvider),
+    client: session.client,
+    serverId: session.server.id,
+  );
 
   ProgressSync? get _sync {
     final session = ref.read(sessionProvider);
     if (session is! SessionActive) return null;
-    return ProgressSync(db: ref.read(databaseProvider), serverId: session.server.id);
+    return ProgressSync(
+      db: ref.read(databaseProvider),
+      serverId: session.server.id,
+    );
   }
 
   /*
@@ -241,9 +208,9 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     final session = ref.read(sessionProvider);
     if (session is! SessionActive) return;
 
-    // Avant le manifeste : le sens de lecture doit être connu à la première
+    // Avant le manifeste : le mode et le sens doivent être connus à la première
     // image, et ce chargement-ci ne touche que la base locale.
-    await ref.read(directionProvider.notifier).restore();
+    await ref.read(readerSettingsProvider.notifier).restore();
 
     final db = ref.read(databaseProvider);
     final serverId = session.server.id;
@@ -271,12 +238,16 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
 
     try {
       final manifest = await session.client.manifest(widget.comicId);
-      final resume = await _sync?.resumePage(session.client, widget.comicId) ?? 0;
+      final resume =
+          await _sync?.resumePage(session.client, widget.comicId) ?? 0;
 
       if (!mounted) return;
       setState(() {
         _manifest = manifest;
         _page = resume.clamp(0, manifest.pageCount - 1);
+        // En défilement continu, la reprise est un décalage à retrouver, pas
+        // une page à afficher : elle attend la première mesure.
+        _pendingWebtoonJump = _page;
         _controller = PageController(initialPage: _page);
       });
 
@@ -300,8 +271,10 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
   Future<void> _loadOffline(Download? download) async {
     if (download == null || download.pagesDone == 0) {
       if (mounted) {
-        setState(() => _error =
-            'Serveur injoignable, et cet album n\'est pas téléchargé.');
+        setState(
+          () => _error =
+              'Serveur injoignable, et cet album n\'est pas téléchargé.',
+        );
       }
       return;
     }
@@ -318,6 +291,7 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
         pages: const [],
       );
       _page = resume.clamp(0, download.pagesDone - 1);
+      _pendingWebtoonJump = _page;
       _controller = PageController(initialPage: _page);
     });
   }
@@ -399,8 +373,107 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
     );
   }
 
+  /// Va à une planche, dans le mode courant.
+  ///
+  /// Le curseur et les vignettes désignent une planche ; c'est au lecteur de
+  /// savoir si cela veut dire tourner ou faire défiler.
   void _goToPage(int index) {
+    if (ref.read(readerSettingsProvider).mode == ReaderMode.webtoon) {
+      _scrollToPage(index);
+      return;
+    }
     _controller?.jumpToPage(index);
+  }
+
+  // ─── Défilement continu ────────────────────────────────────────────────────
+
+  ScrollController? _webtoonScroll;
+
+  /// Décalage du haut de chaque planche, et hauteur totale en dernière valeur.
+  ///
+  /// Calculé à la mise en page, à partir des proportions du manifeste : c'est
+  /// ce qui permet de savoir quelle planche on lit sans attendre que les images
+  /// arrivent, et d'y sauter depuis le curseur.
+  List<double> _webtoonOffsets = const [];
+
+  /// Largeur pour laquelle les décalages ont été calculés.
+  double _webtoonWidth = 0;
+
+  /// Planche à rejoindre dès que la mise en page sera connue.
+  ///
+  /// La reprise arrive avant la première mesure : sans cette attente, on
+  /// sauterait dans une liste dont on ignore encore les hauteurs.
+  int? _pendingWebtoonJump;
+
+  ScrollController get _webtoonController =>
+      _webtoonScroll ??= ScrollController();
+
+  /// Proportions d'une planche, quand le manifeste les donne.
+  ///
+  /// Une lecture hors ligne n'a pas de manifeste détaillé. La valeur de repli
+  /// est celle d'une planche ordinaire, et l'image est alors contenue dans la
+  /// case réservée plutôt qu'étirée : mieux vaut une bande blanche qu'une
+  /// hauteur qui saute quand l'image arrive.
+  double _pageRatio(int index) {
+    final pages = _manifest?.pages ?? const [];
+    if (index >= pages.length) return 0.7;
+
+    final page = pages[index];
+    final width = page.width;
+    final height = page.height;
+    if (width == null || height == null || height == 0) return 0.7;
+
+    return width / height;
+  }
+
+  /// Recalcule les décalages si la largeur a changé.
+  void _measureWebtoon(double contentWidth, int pageCount) {
+    if (contentWidth == _webtoonWidth &&
+        _webtoonOffsets.length == pageCount + 1) {
+      return;
+    }
+
+    final offsets = <double>[0];
+    for (var index = 0; index < pageCount; index++) {
+      offsets.add(offsets.last + contentWidth / _pageRatio(index));
+    }
+
+    _webtoonWidth = contentWidth;
+    _webtoonOffsets = offsets;
+  }
+
+  void _scrollToPage(int index) {
+    final controller = _webtoonScroll;
+    if (controller == null || index + 1 >= _webtoonOffsets.length) {
+      _pendingWebtoonJump = index;
+      return;
+    }
+    if (!controller.hasClients) {
+      _pendingWebtoonJump = index;
+      return;
+    }
+
+    controller.jumpTo(
+      _webtoonOffsets[index].clamp(0, controller.position.maxScrollExtent),
+    );
+  }
+
+  /// Quelle planche occupe le haut de l'écran.
+  int _pageAtOffset(double offset) {
+    if (_webtoonOffsets.length < 2) return 0;
+
+    // Le haut de l'écran plutôt que son centre : c'est la planche qu'on est en
+    // train de finir qui compte pour la reprise, pas celle qui arrive.
+    for (var index = _webtoonOffsets.length - 2; index >= 0; index--) {
+      if (offset >= _webtoonOffsets[index]) return index;
+    }
+    return 0;
+  }
+
+  void _onWebtoonScroll(double offset) {
+    final index = _pageAtOffset(offset);
+    if (index == _page) return;
+    _onPageChanged(index);
   }
 
   @override
@@ -425,87 +498,200 @@ class _ReaderScreenState extends ConsumerState<ReaderScreen> {
       );
     }
 
-    final direction = ref.watch(directionProvider);
+    final settings = ref.watch(readerSettingsProvider);
 
-    final rightToLeft = direction == ReadingDirection.rightToLeft;
-
-    // Ouvrir la bande de vignettes montre l'habillage : la refermer sur une
-    // barre disparue laisserait l'écran sans repère.
-    final chromeVisible = _chromeVisible || _filmstripOpen;
+    // Ouvrir un panneau montre l'habillage : le refermer sur une barre disparue
+    // laisserait l'écran sans repère.
+    final chromeVisible = _chromeVisible || _filmstripOpen || _settingsOpen;
 
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          PageView.builder(
-            controller: _controller,
-            onPageChanged: _onPageChanged,
-            // Agrandi, le glissement horizontal appartient à l'image. Voir
-            // `_zoomed` : c'est ici que la correction prend effet.
-            physics: _zoomed
-                ? const NeverScrollableScrollPhysics()
-                : const PageScrollPhysics(),
-            // En lecture manga, les pages défilent de droite à gauche. Le
-            // renversement se fait ici plutôt qu'en inversant les index, ce qui
-            // fausserait la progression enregistrée.
-            reverse: rightToLeft,
-            itemCount: manifest.pageCount,
-            itemBuilder: (context, index) => _Page(
-              comicId: widget.comicId,
-              index: index,
-              // Le chemin local n'est passé que s'il existe : la page décide
-              // alors sans rien avoir à vérifier elle-même.
-              localPath: index < _localPages && _offlineDirectory != null
-                  ? '$_offlineDirectory/$index'
-                  : null,
-              onTapCenter: () => setState(() {
-                if (_filmstripOpen) {
-                  _filmstripOpen = false;
-                } else {
-                  _chromeVisible = !_chromeVisible;
-                }
-              }),
-              // Les bords tournent la page. Ils ne faisaient rien jusqu'ici :
-              // le seul moyen d'avancer était de balayer, ce qui demande le
-              // pouce à mi-écran et se tient mal à une main.
-              onTapForward: () => _turn(1),
-              onTapBackward: () => _turn(-1),
-              rightToLeft: rightToLeft,
-              onZoomChanged: (zoomed) {
-                if (zoomed != _zoomed) setState(() => _zoomed = zoomed);
-              },
-            ),
-          ),
+          settings.mode == ReaderMode.webtoon
+              ? _buildWebtoon(manifest, settings)
+              : _buildPaged(manifest, settings),
 
-          if (chromeVisible) ...[
-            _TopBar(title: widget.title),
-            _BottomBar(
-              page: _page,
-              pageCount: manifest.pageCount,
-              onSeek: _goToPage,
-              direction: direction,
-              onToggleDirection: () => ref.read(directionProvider.notifier).toggle(),
-              filmstripOpen: _filmstripOpen,
-              onToggleFilmstrip: () =>
-                  setState(() => _filmstripOpen = !_filmstripOpen),
-            ),
-          ],
+          if (chromeVisible) _TopBar(title: widget.title),
 
-          if (_filmstripOpen)
-            _Filmstrip(
-              comicId: widget.comicId,
-              manifest: manifest,
-              current: _page,
-              offlineDirectory: _offlineDirectory,
-              localPages: _localPages,
-              onSelect: (index) {
-                _goToPage(index);
-                setState(() => _filmstripOpen = false);
-              },
-              onClose: () => setState(() => _filmstripOpen = false),
+          /*
+            Le bas de l'écran, en une seule colonne.
+
+            La barre est AU-DESSUS du panneau ouvert, et c'est le point. Les
+            deux étaient auparavant ancrés au bas de la pile : le panneau
+            recouvrait donc les boutons qui l'avaient ouvert, et passer des
+            réglages aux vignettes demandait de fermer, viser la barre
+            réapparue, rouvrir. Le voyant d'activité sur ces boutons n'était
+            même jamais visible.
+          */
+          if (chromeVisible)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _BottomBar(
+                    page: _page,
+                    pageCount: manifest.pageCount,
+                    onSeek: _goToPage,
+                    filmstripOpen: _filmstripOpen,
+                    onToggleFilmstrip: () => setState(() {
+                      _filmstripOpen = !_filmstripOpen;
+                      if (_filmstripOpen) _settingsOpen = false;
+                    }),
+                    settingsOpen: _settingsOpen,
+                    onToggleSettings: () => setState(() {
+                      _settingsOpen = !_settingsOpen;
+                      if (_settingsOpen) _filmstripOpen = false;
+                    }),
+                    panelBelow: _filmstripOpen || _settingsOpen,
+                  ),
+
+                  if (_settingsOpen)
+                    _SettingsSheet(
+                      settings: settings,
+                      onClose: () => setState(() => _settingsOpen = false),
+                    ),
+
+                  if (_filmstripOpen)
+                    _Filmstrip(
+                      comicId: widget.comicId,
+                      manifest: manifest,
+                      current: _page,
+                      offlineDirectory: _offlineDirectory,
+                      localPages: _localPages,
+                      onSelect: (index) {
+                        _goToPage(index);
+                        setState(() => _filmstripOpen = false);
+                      },
+                      onClose: () => setState(() => _filmstripOpen = false),
+                    ),
+                ],
+              ),
             ),
         ],
       ),
+    );
+  }
+
+  /// Bascule l'habillage, ou referme le panneau ouvert.
+  void _onTapCenter() => setState(() {
+    if (_filmstripOpen || _settingsOpen) {
+      _filmstripOpen = false;
+      _settingsOpen = false;
+    } else {
+      _chromeVisible = !_chromeVisible;
+    }
+  });
+
+  String? _localPathOf(int index) =>
+      index < _localPages && _offlineDirectory != null
+      ? '$_offlineDirectory/$index'
+      : null;
+
+  // ─── Planche par planche ───────────────────────────────────────────────────
+
+  Widget _buildPaged(Manifest manifest, ReaderSettings settings) {
+    final rightToLeft = settings.direction == ReadingDirection.rightToLeft;
+
+    return PageView.builder(
+      controller: _controller,
+      onPageChanged: _onPageChanged,
+      // Agrandi, le glissement horizontal appartient à l'image. Voir `_zoomed` :
+      // c'est ici que la correction prend effet.
+      physics: _zoomed
+          ? const NeverScrollableScrollPhysics()
+          : const PageScrollPhysics(),
+      // En lecture manga, les pages défilent de droite à gauche. Le renversement
+      // se fait ici plutôt qu'en inversant les index, ce qui fausserait la
+      // progression enregistrée.
+      reverse: rightToLeft,
+      itemCount: manifest.pageCount,
+      itemBuilder: (context, index) => _Page(
+        comicId: widget.comicId,
+        index: index,
+        // Le chemin local n'est passé que s'il existe : la page décide alors
+        // sans rien avoir à vérifier elle-même.
+        localPath: _localPathOf(index),
+        margin: settings.margin,
+        onTapCenter: _onTapCenter,
+        // Les bords tournent la page. Ils ne faisaient rien jusqu'ici : le seul
+        // moyen d'avancer était de balayer, ce qui demande le pouce à mi-écran
+        // et se tient mal à une main.
+        onTapForward: () => _turn(1),
+        onTapBackward: () => _turn(-1),
+        rightToLeft: rightToLeft,
+        onZoomChanged: (zoomed) {
+          if (zoomed != _zoomed) setState(() => _zoomed = zoomed);
+        },
+      ),
+    );
+  }
+
+  // ─── Défilement continu ────────────────────────────────────────────────────
+
+  /*
+    Les planches s'enchaînent sans coupure, à la largeur de l'écran.
+
+    C'est le mode des webtoons, dont les planches sont des bandes verticales
+    conçues pour se suivre : les tourner une par une coupe le récit au milieu
+    d'une case. Il sert aussi à qui préfère faire défiler une bande dessinée
+    ordinaire plutôt que de tourner.
+
+    La hauteur de chaque case est réservée d'avance, d'après les proportions du
+    manifeste. Sans cela, la liste sauterait à chaque image qui arrive, et la
+    position de reprise ne voudrait rien dire.
+  */
+  Widget _buildWebtoon(Manifest manifest, ReaderSettings settings) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final inset = constraints.maxWidth * settings.margin.fraction;
+        final contentWidth = constraints.maxWidth - inset * 2;
+
+        _measureWebtoon(contentWidth, manifest.pageCount);
+
+        // La reprise et les sauts demandés avant la première mesure sont
+        // appliqués maintenant que les hauteurs sont connues.
+        final pending = _pendingWebtoonJump;
+        if (pending != null) {
+          _pendingWebtoonJump = null;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _scrollToPage(pending);
+          });
+        }
+
+        return GestureDetector(
+          // Aucune zone de bord ici : le geste du mode est le défilement, et
+          // découper l'écran en trois ferait tourner la page par accident au
+          // moindre appui pendant qu'on fait glisser.
+          onTap: _onTapCenter,
+          child: NotificationListener<ScrollUpdateNotification>(
+            onNotification: (notification) {
+              _onWebtoonScroll(notification.metrics.pixels);
+              return false;
+            },
+            child: ListView.builder(
+              controller: _webtoonController,
+              padding: EdgeInsets.symmetric(horizontal: inset),
+              itemCount: manifest.pageCount,
+              // Les planches voisines restent construites : dans ce mode on
+              // remonte souvent de quelques écrans, et les reconstruire ferait
+              // clignoter des images déjà chargées.
+              scrollCacheExtent: const ScrollCacheExtent.viewport(2),
+              itemBuilder: (context, index) => AspectRatio(
+                aspectRatio: _pageRatio(index),
+                child: _PageImage(
+                  comicId: widget.comicId,
+                  index: index,
+                  localPath: _localPathOf(index),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
@@ -533,6 +719,9 @@ class _Page extends ConsumerStatefulWidget {
   /// Sens d'affichage, qui décide quel bord avance.
   final bool rightToLeft;
 
+  /// Marge appliquée à l'image, pas aux gestes.
+  final ReaderMargin margin;
+
   /// Signale l'entrée et la sortie du zoom à l'écran, qui en dépend pour
   /// verrouiller le défilement des pages.
   final ValueChanged<bool> onZoomChanged;
@@ -545,6 +734,7 @@ class _Page extends ConsumerStatefulWidget {
     required this.onTapForward,
     required this.onTapBackward,
     required this.rightToLeft,
+    required this.margin,
     required this.onZoomChanged,
   });
 
@@ -619,10 +809,7 @@ class _PageState extends ConsumerState<_Page> {
 
   @override
   Widget build(BuildContext context) {
-    final session = ref.watch(sessionProvider);
-    if (session is! SessionActive) return const SizedBox.shrink();
-
-    final local = widget.localPath;
+    final inset = MediaQuery.of(context).size.width * widget.margin.fraction;
 
     return GestureDetector(
       onTapUp: _onTapUp,
@@ -636,34 +823,68 @@ class _PageState extends ConsumerState<_Page> {
         // vers les bords de la planche, qui est précisément ce qu'on cherchait
         // à atteindre quand le PageView interceptait le geste.
         panEnabled: true,
-        child: Center(
-          child: local != null
-              // Sans fondu : le fichier est déjà là, et une transition
-              // simulerait un chargement qui n'a pas lieu.
-              ? Image.file(
-                  File(local),
-                  fit: BoxFit.contain,
-                  errorBuilder: (_, _, _) => const _BrokenPage(),
-                )
-              : CachedNetworkImage(
-                  imageUrl: session.client.imageUrl(
-                    '/api/v1/comics/${widget.comicId}/pages/${widget.index}',
-                    width: 1600,
-                  ),
-                  fit: BoxFit.contain,
-                  fadeInDuration: const Duration(milliseconds: 120),
-                  placeholder: (_, _) => const Center(
-                    child: SizedBox(
-                      height: 28,
-                      width: 28,
-                      child: CircularProgressIndicator(
-                          strokeWidth: 2, color: Colors.white24),
-                    ),
-                  ),
-                  errorWidget: (_, _, _) => const _BrokenPage(),
-                ),
+        child: Padding(
+          // La marge est posée DANS la vue interactive, donc sur l'image seule.
+          // Au-dessus, elle rétrécirait aussi la surface des gestes, et le bord
+          // qui tourne la page s'éloignerait du pouce — l'inverse du but.
+          padding: EdgeInsets.symmetric(horizontal: inset),
+          child: _PageImage(
+            comicId: widget.comicId,
+            index: widget.index,
+            localPath: widget.localPath,
+          ),
         ),
       ),
+    );
+  }
+}
+
+/// Une planche, sans geste ni cadre : les deux modes de lecture la partagent.
+class _PageImage extends ConsumerWidget {
+  final String comicId;
+  final int index;
+  final String? localPath;
+
+  const _PageImage({
+    required this.comicId,
+    required this.index,
+    required this.localPath,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final local = localPath;
+    if (local != null) {
+      // Sans fondu : le fichier est déjà là, et une transition simulerait un
+      // chargement qui n'a pas lieu.
+      return Image.file(
+        File(local),
+        fit: BoxFit.contain,
+        errorBuilder: (_, _, _) => const _BrokenPage(),
+      );
+    }
+
+    final session = ref.watch(sessionProvider);
+    if (session is! SessionActive) return const SizedBox.shrink();
+
+    return CachedNetworkImage(
+      imageUrl: session.client.imageUrl(
+        '/api/v1/comics/$comicId/pages/$index',
+        width: 1600,
+      ),
+      fit: BoxFit.contain,
+      fadeInDuration: const Duration(milliseconds: 120),
+      placeholder: (_, _) => const Center(
+        child: SizedBox(
+          height: 28,
+          width: 28,
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: Colors.white24,
+          ),
+        ),
+      ),
+      errorWidget: (_, _, _) => const _BrokenPage(),
     );
   }
 }
@@ -673,8 +894,8 @@ class _BrokenPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => const Center(
-        child: Icon(Icons.broken_image_outlined, color: Colors.white24, size: 40),
-      );
+    child: Icon(Icons.broken_image_outlined, color: Colors.white24, size: 40),
+  );
 }
 
 // ─── Bande de vignettes ──────────────────────────────────────────────────────
@@ -748,7 +969,8 @@ class _FilmstripState extends ConsumerState<_Filmstrip> {
     if (!_scroll.hasClients || !mounted) return;
 
     final viewport = _scroll.position.viewportDimension;
-    final target = widget.current * (_itemWidth + _gap) -
+    final target =
+        widget.current * (_itemWidth + _gap) -
         (viewport / 2) +
         (_itemWidth / 2);
 
@@ -786,7 +1008,9 @@ class _FilmstripState extends ConsumerState<_Filmstrip> {
     }
 
     final session = ref.read(sessionProvider);
-    if (session is! SessionActive) return const ColoredBox(color: Colors.white10);
+    if (session is! SessionActive) {
+      return const ColoredBox(color: Colors.white10);
+    }
 
     return CachedNetworkImage(
       imageUrl: session.client.imageUrl(
@@ -804,99 +1028,102 @@ class _FilmstripState extends ConsumerState<_Filmstrip> {
   Widget build(BuildContext context) {
     final count = widget.manifest.pageCount;
 
-    return Positioned(
-      left: 0,
-      right: 0,
-      bottom: 0,
-      child: Container(
-        color: Colors.black.withValues(alpha: 0.92),
-        padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).padding.bottom + BoxSpace.s2,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                  BoxSpace.s4, BoxSpace.s2, BoxSpace.s2, BoxSpace.s1),
-              child: Row(
-                children: [
-                  Text(
-                    '$count pages',
-                    style: const TextStyle(color: Colors.white38, fontSize: 11),
-                  ),
-                  const Spacer(),
-                  IconButton(
-                    tooltip: 'Fermer les vignettes',
-                    visualDensity: VisualDensity.compact,
-                    icon: const Icon(Icons.close, color: Colors.white54, size: 20),
-                    onPressed: widget.onClose,
-                  ),
-                ],
-              ),
+    return Container(
+      color: Colors.black.withValues(alpha: 0.92),
+      padding: EdgeInsets.only(
+        bottom: MediaQuery.of(context).padding.bottom + BoxSpace.s2,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              BoxSpace.s4,
+              BoxSpace.s2,
+              BoxSpace.s2,
+              BoxSpace.s1,
             ),
-            SizedBox(
-              height: _stripHeight,
-              child: ListView.separated(
-                controller: _scroll,
-                scrollDirection: Axis.horizontal,
-                padding: const EdgeInsets.symmetric(horizontal: BoxSpace.s4),
-                itemCount: count,
-                separatorBuilder: (_, _) => const SizedBox(width: _gap),
-                itemBuilder: (context, index) {
-                  final active = index == widget.current;
+            child: Row(
+              children: [
+                Text(
+                  '$count pages',
+                  style: const TextStyle(color: Colors.white38, fontSize: 11),
+                ),
+                const Spacer(),
+                IconButton(
+                  tooltip: 'Fermer les vignettes',
+                  visualDensity: VisualDensity.compact,
+                  icon: const Icon(
+                    Icons.close,
+                    color: Colors.white54,
+                    size: 20,
+                  ),
+                  onPressed: widget.onClose,
+                ),
+              ],
+            ),
+          ),
+          SizedBox(
+            height: _stripHeight,
+            child: ListView.separated(
+              controller: _scroll,
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.symmetric(horizontal: BoxSpace.s4),
+              itemCount: count,
+              separatorBuilder: (_, _) => const SizedBox(width: _gap),
+              itemBuilder: (context, index) {
+                final active = index == widget.current;
 
-                  return GestureDetector(
-                    onTap: () => widget.onSelect(index),
-                    child: SizedBox(
-                      width: _itemWidth,
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Expanded(
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                border: Border.all(
-                                  // Le lecteur est noir quel que soit le thème
-                                  // du système : la teinte sombre est la seule
-                                  // qui s'y lise.
-                                  color: active
-                                      ? boxColorsDark.accent
-                                      : Colors.transparent,
-                                  width: 2,
-                                ),
-                                borderRadius: BorderRadius.circular(3),
+                return GestureDetector(
+                  onTap: () => widget.onSelect(index),
+                  child: SizedBox(
+                    width: _itemWidth,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Expanded(
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                // Le lecteur est noir quel que soit le thème
+                                // du système : la teinte sombre est la seule
+                                // qui s'y lise.
+                                color: active
+                                    ? boxColorsDark.accent
+                                    : Colors.transparent,
+                                width: 2,
                               ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(2),
-                                child: Opacity(
-                                  opacity: active ? 1 : 0.55,
-                                  child: AspectRatio(
-                                    aspectRatio: _ratio(index),
-                                    child: _thumbnail(index),
-                                  ),
+                              borderRadius: BorderRadius.circular(3),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(2),
+                              child: Opacity(
+                                opacity: active ? 1 : 0.55,
+                                child: AspectRatio(
+                                  aspectRatio: _ratio(index),
+                                  child: _thumbnail(index),
                                 ),
                               ),
                             ),
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '${index + 1}',
-                            style: TextStyle(
-                              color: active ? Colors.white : Colors.white38,
-                              fontSize: 10,
-                              fontFeatures: const [FontFeature.tabularFigures()],
-                            ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${index + 1}',
+                          style: TextStyle(
+                            color: active ? Colors.white : Colors.white38,
+                            fontSize: 10,
+                            fontFeatures: const [FontFeature.tabularFigures()],
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
-                  );
-                },
-              ),
+                  ),
+                );
+              },
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -954,86 +1181,280 @@ class _BottomBar extends StatelessWidget {
   final int page;
   final int pageCount;
   final ValueChanged<int> onSeek;
-  final ReadingDirection direction;
-  final VoidCallback onToggleDirection;
   final bool filmstripOpen;
   final VoidCallback onToggleFilmstrip;
+  final bool settingsOpen;
+  final VoidCallback onToggleSettings;
+
+  /// Un panneau occupe-t-il le bas de l'écran, sous cette barre ?
+  ///
+  /// Le cas échéant, c'est lui qui écarte la zone système ; les deux le
+  /// faisant, la barre flotterait au-dessus d'un vide.
+  final bool panelBelow;
 
   const _BottomBar({
     required this.page,
     required this.pageCount,
     required this.onSeek,
-    required this.direction,
-    required this.onToggleDirection,
     required this.filmstripOpen,
     required this.onToggleFilmstrip,
+    required this.settingsOpen,
+    required this.onToggleSettings,
+    required this.panelBelow,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Positioned(
-      bottom: 0,
-      left: 0,
-      right: 0,
-      child: Container(
-        padding: EdgeInsets.only(
-          top: BoxSpace.s8,
-          left: BoxSpace.s4,
-          right: BoxSpace.s3,
-          bottom: MediaQuery.of(context).padding.bottom + BoxSpace.s2,
+    return Container(
+      padding: EdgeInsets.only(
+        top: BoxSpace.s8,
+        left: BoxSpace.s4,
+        right: BoxSpace.s3,
+        bottom: panelBelow
+            ? BoxSpace.s2
+            : MediaQuery.of(context).padding.bottom + BoxSpace.s2,
+      ),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.bottomCenter,
+          end: Alignment.topCenter,
+          colors: [Colors.black87, Colors.transparent],
         ),
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.bottomCenter,
-            end: Alignment.topCenter,
-            colors: [Colors.black87, Colors.transparent],
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 72,
+            child: Text(
+              '${page + 1} / $pageCount',
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 12,
+                fontFeatures: [FontFeature.tabularFigures()],
+              ),
+            ),
           ),
-        ),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 72,
-              child: Text(
-                '${page + 1} / $pageCount',
-                style: const TextStyle(
-                  color: Colors.white70,
-                  fontSize: 12,
-                  fontFeatures: [FontFeature.tabularFigures()],
+          Expanded(
+            // Un Slider plutôt qu'une barre dessinée à la main : il apporte
+            // gratuitement l'accessibilité et le retour tactile.
+            child: Slider(
+              value: page.toDouble().clamp(0, (pageCount - 1).toDouble()),
+              max: (pageCount - 1).toDouble().clamp(1, double.infinity),
+              onChanged: (value) => onSeek(value.round()),
+            ),
+          ),
+          IconButton(
+            tooltip: 'Pages en vignettes',
+            visualDensity: VisualDensity.compact,
+            icon: Icon(
+              Icons.grid_view_rounded,
+              color: filmstripOpen ? boxColorsDark.accent : Colors.white70,
+            ),
+            onPressed: onToggleFilmstrip,
+          ),
+          // Le sens de lecture était ici, en bascule directe. Il rejoint les
+          // réglages : on le choisit une fois et il est retenu, alors que le
+          // mode et la marge s'essaient à plusieurs reprises pour trouver ce
+          // qui convient — les réunir donne un endroit où comparer.
+          IconButton(
+            tooltip: 'Réglages de lecture',
+            visualDensity: VisualDensity.compact,
+            icon: Icon(
+              Icons.tune_rounded,
+              color: settingsOpen ? boxColorsDark.accent : Colors.white70,
+            ),
+            onPressed: onToggleSettings,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Réglages de lecture ─────────────────────────────────────────────────────
+
+/*
+Panneau de réglages, au même endroit que sur le web.
+
+Trois choix seulement, et c'est délibéré : le mode, le sens et la marge. Un
+lecteur se règle une fois et s'oublie ; une liste d'options le transformerait
+en tableau de bord.
+*/
+class _SettingsSheet extends ConsumerWidget {
+  final ReaderSettings settings;
+  final VoidCallback onClose;
+
+  const _SettingsSheet({required this.settings, required this.onClose});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final notifier = ref.read(readerSettingsProvider.notifier);
+    final webtoon = settings.mode == ReaderMode.webtoon;
+
+    return Container(
+      color: Colors.black.withValues(alpha: 0.92),
+      padding: EdgeInsets.only(
+        left: BoxSpace.s4,
+        right: BoxSpace.s2,
+        top: BoxSpace.s2,
+        bottom: MediaQuery.of(context).padding.bottom + BoxSpace.s4,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text(
+                'RÉGLAGES DE LECTURE',
+                style: TextStyle(
+                  color: Colors.white38,
+                  fontSize: 10,
+                  letterSpacing: 0.8,
                 ),
               ),
+              const Spacer(),
+              IconButton(
+                tooltip: 'Fermer les réglages',
+                visualDensity: VisualDensity.compact,
+                icon: const Icon(Icons.close, color: Colors.white54, size: 20),
+                onPressed: onClose,
+              ),
+            ],
+          ),
+
+          _SettingRow(
+            label: 'Mode',
+            options: [
+              _Option(
+                label: 'Planche par planche',
+                active: !webtoon,
+                onTap: () => notifier.setMode(ReaderMode.paged),
+              ),
+              _Option(
+                label: 'Défilement continu',
+                active: webtoon,
+                onTap: () => notifier.setMode(ReaderMode.webtoon),
+              ),
+            ],
+          ),
+
+          // Le sens n'a pas de sens en défilement continu : la lecture y est
+          // verticale. Le montrer quand même ferait croire à un réglage sans
+          // effet, et l'y appliquer n'aurait rien à inverser.
+          if (!webtoon)
+            _SettingRow(
+              label: 'Sens de lecture',
+              options: [
+                _Option(
+                  label: 'Gauche → droite',
+                  active: settings.direction == ReadingDirection.leftToRight,
+                  onTap: () =>
+                      notifier.setDirection(ReadingDirection.leftToRight),
+                ),
+                _Option(
+                  label: 'Droite → gauche',
+                  active: settings.direction == ReadingDirection.rightToLeft,
+                  onTap: () =>
+                      notifier.setDirection(ReadingDirection.rightToLeft),
+                ),
+              ],
             ),
-            Expanded(
-              // Un Slider plutôt qu'une barre dessinée à la main : il apporte
-              // gratuitement l'accessibilité et le retour tactile.
-              child: Slider(
-                value: page.toDouble().clamp(0, (pageCount - 1).toDouble()),
-                max: (pageCount - 1).toDouble().clamp(1, double.infinity),
-                onChanged: (value) => onSeek(value.round()),
+
+          _SettingRow(
+            label: 'Marge',
+            hint: 'Rapproche la planche du pouce sur un grand écran.',
+            options: [
+              for (final margin in ReaderMargin.values)
+                _Option(
+                  label: _marginLabel(margin),
+                  active: settings.margin == margin,
+                  onTap: () => notifier.setMargin(margin),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _marginLabel(ReaderMargin margin) => switch (margin) {
+    ReaderMargin.none => 'Aucune',
+    ReaderMargin.small => 'Petite',
+    ReaderMargin.medium => 'Moyenne',
+    ReaderMargin.large => 'Large',
+  };
+}
+
+class _SettingRow extends StatelessWidget {
+  final String label;
+  final String? hint;
+  final List<_Option> options;
+
+  const _SettingRow({required this.label, this.hint, required this.options});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: BoxSpace.s3, right: BoxSpace.s2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: const TextStyle(color: Colors.white54, fontSize: 12),
+          ),
+          if (hint != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 1),
+              child: Text(
+                hint!,
+                style: const TextStyle(color: Colors.white24, fontSize: 10),
               ),
             ),
-            IconButton(
-              tooltip: direction == ReadingDirection.rightToLeft
-                  ? 'Lecture manga (droite à gauche)'
-                  : 'Lecture classique (gauche à droite)',
-              visualDensity: VisualDensity.compact,
-              icon: Icon(
-                direction == ReadingDirection.rightToLeft
-                    ? Icons.format_textdirection_r_to_l
-                    : Icons.format_textdirection_l_to_r,
-                color: Colors.white70,
-              ),
-              onPressed: onToggleDirection,
-            ),
-            IconButton(
-              tooltip: 'Pages en vignettes',
-              visualDensity: VisualDensity.compact,
-              icon: Icon(
-                Icons.grid_view_rounded,
-                color: filmstripOpen ? boxColorsDark.accent : Colors.white70,
-              ),
-              onPressed: onToggleFilmstrip,
-            ),
-          ],
+          const SizedBox(height: BoxSpace.s1),
+          Wrap(
+            spacing: BoxSpace.s1,
+            runSpacing: BoxSpace.s1,
+            children: options,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Option extends StatelessWidget {
+  final String label;
+  final bool active;
+  final VoidCallback onTap;
+
+  const _Option({
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(
+          horizontal: BoxSpace.s3,
+          vertical: BoxSpace.s2,
+        ),
+        decoration: BoxDecoration(
+          color: active ? boxColorsDark.accent : Colors.white10,
+          borderRadius: BorderRadius.circular(6),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: active ? boxColorsDark.accentText : Colors.white70,
+            fontSize: 12,
+            fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+          ),
         ),
       ),
     );

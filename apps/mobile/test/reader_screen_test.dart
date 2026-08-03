@@ -1,6 +1,20 @@
+/*
+Le lecteur, éprouvé sur ses gestes.
+
+Ces tests existent à cause d'un défaut signalé à l'usage : agrandi sur un
+détail, tirer pour voir le reste de la planche changeait de page. Les deux
+gestes sont le même — un glissement horizontal — et le PageView l'emportait sur
+l'image.
+
+Rien dans le code ne le disait, et rien ne pouvait le dire : les deux
+comportements sont légitimes, seule leur priorité était fausse. D'où des tests
+qui portent sur la priorité, pas sur la présence des widgets.
+*/
+
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -20,18 +34,6 @@ import 'package:boxincloud/features/library/library_controller.dart';
 import 'package:boxincloud/features/reader/reader_screen.dart';
 import 'package:boxincloud/shared/theme.dart';
 
-/*
-Le lecteur, éprouvé sur ses gestes.
-
-Ces tests existent à cause d'un défaut signalé à l'usage : agrandi sur un
-détail, tirer pour voir le reste de la planche changeait de page. Les deux
-gestes sont le même — un glissement horizontal — et le PageView l'emportait sur
-l'image.
-
-Rien dans le code ne le disait, et rien ne pouvait le dire : les deux
-comportements sont légitimes, seule leur priorité était fausse. D'où des tests
-qui portent sur la priorité, pas sur la présence des widgets.
-*/
 /*
 Avance le temps sans attendre le repos.
 
@@ -211,6 +213,185 @@ void main() {
       // Aucune page avant la première : le toucher est sans effet, et surtout
       // sans erreur.
       expect(find.text('1 / $pageCount'), findsOneWidget);
+    });
+  });
+
+  group('défilement continu', () {
+    /// Choisit une option des réglages, en ouvrant le panneau au besoin.
+    ///
+    /// Le bouton bascule : appuyer alors que le panneau est déjà ouvert le
+    /// referme. C'est ce qui arrive quand on enchaîne deux choix.
+    Future<void> choose(WidgetTester tester, String label) async {
+      if (find.text('RÉGLAGES DE LECTURE').evaluate().isEmpty) {
+        await tester.tap(find.byIcon(Icons.tune_rounded));
+        await settle(tester);
+      }
+      await tester.tap(find.text(label));
+      await settle(tester);
+    }
+
+    testWidgets('le mode par défaut reste planche par planche', (tester) async {
+      await openReader(tester);
+
+      expect(find.byType(PageView), findsOneWidget);
+    });
+
+    testWidgets('le mode remplace la pagination par une liste verticale',
+        (tester) async {
+      await openReader(tester);
+      await choose(tester, 'Défilement continu');
+
+      // La pagination disparaît : les deux modes ne coexistent pas, sans quoi
+      // deux contrôleurs se disputeraient la position de lecture.
+      expect(find.byType(PageView), findsNothing);
+
+      final list = tester.widget<ListView>(find.byType(ListView));
+      expect(list.scrollDirection, Axis.vertical);
+    });
+
+    testWidgets('le sens de lecture disparaît en défilement continu',
+        (tester) async {
+      await openReader(tester);
+
+      await tester.tap(find.byIcon(Icons.tune_rounded));
+      await settle(tester);
+      expect(find.text('Sens de lecture'), findsOneWidget);
+
+      await tester.tap(find.text('Défilement continu'));
+      await settle(tester);
+
+      // La lecture y est verticale : montrer le réglage ferait croire à une
+      // option sans effet.
+      expect(find.text('Sens de lecture'), findsNothing);
+    });
+
+    testWidgets('le mode choisi est retenu', (tester) async {
+      await openReader(tester);
+      await choose(tester, 'Défilement continu');
+
+      expect(await db.preference('reader.mode'), 'webtoon');
+    });
+
+    testWidgets('revenir en arrière rétablit la pagination', (tester) async {
+      await openReader(tester);
+      await choose(tester, 'Défilement continu');
+      expect(find.byType(PageView), findsNothing);
+
+      await choose(tester, 'Planche par planche');
+      expect(find.byType(PageView), findsOneWidget);
+    });
+
+    /*
+      Les hauteurs sont réservées d'après les proportions du manifeste, et c'est
+      ce calcul qui dit quelle planche on lit. Il n'a rien de visible : une
+      erreur de décalage donnerait un compteur faux et une reprise au mauvais
+      endroit, sans que l'affichage bouge d'un pixel.
+
+      L'écran de test fait 800 de large ; une planche de 1000×1500 y occupe donc
+      1200 de haut.
+    */
+    const pageHeight = 800 * 1500 / 1000;
+
+    testWidgets('faire défiler d\'une planche avance le compteur',
+        (tester) async {
+      await openReader(tester);
+      await choose(tester, 'Défilement continu');
+      expect(find.text('1 / $pageCount'), findsOneWidget);
+
+      await tester.drag(
+        find.byType(ListView),
+        const Offset(0, -pageHeight - 50),
+      );
+      await settle(tester);
+
+      expect(find.text('2 / $pageCount'), findsOneWidget);
+    });
+
+    testWidgets('rester à l\'intérieur d\'une planche ne change pas le compteur',
+        (tester) async {
+      await openReader(tester);
+      await choose(tester, 'Défilement continu');
+
+      await tester.drag(find.byType(ListView), const Offset(0, -pageHeight / 2));
+      await settle(tester);
+
+      // Une planche de webtoon dépasse largement l'écran : la moitié parcourue
+      // n'est pas une page tournée.
+      expect(find.text('1 / $pageCount'), findsOneWidget);
+    });
+
+    testWidgets('choisir une vignette fait défiler jusqu\'à la planche',
+        (tester) async {
+      await openReader(tester);
+      await choose(tester, 'Défilement continu');
+
+      await tester.tap(find.byIcon(Icons.grid_view_rounded));
+      await settle(tester);
+      await tester.tap(find.text('5').last);
+      await settle(tester);
+
+      // Le curseur et les vignettes désignent une planche ; c'est au lecteur de
+      // savoir que cela veut dire faire défiler, ici, et non tourner.
+      expect(find.text('5 / $pageCount'), findsOneWidget);
+    });
+  });
+
+  group('marge de lecture', () {
+    Future<double> imageWidth(WidgetTester tester) async =>
+        tester.getSize(find.byType(CachedNetworkImage).first).width;
+
+    testWidgets('sans marge, la planche occupe toute la largeur',
+        (tester) async {
+      await openReader(tester);
+
+      final screen = tester.getSize(find.byType(PageView)).width;
+      expect(await imageWidth(tester), screen);
+    });
+
+    testWidgets('une marge large rétrécit la planche', (tester) async {
+      await openReader(tester);
+
+      final screen = tester.getSize(find.byType(PageView)).width;
+
+      await tester.tap(find.byIcon(Icons.tune_rounded));
+      await settle(tester);
+      await tester.tap(find.text('Large'));
+      await settle(tester);
+
+      // 16 % retirés de chaque côté.
+      expect(await imageWidth(tester), closeTo(screen * 0.68, 0.5));
+    });
+
+    testWidgets('la marge ne rétrécit pas les zones de toucher',
+        (tester) async {
+      await openReader(tester);
+
+      await tester.tap(find.byIcon(Icons.tune_rounded));
+      await settle(tester);
+      await tester.tap(find.text('Large'));
+      await settle(tester);
+      await tester.tap(find.byIcon(Icons.tune_rounded));
+      await settle(tester);
+
+      // Le bord extrême est hors de l'image, mais dans la zone qui tourne la
+      // page : rétrécir les gestes avec l'image éloignerait ce bord du pouce,
+      // ce qui est l'inverse du but de la marge.
+      final box = tester.getRect(find.byType(PageView));
+      await tester.tapAt(Offset(box.right - 2, box.center.dy));
+      await settle(tester);
+
+      expect(find.text('2 / $pageCount'), findsOneWidget);
+    });
+
+    testWidgets('la marge choisie est retenue', (tester) async {
+      await openReader(tester);
+
+      await tester.tap(find.byIcon(Icons.tune_rounded));
+      await settle(tester);
+      await tester.tap(find.text('Moyenne'));
+      await settle(tester);
+
+      expect(await db.preference('reader.margin'), 'medium');
     });
   });
 
