@@ -108,6 +108,18 @@ type request struct {
 	query   url.Values
 	form    url.Values
 	headers map[string]string
+	/*
+		auth porte le secret de la source, sous le nom d'en-tête que le gabarit
+		a déclaré.
+
+		Séparé de `headers` pour une raison de fond : le gabarit dit OÙ mettre
+		la clé, la source dit LAQUELLE. Un gabarit est un fichier souvent
+		versionné et parfois partagé ; y écrire une clé d'API reviendrait à la
+		publier. Le secret vit chiffré en base, comme le mot de passe d'un
+		catalogue OPDS.
+	*/
+	authHeader string
+	authValue  string
 }
 
 /*
@@ -247,6 +259,9 @@ func (f *fetcher) do(
 	for name, value := range req.headers {
 		httpReq.Header.Set(name, value)
 	}
+	if req.authHeader != "" && req.authValue != "" {
+		httpReq.Header.Set(req.authHeader, req.authValue)
+	}
 
 	resp, err := f.http.Do(httpReq)
 	if err != nil {
@@ -327,7 +342,10 @@ repliée — ce qui est juste pour des mots cherchés et faux pour une URL, où
 `/a/b` et `/a-b` se confondraient.
 */
 func (f *fetcher) cached(template *Compiled, target string, req request) (page, bool) {
-	if f.memo == nil || req.method != http.MethodGet {
+	// Une réponse obtenue avec un secret n'est pas mémorisée. Deux comptes
+	// peuvent voir deux catalogues différents à la même adresse, et servir à
+	// l'un ce que l'autre a reçu serait une fuite silencieuse.
+	if f.memo == nil || req.method != http.MethodGet || req.authValue != "" {
 		return page{}, false
 	}
 	raw, ok := f.memo.Get(cacheKey(template.ID, target))
@@ -339,7 +357,7 @@ func (f *fetcher) cached(template *Compiled, target string, req request) (page, 
 }
 
 func (f *fetcher) store(template *Compiled, target string, req request, got page) {
-	if f.memo == nil || req.method != http.MethodGet {
+	if f.memo == nil || req.method != http.MethodGet || req.authValue != "" {
 		return
 	}
 	f.memo.Put(cacheKey(template.ID, target), got)

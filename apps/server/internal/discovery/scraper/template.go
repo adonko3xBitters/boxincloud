@@ -119,6 +119,16 @@ type Template struct {
 	*/
 	IgnoreRobots bool `yaml:"ignoreRobots"`
 
+	/*
+		Format vaut `html` — le défaut — ou `json`.
+
+		Seule l'extraction change. Miroirs, débit, robots.txt, bornes, cache et
+		contrôle d'origine restent le même code : deux moteurs finiraient par
+		avoir deux jeux de bugs, et celui qu'on regarde le moins accumulerait
+		les siens en silence.
+	*/
+	Format string `yaml:"format"`
+
 	Rate    RateSpec    `yaml:"rate"`
 	Limits  LimitsSpec  `yaml:"limits"`
 	Search  SearchSpec  `yaml:"search"`
@@ -193,9 +203,33 @@ type SearchSpec struct {
 		fonctionne.
 	*/
 	Probe string `yaml:"probe"`
-	// Headers ajoute des en-têtes. Le User-Agent n'y est pas modifiable : voir
-	// fetch.go, où le choix est expliqué.
+	/*
+		Headers ajoute des en-têtes à la requête.
+
+		Une liste d'en-têtes est REFUSÉE, et il faut dire lesquels : `User-Agent`,
+		`Referer`, `Origin` et `Host`. Ces quatre-là ne servent qu'à mentir sur
+		qui appelle et d'où — c'est-à-dire à franchir un contrôle qui vous
+		refuse. Le reste passe : `Accept`, `Accept-Language`, un en-tête maison
+		qu'une API réclame.
+
+		Les identifiants ne s'écrivent PAS ici. Un gabarit est un fichier de
+		configuration, souvent versionné, parfois partagé ; y coller une clé
+		d'API revient à la publier. Voir `AuthHeader`.
+	*/
 	Headers map[string]string `yaml:"headers"`
+
+	/*
+		AuthHeader nomme l'en-tête qui portera le secret de la source.
+
+		Le gabarit dit OÙ mettre la clé, la source dit LAQUELLE. Le secret vit
+		alors chiffré en base, comme le mot de passe d'un catalogue OPDS, et ne
+		traverse jamais un fichier.
+
+		ComicVine attend `Authorization`, d'autres API un en-tête maison du
+		genre `X-API-Key`. Le nom est donc libre — mais soumis au même refus que
+		`Headers` : on ne peut pas s'en servir pour forger une provenance.
+	*/
+	AuthHeader string `yaml:"authHeader"`
 }
 
 // ResultsSpec dit où sont les lignes de résultat et ce qu'elles portent.
@@ -399,6 +433,10 @@ func (t *Template) applyDefaults() {
 	if t.Search.Method == "" {
 		t.Search.Method = "GET"
 	}
+	if t.Format == "" {
+		t.Format = FormatHTML
+	}
+	t.Format = strings.ToLower(strings.TrimSpace(t.Format))
 	t.Search.Method = strings.ToUpper(t.Search.Method)
 
 	if t.Rate.Every <= 0 {
@@ -430,6 +468,31 @@ func (t *Template) applyDefaults() {
 	if t.Detail != nil && t.Detail.From == "" {
 		t.Detail.From = fieldPageURL
 	}
+}
+
+// Formats reconnus.
+const (
+	FormatHTML = "html"
+	FormatJSON = "json"
+)
+
+/*
+forgeableHeaders sont ceux qu'un gabarit ne peut pas poser.
+
+Ils ne servent qu'à mentir sur qui appelle et d'où. `Referer` et `Origin`
+existent pour qu'un service sache d'où vient la requête ; les forger, c'est se
+faire passer pour le frontend de quelqu'un d'autre afin de franchir son contrôle
+d'origine. `User-Agent` et `Host` relèvent du même usage.
+
+Le refus est ici, dans la validation, plutôt que dans une note de
+documentation : une règle qu'on peut ignorer en écrivant deux lignes de YAML
+n'est pas une règle.
+*/
+var forgeableHeaders = map[string]string{
+	"user-agent": "boxincloud s'annonce sous son nom, et cela ne se change pas",
+	"referer":    "forger une provenance revient à se faire passer pour un autre site",
+	"origin":     "forger une provenance revient à se faire passer pour un autre site",
+	"host":       "l'hôte est celui de l'adresse appelée",
 }
 
 var templateID = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,38}[a-z0-9])?$`)
@@ -480,7 +543,19 @@ func (t *Template) validate() error {
 			"search : {terms} doit apparaître dans path, query ou form")
 	}
 
-	if strings.TrimSpace(t.Results.Select) == "" {
+	switch t.Format {
+	case FormatHTML, FormatJSON:
+	default:
+		problems = append(problems, "format : html ou json")
+	}
+
+	for name, reason := range headerProblems(t.Search.Headers, t.Search.AuthHeader) {
+		problems = append(problems, fmt.Sprintf("search : l'en-tête %s est refusé — %s", name, reason))
+	}
+
+	// En JSON, `select` peut être vide : certaines API rendent directement un
+	// tableau à la racine, et exiger un chemin obligerait à en inventer un.
+	if t.Format == FormatHTML && strings.TrimSpace(t.Results.Select) == "" {
 		problems = append(problems, "results.select : requis")
 	}
 	if _, ok := t.Results.Fields[fieldTitle]; !ok {
@@ -490,7 +565,7 @@ func (t *Template) validate() error {
 		problems = append(problems, "results.fields.title : requis")
 	}
 
-	problems = append(problems, validateFields("results.fields", t.Results.Fields)...)
+	problems = append(problems, validateFields("results.fields", t.Results.Fields, t.Format)...)
 
 	if t.Detail != nil {
 		if !knownFields[t.Detail.From] {
@@ -506,7 +581,7 @@ func (t *Template) validate() error {
 					fmt.Sprintf("detail.onlyIfMissing : champ inconnu %q", name))
 			}
 		}
-		problems = append(problems, validateFields("detail.fields", t.Detail.Fields)...)
+		problems = append(problems, validateFields("detail.fields", t.Detail.Fields, t.Format)...)
 	}
 
 	if t.Limits.Budget < t.Limits.Timeout {
@@ -522,7 +597,29 @@ func (t *Template) validate() error {
 		ErrInvalidTemplate, t.ID, strings.Join(problems, "\n  - "))
 }
 
-func validateFields(where string, fields map[string]FieldSpec) []string {
+/*
+headerProblems dit quels en-têtes sont refusés, et pourquoi.
+
+Le nom de l'en-tête d'authentification est vérifié avec les autres : rien
+n'empêcherait sinon de le nommer `Referer` et d'y mettre ce qu'on veut.
+*/
+func headerProblems(headers map[string]string, authHeader string) map[string]string {
+	out := map[string]string{}
+
+	for name := range headers {
+		if reason, refused := forgeableHeaders[strings.ToLower(strings.TrimSpace(name))]; refused {
+			out[name] = reason
+		}
+	}
+	if authHeader != "" {
+		if reason, refused := forgeableHeaders[strings.ToLower(strings.TrimSpace(authHeader))]; refused {
+			out[authHeader] = reason
+		}
+	}
+	return out
+}
+
+func validateFields(where string, fields map[string]FieldSpec, format string) []string {
 	var problems []string
 
 	// L'ordre d'une map n'est pas stable, et un message d'erreur qui change
@@ -544,9 +641,22 @@ func validateFields(where string, fields map[string]FieldSpec) []string {
 		}
 		if strings.TrimSpace(field.Select) == "" {
 			problems = append(problems, prefix+".select : requis")
-		} else if _, err := cascadia.Compile(field.Select); err != nil {
-			problems = append(problems,
-				fmt.Sprintf("%s.select : sélecteur invalide (%v)", prefix, err))
+		} else if format == FormatHTML {
+			if _, err := cascadia.Compile(field.Select); err != nil {
+				problems = append(problems,
+					fmt.Sprintf("%s.select : sélecteur invalide (%v)", prefix, err))
+			}
+		}
+
+		// En JSON, `select` est un chemin et il n'y a ni nœud ni attribut à
+		// lire. Accepter `from: attr` donnerait un gabarit qui se charge et ne
+		// remplit rien.
+		if format == FormatJSON {
+			if field.From != "" || field.Attr != "" || field.Split != "" {
+				problems = append(problems,
+					prefix+" : from, attr et split ne s'appliquent qu'au format html")
+			}
+			continue
 		}
 
 		switch field.From {
@@ -593,9 +703,18 @@ func (s SearchSpec) mentionsTerms() bool {
 }
 
 func (t *Template) compile() (*Compiled, error) {
-	row, err := cascadia.Compile(t.Results.Select)
-	if err != nil {
-		return nil, fmt.Errorf("%w (%s) : results.select : %w", ErrInvalidTemplate, t.ID, err)
+	/*
+		En JSON, rien à compiler : `select` est un chemin, lu à l'exécution.
+
+		Le compiler avec cascadia échouerait sur des chemins parfaitement
+		valides — `formats.application/epub+zip` n'est pas un sélecteur CSS.
+	*/
+	var row cascadia.Selector
+	if t.Format == FormatHTML {
+		var err error
+		if row, err = cascadia.Compile(t.Results.Select); err != nil {
+			return nil, fmt.Errorf("%w (%s) : results.select : %w", ErrInvalidTemplate, t.ID, err)
+		}
 	}
 
 	compiled := &Compiled{
@@ -606,15 +725,16 @@ func (t *Template) compile() (*Compiled, error) {
 		hosts:    map[string]bool{},
 	}
 
+	var err error
 	for name, field := range t.Results.Fields {
-		if compiled.fields[name], err = compileField(field); err != nil {
+		if compiled.fields[name], err = compileField(field, t.Format); err != nil {
 			return nil, fmt.Errorf("%w (%s) : results.fields.%s : %w",
 				ErrInvalidTemplate, t.ID, name, err)
 		}
 	}
 	if t.Detail != nil {
 		for name, field := range t.Detail.Fields {
-			if compiled.detail[name], err = compileField(field); err != nil {
+			if compiled.detail[name], err = compileField(field, t.Format); err != nil {
 				return nil, fmt.Errorf("%w (%s) : detail.fields.%s : %w",
 					ErrInvalidTemplate, t.ID, name, err)
 			}
@@ -627,12 +747,14 @@ func (t *Template) compile() (*Compiled, error) {
 	return compiled, nil
 }
 
-func compileField(field FieldSpec) (compiledField, error) {
+func compileField(field FieldSpec, format string) (compiledField, error) {
 	out := compiledField{FieldSpec: field}
 
 	var err error
-	if out.sel, err = cascadia.Compile(field.Select); err != nil {
-		return compiledField{}, err
+	if format == FormatHTML {
+		if out.sel, err = cascadia.Compile(field.Select); err != nil {
+			return compiledField{}, err
+		}
 	}
 	if field.Regex != "" {
 		if out.regex, err = regexp.Compile(field.Regex); err != nil {

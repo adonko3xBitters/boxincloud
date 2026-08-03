@@ -99,7 +99,7 @@ recherche, analyse, suivi des fiches. C'est la seule borne qui protège
 réellement la page : les délais unitaires, eux, s'additionnent.
 */
 func (c *Client) Search(
-	ctx context.Context, source discovery.Source, _ string, q discovery.Query,
+	ctx context.Context, source discovery.Source, secret string, q discovery.Query,
 ) ([]discovery.Result, error) {
 	terms := strings.TrimSpace(q.Text)
 	if terms == "" {
@@ -120,18 +120,30 @@ func (c *Client) Search(
 	}
 
 	got, err := c.fetch.attempt(ctx, template, basesFor(template, source),
-		searchRequest(template, terms, limit))
+		searchRequest(template, terms, limit, secret))
 	if err != nil {
 		return nil, err
 	}
 
-	doc, err := parseHTML(got.body)
-	if err != nil {
-		return nil, err
-	}
+	/*
+		Le seul embranchement entre les deux formats.
 
-	results := extractResults(doc, template, got.url, limit)
-	c.followDetails(ctx, template, results)
+		Tout ce qui précède — miroirs, débit, robots.txt, bornes — et tout ce
+		qui suit — provenance, déduplication en amont — est commun. C'est ce qui
+		évite que la lecture JSON devienne un second moteur avec ses propres
+		défauts.
+	*/
+	var results []discovery.Result
+	if template.Format == FormatJSON {
+		results = extractJSON(got.body, template, got.url, limit)
+	} else {
+		doc, err := parseHTML(got.body)
+		if err != nil {
+			return nil, err
+		}
+		results = extractResults(doc, template, got.url, limit)
+		c.followDetails(ctx, template, results)
+	}
 
 	for i := range results {
 		results[i].SourceID = source.ID
@@ -153,7 +165,7 @@ rendre toujours quelque chose sur ce site-là. Un terme sans résultat ferait
 échouer l'essai d'un gabarit parfaitement valide, ce qui est le défaut inverse
 et pas moins gênant.
 */
-func (c *Client) Probe(ctx context.Context, source discovery.Source, _ string) error {
+func (c *Client) Probe(ctx context.Context, source discovery.Source, secret string) error {
 	template, err := c.templateFor(source)
 	if err != nil {
 		return err
@@ -163,9 +175,19 @@ func (c *Client) Probe(ctx context.Context, source discovery.Source, _ string) e
 	defer cancel()
 
 	got, err := c.fetch.attempt(ctx, template, basesFor(template, source),
-		searchRequest(template, template.Search.Probe, template.Limits.MaxResults))
+		searchRequest(template, template.Search.Probe, template.Limits.MaxResults, secret))
 	if err != nil {
 		return err
+	}
+
+	if template.Format == FormatJSON {
+		if len(extractJSON(got.body, template, got.url, template.Limits.MaxResults)) == 0 {
+			return fmt.Errorf(
+				"%w : l'API répond, mais aucun résultat n'a été lu au chemin %q — "+
+					"la structure a probablement changé",
+				discovery.ErrInvalidSource, template.Results.Select)
+		}
+		return nil
 	}
 
 	doc, err := parseHTML(got.body)
@@ -194,7 +216,7 @@ Le délai est celui du contexte, pas celui du gabarit : un téléchargement a le
 droit de durer là où une recherche ne l'a pas.
 */
 func (c *Client) Open(
-	ctx context.Context, source discovery.Source, _ string, href string,
+	ctx context.Context, source discovery.Source, secret string, href string,
 ) (discovery.Fetched, error) {
 	template, err := c.templateFor(source)
 	if err != nil {
@@ -234,6 +256,11 @@ func (c *Client) Open(
 	}
 	req.Header.Set("User-Agent", userAgent)
 	req.Header.Set("Accept", "*/*")
+	// Le secret vaut aussi au téléchargement : une API protégée refuse le
+	// fichier comme elle refuse la recherche.
+	if header := template.Search.AuthHeader; header != "" && secret != "" {
+		req.Header.Set(header, secret)
+	}
 
 	resp, err := c.fetch.http.Do(req)
 	if err != nil {
@@ -313,16 +340,18 @@ n'est PAS fait ici : les valeurs de la chaîne de requête sont encodées par
 Échapper en plus donnerait un `%2520` — le défaut classique du double
 encodage, qui fait chercher littéralement « moebius%20giraud ».
 */
-func searchRequest(template *Compiled, terms string, limit int) request {
+func searchRequest(template *Compiled, terms string, limit int, secret string) request {
 	replace := strings.NewReplacer(
 		"{terms}", terms,
 		"{limit}", strconv.Itoa(limit),
 	)
 
 	req := request{
-		method:  template.Search.Method,
-		path:    replace.Replace(template.Search.Path),
-		headers: template.Search.Headers,
+		method:     template.Search.Method,
+		path:       replace.Replace(template.Search.Path),
+		headers:    template.Search.Headers,
+		authHeader: template.Search.AuthHeader,
+		authValue:  secret,
 	}
 
 	if len(template.Search.Query) > 0 {

@@ -130,6 +130,65 @@ sélecteur a attrapé au passage.
 
 ---
 
+## Format JSON
+
+`format: json` dans le gabarit, et `select` cesse d'être un sélecteur CSS pour
+devenir un **chemin** : un point sépare les niveaux, un nombre indexe un
+tableau, `#` le parcourt en entier.
+
+```yaml
+format: json
+results:
+  select: response.docs          # le chemin du TABLEAU
+  fields:
+    title:   {select: title}
+    authors: {select: creator}   # chaîne ou tableau — aplati dans les deux cas
+    cover:   {select: "formats.image/jpeg"}
+```
+
+Un `select` vide à la racine désigne le document lui-même : certaines API
+rendent un tableau nu, et exiger un chemin obligerait à en inventer un.
+
+`from`, `attr` et `split` n'ont pas de sens ici et sont refusés à la validation
+plutôt qu'ignorés — un gabarit qui se charge sans rien remplir est la panne la
+plus coûteuse à diagnostiquer.
+
+Seule l'extraction change. Miroirs, repli, limitation de débit, `robots.txt`,
+bornes de temps et de taille, contrôle d'origine à l'import : même code. Deux
+moteurs finiraient par avoir deux jeux de bugs, et celui qu'on regarde le moins
+accumulerait les siens en silence.
+
+### Ce qui manque encore en JSON
+
+Le **suivi de fiche** n'existe qu'en HTML. Une API qui rend un identifiant sans
+lien de téléchargement — Internet Archive, par exemple — donne donc des
+résultats consultables mais pas importables.
+
+Les **clés répétées** ne sont pas exprimables : `query` est une carte, une
+valeur par clé. Une API qui exige `fl[]=a&fl[]=b` ne peut pas être décrite
+telle quelle.
+
+## En-têtes et authentification
+
+`search.authHeader` nomme l'en-tête qui portera le secret de la source. Le
+gabarit dit **où** mettre la clé, la source dit **laquelle** : le secret vit
+chiffré en base, comme le mot de passe d'un catalogue OPDS, et ne traverse
+jamais un fichier — un gabarit est souvent versionné, parfois partagé.
+
+```yaml
+search:
+  authHeader: Authorization      # ou X-API-Key, selon l'API
+```
+
+Une réponse obtenue avec un secret n'est **jamais mise en cache** : deux comptes
+peuvent voir deux catalogues différents à la même adresse.
+
+`search.headers` accepte le reste — `Accept`, `Accept-Language`, un en-tête
+maison. Quatre sont **refusés à la validation** : `User-Agent`, `Referer`,
+`Origin`, `Host`. Ils ne servent qu'à mentir sur qui appelle et d'où, c'est-à-dire
+à franchir un contrôle qui vous refuse. Le refus est dans le code : une règle
+qu'on peut contourner en écrivant deux lignes de YAML n'est pas une règle.
+
 ## Champs reconnus
 
 La liste est fermée, et vérifiée au chargement : une faute de frappe dans un nom

@@ -41,6 +41,22 @@ enregistrées dans `apps/server/internal/discovery/scraper/testdata/`. Un exempl
 faux serait pire qu'une absence d'exemple : il apprendrait une syntaxe qui ne
 marche pas.
 
+## Deux formats
+
+`standardebooks.yaml` lit du **HTML** — sélecteurs CSS, suivi de fiche.
+
+`internetarchive.yaml` lit du **JSON** — `format: json`, et `select` devient un
+chemin : un point sépare les niveaux, `#` parcourt un tableau. Tout le reste est
+le même moteur : miroirs, débit, robots.txt, bornes de temps.
+
+Un mot sur le choix de cet exemple, parce qu'il s'est imposé plutôt que choisi.
+Gutendex — l'API JSON de Gutenberg — était le premier candidat. Son `robots.txt`
+interdit `/books/`, c'est-à-dire son propre endpoint de recherche. Livrer cet
+exemple aurait obligé à cocher « ignorer robots.txt » pour le voir fonctionner,
+ce qui enseignerait exactement le mauvais réflexe. Open Library ferme de même
+`/search` et `/api`. Internet Archive, lui, n'interdit que `/control/` et
+`/report/`.
+
 ## Écrire le vôtre
 
 Le format est documenté dans [`docs/06-gabarits-scraper.md`](../../docs/06-gabarits-scraper.md).
