@@ -367,6 +367,12 @@ func NewRouter(d Deps) http.Handler {
 			r.Post("/ed2k/servers/disconnect", ed2kHandler.DisconnectServer)
 			r.Post("/ed2k/kad", ed2kHandler.SetKad)
 			r.Post("/ed2k/shared/reload", ed2kHandler.ReloadShared)
+
+			// La recherche. Une seule à la fois, le démon l'impose.
+			r.Post("/ed2k/search", ed2kHandler.StartSearch)
+			r.Get("/ed2k/search", ed2kHandler.SearchResults)
+			r.Delete("/ed2k/search", ed2kHandler.StopSearch)
+			r.Post("/ed2k/search/{hash}/download", ed2kHandler.DownloadSearchResult)
 		})
 
 		// ── Opérations longues sur l'arborescence ───────────────────────

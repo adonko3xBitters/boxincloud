@@ -187,3 +187,106 @@ func writeEd2kCommandError(w http.ResponseWriter, r *http.Request, err error, fi
 		writeEd2kError(w, r, err)
 	}
 }
+
+// ─── Recherche ───────────────────────────────────────────────────────────────
+
+func (h *Ed2k) StartSearch(w http.ResponseWriter, r *http.Request) {
+	if !requireAdmin(w, r) {
+		return
+	}
+
+	var body struct {
+		Query        string `json:"query"`
+		Network      string `json:"network"`
+		FileType     string `json:"fileType"`
+		Extension    string `json:"extension"`
+		MinSize      int64  `json:"minSize"`
+		MaxSize      int64  `json:"maxSize"`
+		Availability int    `json:"availability"`
+	}
+	if !decodeJSON(w, r, &body) {
+		return
+	}
+
+	err := h.svc.StartSearch(r.Context(), amule.SearchParams{
+		Query:        body.Query,
+		Network:      amule.SearchNetwork(body.Network),
+		FileType:     body.FileType,
+		Extension:    body.Extension,
+		MinSize:      body.MinSize,
+		MaxSize:      body.MaxSize,
+		Availability: body.Availability,
+	})
+	if err != nil {
+		writeEd2kCommandError(w, r, err, "query")
+		return
+	}
+	accepted(w)
+}
+
+/*
+SearchResults rend la progression ET les résultats.
+
+Les deux ensemble, délibérément : une interface qui affiche une barre au-dessus
+d'une liste les redemanderait sinon en deux requêtes, et pourrait montrer une
+progression qui ne correspond pas aux résultats affichés juste en dessous.
+*/
+func (h *Ed2k) SearchResults(w http.ResponseWriter, r *http.Request) {
+	if !requireAdmin(w, r) {
+		return
+	}
+
+	status, err := h.svc.SearchStatus(r.Context())
+	if err != nil {
+		writeEd2kError(w, r, err)
+		return
+	}
+
+	results, err := h.svc.SearchResults(r.Context())
+	if err != nil {
+		writeEd2kError(w, r, err)
+		return
+	}
+
+	out := make([]map[string]any, 0, len(results))
+	for _, result := range results {
+		out = append(out, map[string]any{
+			"hash":            result.Hash,
+			"name":            result.Name,
+			"size":            result.Size,
+			"sources":         result.Sources,
+			"completeSources": result.CompleteSources,
+			"alreadyQueued":   result.AlreadyQueued,
+		})
+	}
+
+	writeJSON(w, http.StatusOK, map[string]any{
+		"progress": status.Progress,
+		"complete": status.Complete,
+		"results":  out,
+	})
+}
+
+func (h *Ed2k) StopSearch(w http.ResponseWriter, r *http.Request) {
+	if !requireAdmin(w, r) {
+		return
+	}
+
+	if err := h.svc.StopSearch(r.Context()); err != nil {
+		writeEd2kError(w, r, err)
+		return
+	}
+	accepted(w)
+}
+
+func (h *Ed2k) DownloadSearchResult(w http.ResponseWriter, r *http.Request) {
+	if !requireAdmin(w, r) {
+		return
+	}
+
+	if err := h.svc.DownloadSearchResult(r.Context(), chi.URLParam(r, "hash")); err != nil {
+		writeEd2kCommandError(w, r, err, "hash")
+		return
+	}
+	accepted(w)
+}

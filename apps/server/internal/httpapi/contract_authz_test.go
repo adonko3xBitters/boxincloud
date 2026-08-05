@@ -100,6 +100,14 @@ func adminOnlyRoutes(h *contractHarness) []adminRoute {
 		{http.MethodPost, "/api/v1/ed2k/servers/disconnect", nil},
 		{http.MethodPost, "/api/v1/ed2k/kad", map[string]any{"running": false}},
 		{http.MethodPost, "/api/v1/ed2k/shared/reload", nil},
+
+		// La recherche. Elle engage le réseau au nom de l'instance, et ses
+		// résultats décrivent ce que quelqu'un a cherché.
+		{http.MethodPost, "/api/v1/ed2k/search",
+			map[string]any{"query": "x", "network": "global"}},
+		{http.MethodGet, "/api/v1/ed2k/search", nil},
+		{http.MethodDelete, "/api/v1/ed2k/search", nil},
+		{http.MethodPost, "/api/v1/ed2k/search/" + strings.Repeat("ab", 16) + "/download", nil},
 	}
 }
 

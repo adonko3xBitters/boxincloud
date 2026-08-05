@@ -907,6 +907,28 @@ export const fr = {
   "ed2k.kad.start": "Démarrer Kad",
   "ed2k.kad.stop": "Arrêter Kad",
 
+
+  // ── Recherche eD2k / Kad ───────────────────────────────────────────────────
+  "ed2k.section.search": "Recherche",
+  "ed2k.col.completeSources": "Complètes",
+  "ed2k.search.hint":
+    "Cherchez sur les serveurs eD2k ou sur Kad. Un double des sources complètes vaut mieux qu'un grand nombre de sources partielles : ce sont elles qui déterminent si un fichier finira.",
+  "ed2k.search.query": "Termes",
+  "ed2k.search.network": "Réseau",
+  "ed2k.search.net.global": "Tous les serveurs",
+  "ed2k.search.net.server": "Serveur joint",
+  "ed2k.search.net.kad": "Kad",
+  "ed2k.search.submit": "Chercher",
+  "ed2k.search.searching": "recherche… {percent} %",
+  "ed2k.search.download": "Télécharger",
+  "ed2k.search.queued": "Déjà en file",
+  "ed2k.search.idle": "Lancez une recherche pour voir des résultats.",
+  "ed2k.search.empty": "Aucun résultat",
+  "ed2k.search.emptyHint":
+    "Essayez d'autres termes, ou un autre réseau : les serveurs et Kad n'indexent pas les mêmes fichiers.",
+  "ed2k.search.shared":
+    "Le démon ne tient qu'une recherche à la fois : en lancer une nouvelle efface les résultats de la précédente, y compris ceux de quelqu'un d'autre.",
+
 } as const;
 
 /** Les clés du catalogue. Toute traduction doit les couvrir toutes. */

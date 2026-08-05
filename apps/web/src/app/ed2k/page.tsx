@@ -8,6 +8,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { BrandLockup } from "@/components/brand";
 import { Badge, EmptyState, ErrorState, Spinner, cx } from "@/components/ui";
 import { DownloadsPanel } from "@/components/ed2k/downloads-panel";
+import { SearchPanel } from "@/components/ed2k/search-panel";
 import { ServersPanel } from "@/components/ed2k/servers-panel";
 import { SharedPanel } from "@/components/ed2k/shared-panel";
 import { StatsPanel } from "@/components/ed2k/stats-panel";
@@ -32,6 +33,7 @@ import { useT, type MessageKey } from "@/i18n";
 
 type SectionKey =
   | "telechargements"
+  | "recherche"
   | "envois"
   | "partages"
   | "serveurs"
@@ -53,6 +55,7 @@ type Section = {
 */
 const SECTIONS = [
   { key: "telechargements", title: "ed2k.section.downloads", render: () => <DownloadsPanel /> },
+  { key: "recherche", title: "ed2k.section.search", render: () => <SearchPanel /> },
   { key: "envois", title: "ed2k.section.uploads", render: () => <UploadsPanel /> },
   { key: "partages", title: "ed2k.section.shared", render: () => <SharedPanel /> },
   { key: "serveurs", title: "ed2k.section.servers", render: () => <ServersPanel /> },

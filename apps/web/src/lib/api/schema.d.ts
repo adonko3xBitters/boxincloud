@@ -1808,6 +1808,68 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/ed2k/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Progression et résultats de la recherche
+         * @description Rend les deux ensemble : une interface qui affiche une barre de
+         *     progression au-dessus d'une liste les redemanderait sinon en deux
+         *     requêtes, et pourrait afficher une progression qui ne correspond pas aux
+         *     résultats montrés.
+         */
+        get: operations["getEd2kSearchResults"];
+        put?: never;
+        /**
+         * Lancer une recherche
+         * @description **Une seule recherche à la fois, et c'est le démon qui l'impose** :
+         *     démarrer une recherche efface les résultats de la précédente. Deux
+         *     personnes qui cherchent en même temps se marcheront donc dessus — c'est
+         *     une conséquence directe du fait qu'amuled est un moteur unique partagé.
+         *
+         *     La recherche est asynchrone : cette route rend la main tout de suite, et
+         *     l'appelant sonde ensuite `GET /ed2k/search` pour la progression et les
+         *     résultats.
+         *
+         *     Un réseau hors ligne fait refuser la demande, en disant lequel.
+         */
+        post: operations["startEd2kSearch"];
+        /**
+         * Interrompre la recherche
+         * @description Réussit même si aucune recherche ne tourne : l'interface l'envoie en
+         *     quittant l'écran, sans avoir à savoir où en était le démon.
+         */
+        delete: operations["stopEd2kSearch"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ed2k/search/{hash}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mettre un résultat en file
+         * @description Par son empreinte, jamais par le numéro interne du démon : celui-ci
+         *     change d'une recherche à l'autre.
+         */
+        post: operations["downloadEd2kSearchResult"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2727,6 +2789,23 @@ export interface components {
             queuedPeers: components["schemas"]["Ed2kQueuedPeer"][];
             servers: components["schemas"]["Ed2kServer"][];
             sharedFiles: components["schemas"]["Ed2kSharedFile"][];
+        };
+        /** @description Un fichier trouvé sur le réseau. */
+        Ed2kSearchResult: {
+            hash: string;
+            name: string;
+            /** Format: int64 */
+            size: number;
+            /** @description Pairs détenant tout ou partie du fichier. */
+            sources: number;
+            /**
+             * @description Pairs détenant la TOTALITÉ. C'est ce nombre qui dit si un fichier
+             *     finira : cent sources partielles qui n'ont jamais la même partie ne
+             *     complètent rien.
+             */
+            completeSources: number;
+            /** @description Déjà présent dans la file de téléchargement. */
+            alreadyQueued: boolean;
         };
         /**
          * @description Erreur au format RFC 9457, servie avec le type MIME
@@ -5732,6 +5811,131 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Ed2kDisabled"];
+        };
+    };
+    getEd2kSearchResults: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description État de la recherche */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        progress: number;
+                        /**
+                         * @description Vrai aussi quand aucune recherche ne tourne : le démon rend
+                         *     la même valeur dans les deux cas, et prétendre les
+                         *     distinguer produirait une information fausse.
+                         */
+                        complete: boolean;
+                        results: components["schemas"]["Ed2kSearchResult"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Ed2kDisabled"];
+        };
+    };
+    startEd2kSearch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    query: string;
+                    /**
+                     * @description `server` interroge le serveur joint, `global` tous les
+                     *     serveurs connus en UDP, `kad` le réseau Kademlia.
+                     * @enum {string}
+                     */
+                    network: "server" | "global" | "kad";
+                    /** @description Catégorie aMule — Audio, Video, Image, Doc, Pro, Iso. */
+                    fileType?: string;
+                    extension?: string;
+                    /** Format: int64 */
+                    minSize?: number;
+                    /** Format: int64 */
+                    maxSize?: number;
+                    /** @description Nombre minimal de sources. Zéro ne filtre pas. */
+                    availability?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description Recherche lancée */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Ed2kDisabled"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    stopEd2kSearch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Arrêt transmis */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Ed2kDisabled"];
+        };
+    };
+    downloadEd2kSearchResult: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description Empreinte eD2k du fichier, en hexadécimal minuscule. C'est l'identité
+                 *     du fichier sur le réseau, et la seule clé stable : le nom change, le
+                 *     numéro interne du démon aussi d'un redémarrage à l'autre.
+                 */
+                hash: components["parameters"]["Ed2kHash"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Commande transmise au démon */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Ed2kDisabled"];
+            422: components["responses"]["ValidationFailed"];
         };
     };
 }

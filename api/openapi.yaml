@@ -3055,6 +3055,130 @@ paths:
         "409":
           $ref: "#/components/responses/Ed2kDisabled"
 
+  /ed2k/search:
+    post:
+      operationId: startEd2kSearch
+      summary: Lancer une recherche
+      description: |
+        **Une seule recherche à la fois, et c'est le démon qui l'impose** :
+        démarrer une recherche efface les résultats de la précédente. Deux
+        personnes qui cherchent en même temps se marcheront donc dessus — c'est
+        une conséquence directe du fait qu'amuled est un moteur unique partagé.
+
+        La recherche est asynchrone : cette route rend la main tout de suite, et
+        l'appelant sonde ensuite `GET /ed2k/search` pour la progression et les
+        résultats.
+
+        Un réseau hors ligne fait refuser la demande, en disant lequel.
+      tags: [ed2k]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query, network]
+              properties:
+                query: { type: string, minLength: 1 }
+                network:
+                  type: string
+                  enum: [server, global, kad]
+                  description: |
+                    `server` interroge le serveur joint, `global` tous les
+                    serveurs connus en UDP, `kad` le réseau Kademlia.
+                fileType:
+                  type: string
+                  description: Catégorie aMule — Audio, Video, Image, Doc, Pro, Iso.
+                extension: { type: string }
+                minSize: { type: integer, format: int64 }
+                maxSize: { type: integer, format: int64 }
+                availability:
+                  type: integer
+                  description: Nombre minimal de sources. Zéro ne filtre pas.
+      responses:
+        "202":
+          description: Recherche lancée
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+    get:
+      operationId: getEd2kSearchResults
+      summary: Progression et résultats de la recherche
+      description: |
+        Rend les deux ensemble : une interface qui affiche une barre de
+        progression au-dessus d'une liste les redemanderait sinon en deux
+        requêtes, et pourrait afficher une progression qui ne correspond pas aux
+        résultats montrés.
+      tags: [ed2k]
+      responses:
+        "200":
+          description: État de la recherche
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [progress, complete, results]
+                properties:
+                  progress: { type: integer, minimum: 0, maximum: 100 }
+                  complete:
+                    type: boolean
+                    description: |
+                      Vrai aussi quand aucune recherche ne tourne : le démon rend
+                      la même valeur dans les deux cas, et prétendre les
+                      distinguer produirait une information fausse.
+                  results:
+                    type: array
+                    items: { $ref: "#/components/schemas/Ed2kSearchResult" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+    delete:
+      operationId: stopEd2kSearch
+      summary: Interrompre la recherche
+      description: |
+        Réussit même si aucune recherche ne tourne : l'interface l'envoie en
+        quittant l'écran, sans avoir à savoir où en était le démon.
+      tags: [ed2k]
+      responses:
+        "202":
+          description: Arrêt transmis
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+
+  /ed2k/search/{hash}/download:
+    post:
+      operationId: downloadEd2kSearchResult
+      summary: Mettre un résultat en file
+      description: |
+        Par son empreinte, jamais par le numéro interne du démon : celui-ci
+        change d'une recherche à l'autre.
+      tags: [ed2k]
+      parameters:
+        - $ref: "#/components/parameters/Ed2kHash"
+      responses:
+        "202":
+          description: Commande transmise au démon
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
 components:
   securitySchemes:
     bearerAuth:
@@ -4231,6 +4355,27 @@ components:
         sharedFiles:
           type: array
           items: { $ref: "#/components/schemas/Ed2kSharedFile" }
+
+    Ed2kSearchResult:
+      type: object
+      description: Un fichier trouvé sur le réseau.
+      required: [hash, name, size, sources, completeSources, alreadyQueued]
+      properties:
+        hash: { type: string }
+        name: { type: string }
+        size: { type: integer, format: int64 }
+        sources:
+          type: integer
+          description: Pairs détenant tout ou partie du fichier.
+        completeSources:
+          type: integer
+          description: |
+            Pairs détenant la TOTALITÉ. C'est ce nombre qui dit si un fichier
+            finira : cent sources partielles qui n'ont jamais la même partie ne
+            complètent rien.
+        alreadyQueued:
+          type: boolean
+          description: Déjà présent dans la file de téléchargement.
 
     Problem:
       type: object

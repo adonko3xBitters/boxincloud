@@ -40,6 +40,7 @@ export type Ed2kSourceCounts = Schemas["Ed2kSourceCounts"];
 export type Ed2kSource = Schemas["Ed2kSource"];
 export type Ed2kUpload = Schemas["Ed2kUpload"];
 export type Ed2kQueuedPeer = Schemas["Ed2kQueuedPeer"];
+export type Ed2kSearchResult = Schemas["Ed2kSearchResult"];
 export type Ed2kSharedFile = Schemas["Ed2kSharedFile"];
 export type Ed2kServer = Schemas["Ed2kServer"];
 export type Ed2kConnection = Schemas["Ed2kConnection"];

@@ -15,6 +15,7 @@ import type {
   Ed2kDownload,
   Ed2kQueuedPeer,
   Ed2kServer,
+  Ed2kSearchResult,
   Ed2kSharedFile,
   Ed2kSnapshot,
   Ed2kSource,
@@ -675,3 +676,28 @@ export const setEd2kKadRunning = (running: boolean) =>
 
 export const reloadEd2kSharedFiles = () =>
   request<void>("/ed2k/shared/reload", { method: "POST" });
+
+// ─── Module eD2k : recherche ─────────────────────────────────────────────────
+
+export type Ed2kSearchNetwork = "server" | "global" | "kad";
+
+export type Ed2kSearchParams = {
+  query: string;
+  network: Ed2kSearchNetwork;
+  fileType?: string;
+  extension?: string;
+  minSize?: number;
+  maxSize?: number;
+  availability?: number;
+};
+
+export const startEd2kSearch = (params: Ed2kSearchParams) =>
+  request<void>("/ed2k/search", { method: "POST", body: params });
+
+export const getEd2kSearchResults = () =>
+  request<{ progress: number; complete: boolean; results: Ed2kSearchResult[] }>("/ed2k/search");
+
+export const stopEd2kSearch = () => request<void>("/ed2k/search", { method: "DELETE" });
+
+export const downloadEd2kSearchResult = (hash: string) =>
+  request<void>(`/ed2k/search/${hash}/download`, { method: "POST" });

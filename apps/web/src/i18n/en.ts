@@ -878,4 +878,26 @@ export const en: Record<MessageKey, string> = {
   "ed2k.kad.start": "Start Kad",
   "ed2k.kad.stop": "Stop Kad",
 
+
+  // ── eD2k / Kad search ──────────────────────────────────────────────────────
+  "ed2k.section.search": "Search",
+  "ed2k.col.completeSources": "Complete",
+  "ed2k.search.hint":
+    "Search the eD2k servers or Kad. A couple of complete sources beats a large number of partial ones: they are what decides whether a file will ever finish.",
+  "ed2k.search.query": "Terms",
+  "ed2k.search.network": "Network",
+  "ed2k.search.net.global": "All servers",
+  "ed2k.search.net.server": "Connected server",
+  "ed2k.search.net.kad": "Kad",
+  "ed2k.search.submit": "Search",
+  "ed2k.search.searching": "searching… {percent}%",
+  "ed2k.search.download": "Download",
+  "ed2k.search.queued": "Already queued",
+  "ed2k.search.idle": "Run a search to see results.",
+  "ed2k.search.empty": "No results",
+  "ed2k.search.emptyHint":
+    "Try other terms, or another network: servers and Kad do not index the same files.",
+  "ed2k.search.shared":
+    "The daemon holds one search at a time: starting a new one wipes the previous results, including someone else's.",
+
 };
