@@ -10,6 +10,21 @@ import type {
   Comic,
   ComicPage,
   Device,
+  Ed2kConnection,
+  Ed2kDaemon,
+  Ed2kDestination,
+  Ed2kDownload,
+  Ed2kPublication,
+  Ed2kQueuedPeer,
+  Ed2kServer,
+  Ed2kSearchResult,
+  Ed2kSharedFile,
+  Ed2kSnapshot,
+  Ed2kSource,
+  Ed2kStats,
+  Ed2kStatus,
+  Ed2kPriority,
+  Ed2kUpload,
   Library,
   Manifest,
   Progress,
@@ -576,3 +591,134 @@ export const getCacheStats = () => request<CacheStats>("/cache");
 
 export const purgeCache = () =>
   request<{ entries: number; bytes: number }>("/cache", { method: "DELETE" });
+
+// ─── Module eD2k/Kad ─────────────────────────────────────────────────────────
+
+export const getEd2kStatus = () => request<Ed2kStatus>("/ed2k/status");
+
+export const getEd2kDaemon = () => request<Ed2kDaemon>("/ed2k/daemon");
+
+export const setEd2kDaemon = (input: {
+  host: string;
+  port: number;
+  password: string;
+  label?: string;
+}) => request<Ed2kDaemon>("/ed2k/daemon", { method: "PUT", body: input });
+
+export const forgetEd2kDaemon = () => request<void>("/ed2k/daemon", { method: "DELETE" });
+
+/*
+  Lecture du module.
+
+  Chaque réponse porte `takenAt` : le serveur rend le dernier instantané scruté,
+  pas une mesure faite à la demande. Sans cette date, l'interface afficherait
+  des chiffres figés depuis dix minutes avec l'assurance de chiffres frais.
+*/
+
+export const getEd2kSnapshot = () => request<Ed2kSnapshot>("/ed2k/snapshot");
+
+export const listEd2kDownloads = () =>
+  request<{ takenAt: string; downloads: Ed2kDownload[] }>("/ed2k/downloads");
+
+export const listEd2kDownloadSources = (hash: string) =>
+  request<{ takenAt: string; sources: Ed2kSource[] }>(`/ed2k/downloads/${hash}/sources`);
+
+export const listEd2kUploads = () =>
+  request<{ takenAt: string; uploads: Ed2kUpload[]; queuedPeers: Ed2kQueuedPeer[] }>(
+    "/ed2k/uploads",
+  );
+
+export const listEd2kServers = () =>
+  request<{ takenAt: string; servers: Ed2kServer[] }>("/ed2k/servers");
+
+export const listEd2kSharedFiles = () =>
+  request<{ takenAt: string; files: Ed2kSharedFile[] }>("/ed2k/shared");
+
+export const getEd2kStats = () =>
+  request<{ takenAt: string; stats: Ed2kStats; connection: Ed2kConnection }>("/ed2k/stats");
+
+/**
+ * Adresse du flux d'événements du module.
+ *
+ * Le jeton passe en paramètre d'URL, parce qu'`EventSource` ne sait pas porter
+ * d'en-tête `Authorization` — le serveur l'accepte explicitement sur cette
+ * route, et sur celles-là seulement.
+ */
+export function ed2kEventsURL(): string {
+  const token = getAccessToken();
+  const url = `${API_BASE}/ed2k/events`;
+  return token ? `${url}?token=${encodeURIComponent(token)}` : url;
+}
+
+// ─── Module eD2k : commandes ─────────────────────────────────────────────────
+//
+// Toutes répondent 202 sans corps : amuled n'accuse que réception, jamais
+// l'effet. C'est l'instantané suivant qui dit ce qui s'est passé — et il arrive
+// dans la seconde, la commande réveillant la scrutation.
+
+export type Ed2kDownloadAction = "pause" | "resume" | "stop" | "cancel";
+
+export const actOnEd2kDownload = (hash: string, action: Ed2kDownloadAction) =>
+  request<void>(`/ed2k/downloads/${hash}/action`, { method: "POST", body: { action } });
+
+export const setEd2kDownloadPriority = (hash: string, priority: Ed2kPriority) =>
+  request<void>(`/ed2k/downloads/${hash}/priority`, { method: "PUT", body: { priority } });
+
+export const addEd2kLink = (link: string) =>
+  request<void>("/ed2k/links", { method: "POST", body: { link } });
+
+export const connectEd2kServer = (target?: { ip: string; port: number }) =>
+  request<void>("/ed2k/servers/connect", { method: "POST", body: target ?? {} });
+
+export const disconnectEd2kServer = () =>
+  request<void>("/ed2k/servers/disconnect", { method: "POST" });
+
+export const setEd2kKadRunning = (running: boolean) =>
+  request<void>("/ed2k/kad", { method: "POST", body: { running } });
+
+export const reloadEd2kSharedFiles = () =>
+  request<void>("/ed2k/shared/reload", { method: "POST" });
+
+// ─── Module eD2k : recherche ─────────────────────────────────────────────────
+
+export type Ed2kSearchNetwork = "server" | "global" | "kad";
+
+export type Ed2kSearchParams = {
+  query: string;
+  network: Ed2kSearchNetwork;
+  fileType?: string;
+  extension?: string;
+  minSize?: number;
+  maxSize?: number;
+  availability?: number;
+};
+
+export const startEd2kSearch = (params: Ed2kSearchParams) =>
+  request<void>("/ed2k/search", { method: "POST", body: params });
+
+export const getEd2kSearchResults = () =>
+  request<{ progress: number; complete: boolean; results: Ed2kSearchResult[] }>("/ed2k/search");
+
+export const stopEd2kSearch = () => request<void>("/ed2k/search", { method: "DELETE" });
+
+export const downloadEd2kSearchResult = (hash: string) =>
+  request<void>(`/ed2k/search/${hash}/download`, { method: "POST" });
+
+// ─── Module eD2k : pont vers la bibliothèque, journaux ───────────────────────
+
+export const listEd2kDestinations = () =>
+  request<{ destinations: Ed2kDestination[] }>("/ed2k/destinations");
+
+export const setEd2kDestination = (input: {
+  category: number;
+  label: string;
+  libraryId?: string | null;
+  folder?: string;
+}) => request<Ed2kDestination>("/ed2k/destinations", { method: "PUT", body: input });
+
+export const listEd2kPublications = (limit = 100) =>
+  request<{ publications: Ed2kPublication[] }>("/ed2k/publications", { query: { limit } });
+
+export const getEd2kLogs = () => request<{ lines: string[] }>("/ed2k/logs");
+
+export const clearEd2kLogs = () => request<void>("/ed2k/logs", { method: "DELETE" });

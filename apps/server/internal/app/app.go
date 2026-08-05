@@ -59,6 +59,7 @@ func Build(ctx context.Context, cfg *config.Config, log *slog.Logger, build hand
 	if err != nil {
 		return closeOnError(err)
 	}
+	core.Ed2k.SetVersion(build.Version)
 
 	webFS, err := web.FS()
 	if err != nil {
@@ -81,6 +82,7 @@ func Build(ctx context.Context, cfg *config.Config, log *slog.Logger, build hand
 		Progress:  core.Progress,
 		Tools:     core.Tools,
 		Cache:     core.Cache,
+		Ed2k:      core.Ed2k,
 		WebFS:     webFS,
 	})
 
@@ -109,6 +111,25 @@ func (a *App) Run(ctx context.Context) error {
 		a.log.Info("workers démarrés", slog.Int("max_workers", a.cfg.Jobs.MaxWorkers))
 	} else {
 		a.log.Info("workers désactivés (BOXINCLOUD_JOBS_ENABLED=false)")
+	}
+
+	// Le module eD2k s'annonce dans les deux cas.
+	//
+	// Un module actif ouvre des ports et publie l'adresse de l'instance sur
+	// deux réseaux publics : cela ne doit pas se découvrir en lisant la
+	// configuration. Et quand il est éteint, la ligne évite de chercher
+	// pourquoi la page reste vide.
+	if a.cfg.Ed2k.Enabled {
+		a.log.Info("module eD2k/Kad actif",
+			slog.String("incoming_dir", a.cfg.Ed2k.IncomingDir),
+			slog.Duration("poll_interval", a.cfg.Ed2k.PollInterval))
+
+		// Armer, pas connecter : la boucle attend qu'un navigateur regarde
+		// avant d'ouvrir la moindre session. Une instance dont personne
+		// n'ouvre la page ne parle jamais au démon.
+		a.core.Ed2k.Start()
+	} else {
+		a.log.Info("module eD2k/Kad désactivé (BOXINCLOUD_ED2K_ENABLED=false)")
 	}
 
 	errCh := make(chan error, 1)
@@ -143,6 +164,11 @@ func (a *App) shutdown() error {
 	if err := a.http.Shutdown(ctx); err != nil {
 		errs = append(errs, fmt.Errorf("arrêt du serveur HTTP : %w", err))
 	}
+
+	// Avant les workers : la scrutation tient une session vers un démon
+	// extérieur, et rien ne sert de la laisser tourner pendant qu'on attend la
+	// fin des jobs.
+	a.core.Ed2k.Stop()
 
 	// Après le serveur HTTP : un job en cours peut avoir été déclenché par une
 	// requête qui vient tout juste de se terminer.

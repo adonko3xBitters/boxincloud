@@ -38,10 +38,10 @@ jobs:
       - name: Le .env.example couvre le compose, ni plus ni moins
         working-directory: deploy/compose
         run: |
-          grep -oE '\$\{[A-Z_]+' docker-compose.yml | sed 's/\${//' | sort -u > /tmp/compose.txt
+          grep -oE '\$\{[A-Z0-9_]+' docker-compose.yml | sed 's/\${//' | sort -u > /tmp/compose.txt
           # Les variables du .env.example sont commentées : le fichier documente
           # sans imposer, puisque le compose démarre sans lui.
-          grep -oE '^#? ?[A-Z_]+=' .env.example | tr -d '# =' | sort -u > /tmp/env.txt
+          grep -oE '^#? ?[A-Z0-9_]+=' .env.example | tr -d '# =' | sort -u > /tmp/env.txt
 
           status=0
 
@@ -80,8 +80,8 @@ jobs:
         run: |
           docker compose config > /tmp/defauts.txt
 
-          sed -E 's/^# ?([A-Z_]+=)/\1/' .env.example > .env
-          echo "$(grep -cE '^[A-Z_]+=' .env) variables activées."
+          sed -E 's/^# ?([A-Z0-9_]+=)/\1/' .env.example > .env
+          echo "$(grep -cE '^[A-Z0-9_]+=' .env) variables activées."
           docker compose config > /tmp/actives.txt
           rm -f .env
 

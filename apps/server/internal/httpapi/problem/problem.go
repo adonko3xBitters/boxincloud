@@ -124,6 +124,25 @@ func TooManyRequests(detail string) Problem {
 	}
 }
 
+/*
+Conflict signale une route qui existe, mais que l'état de l'instance rend
+inopérante.
+
+Le cas type est un module désactivé par configuration. Un 404 conviendrait mal :
+il dirait « cette route n'existe pas », alors qu'elle existe, qu'elle est
+documentée dans le contrat, et qu'elle répondra dès que la configuration
+changera. Un client qui reçoit 404 conclut à une erreur de version ; un client
+qui reçoit 409 lit le détail et affiche la bonne chose.
+*/
+func Conflict(detail string) Problem {
+	return Problem{
+		Type:   "https://boxincloud.dev/problems/conflict",
+		Title:  "Conflict",
+		Status: http.StatusConflict,
+		Detail: detail,
+	}
+}
+
 func ServiceUnavailable(detail string) Problem {
 	return Problem{
 		Type:   "https://boxincloud.dev/problems/service-unavailable",

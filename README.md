@@ -109,6 +109,7 @@ correspond exactement à celle de votre instance. iOS n'existe pas encore.
 | **Comptes** | rôles · bibliothèques restreintes · profils enfants filtrés par classification d'âge · révocation d'appareil |
 | **Android** | lecture en ligne et hors ligne · téléchargement d'un album ou d'une série · budget disque · réconciliation au retour du réseau |
 | **OPDS** | votre instance **publie** son catalogue en OPDS 1.2 et 2.0 — lisible depuis Panels, Chunky, KyBook, Thorium |
+| **eD2k / Kad** | client complet adossé au démon aMule — file, recherche, serveurs, Kad, partagés. Un téléchargement terminé peut devenir un album. **Désactivé par défaut**, voir [le guide](docs/06-ed2k-kad.md) |
 
 Ce qui n'y est pas encore : la recherche dans des catalogues extérieurs, iOS et
 les applications de bureau. Voir la
@@ -123,6 +124,7 @@ les applications de bureau. Voir la
 | [Structure du dépôt](docs/03-repo-structure.md) | Arborescence et conventions |
 | [Feuille de route](docs/04-roadmap.md) | Jalons jusqu'à la v0.1.0 et au-delà |
 | [Installation](docs/05-installation.md) | Compose, Unraid, TrueNAS, Synology, sources, migration |
+| [Module eD2k / Kad](docs/06-ed2k-kad.md) | Client eD2k et Kad adossé au démon aMule, et son pont vers la bibliothèque |
 | [Journal des modifications](CHANGELOG.md) | Ce qui change d'une version à l'autre |
 | [Contribuer](CONTRIBUTING.md) | Installer l'environnement, conventions, workflow |
 

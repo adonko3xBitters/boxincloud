@@ -57,3 +57,6 @@ apps/mobile/android/key.properties
 # versionnée — soixante méga-octets de binaire n'ont rien à faire dans un dépôt.
 apps/server/mobile/dist/*
 !apps/server/mobile/dist/.gitkeep
+
+# Réglages Claude Code personnels (le hook auto-check est branché ici).
+.claude/settings.local.json

@@ -72,25 +72,25 @@ func (e ComicFormat) Valid() bool {
 
 // Defines values for ComicState.
 const (
-	Error     ComicState = "error"
-	Hydrating ComicState = "hydrating"
-	Indexing  ComicState = "indexing"
-	Pending   ComicState = "pending"
-	Ready     ComicState = "ready"
+	ComicStateError     ComicState = "error"
+	ComicStateHydrating ComicState = "hydrating"
+	ComicStateIndexing  ComicState = "indexing"
+	ComicStatePending   ComicState = "pending"
+	ComicStateReady     ComicState = "ready"
 )
 
 // Valid indicates whether the value is a known member of the ComicState enum.
 func (e ComicState) Valid() bool {
 	switch e {
-	case Error:
+	case ComicStateError:
 		return true
-	case Hydrating:
+	case ComicStateHydrating:
 		return true
-	case Indexing:
+	case ComicStateIndexing:
 		return true
-	case Pending:
+	case ComicStatePending:
 		return true
-	case Ready:
+	case ComicStateReady:
 		return true
 	default:
 		return false
@@ -99,25 +99,169 @@ func (e ComicState) Valid() bool {
 
 // Defines values for DevicePlatform.
 const (
-	Android DevicePlatform = "android"
-	Desktop DevicePlatform = "desktop"
-	Ios     DevicePlatform = "ios"
-	Unknown DevicePlatform = "unknown"
-	Web     DevicePlatform = "web"
+	DevicePlatformAndroid DevicePlatform = "android"
+	DevicePlatformDesktop DevicePlatform = "desktop"
+	DevicePlatformIos     DevicePlatform = "ios"
+	DevicePlatformUnknown DevicePlatform = "unknown"
+	DevicePlatformWeb     DevicePlatform = "web"
 )
 
 // Valid indicates whether the value is a known member of the DevicePlatform enum.
 func (e DevicePlatform) Valid() bool {
 	switch e {
-	case Android:
+	case DevicePlatformAndroid:
 		return true
-	case Desktop:
+	case DevicePlatformDesktop:
 		return true
-	case Ios:
+	case DevicePlatformIos:
 		return true
-	case Unknown:
+	case DevicePlatformUnknown:
 		return true
-	case Web:
+	case DevicePlatformWeb:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for Ed2kDownloadStatus.
+const (
+	Ed2kDownloadStatusAllocating  Ed2kDownloadStatus = "allocating"
+	Ed2kDownloadStatusCompleted   Ed2kDownloadStatus = "completed"
+	Ed2kDownloadStatusCompleting  Ed2kDownloadStatus = "completing"
+	Ed2kDownloadStatusDownloading Ed2kDownloadStatus = "downloading"
+	Ed2kDownloadStatusErroneous   Ed2kDownloadStatus = "erroneous"
+	Ed2kDownloadStatusHashing     Ed2kDownloadStatus = "hashing"
+	Ed2kDownloadStatusPaused      Ed2kDownloadStatus = "paused"
+	Ed2kDownloadStatusStopped     Ed2kDownloadStatus = "stopped"
+	Ed2kDownloadStatusUnknown     Ed2kDownloadStatus = "unknown"
+	Ed2kDownloadStatusWaiting     Ed2kDownloadStatus = "waiting"
+)
+
+// Valid indicates whether the value is a known member of the Ed2kDownloadStatus enum.
+func (e Ed2kDownloadStatus) Valid() bool {
+	switch e {
+	case Ed2kDownloadStatusAllocating:
+		return true
+	case Ed2kDownloadStatusCompleted:
+		return true
+	case Ed2kDownloadStatusCompleting:
+		return true
+	case Ed2kDownloadStatusDownloading:
+		return true
+	case Ed2kDownloadStatusErroneous:
+		return true
+	case Ed2kDownloadStatusHashing:
+		return true
+	case Ed2kDownloadStatusPaused:
+		return true
+	case Ed2kDownloadStatusStopped:
+		return true
+	case Ed2kDownloadStatusUnknown:
+		return true
+	case Ed2kDownloadStatusWaiting:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for Ed2kIdType.
+const (
+	Ed2kIdTypeHigh Ed2kIdType = "high"
+	Ed2kIdTypeLow  Ed2kIdType = "low"
+	Ed2kIdTypeNone Ed2kIdType = "none"
+)
+
+// Valid indicates whether the value is a known member of the Ed2kIdType enum.
+func (e Ed2kIdType) Valid() bool {
+	switch e {
+	case Ed2kIdTypeHigh:
+		return true
+	case Ed2kIdTypeLow:
+		return true
+	case Ed2kIdTypeNone:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for Ed2kPriority.
+const (
+	Ed2kPriorityAuto     Ed2kPriority = "auto"
+	Ed2kPriorityHigh     Ed2kPriority = "high"
+	Ed2kPriorityLow      Ed2kPriority = "low"
+	Ed2kPriorityNormal   Ed2kPriority = "normal"
+	Ed2kPriorityVeryhigh Ed2kPriority = "veryhigh"
+	Ed2kPriorityVerylow  Ed2kPriority = "verylow"
+)
+
+// Valid indicates whether the value is a known member of the Ed2kPriority enum.
+func (e Ed2kPriority) Valid() bool {
+	switch e {
+	case Ed2kPriorityAuto:
+		return true
+	case Ed2kPriorityHigh:
+		return true
+	case Ed2kPriorityLow:
+		return true
+	case Ed2kPriorityNormal:
+		return true
+	case Ed2kPriorityVeryhigh:
+		return true
+	case Ed2kPriorityVerylow:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for Ed2kPublicationStatus.
+const (
+	Ed2kPublicationStatusError     Ed2kPublicationStatus = "error"
+	Ed2kPublicationStatusPending   Ed2kPublicationStatus = "pending"
+	Ed2kPublicationStatusPublished Ed2kPublicationStatus = "published"
+	Ed2kPublicationStatusSkipped   Ed2kPublicationStatus = "skipped"
+)
+
+// Valid indicates whether the value is a known member of the Ed2kPublicationStatus enum.
+func (e Ed2kPublicationStatus) Valid() bool {
+	switch e {
+	case Ed2kPublicationStatusError:
+		return true
+	case Ed2kPublicationStatusPending:
+		return true
+	case Ed2kPublicationStatusPublished:
+		return true
+	case Ed2kPublicationStatusSkipped:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for Ed2kState.
+const (
+	Connected    Ed2kState = "connected"
+	Connecting   Ed2kState = "connecting"
+	Disabled     Ed2kState = "disabled"
+	Disconnected Ed2kState = "disconnected"
+	Unconfigured Ed2kState = "unconfigured"
+)
+
+// Valid indicates whether the value is a known member of the Ed2kState enum.
+func (e Ed2kState) Valid() bool {
+	switch e {
+	case Connected:
+		return true
+	case Connecting:
+		return true
+	case Disabled:
+		return true
+	case Disconnected:
+		return true
+	case Unconfigured:
 		return true
 	default:
 		return false
@@ -367,6 +511,51 @@ func (e ManageComicsJSONBodyAction) Valid() bool {
 	}
 }
 
+// Defines values for ActOnEd2kDownloadJSONBodyAction.
+const (
+	Cancel ActOnEd2kDownloadJSONBodyAction = "cancel"
+	Pause  ActOnEd2kDownloadJSONBodyAction = "pause"
+	Resume ActOnEd2kDownloadJSONBodyAction = "resume"
+	Stop   ActOnEd2kDownloadJSONBodyAction = "stop"
+)
+
+// Valid indicates whether the value is a known member of the ActOnEd2kDownloadJSONBodyAction enum.
+func (e ActOnEd2kDownloadJSONBodyAction) Valid() bool {
+	switch e {
+	case Cancel:
+		return true
+	case Pause:
+		return true
+	case Resume:
+		return true
+	case Stop:
+		return true
+	default:
+		return false
+	}
+}
+
+// Defines values for StartEd2kSearchJSONBodyNetwork.
+const (
+	Global StartEd2kSearchJSONBodyNetwork = "global"
+	Kad    StartEd2kSearchJSONBodyNetwork = "kad"
+	Server StartEd2kSearchJSONBodyNetwork = "server"
+)
+
+// Valid indicates whether the value is a known member of the StartEd2kSearchJSONBodyNetwork enum.
+func (e StartEd2kSearchJSONBodyNetwork) Valid() bool {
+	switch e {
+	case Global:
+		return true
+	case Kad:
+		return true
+	case Server:
+		return true
+	default:
+		return false
+	}
+}
+
 // Defines values for CreateLibraryJSONBodyKind.
 const (
 	CreateLibraryJSONBodyKindBook  CreateLibraryJSONBodyKind = "book"
@@ -533,6 +722,542 @@ type Device struct {
 
 // DevicePlatform defines model for DevicePlatform.
 type DevicePlatform string
+
+// Ed2kConnection Les deux réseaux, ensemble. Ils sont indépendants — on peut être
+// connecté à Kad sans serveur, et l'inverse — et les afficher séparément
+// laisserait croire qu'une panne de l'un est une panne du module.
+type Ed2kConnection struct {
+	// Ed2k Lien avec le réseau serveur.
+	//
+	// Nommé `Ed2kNetworkState` et non `Ed2kState` : ce dernier est déjà
+	// l'énumération qui décrit la situation du MODULE — activé, démon
+	// déclaré, connecté. Les deux répondent à des questions différentes, et
+	// leur donner le même nom obligerait à lire le contexte pour savoir
+	// laquelle on regarde.
+	Ed2k Ed2kNetworkState `json:"ed2k"`
+
+	// Kad Lien avec le réseau Kademlia.
+	Kad Ed2kKadState `json:"kad"`
+}
+
+// Ed2kDaemon Démon aMule déclaré. Ne porte jamais le mot de passe External
+// Connections — il est chiffré en base et ne ressort pas du service.
+type Ed2kDaemon struct {
+	// Host Adresse joignable **depuis le serveur**, pas depuis le navigateur.
+	Host string `json:"host"`
+
+	// Label Nom libre, pour distinguer deux instances dans les journaux.
+	Label *string `json:"label,omitempty"`
+
+	// LastDetail Raison du dernier état constaté.
+	LastDetail *string `json:"lastDetail,omitempty"`
+
+	// LastSeenAt Dernière réponse effective du démon. N'est pas rafraîchi par un
+	// échec, sans quoi l'interface afficherait « vu à l'instant » pour un
+	// démon injoignable depuis une heure.
+	LastSeenAt *time.Time `json:"lastSeenAt,omitempty"`
+
+	// LastState Situation du module.
+	//
+	// L'énumération est complète dès maintenant, y compris les valeurs qu'une
+	// instance ne produit pas encore : ajouter une valeur à une énumération de
+	// réponse casse un client strict, et la déclarer d'avance évite d'imposer
+	// cette rupture plus tard.
+	LastState *Ed2kState `json:"lastState,omitempty"`
+	Port      int        `json:"port"`
+}
+
+// Ed2kDaemonInput defines model for Ed2kDaemonInput.
+type Ed2kDaemonInput struct {
+	// Host `amuled` sur un réseau interne, ou l'adresse d'un aMule déjà
+	// installé. Contrôlée avant enregistrement.
+	Host  string  `json:"host"`
+	Label *string `json:"label,omitempty"`
+
+	// Password Mot de passe External Connections. Chiffré en base avec la clé
+	// maître de l'instance ; jamais retourné.
+	Password string `json:"password"`
+
+	// Port Port External Connections du démon. 4712 par défaut chez aMule.
+	Port int `json:"port"`
+}
+
+// Ed2kDestination Ce que devient un fichier terminé d'une catégorie donnée.
+type Ed2kDestination struct {
+	// Category La catégorie telle que le démon la numérote. Zéro est sa catégorie
+	// par défaut, celle de tout fichier ajouté sans précision.
+	Category int `json:"category"`
+
+	// Folder Dossier dans la bibliothèque. Vide pour la racine.
+	Folder string `json:"folder"`
+	Label  string `json:"label"`
+
+	// LibraryId Absent signifie « laisser sur disque » — le défaut, et le bon
+	// comportement pour ce qui n'est pas une bande dessinée.
+	LibraryId *openapi_types.UUID `json:"libraryId,omitempty"`
+}
+
+// Ed2kDestinationInput defines model for Ed2kDestinationInput.
+type Ed2kDestinationInput struct {
+	Category  int                 `json:"category"`
+	Folder    *string             `json:"folder,omitempty"`
+	Label     string              `json:"label"`
+	LibraryId *openapi_types.UUID `json:"libraryId,omitempty"`
+}
+
+// Ed2kDownload Un fichier en cours de réception.
+type Ed2kDownload struct {
+	// AvailableParts Parties qu'au moins une source détient. Un fichier dont certaines
+	// parties manquent partout ne finira jamais, et c'est la seule façon
+	// de le voir avant d'avoir attendu des heures.
+	AvailableParts int32 `json:"availableParts"`
+
+	// Category Catégorie du démon. Zéro pour « aucune ».
+	Category int32 `json:"category"`
+
+	// EtaSeconds Temps restant estimé, en secondes. **Absent** quand l'estimation
+	// n'a pas de sens : vitesse nulle, fichier en pause, ou terminé.
+	// Rendre « l'infini » obligerait chaque client à le détecter.
+	EtaSeconds *int64 `json:"etaSeconds,omitempty"`
+
+	// Hash Empreinte eD2k en hexadécimal minuscule. Identité du fichier sur le
+	// réseau, et clé stable de l'interface.
+	Hash string `json:"hash"`
+
+	// LastSeenComplete Dernière fois qu'une source détenait le fichier entier. Absent si
+	// cela n'est jamais arrivé — ce qui est en soi l'information.
+	LastSeenComplete *time.Time `json:"lastSeenComplete,omitempty"`
+	Name             string     `json:"name"`
+
+	// PartCount Nombre de parties du fichier.
+	PartCount int32 `json:"partCount"`
+
+	// Priority Priorité d'un fichier, en téléchargement comme en partage. `auto`
+	// signifie que le démon la gère lui-même, ce qui n'est pas une valeur de
+	// plus dans l'échelle mais l'absence de choix.
+	//
+	// Énumération complète dès maintenant, pour la même raison
+	// qu'`Ed2kDownloadStatus`.
+	Priority Ed2kPriority `json:"priority"`
+
+	// Size Taille finale du fichier, en octets.
+	Size int64 `json:"size"`
+
+	// SizeDone Octets acquis ET vérifiés. C'est ce nombre qui fait la barre de
+	// progression.
+	SizeDone int64 `json:"sizeDone"`
+
+	// SizeXfer Octets ayant transité, corruption comprise. L'écart avec `sizeDone`
+	// est ce qui explique un téléchargement qui « recule ».
+	SizeXfer int64 `json:"sizeXfer"`
+
+	// Sources D'où viennent les sources d'un fichier.
+	//
+	// Les quatre nombres ne s'additionnent pas : `transferring` est un
+	// sous-ensemble de `total`, et `a4af` compte des sources qui travaillent
+	// sur un AUTRE fichier et pourraient basculer sur celui-ci.
+	Sources Ed2kSourceCounts `json:"sources"`
+
+	// Speed Octets par seconde.
+	Speed int64 `json:"speed"`
+
+	// Status État d'un téléchargement.
+	//
+	// L'énumération est complète dès maintenant, y compris les valeurs qu'une
+	// instance ne produit pas encore : ajouter une valeur à une énumération
+	// de réponse casse un client strict, et la déclarer d'avance évite
+	// d'imposer cette rupture plus tard.
+	//
+	// `unknown` est le repli explicite pour un code que le serveur ne
+	// reconnaît pas. Il vaut mieux qu'une valeur inventée : l'interface peut
+	// dire « état inconnu » au lieu d'affirmer quelque chose de faux.
+	Status Ed2kDownloadStatus `json:"status"`
+}
+
+// Ed2kDownloadStatus État d'un téléchargement.
+//
+// L'énumération est complète dès maintenant, y compris les valeurs qu'une
+// instance ne produit pas encore : ajouter une valeur à une énumération
+// de réponse casse un client strict, et la déclarer d'avance évite
+// d'imposer cette rupture plus tard.
+//
+// `unknown` est le repli explicite pour un code que le serveur ne
+// reconnaît pas. Il vaut mieux qu'une valeur inventée : l'interface peut
+// dire « état inconnu » au lieu d'affirmer quelque chose de faux.
+type Ed2kDownloadStatus string
+
+// Ed2kIdType Distingue un client joignable d'un client qui ne l'est pas.
+//
+//   - `high` — les connexions entrantes arrivent, tout fonctionne ;
+//   - `low` — elles n'arrivent pas ; le client reste utilisable mais dépend
+//     d'intermédiaires, ce qui limite ses sources ;
+//   - `none` — pas connecté, la question ne se pose pas encore.
+//
+// Énumération complète dès maintenant, pour la même raison
+// qu'`Ed2kDownloadStatus`.
+type Ed2kIdType string
+
+// Ed2kKadState Lien avec le réseau Kademlia.
+type Ed2kKadState struct {
+	// Connected Le moteur a trouvé le réseau.
+	Connected bool `json:"connected"`
+
+	// Firewalled Les connexions entrantes n'arrivent pas. Kad fonctionne alors en
+	// dégradé — on peut chercher, mais on est moins trouvable.
+	Firewalled bool `json:"firewalled"`
+
+	// FirewalledUdp Distinct de `firewalled` : Kad utilise UDP pour ses recherches et
+	// TCP pour les transferts, et les deux peuvent être bloqués
+	// séparément.
+	FirewalledUdp bool `json:"firewalledUdp"`
+
+	// Running Le moteur Kad tourne. Distinct de `connected` : un Kad démarré peut
+	// chercher ses pairs pendant plusieurs minutes.
+	Running bool `json:"running"`
+}
+
+// Ed2kNetworkState Lien avec le réseau serveur.
+//
+// Nommé `Ed2kNetworkState` et non `Ed2kState` : ce dernier est déjà
+// l'énumération qui décrit la situation du MODULE — activé, démon
+// déclaré, connecté. Les deux répondent à des questions différentes, et
+// leur donner le même nom obligerait à lire le contexte pour savoir
+// laquelle on regarde.
+type Ed2kNetworkState struct {
+	// ClientId Identifiant attribué par le serveur. Sur 32 bits non signés, d'où
+	// le `int64` — un `int32` ferait déborder la moitié des valeurs
+	// légitimes en négatif.
+	ClientId  int64 `json:"clientId"`
+	Connected bool  `json:"connected"`
+
+	// Connecting Distinct de `connected` : une tentative en cours n'est ni un
+	// succès ni un échec, et l'interface doit pouvoir dire laquelle des
+	// trois.
+	Connecting bool `json:"connecting"`
+
+	// Id Distingue un client joignable d'un client qui ne l'est pas.
+	//
+	// - `high` — les connexions entrantes arrivent, tout fonctionne ;
+	// - `low` — elles n'arrivent pas ; le client reste utilisable mais dépend
+	//   d'intermédiaires, ce qui limite ses sources ;
+	// - `none` — pas connecté, la question ne se pose pas encore.
+	//
+	// Énumération complète dès maintenant, pour la même raison
+	// qu'`Ed2kDownloadStatus`.
+	Id Ed2kIdType `json:"id"`
+
+	// Server Serveur joint. Absent si aucun.
+	Server *Ed2kServer `json:"server,omitempty"`
+}
+
+// Ed2kPriority Priorité d'un fichier, en téléchargement comme en partage. `auto`
+// signifie que le démon la gère lui-même, ce qui n'est pas une valeur de
+// plus dans l'échelle mais l'absence de choix.
+//
+// Énumération complète dès maintenant, pour la même raison
+// qu'`Ed2kDownloadStatus`.
+type Ed2kPriority string
+
+// Ed2kPublication Le sort d'un fichier terminé.
+type Ed2kPublication struct {
+	Category int `json:"category"`
+
+	// ComicId L'album créé, quand la publication a réussi.
+	ComicId   *openapi_types.UUID `json:"comicId,omitempty"`
+	Detail    *string             `json:"detail,omitempty"`
+	Hash      string              `json:"hash"`
+	LibraryId *openapi_types.UUID `json:"libraryId,omitempty"`
+	Name      string              `json:"name"`
+	Size      int64               `json:"size"`
+
+	// Status `skipped` n'est pas un échec : c'est le cas nominal d'une catégorie
+	// qui laisse ses fichiers sur disque.
+	Status Ed2kPublicationStatus `json:"status"`
+}
+
+// Ed2kPublicationStatus `skipped` n'est pas un échec : c'est le cas nominal d'une catégorie
+// qui laisse ses fichiers sur disque.
+type Ed2kPublicationStatus string
+
+// Ed2kQueuedPeer Un pair en attente d'un de nos fichiers.
+type Ed2kQueuedPeer struct {
+	FileHash string `json:"fileHash"`
+	Ip       string `json:"ip"`
+	Name     string `json:"name"`
+	Port     int32  `json:"port"`
+
+	// Score Note calculée par le démon : elle mêle ancienneté dans la file et
+	// crédits acquis. Elle n'est pas un rang — deux pairs peuvent la
+	// partager.
+	Score    int32  `json:"score"`
+	UserHash string `json:"userHash"`
+
+	// WaitedSince Depuis quand ce pair patiente. Absent si le démon l'ignore.
+	WaitedSince *time.Time `json:"waitedSince,omitempty"`
+}
+
+// Ed2kSearchResult Un fichier trouvé sur le réseau.
+type Ed2kSearchResult struct {
+	// AlreadyQueued Déjà présent dans la file de téléchargement.
+	AlreadyQueued bool `json:"alreadyQueued"`
+
+	// CompleteSources Pairs détenant la TOTALITÉ. C'est ce nombre qui dit si un fichier
+	// finira : cent sources partielles qui n'ont jamais la même partie ne
+	// complètent rien.
+	CompleteSources int    `json:"completeSources"`
+	Hash            string `json:"hash"`
+	Name            string `json:"name"`
+	Size            int64  `json:"size"`
+
+	// Sources Pairs détenant tout ou partie du fichier.
+	Sources int `json:"sources"`
+}
+
+// Ed2kServer Un serveur eD2k connu de l'instance.
+type Ed2kServer struct {
+	// Connected Serveur auquel l'instance est reliée. Un seul à la fois.
+	Connected   bool   `json:"connected"`
+	Description string `json:"description"`
+
+	// Failed Échecs de connexion consécutifs. Un serveur mort le reste, et ce
+	// compteur est ce qui permet de le voir.
+	Failed int32  `json:"failed"`
+	Files  int32  `json:"files"`
+	Ip     string `json:"ip"`
+
+	// MaxUsers Plafond annoncé par le serveur. Zéro signifie « non annoncé ».
+	MaxUsers int32  `json:"maxUsers"`
+	Name     string `json:"name"`
+
+	// Ping Latence en millisecondes. Zéro signifie « jamais mesurée ».
+	Ping int32 `json:"ping"`
+	Port int32 `json:"port"`
+
+	// Priority Priorité d'un fichier, en téléchargement comme en partage. `auto`
+	// signifie que le démon la gère lui-même, ce qui n'est pas une valeur de
+	// plus dans l'échelle mais l'absence de choix.
+	//
+	// Énumération complète dès maintenant, pour la même raison
+	// qu'`Ed2kDownloadStatus`.
+	Priority Ed2kPriority `json:"priority"`
+
+	// Static Serveur épinglé par l'utilisateur : il survit aux mises à jour de
+	// la liste, contrairement aux autres.
+	Static  bool   `json:"static"`
+	Users   int32  `json:"users"`
+	Version string `json:"version"`
+}
+
+// Ed2kSharedFile Un fichier que cette instance met à disposition.
+type Ed2kSharedFile struct {
+	// Accepted Nombre de fois où il a été effectivement servi. L'écart avec
+	// `requests` mesure ce que la file d'attente a refusé.
+	Accepted int64 `json:"accepted"`
+
+	// Complete Faux pour un fichier encore en cours de téléchargement — il est
+	// partagé lui aussi, c'est le principe du réseau.
+	Complete bool   `json:"complete"`
+	Hash     string `json:"hash"`
+	Name     string `json:"name"`
+
+	// Path Chemin du fichier tel que le démon le voit, pas ce serveur.
+	Path string `json:"path"`
+
+	// Priority Priorité d'un fichier, en téléchargement comme en partage. `auto`
+	// signifie que le démon la gère lui-même, ce qui n'est pas une valeur de
+	// plus dans l'échelle mais l'absence de choix.
+	//
+	// Énumération complète dès maintenant, pour la même raison
+	// qu'`Ed2kDownloadStatus`.
+	Priority Ed2kPriority `json:"priority"`
+
+	// Requests Nombre de fois où le fichier a été demandé.
+	Requests int64 `json:"requests"`
+	Size     int64 `json:"size"`
+
+	// Transferred Octets envoyés depuis ce fichier.
+	Transferred int64 `json:"transferred"`
+}
+
+// Ed2kSnapshot État complet du démon à un instant.
+//
+// C'est l'unité de travail de la scrutation côté serveur : on en prend
+// un, on le compare au précédent, et la différence produit les
+// événements du flux SSE. Le servir tel quel évite qu'un client
+// reconstitue à six requêtes une cohérence que le serveur avait déjà.
+type Ed2kSnapshot struct {
+	// Connection Les deux réseaux, ensemble. Ils sont indépendants — on peut être
+	// connecté à Kad sans serveur, et l'inverse — et les afficher séparément
+	// laisserait croire qu'une panne de l'un est une panne du module.
+	Connection  Ed2kConnection   `json:"connection"`
+	Downloads   []Ed2kDownload   `json:"downloads"`
+	QueuedPeers []Ed2kQueuedPeer `json:"queuedPeers"`
+	Servers     []Ed2kServer     `json:"servers"`
+	SharedFiles []Ed2kSharedFile `json:"sharedFiles"`
+
+	// Stats Instantané des compteurs du démon.
+	Stats Ed2kStats `json:"stats"`
+
+	// TakenAt Date de l'instantané. L'interface en a besoin pour dire depuis
+	// combien de temps elle regarde des chiffres qui ne bougent plus.
+	TakenAt time.Time    `json:"takenAt"`
+	Uploads []Ed2kUpload `json:"uploads"`
+}
+
+// Ed2kSource Un pair qui détient tout ou partie d'un fichier.
+type Ed2kSource struct {
+	// AvailableParts Parties que ce pair détient, sur `Ed2kDownload.partCount`.
+	AvailableParts int32 `json:"availableParts"`
+
+	// Downloading Vrai si ce pair nous envoie des données en ce moment.
+	Downloading bool `json:"downloading"`
+
+	// Ip Vide si le pair est en LowID : il n'a alors pas d'adresse
+	// joignable.
+	Ip string `json:"ip"`
+
+	// LowId Le pair n'accepte pas de connexion entrante. Il passe par un
+	// serveur, ce qui coûte plus cher et échoue plus souvent.
+	LowId bool   `json:"lowId"`
+	Name  string `json:"name"`
+	Port  int32  `json:"port"`
+
+	// QueueRank Notre rang dans la file d'attente de ce pair. Zéro signifie « pas
+	// en file » — soit on transfère, soit il ne nous a pas classés.
+	QueueRank int32 `json:"queueRank"`
+
+	// Software « eMule », « aMule », « Shareaza »…
+	Software string `json:"software"`
+
+	// Speed Octets par seconde, sur ce fichier.
+	Speed int64 `json:"speed"`
+
+	// UserHash Identifie le client sur le réseau, indépendamment de son IP. C'est
+	// la seule identité qui survit à un changement d'adresse.
+	UserHash string `json:"userHash"`
+	Version  string `json:"version"`
+}
+
+// Ed2kSourceCounts D'où viennent les sources d'un fichier.
+//
+// Les quatre nombres ne s'additionnent pas : `transferring` est un
+// sous-ensemble de `total`, et `a4af` compte des sources qui travaillent
+// sur un AUTRE fichier et pourraient basculer sur celui-ci.
+type Ed2kSourceCounts struct {
+	// A4af « Asked For Another File » — sources occupées sur un autre de nos
+	// fichiers, qui basculeront sur celui-ci quand il aura la priorité.
+	A4af int32 `json:"a4af"`
+
+	// NotCurrent Sources connues mais pas engagées sur ce fichier.
+	NotCurrent int32 `json:"notCurrent"`
+	Total      int32 `json:"total"`
+
+	// Transferring Sources qui envoient effectivement des données.
+	Transferring int32 `json:"transferring"`
+}
+
+// Ed2kState Situation du module.
+//
+// L'énumération est complète dès maintenant, y compris les valeurs qu'une
+// instance ne produit pas encore : ajouter une valeur à une énumération de
+// réponse casse un client strict, et la déclarer d'avance évite d'imposer
+// cette rupture plus tard.
+type Ed2kState string
+
+// Ed2kStats Instantané des compteurs du démon.
+type Ed2kStats struct {
+	// BannedPeers Pairs écartés pour comportement abusif.
+	BannedPeers int32 `json:"bannedPeers"`
+
+	// DownLimit Plafond configuré. Zéro signifie « aucune limite ».
+	DownLimit    int64 `json:"downLimit"`
+	DownOverhead int64 `json:"downOverhead"`
+
+	// DownSpeed Octets par seconde.
+	DownSpeed int64 `json:"downSpeed"`
+	Ed2kFiles int32 `json:"ed2kFiles"`
+
+	// Ed2kUsers Taille estimée du réseau serveur. Zéro tant qu'aucune estimation n'existe.
+	Ed2kUsers int32 `json:"ed2kUsers"`
+	KadFiles  int32 `json:"kadFiles"`
+
+	// KadUsers Taille estimée du réseau Kad.
+	KadUsers int32 `json:"kadUsers"`
+
+	// TotalSources Sources connues, tous fichiers confondus.
+	TotalSources int32 `json:"totalSources"`
+
+	// UpLimit Plafond configuré, en octets par seconde. Zéro signifie « aucune
+	// limite », ce qui n'est pas la même chose que « débit nul ».
+	UpLimit int64 `json:"upLimit"`
+
+	// UpOverhead Débit consommé par le protocole lui-même, hors données de fichier.
+	// Sur une liaison domestique, il explique la différence entre le
+	// plafond réglé et ce que mesure la box.
+	UpOverhead int64 `json:"upOverhead"`
+
+	// UpSpeed Octets par seconde.
+	UpSpeed int64 `json:"upSpeed"`
+
+	// UploadQueueLength Pairs qui attendent un de nos fichiers. C'est la mesure de ce qu'on
+	// doit au réseau.
+	UploadQueueLength int32 `json:"uploadQueueLength"`
+}
+
+// Ed2kStatus État du module eD2k/Kad, tel qu'affiché en tête de l'interface.
+type Ed2kStatus struct {
+	// Daemon Démon aMule déclaré. Ne porte jamais le mot de passe External
+	// Connections — il est chiffré en base et ne ressort pas du service.
+	Daemon *Ed2kDaemon `json:"daemon,omitempty"`
+
+	// Detail Pourquoi le module est dans cet état, en clair. Un état sans raison
+	// oblige à chercher ailleurs ce que le serveur sait déjà.
+	Detail string `json:"detail"`
+
+	// Enabled Reflète la configuration de déploiement
+	// (`BOXINCLOUD_ED2K_ENABLED`), pas l'état de la connexion.
+	Enabled bool `json:"enabled"`
+
+	// IncomingDir Répertoire d'arrivée du démon, tel que ce serveur le voit. Exposé
+	// parce qu'un montage manquant est la première cause de
+	// « le téléchargement est fini mais rien n'arrive ».
+	IncomingDir string `json:"incomingDir"`
+
+	// State Situation du module.
+	//
+	// L'énumération est complète dès maintenant, y compris les valeurs qu'une
+	// instance ne produit pas encore : ajouter une valeur à une énumération de
+	// réponse casse un client strict, et la déclarer d'avance évite d'imposer
+	// cette rupture plus tard.
+	State Ed2kState `json:"state"`
+}
+
+// Ed2kUpload Un transfert sortant en cours.
+type Ed2kUpload struct {
+	// FileHash Empreinte eD2k du fichier servi.
+	FileHash string `json:"fileHash"`
+	FileName string `json:"fileName"`
+	Ip       string `json:"ip"`
+	Name     string `json:"name"`
+	Port     int32  `json:"port"`
+
+	// SessionUploaded Envoyé depuis que ce pair est connecté.
+	SessionUploaded int64  `json:"sessionUploaded"`
+	Software        string `json:"software"`
+
+	// Speed Octets par seconde.
+	Speed int64 `json:"speed"`
+
+	// TotalUploaded Cumul historique envoyé à ce pair, toutes sessions confondues.
+	// C'est la base du système de crédits : ce qu'on a donné à quelqu'un
+	// détermine ce qu'il nous rend.
+	TotalUploaded int64 `json:"totalUploaded"`
+
+	// Transferred Octets envoyés sur ce transfert.
+	Transferred int64  `json:"transferred"`
+	UserHash    string `json:"userHash"`
+	Version     string `json:"version"`
+}
 
 // Folder defines model for Folder.
 type Folder struct {
@@ -846,6 +1571,9 @@ type ComicId = openapi_types.UUID
 // Cursor defines model for Cursor.
 type Cursor = string
 
+// Ed2kHash defines model for Ed2kHash.
+type Ed2kHash = string
+
 // LibraryId defines model for LibraryId.
 type LibraryId = openapi_types.UUID
 
@@ -867,6 +1595,10 @@ type UserIdPath = openapi_types.UUID
 // BadRequest Erreur au format RFC 9457, servie avec le type MIME
 // `application/problem+json`.
 type BadRequest = Problem
+
+// Ed2kDisabled Erreur au format RFC 9457, servie avec le type MIME
+// `application/problem+json`.
+type Ed2kDisabled = Problem
 
 // Forbidden Erreur au format RFC 9457, servie avec le type MIME
 // `application/problem+json`.
@@ -1076,6 +1808,74 @@ type SetRatingJSONBody struct {
 type ContinueReadingParams struct {
 	// Limit Nombre d'éléments. Défaut 50, plafond 200.
 	Limit *Limit `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// ActOnEd2kDownloadJSONBody defines parameters for ActOnEd2kDownload.
+type ActOnEd2kDownloadJSONBody struct {
+	Action ActOnEd2kDownloadJSONBodyAction `json:"action"`
+}
+
+// ActOnEd2kDownloadJSONBodyAction defines parameters for ActOnEd2kDownload.
+type ActOnEd2kDownloadJSONBodyAction string
+
+// SetEd2kDownloadPriorityJSONBody defines parameters for SetEd2kDownloadPriority.
+type SetEd2kDownloadPriorityJSONBody struct {
+	// Priority Priorité d'un fichier, en téléchargement comme en partage. `auto`
+	// signifie que le démon la gère lui-même, ce qui n'est pas une valeur de
+	// plus dans l'échelle mais l'absence de choix.
+	//
+	// Énumération complète dès maintenant, pour la même raison
+	// qu'`Ed2kDownloadStatus`.
+	Priority Ed2kPriority `json:"priority"`
+}
+
+// StreamEd2kEventsParams defines parameters for StreamEd2kEvents.
+type StreamEd2kEventsParams struct {
+	// Token Jeton d'accès, accepté en repli pour les requêtes qui ne peuvent pas
+	// porter d'en-tête `Authorization` — une balise `<img>`, par exemple.
+	Token *TokenQuery `form:"token,omitempty" json:"token,omitempty"`
+}
+
+// SetEd2kKadRunningJSONBody defines parameters for SetEd2kKadRunning.
+type SetEd2kKadRunningJSONBody struct {
+	Running bool `json:"running"`
+}
+
+// AddEd2kLinkJSONBody defines parameters for AddEd2kLink.
+type AddEd2kLinkJSONBody struct {
+	// Link Example: ed2k://|file|debian.iso|1234|ABCDEF...|/
+	Link string `json:"link"`
+}
+
+// ListEd2kPublicationsParams defines parameters for ListEd2kPublications.
+type ListEd2kPublicationsParams struct {
+	Limit *int `form:"limit,omitempty" json:"limit,omitempty"`
+}
+
+// StartEd2kSearchJSONBody defines parameters for StartEd2kSearch.
+type StartEd2kSearchJSONBody struct {
+	// Availability Nombre minimal de sources. Zéro ne filtre pas.
+	Availability *int    `json:"availability,omitempty"`
+	Extension    *string `json:"extension,omitempty"`
+
+	// FileType Catégorie aMule — Audio, Video, Image, Doc, Pro, Iso.
+	FileType *string `json:"fileType,omitempty"`
+	MaxSize  *int64  `json:"maxSize,omitempty"`
+	MinSize  *int64  `json:"minSize,omitempty"`
+
+	// Network `server` interroge le serveur joint, `global` tous les
+	// serveurs connus en UDP, `kad` le réseau Kademlia.
+	Network StartEd2kSearchJSONBodyNetwork `json:"network"`
+	Query   string                         `json:"query"`
+}
+
+// StartEd2kSearchJSONBodyNetwork defines parameters for StartEd2kSearch.
+type StartEd2kSearchJSONBodyNetwork string
+
+// ConnectEd2kServerJSONBody defines parameters for ConnectEd2kServer.
+type ConnectEd2kServerJSONBody struct {
+	Ip   *string `json:"ip,omitempty"`
+	Port *int    `json:"port,omitempty"`
 }
 
 // ListFoldersParams defines parameters for ListFolders.
@@ -1337,6 +2137,30 @@ type UpdateProgressJSONRequestBody = ProgressUpdate
 // SetRatingJSONRequestBody defines body for SetRating for application/json ContentType.
 type SetRatingJSONRequestBody SetRatingJSONBody
 
+// SetEd2kDaemonJSONRequestBody defines body for SetEd2kDaemon for application/json ContentType.
+type SetEd2kDaemonJSONRequestBody = Ed2kDaemonInput
+
+// SetEd2kDestinationJSONRequestBody defines body for SetEd2kDestination for application/json ContentType.
+type SetEd2kDestinationJSONRequestBody = Ed2kDestinationInput
+
+// ActOnEd2kDownloadJSONRequestBody defines body for ActOnEd2kDownload for application/json ContentType.
+type ActOnEd2kDownloadJSONRequestBody ActOnEd2kDownloadJSONBody
+
+// SetEd2kDownloadPriorityJSONRequestBody defines body for SetEd2kDownloadPriority for application/json ContentType.
+type SetEd2kDownloadPriorityJSONRequestBody SetEd2kDownloadPriorityJSONBody
+
+// SetEd2kKadRunningJSONRequestBody defines body for SetEd2kKadRunning for application/json ContentType.
+type SetEd2kKadRunningJSONRequestBody SetEd2kKadRunningJSONBody
+
+// AddEd2kLinkJSONRequestBody defines body for AddEd2kLink for application/json ContentType.
+type AddEd2kLinkJSONRequestBody AddEd2kLinkJSONBody
+
+// StartEd2kSearchJSONRequestBody defines body for StartEd2kSearch for application/json ContentType.
+type StartEd2kSearchJSONRequestBody StartEd2kSearchJSONBody
+
+// ConnectEd2kServerJSONRequestBody defines body for ConnectEd2kServer for application/json ContentType.
+type ConnectEd2kServerJSONRequestBody ConnectEd2kServerJSONBody
+
 // CreateFolderJSONRequestBody defines body for CreateFolder for application/json ContentType.
 type CreateFolderJSONRequestBody CreateFolderJSONBody
 
@@ -1462,6 +2286,90 @@ type ServerInterface interface {
 	// ContinueReading Albums en cours de lecture
 	// (GET /continue-reading)
 	ContinueReading(w http.ResponseWriter, r *http.Request, params ContinueReadingParams)
+	// ForgetEd2kDaemon Oublier le démon déclaré
+	// (DELETE /ed2k/daemon)
+	ForgetEd2kDaemon(w http.ResponseWriter, r *http.Request)
+	// GetEd2kDaemon Démon aMule déclaré
+	// (GET /ed2k/daemon)
+	GetEd2kDaemon(w http.ResponseWriter, r *http.Request)
+	// SetEd2kDaemon Déclarer ou remplacer le démon aMule
+	// (PUT /ed2k/daemon)
+	SetEd2kDaemon(w http.ResponseWriter, r *http.Request)
+	// ListEd2kDestinations Destinations par catégorie
+	// (GET /ed2k/destinations)
+	ListEd2kDestinations(w http.ResponseWriter, r *http.Request)
+	// SetEd2kDestination Déclarer la destination d'une catégorie
+	// (PUT /ed2k/destinations)
+	SetEd2kDestination(w http.ResponseWriter, r *http.Request)
+	// ListEd2kDownloads File de téléchargement
+	// (GET /ed2k/downloads)
+	ListEd2kDownloads(w http.ResponseWriter, r *http.Request)
+	// ActOnEd2kDownload Agir sur un téléchargement
+	// (POST /ed2k/downloads/{hash}/action)
+	ActOnEd2kDownload(w http.ResponseWriter, r *http.Request, hash Ed2kHash)
+	// SetEd2kDownloadPriority Changer la priorité d'un téléchargement
+	// (PUT /ed2k/downloads/{hash}/priority)
+	SetEd2kDownloadPriority(w http.ResponseWriter, r *http.Request, hash Ed2kHash)
+	// ListEd2kDownloadSources Sources d'un téléchargement
+	// (GET /ed2k/downloads/{hash}/sources)
+	ListEd2kDownloadSources(w http.ResponseWriter, r *http.Request, hash Ed2kHash)
+	// StreamEd2kEvents Flux d'événements du module
+	// (GET /ed2k/events)
+	StreamEd2kEvents(w http.ResponseWriter, r *http.Request, params StreamEd2kEventsParams)
+	// SetEd2kKadRunning Démarrer ou arrêter Kad
+	// (POST /ed2k/kad)
+	SetEd2kKadRunning(w http.ResponseWriter, r *http.Request)
+	// AddEd2kLink Mettre un lien ed2k:// en file
+	// (POST /ed2k/links)
+	AddEd2kLink(w http.ResponseWriter, r *http.Request)
+	// ClearEd2kLogs Vider le journal du démon
+	// (DELETE /ed2k/logs)
+	ClearEd2kLogs(w http.ResponseWriter, r *http.Request)
+	// GetEd2kLogs Journal du démon
+	// (GET /ed2k/logs)
+	GetEd2kLogs(w http.ResponseWriter, r *http.Request)
+	// ListEd2kPublications Ce que le pont a fait
+	// (GET /ed2k/publications)
+	ListEd2kPublications(w http.ResponseWriter, r *http.Request, params ListEd2kPublicationsParams)
+	// StopEd2kSearch Interrompre la recherche
+	// (DELETE /ed2k/search)
+	StopEd2kSearch(w http.ResponseWriter, r *http.Request)
+	// GetEd2kSearchResults Progression et résultats de la recherche
+	// (GET /ed2k/search)
+	GetEd2kSearchResults(w http.ResponseWriter, r *http.Request)
+	// StartEd2kSearch Lancer une recherche
+	// (POST /ed2k/search)
+	StartEd2kSearch(w http.ResponseWriter, r *http.Request)
+	// DownloadEd2kSearchResult Mettre un résultat en file
+	// (POST /ed2k/search/{hash}/download)
+	DownloadEd2kSearchResult(w http.ResponseWriter, r *http.Request, hash Ed2kHash)
+	// ListEd2kServers Serveurs eD2k connus
+	// (GET /ed2k/servers)
+	ListEd2kServers(w http.ResponseWriter, r *http.Request)
+	// ConnectEd2kServer Joindre un serveur
+	// (POST /ed2k/servers/connect)
+	ConnectEd2kServer(w http.ResponseWriter, r *http.Request)
+	// DisconnectEd2kServer Quitter le serveur courant
+	// (POST /ed2k/servers/disconnect)
+	DisconnectEd2kServer(w http.ResponseWriter, r *http.Request)
+	// ListEd2kSharedFiles Fichiers partagés par l'instance
+	// (GET /ed2k/shared)
+	ListEd2kSharedFiles(w http.ResponseWriter, r *http.Request)
+	// ReloadEd2kSharedFiles Reparcourir les répertoires partagés
+	// (POST /ed2k/shared/reload)
+	ReloadEd2kSharedFiles(w http.ResponseWriter, r *http.Request)
+	// GetEd2kSnapshot État complet du module en une requête
+	// (GET /ed2k/snapshot)
+	GetEd2kSnapshot(w http.ResponseWriter, r *http.Request)
+	// GetEd2kStats Compteurs du démon
+	// (GET /ed2k/stats)
+	GetEd2kStats(w http.ResponseWriter, r *http.Request)
+	// GetEd2kStatus État du module eD2k/Kad
+	// (GET /ed2k/status)
+	GetEd2kStatus(w http.ResponseWriter, r *http.Request)
+	// ListEd2kUploads Envois en cours et file d'attente
+	// (GET /ed2k/uploads)
+	ListEd2kUploads(w http.ResponseWriter, r *http.Request)
 	// ListFolders Arborescence des dossiers
 	// (GET /folders)
 	ListFolders(w http.ResponseWriter, r *http.Request, params ListFoldersParams)
@@ -1768,6 +2676,174 @@ func (_ Unimplemented) SetRating(w http.ResponseWriter, r *http.Request, comicId
 // ContinueReading Albums en cours de lecture
 // (GET /continue-reading)
 func (_ Unimplemented) ContinueReading(w http.ResponseWriter, r *http.Request, params ContinueReadingParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ForgetEd2kDaemon Oublier le démon déclaré
+// (DELETE /ed2k/daemon)
+func (_ Unimplemented) ForgetEd2kDaemon(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetEd2kDaemon Démon aMule déclaré
+// (GET /ed2k/daemon)
+func (_ Unimplemented) GetEd2kDaemon(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// SetEd2kDaemon Déclarer ou remplacer le démon aMule
+// (PUT /ed2k/daemon)
+func (_ Unimplemented) SetEd2kDaemon(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListEd2kDestinations Destinations par catégorie
+// (GET /ed2k/destinations)
+func (_ Unimplemented) ListEd2kDestinations(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// SetEd2kDestination Déclarer la destination d'une catégorie
+// (PUT /ed2k/destinations)
+func (_ Unimplemented) SetEd2kDestination(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListEd2kDownloads File de téléchargement
+// (GET /ed2k/downloads)
+func (_ Unimplemented) ListEd2kDownloads(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ActOnEd2kDownload Agir sur un téléchargement
+// (POST /ed2k/downloads/{hash}/action)
+func (_ Unimplemented) ActOnEd2kDownload(w http.ResponseWriter, r *http.Request, hash Ed2kHash) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// SetEd2kDownloadPriority Changer la priorité d'un téléchargement
+// (PUT /ed2k/downloads/{hash}/priority)
+func (_ Unimplemented) SetEd2kDownloadPriority(w http.ResponseWriter, r *http.Request, hash Ed2kHash) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListEd2kDownloadSources Sources d'un téléchargement
+// (GET /ed2k/downloads/{hash}/sources)
+func (_ Unimplemented) ListEd2kDownloadSources(w http.ResponseWriter, r *http.Request, hash Ed2kHash) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// StreamEd2kEvents Flux d'événements du module
+// (GET /ed2k/events)
+func (_ Unimplemented) StreamEd2kEvents(w http.ResponseWriter, r *http.Request, params StreamEd2kEventsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// SetEd2kKadRunning Démarrer ou arrêter Kad
+// (POST /ed2k/kad)
+func (_ Unimplemented) SetEd2kKadRunning(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// AddEd2kLink Mettre un lien ed2k:// en file
+// (POST /ed2k/links)
+func (_ Unimplemented) AddEd2kLink(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ClearEd2kLogs Vider le journal du démon
+// (DELETE /ed2k/logs)
+func (_ Unimplemented) ClearEd2kLogs(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetEd2kLogs Journal du démon
+// (GET /ed2k/logs)
+func (_ Unimplemented) GetEd2kLogs(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListEd2kPublications Ce que le pont a fait
+// (GET /ed2k/publications)
+func (_ Unimplemented) ListEd2kPublications(w http.ResponseWriter, r *http.Request, params ListEd2kPublicationsParams) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// StopEd2kSearch Interrompre la recherche
+// (DELETE /ed2k/search)
+func (_ Unimplemented) StopEd2kSearch(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetEd2kSearchResults Progression et résultats de la recherche
+// (GET /ed2k/search)
+func (_ Unimplemented) GetEd2kSearchResults(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// StartEd2kSearch Lancer une recherche
+// (POST /ed2k/search)
+func (_ Unimplemented) StartEd2kSearch(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// DownloadEd2kSearchResult Mettre un résultat en file
+// (POST /ed2k/search/{hash}/download)
+func (_ Unimplemented) DownloadEd2kSearchResult(w http.ResponseWriter, r *http.Request, hash Ed2kHash) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListEd2kServers Serveurs eD2k connus
+// (GET /ed2k/servers)
+func (_ Unimplemented) ListEd2kServers(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ConnectEd2kServer Joindre un serveur
+// (POST /ed2k/servers/connect)
+func (_ Unimplemented) ConnectEd2kServer(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// DisconnectEd2kServer Quitter le serveur courant
+// (POST /ed2k/servers/disconnect)
+func (_ Unimplemented) DisconnectEd2kServer(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListEd2kSharedFiles Fichiers partagés par l'instance
+// (GET /ed2k/shared)
+func (_ Unimplemented) ListEd2kSharedFiles(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ReloadEd2kSharedFiles Reparcourir les répertoires partagés
+// (POST /ed2k/shared/reload)
+func (_ Unimplemented) ReloadEd2kSharedFiles(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetEd2kSnapshot État complet du module en une requête
+// (GET /ed2k/snapshot)
+func (_ Unimplemented) GetEd2kSnapshot(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetEd2kStats Compteurs du démon
+// (GET /ed2k/stats)
+func (_ Unimplemented) GetEd2kStats(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// GetEd2kStatus État du module eD2k/Kad
+// (GET /ed2k/status)
+func (_ Unimplemented) GetEd2kStatus(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusNotImplemented)
+}
+
+// ListEd2kUploads Envois en cours et file d'attente
+// (GET /ed2k/uploads)
+func (_ Unimplemented) ListEd2kUploads(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNotImplemented)
 }
 
@@ -2838,6 +3914,484 @@ func (siw *ServerInterfaceWrapper) ContinueReading(w http.ResponseWriter, r *htt
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ContinueReading(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ForgetEd2kDaemon operation middleware
+func (siw *ServerInterfaceWrapper) ForgetEd2kDaemon(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ForgetEd2kDaemon(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetEd2kDaemon operation middleware
+func (siw *ServerInterfaceWrapper) GetEd2kDaemon(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetEd2kDaemon(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetEd2kDaemon operation middleware
+func (siw *ServerInterfaceWrapper) SetEd2kDaemon(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetEd2kDaemon(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListEd2kDestinations operation middleware
+func (siw *ServerInterfaceWrapper) ListEd2kDestinations(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListEd2kDestinations(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetEd2kDestination operation middleware
+func (siw *ServerInterfaceWrapper) SetEd2kDestination(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetEd2kDestination(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListEd2kDownloads operation middleware
+func (siw *ServerInterfaceWrapper) ListEd2kDownloads(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListEd2kDownloads(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ActOnEd2kDownload operation middleware
+func (siw *ServerInterfaceWrapper) ActOnEd2kDownload(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hash" -------------
+	var hash Ed2kHash
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hash", chi.URLParam(r, "hash"), &hash, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hash", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ActOnEd2kDownload(w, r, hash)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetEd2kDownloadPriority operation middleware
+func (siw *ServerInterfaceWrapper) SetEd2kDownloadPriority(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hash" -------------
+	var hash Ed2kHash
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hash", chi.URLParam(r, "hash"), &hash, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hash", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetEd2kDownloadPriority(w, r, hash)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListEd2kDownloadSources operation middleware
+func (siw *ServerInterfaceWrapper) ListEd2kDownloadSources(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hash" -------------
+	var hash Ed2kHash
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hash", chi.URLParam(r, "hash"), &hash, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hash", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListEd2kDownloadSources(w, r, hash)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StreamEd2kEvents operation middleware
+func (siw *ServerInterfaceWrapper) StreamEd2kEvents(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params StreamEd2kEventsParams
+
+	// ------------- Optional query parameter "token" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "token", r.URL.Query(), &params.Token, runtime.BindQueryParameterOptions{Type: "string", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "token"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "token", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StreamEd2kEvents(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// SetEd2kKadRunning operation middleware
+func (siw *ServerInterfaceWrapper) SetEd2kKadRunning(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.SetEd2kKadRunning(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AddEd2kLink operation middleware
+func (siw *ServerInterfaceWrapper) AddEd2kLink(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AddEd2kLink(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ClearEd2kLogs operation middleware
+func (siw *ServerInterfaceWrapper) ClearEd2kLogs(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ClearEd2kLogs(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetEd2kLogs operation middleware
+func (siw *ServerInterfaceWrapper) GetEd2kLogs(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetEd2kLogs(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListEd2kPublications operation middleware
+func (siw *ServerInterfaceWrapper) ListEd2kPublications(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListEd2kPublicationsParams
+
+	// ------------- Optional query parameter "limit" -------------
+
+	err = runtime.BindQueryParameterWithOptions("form", true, false, "limit", r.URL.Query(), &params.Limit, runtime.BindQueryParameterOptions{Type: "integer", Format: ""})
+	if err != nil {
+		var requiredError *runtime.RequiredParameterError
+		if errors.As(err, &requiredError) {
+			siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "limit"})
+		} else {
+			siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "limit", Err: err})
+		}
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListEd2kPublications(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StopEd2kSearch operation middleware
+func (siw *ServerInterfaceWrapper) StopEd2kSearch(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StopEd2kSearch(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetEd2kSearchResults operation middleware
+func (siw *ServerInterfaceWrapper) GetEd2kSearchResults(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetEd2kSearchResults(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// StartEd2kSearch operation middleware
+func (siw *ServerInterfaceWrapper) StartEd2kSearch(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.StartEd2kSearch(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DownloadEd2kSearchResult operation middleware
+func (siw *ServerInterfaceWrapper) DownloadEd2kSearchResult(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+	_ = err
+
+	// ------------- Path parameter "hash" -------------
+	var hash Ed2kHash
+
+	err = runtime.BindStyledParameterWithOptions("simple", "hash", chi.URLParam(r, "hash"), &hash, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true, Type: "string", Format: "", ValueIsUnescaped: r.URL.RawPath == ""})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "hash", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DownloadEd2kSearchResult(w, r, hash)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListEd2kServers operation middleware
+func (siw *ServerInterfaceWrapper) ListEd2kServers(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListEd2kServers(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ConnectEd2kServer operation middleware
+func (siw *ServerInterfaceWrapper) ConnectEd2kServer(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ConnectEd2kServer(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DisconnectEd2kServer operation middleware
+func (siw *ServerInterfaceWrapper) DisconnectEd2kServer(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DisconnectEd2kServer(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListEd2kSharedFiles operation middleware
+func (siw *ServerInterfaceWrapper) ListEd2kSharedFiles(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListEd2kSharedFiles(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReloadEd2kSharedFiles operation middleware
+func (siw *ServerInterfaceWrapper) ReloadEd2kSharedFiles(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReloadEd2kSharedFiles(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetEd2kSnapshot operation middleware
+func (siw *ServerInterfaceWrapper) GetEd2kSnapshot(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetEd2kSnapshot(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetEd2kStats operation middleware
+func (siw *ServerInterfaceWrapper) GetEd2kStats(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetEd2kStats(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetEd2kStatus operation middleware
+func (siw *ServerInterfaceWrapper) GetEd2kStatus(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetEd2kStatus(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListEd2kUploads operation middleware
+func (siw *ServerInterfaceWrapper) ListEd2kUploads(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListEd2kUploads(w, r)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -4421,11 +5975,97 @@ func HandlerWithOptions(si ServerInterface, options ChiServerOptions) http.Handl
 	r.Group(func(r chi.Router) {
 		r.Post(options.BaseURL+"/sync", wrapper.SyncPush)
 	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/ed2k/status", wrapper.GetEd2kStatus)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/ed2k/events", wrapper.StreamEd2kEvents)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/ed2k/daemon", wrapper.ForgetEd2kDaemon)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/ed2k/daemon", wrapper.GetEd2kDaemon)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/ed2k/daemon", wrapper.SetEd2kDaemon)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/ed2k/snapshot", wrapper.GetEd2kSnapshot)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/ed2k/downloads", wrapper.ListEd2kDownloads)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/ed2k/downloads/{hash}/sources", wrapper.ListEd2kDownloadSources)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/ed2k/uploads", wrapper.ListEd2kUploads)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/ed2k/servers", wrapper.ListEd2kServers)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/ed2k/shared", wrapper.ListEd2kSharedFiles)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/ed2k/stats", wrapper.GetEd2kStats)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/ed2k/downloads/{hash}/action", wrapper.ActOnEd2kDownload)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/ed2k/downloads/{hash}/priority", wrapper.SetEd2kDownloadPriority)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/ed2k/links", wrapper.AddEd2kLink)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/ed2k/servers/connect", wrapper.ConnectEd2kServer)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/ed2k/servers/disconnect", wrapper.DisconnectEd2kServer)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/ed2k/kad", wrapper.SetEd2kKadRunning)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/ed2k/shared/reload", wrapper.ReloadEd2kSharedFiles)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/ed2k/search", wrapper.StopEd2kSearch)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/ed2k/search", wrapper.GetEd2kSearchResults)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/ed2k/search", wrapper.StartEd2kSearch)
+	})
+	r.Group(func(r chi.Router) {
+		r.Post(options.BaseURL+"/ed2k/search/{hash}/download", wrapper.DownloadEd2kSearchResult)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/ed2k/destinations", wrapper.ListEd2kDestinations)
+	})
+	r.Group(func(r chi.Router) {
+		r.Put(options.BaseURL+"/ed2k/destinations", wrapper.SetEd2kDestination)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/ed2k/publications", wrapper.ListEd2kPublications)
+	})
+	r.Group(func(r chi.Router) {
+		r.Delete(options.BaseURL+"/ed2k/logs", wrapper.ClearEd2kLogs)
+	})
+	r.Group(func(r chi.Router) {
+		r.Get(options.BaseURL+"/ed2k/logs", wrapper.GetEd2kLogs)
+	})
 
 	return r
 }
 
 type BadRequestApplicationProblemPlusJSONResponse Problem
+
+type Ed2kDisabledApplicationProblemPlusJSONResponse Problem
 
 type ForbiddenApplicationProblemPlusJSONResponse Problem
 
@@ -6254,6 +7894,2074 @@ func (response ContinueReading401ApplicationProblemPlusJSONResponse) VisitContin
 	}
 	w.Header().Set("Content-Type", "application/problem+json")
 	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ForgetEd2kDaemonRequestObject struct {
+}
+
+type ForgetEd2kDaemonResponseObject interface {
+	VisitForgetEd2kDaemonResponse(w http.ResponseWriter) error
+}
+
+type ForgetEd2kDaemon204Response struct {
+}
+
+func (response ForgetEd2kDaemon204Response) VisitForgetEd2kDaemonResponse(w http.ResponseWriter) error {
+	w.WriteHeader(204)
+	return nil
+}
+
+type ForgetEd2kDaemon401ApplicationProblemPlusJSONResponse struct {
+	UnauthorizedApplicationProblemPlusJSONResponse
+}
+
+func (response ForgetEd2kDaemon401ApplicationProblemPlusJSONResponse) VisitForgetEd2kDaemonResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ForgetEd2kDaemon403ApplicationProblemPlusJSONResponse struct {
+	ForbiddenApplicationProblemPlusJSONResponse
+}
+
+func (response ForgetEd2kDaemon403ApplicationProblemPlusJSONResponse) VisitForgetEd2kDaemonResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ForgetEd2kDaemon409ApplicationProblemPlusJSONResponse struct {
+	Ed2kDisabledApplicationProblemPlusJSONResponse
+}
+
+func (response ForgetEd2kDaemon409ApplicationProblemPlusJSONResponse) VisitForgetEd2kDaemonResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetEd2kDaemonRequestObject struct {
+}
+
+type GetEd2kDaemonResponseObject interface {
+	VisitGetEd2kDaemonResponse(w http.ResponseWriter) error
+}
+
+type GetEd2kDaemon200JSONResponse Ed2kDaemon
+
+func (response GetEd2kDaemon200JSONResponse) VisitGetEd2kDaemonResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetEd2kDaemon401ApplicationProblemPlusJSONResponse struct {
+	UnauthorizedApplicationProblemPlusJSONResponse
+}
+
+func (response GetEd2kDaemon401ApplicationProblemPlusJSONResponse) VisitGetEd2kDaemonResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetEd2kDaemon403ApplicationProblemPlusJSONResponse struct {
+	ForbiddenApplicationProblemPlusJSONResponse
+}
+
+func (response GetEd2kDaemon403ApplicationProblemPlusJSONResponse) VisitGetEd2kDaemonResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetEd2kDaemon404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response GetEd2kDaemon404ApplicationProblemPlusJSONResponse) VisitGetEd2kDaemonResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetEd2kDaemon409ApplicationProblemPlusJSONResponse struct {
+	Ed2kDisabledApplicationProblemPlusJSONResponse
+}
+
+func (response GetEd2kDaemon409ApplicationProblemPlusJSONResponse) VisitGetEd2kDaemonResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetEd2kDaemonRequestObject struct {
+	Body *SetEd2kDaemonJSONRequestBody
+}
+
+type SetEd2kDaemonResponseObject interface {
+	VisitSetEd2kDaemonResponse(w http.ResponseWriter) error
+}
+
+type SetEd2kDaemon200JSONResponse Ed2kDaemon
+
+func (response SetEd2kDaemon200JSONResponse) VisitSetEd2kDaemonResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetEd2kDaemon401ApplicationProblemPlusJSONResponse struct {
+	UnauthorizedApplicationProblemPlusJSONResponse
+}
+
+func (response SetEd2kDaemon401ApplicationProblemPlusJSONResponse) VisitSetEd2kDaemonResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetEd2kDaemon403ApplicationProblemPlusJSONResponse struct {
+	ForbiddenApplicationProblemPlusJSONResponse
+}
+
+func (response SetEd2kDaemon403ApplicationProblemPlusJSONResponse) VisitSetEd2kDaemonResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetEd2kDaemon409ApplicationProblemPlusJSONResponse struct {
+	Ed2kDisabledApplicationProblemPlusJSONResponse
+}
+
+func (response SetEd2kDaemon409ApplicationProblemPlusJSONResponse) VisitSetEd2kDaemonResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetEd2kDaemon422ApplicationProblemPlusJSONResponse struct {
+	ValidationFailedApplicationProblemPlusJSONResponse
+}
+
+func (response SetEd2kDaemon422ApplicationProblemPlusJSONResponse) VisitSetEd2kDaemonResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListEd2kDestinationsRequestObject struct {
+}
+
+type ListEd2kDestinationsResponseObject interface {
+	VisitListEd2kDestinationsResponse(w http.ResponseWriter) error
+}
+
+type ListEd2kDestinations200JSONResponse struct {
+	Destinations []Ed2kDestination `json:"destinations"`
+}
+
+func (response ListEd2kDestinations200JSONResponse) VisitListEd2kDestinationsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListEd2kDestinations401ApplicationProblemPlusJSONResponse struct {
+	UnauthorizedApplicationProblemPlusJSONResponse
+}
+
+func (response ListEd2kDestinations401ApplicationProblemPlusJSONResponse) VisitListEd2kDestinationsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListEd2kDestinations403ApplicationProblemPlusJSONResponse struct {
+	ForbiddenApplicationProblemPlusJSONResponse
+}
+
+func (response ListEd2kDestinations403ApplicationProblemPlusJSONResponse) VisitListEd2kDestinationsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListEd2kDestinations409ApplicationProblemPlusJSONResponse struct {
+	Ed2kDisabledApplicationProblemPlusJSONResponse
+}
+
+func (response ListEd2kDestinations409ApplicationProblemPlusJSONResponse) VisitListEd2kDestinationsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetEd2kDestinationRequestObject struct {
+	Body *SetEd2kDestinationJSONRequestBody
+}
+
+type SetEd2kDestinationResponseObject interface {
+	VisitSetEd2kDestinationResponse(w http.ResponseWriter) error
+}
+
+type SetEd2kDestination200JSONResponse Ed2kDestination
+
+func (response SetEd2kDestination200JSONResponse) VisitSetEd2kDestinationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetEd2kDestination401ApplicationProblemPlusJSONResponse struct {
+	UnauthorizedApplicationProblemPlusJSONResponse
+}
+
+func (response SetEd2kDestination401ApplicationProblemPlusJSONResponse) VisitSetEd2kDestinationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetEd2kDestination403ApplicationProblemPlusJSONResponse struct {
+	ForbiddenApplicationProblemPlusJSONResponse
+}
+
+func (response SetEd2kDestination403ApplicationProblemPlusJSONResponse) VisitSetEd2kDestinationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetEd2kDestination409ApplicationProblemPlusJSONResponse struct {
+	Ed2kDisabledApplicationProblemPlusJSONResponse
+}
+
+func (response SetEd2kDestination409ApplicationProblemPlusJSONResponse) VisitSetEd2kDestinationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetEd2kDestination422ApplicationProblemPlusJSONResponse struct {
+	ValidationFailedApplicationProblemPlusJSONResponse
+}
+
+func (response SetEd2kDestination422ApplicationProblemPlusJSONResponse) VisitSetEd2kDestinationResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListEd2kDownloadsRequestObject struct {
+}
+
+type ListEd2kDownloadsResponseObject interface {
+	VisitListEd2kDownloadsResponse(w http.ResponseWriter) error
+}
+
+type ListEd2kDownloads200JSONResponse struct {
+	Downloads []Ed2kDownload `json:"downloads"`
+
+	// TakenAt Date de l'instantané d'où sortent ces lignes.
+	TakenAt time.Time `json:"takenAt"`
+}
+
+func (response ListEd2kDownloads200JSONResponse) VisitListEd2kDownloadsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListEd2kDownloads401ApplicationProblemPlusJSONResponse struct {
+	UnauthorizedApplicationProblemPlusJSONResponse
+}
+
+func (response ListEd2kDownloads401ApplicationProblemPlusJSONResponse) VisitListEd2kDownloadsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListEd2kDownloads403ApplicationProblemPlusJSONResponse struct {
+	ForbiddenApplicationProblemPlusJSONResponse
+}
+
+func (response ListEd2kDownloads403ApplicationProblemPlusJSONResponse) VisitListEd2kDownloadsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListEd2kDownloads409ApplicationProblemPlusJSONResponse struct {
+	Ed2kDisabledApplicationProblemPlusJSONResponse
+}
+
+func (response ListEd2kDownloads409ApplicationProblemPlusJSONResponse) VisitListEd2kDownloadsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ActOnEd2kDownloadRequestObject struct {
+	Hash Ed2kHash `json:"hash"`
+	Body *ActOnEd2kDownloadJSONRequestBody
+}
+
+type ActOnEd2kDownloadResponseObject interface {
+	VisitActOnEd2kDownloadResponse(w http.ResponseWriter) error
+}
+
+type ActOnEd2kDownload202Response struct {
+}
+
+func (response ActOnEd2kDownload202Response) VisitActOnEd2kDownloadResponse(w http.ResponseWriter) error {
+	w.WriteHeader(202)
+	return nil
+}
+
+type ActOnEd2kDownload401ApplicationProblemPlusJSONResponse struct {
+	UnauthorizedApplicationProblemPlusJSONResponse
+}
+
+func (response ActOnEd2kDownload401ApplicationProblemPlusJSONResponse) VisitActOnEd2kDownloadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ActOnEd2kDownload403ApplicationProblemPlusJSONResponse struct {
+	ForbiddenApplicationProblemPlusJSONResponse
+}
+
+func (response ActOnEd2kDownload403ApplicationProblemPlusJSONResponse) VisitActOnEd2kDownloadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ActOnEd2kDownload409ApplicationProblemPlusJSONResponse struct {
+	Ed2kDisabledApplicationProblemPlusJSONResponse
+}
+
+func (response ActOnEd2kDownload409ApplicationProblemPlusJSONResponse) VisitActOnEd2kDownloadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ActOnEd2kDownload422ApplicationProblemPlusJSONResponse struct {
+	ValidationFailedApplicationProblemPlusJSONResponse
+}
+
+func (response ActOnEd2kDownload422ApplicationProblemPlusJSONResponse) VisitActOnEd2kDownloadResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetEd2kDownloadPriorityRequestObject struct {
+	Hash Ed2kHash `json:"hash"`
+	Body *SetEd2kDownloadPriorityJSONRequestBody
+}
+
+type SetEd2kDownloadPriorityResponseObject interface {
+	VisitSetEd2kDownloadPriorityResponse(w http.ResponseWriter) error
+}
+
+type SetEd2kDownloadPriority202Response struct {
+}
+
+func (response SetEd2kDownloadPriority202Response) VisitSetEd2kDownloadPriorityResponse(w http.ResponseWriter) error {
+	w.WriteHeader(202)
+	return nil
+}
+
+type SetEd2kDownloadPriority401ApplicationProblemPlusJSONResponse struct {
+	UnauthorizedApplicationProblemPlusJSONResponse
+}
+
+func (response SetEd2kDownloadPriority401ApplicationProblemPlusJSONResponse) VisitSetEd2kDownloadPriorityResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetEd2kDownloadPriority403ApplicationProblemPlusJSONResponse struct {
+	ForbiddenApplicationProblemPlusJSONResponse
+}
+
+func (response SetEd2kDownloadPriority403ApplicationProblemPlusJSONResponse) VisitSetEd2kDownloadPriorityResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetEd2kDownloadPriority409ApplicationProblemPlusJSONResponse struct {
+	Ed2kDisabledApplicationProblemPlusJSONResponse
+}
+
+func (response SetEd2kDownloadPriority409ApplicationProblemPlusJSONResponse) VisitSetEd2kDownloadPriorityResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetEd2kDownloadPriority422ApplicationProblemPlusJSONResponse struct {
+	ValidationFailedApplicationProblemPlusJSONResponse
+}
+
+func (response SetEd2kDownloadPriority422ApplicationProblemPlusJSONResponse) VisitSetEd2kDownloadPriorityResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListEd2kDownloadSourcesRequestObject struct {
+	Hash Ed2kHash `json:"hash"`
+}
+
+type ListEd2kDownloadSourcesResponseObject interface {
+	VisitListEd2kDownloadSourcesResponse(w http.ResponseWriter) error
+}
+
+type ListEd2kDownloadSources200JSONResponse struct {
+	Sources []Ed2kSource `json:"sources"`
+
+	// TakenAt Date de l'instantané d'où sortent ces sources.
+	TakenAt time.Time `json:"takenAt"`
+}
+
+func (response ListEd2kDownloadSources200JSONResponse) VisitListEd2kDownloadSourcesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListEd2kDownloadSources401ApplicationProblemPlusJSONResponse struct {
+	UnauthorizedApplicationProblemPlusJSONResponse
+}
+
+func (response ListEd2kDownloadSources401ApplicationProblemPlusJSONResponse) VisitListEd2kDownloadSourcesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListEd2kDownloadSources403ApplicationProblemPlusJSONResponse struct {
+	ForbiddenApplicationProblemPlusJSONResponse
+}
+
+func (response ListEd2kDownloadSources403ApplicationProblemPlusJSONResponse) VisitListEd2kDownloadSourcesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListEd2kDownloadSources404ApplicationProblemPlusJSONResponse struct {
+	NotFoundApplicationProblemPlusJSONResponse
+}
+
+func (response ListEd2kDownloadSources404ApplicationProblemPlusJSONResponse) VisitListEd2kDownloadSourcesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(404)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListEd2kDownloadSources409ApplicationProblemPlusJSONResponse struct {
+	Ed2kDisabledApplicationProblemPlusJSONResponse
+}
+
+func (response ListEd2kDownloadSources409ApplicationProblemPlusJSONResponse) VisitListEd2kDownloadSourcesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StreamEd2kEventsRequestObject struct {
+	Params StreamEd2kEventsParams
+}
+
+type StreamEd2kEventsResponseObject interface {
+	VisitStreamEd2kEventsResponse(w http.ResponseWriter) error
+}
+
+type StreamEd2kEvents200TexteventStreamResponse struct {
+	Body          io.Reader
+	ContentLength int64
+}
+
+func (response StreamEd2kEvents200TexteventStreamResponse) VisitStreamEd2kEventsResponse(w http.ResponseWriter) error {
+
+	w.Header().Set("Content-Type", "text/event-stream")
+	if response.ContentLength != 0 {
+		w.Header().Set("Content-Length", fmt.Sprint(response.ContentLength))
+	}
+	w.WriteHeader(200)
+
+	if closer, ok := response.Body.(io.ReadCloser); ok {
+		defer closer.Close()
+	}
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		// If w doesn't support flushing, fall back to io.Copy.
+		_, err := io.Copy(w, response.Body)
+		return err
+	}
+	// text/event-stream messages are typically small; use a
+	// modest buffer and flush after each chunk so clients see
+	// events immediately instead of waiting on OS buffering.
+	buf := make([]byte, 4096)
+	for {
+		n, err := response.Body.Read(buf)
+		if n > 0 {
+			if _, writeErr := w.Write(buf[:n]); writeErr != nil {
+				return writeErr
+			}
+			flusher.Flush()
+		}
+		if err != nil {
+			if err == io.EOF {
+				return nil
+			}
+			return err
+		}
+	}
+}
+
+type StreamEd2kEvents401ApplicationProblemPlusJSONResponse struct {
+	UnauthorizedApplicationProblemPlusJSONResponse
+}
+
+func (response StreamEd2kEvents401ApplicationProblemPlusJSONResponse) VisitStreamEd2kEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StreamEd2kEvents403ApplicationProblemPlusJSONResponse struct {
+	ForbiddenApplicationProblemPlusJSONResponse
+}
+
+func (response StreamEd2kEvents403ApplicationProblemPlusJSONResponse) VisitStreamEd2kEventsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetEd2kKadRunningRequestObject struct {
+	Body *SetEd2kKadRunningJSONRequestBody
+}
+
+type SetEd2kKadRunningResponseObject interface {
+	VisitSetEd2kKadRunningResponse(w http.ResponseWriter) error
+}
+
+type SetEd2kKadRunning202Response struct {
+}
+
+func (response SetEd2kKadRunning202Response) VisitSetEd2kKadRunningResponse(w http.ResponseWriter) error {
+	w.WriteHeader(202)
+	return nil
+}
+
+type SetEd2kKadRunning401ApplicationProblemPlusJSONResponse struct {
+	UnauthorizedApplicationProblemPlusJSONResponse
+}
+
+func (response SetEd2kKadRunning401ApplicationProblemPlusJSONResponse) VisitSetEd2kKadRunningResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetEd2kKadRunning403ApplicationProblemPlusJSONResponse struct {
+	ForbiddenApplicationProblemPlusJSONResponse
+}
+
+func (response SetEd2kKadRunning403ApplicationProblemPlusJSONResponse) VisitSetEd2kKadRunningResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type SetEd2kKadRunning409ApplicationProblemPlusJSONResponse struct {
+	Ed2kDisabledApplicationProblemPlusJSONResponse
+}
+
+func (response SetEd2kKadRunning409ApplicationProblemPlusJSONResponse) VisitSetEd2kKadRunningResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddEd2kLinkRequestObject struct {
+	Body *AddEd2kLinkJSONRequestBody
+}
+
+type AddEd2kLinkResponseObject interface {
+	VisitAddEd2kLinkResponse(w http.ResponseWriter) error
+}
+
+type AddEd2kLink202Response struct {
+}
+
+func (response AddEd2kLink202Response) VisitAddEd2kLinkResponse(w http.ResponseWriter) error {
+	w.WriteHeader(202)
+	return nil
+}
+
+type AddEd2kLink401ApplicationProblemPlusJSONResponse struct {
+	UnauthorizedApplicationProblemPlusJSONResponse
+}
+
+func (response AddEd2kLink401ApplicationProblemPlusJSONResponse) VisitAddEd2kLinkResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddEd2kLink403ApplicationProblemPlusJSONResponse struct {
+	ForbiddenApplicationProblemPlusJSONResponse
+}
+
+func (response AddEd2kLink403ApplicationProblemPlusJSONResponse) VisitAddEd2kLinkResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddEd2kLink409ApplicationProblemPlusJSONResponse struct {
+	Ed2kDisabledApplicationProblemPlusJSONResponse
+}
+
+func (response AddEd2kLink409ApplicationProblemPlusJSONResponse) VisitAddEd2kLinkResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type AddEd2kLink422ApplicationProblemPlusJSONResponse struct {
+	ValidationFailedApplicationProblemPlusJSONResponse
+}
+
+func (response AddEd2kLink422ApplicationProblemPlusJSONResponse) VisitAddEd2kLinkResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ClearEd2kLogsRequestObject struct {
+}
+
+type ClearEd2kLogsResponseObject interface {
+	VisitClearEd2kLogsResponse(w http.ResponseWriter) error
+}
+
+type ClearEd2kLogs202Response struct {
+}
+
+func (response ClearEd2kLogs202Response) VisitClearEd2kLogsResponse(w http.ResponseWriter) error {
+	w.WriteHeader(202)
+	return nil
+}
+
+type ClearEd2kLogs401ApplicationProblemPlusJSONResponse struct {
+	UnauthorizedApplicationProblemPlusJSONResponse
+}
+
+func (response ClearEd2kLogs401ApplicationProblemPlusJSONResponse) VisitClearEd2kLogsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ClearEd2kLogs403ApplicationProblemPlusJSONResponse struct {
+	ForbiddenApplicationProblemPlusJSONResponse
+}
+
+func (response ClearEd2kLogs403ApplicationProblemPlusJSONResponse) VisitClearEd2kLogsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ClearEd2kLogs409ApplicationProblemPlusJSONResponse struct {
+	Ed2kDisabledApplicationProblemPlusJSONResponse
+}
+
+func (response ClearEd2kLogs409ApplicationProblemPlusJSONResponse) VisitClearEd2kLogsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetEd2kLogsRequestObject struct {
+}
+
+type GetEd2kLogsResponseObject interface {
+	VisitGetEd2kLogsResponse(w http.ResponseWriter) error
+}
+
+type GetEd2kLogs200JSONResponse struct {
+	Lines []string `json:"lines"`
+}
+
+func (response GetEd2kLogs200JSONResponse) VisitGetEd2kLogsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetEd2kLogs401ApplicationProblemPlusJSONResponse struct {
+	UnauthorizedApplicationProblemPlusJSONResponse
+}
+
+func (response GetEd2kLogs401ApplicationProblemPlusJSONResponse) VisitGetEd2kLogsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetEd2kLogs403ApplicationProblemPlusJSONResponse struct {
+	ForbiddenApplicationProblemPlusJSONResponse
+}
+
+func (response GetEd2kLogs403ApplicationProblemPlusJSONResponse) VisitGetEd2kLogsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetEd2kLogs409ApplicationProblemPlusJSONResponse struct {
+	Ed2kDisabledApplicationProblemPlusJSONResponse
+}
+
+func (response GetEd2kLogs409ApplicationProblemPlusJSONResponse) VisitGetEd2kLogsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListEd2kPublicationsRequestObject struct {
+	Params ListEd2kPublicationsParams
+}
+
+type ListEd2kPublicationsResponseObject interface {
+	VisitListEd2kPublicationsResponse(w http.ResponseWriter) error
+}
+
+type ListEd2kPublications200JSONResponse struct {
+	Publications []Ed2kPublication `json:"publications"`
+}
+
+func (response ListEd2kPublications200JSONResponse) VisitListEd2kPublicationsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListEd2kPublications401ApplicationProblemPlusJSONResponse struct {
+	UnauthorizedApplicationProblemPlusJSONResponse
+}
+
+func (response ListEd2kPublications401ApplicationProblemPlusJSONResponse) VisitListEd2kPublicationsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListEd2kPublications403ApplicationProblemPlusJSONResponse struct {
+	ForbiddenApplicationProblemPlusJSONResponse
+}
+
+func (response ListEd2kPublications403ApplicationProblemPlusJSONResponse) VisitListEd2kPublicationsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListEd2kPublications409ApplicationProblemPlusJSONResponse struct {
+	Ed2kDisabledApplicationProblemPlusJSONResponse
+}
+
+func (response ListEd2kPublications409ApplicationProblemPlusJSONResponse) VisitListEd2kPublicationsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StopEd2kSearchRequestObject struct {
+}
+
+type StopEd2kSearchResponseObject interface {
+	VisitStopEd2kSearchResponse(w http.ResponseWriter) error
+}
+
+type StopEd2kSearch202Response struct {
+}
+
+func (response StopEd2kSearch202Response) VisitStopEd2kSearchResponse(w http.ResponseWriter) error {
+	w.WriteHeader(202)
+	return nil
+}
+
+type StopEd2kSearch401ApplicationProblemPlusJSONResponse struct {
+	UnauthorizedApplicationProblemPlusJSONResponse
+}
+
+func (response StopEd2kSearch401ApplicationProblemPlusJSONResponse) VisitStopEd2kSearchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StopEd2kSearch403ApplicationProblemPlusJSONResponse struct {
+	ForbiddenApplicationProblemPlusJSONResponse
+}
+
+func (response StopEd2kSearch403ApplicationProblemPlusJSONResponse) VisitStopEd2kSearchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StopEd2kSearch409ApplicationProblemPlusJSONResponse struct {
+	Ed2kDisabledApplicationProblemPlusJSONResponse
+}
+
+func (response StopEd2kSearch409ApplicationProblemPlusJSONResponse) VisitStopEd2kSearchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetEd2kSearchResultsRequestObject struct {
+}
+
+type GetEd2kSearchResultsResponseObject interface {
+	VisitGetEd2kSearchResultsResponse(w http.ResponseWriter) error
+}
+
+type GetEd2kSearchResults200JSONResponse struct {
+	// Complete Vrai aussi quand aucune recherche ne tourne : le démon rend
+	// la même valeur dans les deux cas, et prétendre les
+	// distinguer produirait une information fausse.
+	Complete bool               `json:"complete"`
+	Progress int                `json:"progress"`
+	Results  []Ed2kSearchResult `json:"results"`
+}
+
+func (response GetEd2kSearchResults200JSONResponse) VisitGetEd2kSearchResultsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetEd2kSearchResults401ApplicationProblemPlusJSONResponse struct {
+	UnauthorizedApplicationProblemPlusJSONResponse
+}
+
+func (response GetEd2kSearchResults401ApplicationProblemPlusJSONResponse) VisitGetEd2kSearchResultsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetEd2kSearchResults403ApplicationProblemPlusJSONResponse struct {
+	ForbiddenApplicationProblemPlusJSONResponse
+}
+
+func (response GetEd2kSearchResults403ApplicationProblemPlusJSONResponse) VisitGetEd2kSearchResultsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetEd2kSearchResults409ApplicationProblemPlusJSONResponse struct {
+	Ed2kDisabledApplicationProblemPlusJSONResponse
+}
+
+func (response GetEd2kSearchResults409ApplicationProblemPlusJSONResponse) VisitGetEd2kSearchResultsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartEd2kSearchRequestObject struct {
+	Body *StartEd2kSearchJSONRequestBody
+}
+
+type StartEd2kSearchResponseObject interface {
+	VisitStartEd2kSearchResponse(w http.ResponseWriter) error
+}
+
+type StartEd2kSearch202Response struct {
+}
+
+func (response StartEd2kSearch202Response) VisitStartEd2kSearchResponse(w http.ResponseWriter) error {
+	w.WriteHeader(202)
+	return nil
+}
+
+type StartEd2kSearch401ApplicationProblemPlusJSONResponse struct {
+	UnauthorizedApplicationProblemPlusJSONResponse
+}
+
+func (response StartEd2kSearch401ApplicationProblemPlusJSONResponse) VisitStartEd2kSearchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartEd2kSearch403ApplicationProblemPlusJSONResponse struct {
+	ForbiddenApplicationProblemPlusJSONResponse
+}
+
+func (response StartEd2kSearch403ApplicationProblemPlusJSONResponse) VisitStartEd2kSearchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartEd2kSearch409ApplicationProblemPlusJSONResponse struct {
+	Ed2kDisabledApplicationProblemPlusJSONResponse
+}
+
+func (response StartEd2kSearch409ApplicationProblemPlusJSONResponse) VisitStartEd2kSearchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type StartEd2kSearch422ApplicationProblemPlusJSONResponse struct {
+	ValidationFailedApplicationProblemPlusJSONResponse
+}
+
+func (response StartEd2kSearch422ApplicationProblemPlusJSONResponse) VisitStartEd2kSearchResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DownloadEd2kSearchResultRequestObject struct {
+	Hash Ed2kHash `json:"hash"`
+}
+
+type DownloadEd2kSearchResultResponseObject interface {
+	VisitDownloadEd2kSearchResultResponse(w http.ResponseWriter) error
+}
+
+type DownloadEd2kSearchResult202Response struct {
+}
+
+func (response DownloadEd2kSearchResult202Response) VisitDownloadEd2kSearchResultResponse(w http.ResponseWriter) error {
+	w.WriteHeader(202)
+	return nil
+}
+
+type DownloadEd2kSearchResult401ApplicationProblemPlusJSONResponse struct {
+	UnauthorizedApplicationProblemPlusJSONResponse
+}
+
+func (response DownloadEd2kSearchResult401ApplicationProblemPlusJSONResponse) VisitDownloadEd2kSearchResultResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DownloadEd2kSearchResult403ApplicationProblemPlusJSONResponse struct {
+	ForbiddenApplicationProblemPlusJSONResponse
+}
+
+func (response DownloadEd2kSearchResult403ApplicationProblemPlusJSONResponse) VisitDownloadEd2kSearchResultResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DownloadEd2kSearchResult409ApplicationProblemPlusJSONResponse struct {
+	Ed2kDisabledApplicationProblemPlusJSONResponse
+}
+
+func (response DownloadEd2kSearchResult409ApplicationProblemPlusJSONResponse) VisitDownloadEd2kSearchResultResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DownloadEd2kSearchResult422ApplicationProblemPlusJSONResponse struct {
+	ValidationFailedApplicationProblemPlusJSONResponse
+}
+
+func (response DownloadEd2kSearchResult422ApplicationProblemPlusJSONResponse) VisitDownloadEd2kSearchResultResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(422)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListEd2kServersRequestObject struct {
+}
+
+type ListEd2kServersResponseObject interface {
+	VisitListEd2kServersResponse(w http.ResponseWriter) error
+}
+
+type ListEd2kServers200JSONResponse struct {
+	Servers []Ed2kServer `json:"servers"`
+
+	// TakenAt Date de l'instantané d'où sort cette liste.
+	TakenAt time.Time `json:"takenAt"`
+}
+
+func (response ListEd2kServers200JSONResponse) VisitListEd2kServersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListEd2kServers401ApplicationProblemPlusJSONResponse struct {
+	UnauthorizedApplicationProblemPlusJSONResponse
+}
+
+func (response ListEd2kServers401ApplicationProblemPlusJSONResponse) VisitListEd2kServersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListEd2kServers403ApplicationProblemPlusJSONResponse struct {
+	ForbiddenApplicationProblemPlusJSONResponse
+}
+
+func (response ListEd2kServers403ApplicationProblemPlusJSONResponse) VisitListEd2kServersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListEd2kServers409ApplicationProblemPlusJSONResponse struct {
+	Ed2kDisabledApplicationProblemPlusJSONResponse
+}
+
+func (response ListEd2kServers409ApplicationProblemPlusJSONResponse) VisitListEd2kServersResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ConnectEd2kServerRequestObject struct {
+	Body *ConnectEd2kServerJSONRequestBody
+}
+
+type ConnectEd2kServerResponseObject interface {
+	VisitConnectEd2kServerResponse(w http.ResponseWriter) error
+}
+
+type ConnectEd2kServer202Response struct {
+}
+
+func (response ConnectEd2kServer202Response) VisitConnectEd2kServerResponse(w http.ResponseWriter) error {
+	w.WriteHeader(202)
+	return nil
+}
+
+type ConnectEd2kServer401ApplicationProblemPlusJSONResponse struct {
+	UnauthorizedApplicationProblemPlusJSONResponse
+}
+
+func (response ConnectEd2kServer401ApplicationProblemPlusJSONResponse) VisitConnectEd2kServerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ConnectEd2kServer403ApplicationProblemPlusJSONResponse struct {
+	ForbiddenApplicationProblemPlusJSONResponse
+}
+
+func (response ConnectEd2kServer403ApplicationProblemPlusJSONResponse) VisitConnectEd2kServerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ConnectEd2kServer409ApplicationProblemPlusJSONResponse struct {
+	Ed2kDisabledApplicationProblemPlusJSONResponse
+}
+
+func (response ConnectEd2kServer409ApplicationProblemPlusJSONResponse) VisitConnectEd2kServerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DisconnectEd2kServerRequestObject struct {
+}
+
+type DisconnectEd2kServerResponseObject interface {
+	VisitDisconnectEd2kServerResponse(w http.ResponseWriter) error
+}
+
+type DisconnectEd2kServer202Response struct {
+}
+
+func (response DisconnectEd2kServer202Response) VisitDisconnectEd2kServerResponse(w http.ResponseWriter) error {
+	w.WriteHeader(202)
+	return nil
+}
+
+type DisconnectEd2kServer401ApplicationProblemPlusJSONResponse struct {
+	UnauthorizedApplicationProblemPlusJSONResponse
+}
+
+func (response DisconnectEd2kServer401ApplicationProblemPlusJSONResponse) VisitDisconnectEd2kServerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DisconnectEd2kServer403ApplicationProblemPlusJSONResponse struct {
+	ForbiddenApplicationProblemPlusJSONResponse
+}
+
+func (response DisconnectEd2kServer403ApplicationProblemPlusJSONResponse) VisitDisconnectEd2kServerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type DisconnectEd2kServer409ApplicationProblemPlusJSONResponse struct {
+	Ed2kDisabledApplicationProblemPlusJSONResponse
+}
+
+func (response DisconnectEd2kServer409ApplicationProblemPlusJSONResponse) VisitDisconnectEd2kServerResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListEd2kSharedFilesRequestObject struct {
+}
+
+type ListEd2kSharedFilesResponseObject interface {
+	VisitListEd2kSharedFilesResponse(w http.ResponseWriter) error
+}
+
+type ListEd2kSharedFiles200JSONResponse struct {
+	Files []Ed2kSharedFile `json:"files"`
+
+	// TakenAt Date de l'instantané d'où sort cette liste.
+	TakenAt time.Time `json:"takenAt"`
+}
+
+func (response ListEd2kSharedFiles200JSONResponse) VisitListEd2kSharedFilesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListEd2kSharedFiles401ApplicationProblemPlusJSONResponse struct {
+	UnauthorizedApplicationProblemPlusJSONResponse
+}
+
+func (response ListEd2kSharedFiles401ApplicationProblemPlusJSONResponse) VisitListEd2kSharedFilesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListEd2kSharedFiles403ApplicationProblemPlusJSONResponse struct {
+	ForbiddenApplicationProblemPlusJSONResponse
+}
+
+func (response ListEd2kSharedFiles403ApplicationProblemPlusJSONResponse) VisitListEd2kSharedFilesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListEd2kSharedFiles409ApplicationProblemPlusJSONResponse struct {
+	Ed2kDisabledApplicationProblemPlusJSONResponse
+}
+
+func (response ListEd2kSharedFiles409ApplicationProblemPlusJSONResponse) VisitListEd2kSharedFilesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ReloadEd2kSharedFilesRequestObject struct {
+}
+
+type ReloadEd2kSharedFilesResponseObject interface {
+	VisitReloadEd2kSharedFilesResponse(w http.ResponseWriter) error
+}
+
+type ReloadEd2kSharedFiles202Response struct {
+}
+
+func (response ReloadEd2kSharedFiles202Response) VisitReloadEd2kSharedFilesResponse(w http.ResponseWriter) error {
+	w.WriteHeader(202)
+	return nil
+}
+
+type ReloadEd2kSharedFiles401ApplicationProblemPlusJSONResponse struct {
+	UnauthorizedApplicationProblemPlusJSONResponse
+}
+
+func (response ReloadEd2kSharedFiles401ApplicationProblemPlusJSONResponse) VisitReloadEd2kSharedFilesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ReloadEd2kSharedFiles403ApplicationProblemPlusJSONResponse struct {
+	ForbiddenApplicationProblemPlusJSONResponse
+}
+
+func (response ReloadEd2kSharedFiles403ApplicationProblemPlusJSONResponse) VisitReloadEd2kSharedFilesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ReloadEd2kSharedFiles409ApplicationProblemPlusJSONResponse struct {
+	Ed2kDisabledApplicationProblemPlusJSONResponse
+}
+
+func (response ReloadEd2kSharedFiles409ApplicationProblemPlusJSONResponse) VisitReloadEd2kSharedFilesResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetEd2kSnapshotRequestObject struct {
+}
+
+type GetEd2kSnapshotResponseObject interface {
+	VisitGetEd2kSnapshotResponse(w http.ResponseWriter) error
+}
+
+type GetEd2kSnapshot200JSONResponse Ed2kSnapshot
+
+func (response GetEd2kSnapshot200JSONResponse) VisitGetEd2kSnapshotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetEd2kSnapshot401ApplicationProblemPlusJSONResponse struct {
+	UnauthorizedApplicationProblemPlusJSONResponse
+}
+
+func (response GetEd2kSnapshot401ApplicationProblemPlusJSONResponse) VisitGetEd2kSnapshotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetEd2kSnapshot403ApplicationProblemPlusJSONResponse struct {
+	ForbiddenApplicationProblemPlusJSONResponse
+}
+
+func (response GetEd2kSnapshot403ApplicationProblemPlusJSONResponse) VisitGetEd2kSnapshotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetEd2kSnapshot409ApplicationProblemPlusJSONResponse struct {
+	Ed2kDisabledApplicationProblemPlusJSONResponse
+}
+
+func (response GetEd2kSnapshot409ApplicationProblemPlusJSONResponse) VisitGetEd2kSnapshotResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetEd2kStatsRequestObject struct {
+}
+
+type GetEd2kStatsResponseObject interface {
+	VisitGetEd2kStatsResponse(w http.ResponseWriter) error
+}
+
+type GetEd2kStats200JSONResponse struct {
+	// Connection Les deux réseaux, ensemble. Ils sont indépendants — on peut être
+	// connecté à Kad sans serveur, et l'inverse — et les afficher séparément
+	// laisserait croire qu'une panne de l'un est une panne du module.
+	Connection Ed2kConnection `json:"connection"`
+
+	// Stats Instantané des compteurs du démon.
+	Stats Ed2kStats `json:"stats"`
+
+	// TakenAt Date de l'instantané d'où sortent ces chiffres.
+	TakenAt time.Time `json:"takenAt"`
+}
+
+func (response GetEd2kStats200JSONResponse) VisitGetEd2kStatsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetEd2kStats401ApplicationProblemPlusJSONResponse struct {
+	UnauthorizedApplicationProblemPlusJSONResponse
+}
+
+func (response GetEd2kStats401ApplicationProblemPlusJSONResponse) VisitGetEd2kStatsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetEd2kStats403ApplicationProblemPlusJSONResponse struct {
+	ForbiddenApplicationProblemPlusJSONResponse
+}
+
+func (response GetEd2kStats403ApplicationProblemPlusJSONResponse) VisitGetEd2kStatsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetEd2kStats409ApplicationProblemPlusJSONResponse struct {
+	Ed2kDisabledApplicationProblemPlusJSONResponse
+}
+
+func (response GetEd2kStats409ApplicationProblemPlusJSONResponse) VisitGetEd2kStatsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetEd2kStatusRequestObject struct {
+}
+
+type GetEd2kStatusResponseObject interface {
+	VisitGetEd2kStatusResponse(w http.ResponseWriter) error
+}
+
+type GetEd2kStatus200JSONResponse Ed2kStatus
+
+func (response GetEd2kStatus200JSONResponse) VisitGetEd2kStatusResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetEd2kStatus401ApplicationProblemPlusJSONResponse struct {
+	UnauthorizedApplicationProblemPlusJSONResponse
+}
+
+func (response GetEd2kStatus401ApplicationProblemPlusJSONResponse) VisitGetEd2kStatusResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type GetEd2kStatus403ApplicationProblemPlusJSONResponse struct {
+	ForbiddenApplicationProblemPlusJSONResponse
+}
+
+func (response GetEd2kStatus403ApplicationProblemPlusJSONResponse) VisitGetEd2kStatusResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListEd2kUploadsRequestObject struct {
+}
+
+type ListEd2kUploadsResponseObject interface {
+	VisitListEd2kUploadsResponse(w http.ResponseWriter) error
+}
+
+type ListEd2kUploads200JSONResponse struct {
+	// QueuedPeers Pairs qui attendent un de nos fichiers.
+	QueuedPeers []Ed2kQueuedPeer `json:"queuedPeers"`
+
+	// TakenAt Date de l'instantané d'où sortent ces lignes.
+	TakenAt time.Time `json:"takenAt"`
+
+	// Uploads Transferts sortants actifs.
+	Uploads []Ed2kUpload `json:"uploads"`
+}
+
+func (response ListEd2kUploads200JSONResponse) VisitListEd2kUploadsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListEd2kUploads401ApplicationProblemPlusJSONResponse struct {
+	UnauthorizedApplicationProblemPlusJSONResponse
+}
+
+func (response ListEd2kUploads401ApplicationProblemPlusJSONResponse) VisitListEd2kUploadsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(401)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListEd2kUploads403ApplicationProblemPlusJSONResponse struct {
+	ForbiddenApplicationProblemPlusJSONResponse
+}
+
+func (response ListEd2kUploads403ApplicationProblemPlusJSONResponse) VisitListEd2kUploadsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(403)
+	_, err := buf.WriteTo(w)
+	return err
+}
+
+type ListEd2kUploads409ApplicationProblemPlusJSONResponse struct {
+	Ed2kDisabledApplicationProblemPlusJSONResponse
+}
+
+func (response ListEd2kUploads409ApplicationProblemPlusJSONResponse) VisitListEd2kUploadsResponse(w http.ResponseWriter) error {
+
+	var buf bytes.Buffer
+	if err := json.NewEncoder(&buf).Encode(response); err != nil {
+		return err
+	}
+	w.Header().Set("Content-Type", "application/problem+json")
+	w.WriteHeader(409)
 	_, err := buf.WriteTo(w)
 	return err
 }
@@ -9229,6 +12937,90 @@ type StrictServerInterface interface {
 	// ContinueReading Albums en cours de lecture
 	// (GET /continue-reading)
 	ContinueReading(ctx context.Context, request ContinueReadingRequestObject) (ContinueReadingResponseObject, error)
+	// ForgetEd2kDaemon Oublier le démon déclaré
+	// (DELETE /ed2k/daemon)
+	ForgetEd2kDaemon(ctx context.Context, request ForgetEd2kDaemonRequestObject) (ForgetEd2kDaemonResponseObject, error)
+	// GetEd2kDaemon Démon aMule déclaré
+	// (GET /ed2k/daemon)
+	GetEd2kDaemon(ctx context.Context, request GetEd2kDaemonRequestObject) (GetEd2kDaemonResponseObject, error)
+	// SetEd2kDaemon Déclarer ou remplacer le démon aMule
+	// (PUT /ed2k/daemon)
+	SetEd2kDaemon(ctx context.Context, request SetEd2kDaemonRequestObject) (SetEd2kDaemonResponseObject, error)
+	// ListEd2kDestinations Destinations par catégorie
+	// (GET /ed2k/destinations)
+	ListEd2kDestinations(ctx context.Context, request ListEd2kDestinationsRequestObject) (ListEd2kDestinationsResponseObject, error)
+	// SetEd2kDestination Déclarer la destination d'une catégorie
+	// (PUT /ed2k/destinations)
+	SetEd2kDestination(ctx context.Context, request SetEd2kDestinationRequestObject) (SetEd2kDestinationResponseObject, error)
+	// ListEd2kDownloads File de téléchargement
+	// (GET /ed2k/downloads)
+	ListEd2kDownloads(ctx context.Context, request ListEd2kDownloadsRequestObject) (ListEd2kDownloadsResponseObject, error)
+	// ActOnEd2kDownload Agir sur un téléchargement
+	// (POST /ed2k/downloads/{hash}/action)
+	ActOnEd2kDownload(ctx context.Context, request ActOnEd2kDownloadRequestObject) (ActOnEd2kDownloadResponseObject, error)
+	// SetEd2kDownloadPriority Changer la priorité d'un téléchargement
+	// (PUT /ed2k/downloads/{hash}/priority)
+	SetEd2kDownloadPriority(ctx context.Context, request SetEd2kDownloadPriorityRequestObject) (SetEd2kDownloadPriorityResponseObject, error)
+	// ListEd2kDownloadSources Sources d'un téléchargement
+	// (GET /ed2k/downloads/{hash}/sources)
+	ListEd2kDownloadSources(ctx context.Context, request ListEd2kDownloadSourcesRequestObject) (ListEd2kDownloadSourcesResponseObject, error)
+	// StreamEd2kEvents Flux d'événements du module
+	// (GET /ed2k/events)
+	StreamEd2kEvents(ctx context.Context, request StreamEd2kEventsRequestObject) (StreamEd2kEventsResponseObject, error)
+	// SetEd2kKadRunning Démarrer ou arrêter Kad
+	// (POST /ed2k/kad)
+	SetEd2kKadRunning(ctx context.Context, request SetEd2kKadRunningRequestObject) (SetEd2kKadRunningResponseObject, error)
+	// AddEd2kLink Mettre un lien ed2k:// en file
+	// (POST /ed2k/links)
+	AddEd2kLink(ctx context.Context, request AddEd2kLinkRequestObject) (AddEd2kLinkResponseObject, error)
+	// ClearEd2kLogs Vider le journal du démon
+	// (DELETE /ed2k/logs)
+	ClearEd2kLogs(ctx context.Context, request ClearEd2kLogsRequestObject) (ClearEd2kLogsResponseObject, error)
+	// GetEd2kLogs Journal du démon
+	// (GET /ed2k/logs)
+	GetEd2kLogs(ctx context.Context, request GetEd2kLogsRequestObject) (GetEd2kLogsResponseObject, error)
+	// ListEd2kPublications Ce que le pont a fait
+	// (GET /ed2k/publications)
+	ListEd2kPublications(ctx context.Context, request ListEd2kPublicationsRequestObject) (ListEd2kPublicationsResponseObject, error)
+	// StopEd2kSearch Interrompre la recherche
+	// (DELETE /ed2k/search)
+	StopEd2kSearch(ctx context.Context, request StopEd2kSearchRequestObject) (StopEd2kSearchResponseObject, error)
+	// GetEd2kSearchResults Progression et résultats de la recherche
+	// (GET /ed2k/search)
+	GetEd2kSearchResults(ctx context.Context, request GetEd2kSearchResultsRequestObject) (GetEd2kSearchResultsResponseObject, error)
+	// StartEd2kSearch Lancer une recherche
+	// (POST /ed2k/search)
+	StartEd2kSearch(ctx context.Context, request StartEd2kSearchRequestObject) (StartEd2kSearchResponseObject, error)
+	// DownloadEd2kSearchResult Mettre un résultat en file
+	// (POST /ed2k/search/{hash}/download)
+	DownloadEd2kSearchResult(ctx context.Context, request DownloadEd2kSearchResultRequestObject) (DownloadEd2kSearchResultResponseObject, error)
+	// ListEd2kServers Serveurs eD2k connus
+	// (GET /ed2k/servers)
+	ListEd2kServers(ctx context.Context, request ListEd2kServersRequestObject) (ListEd2kServersResponseObject, error)
+	// ConnectEd2kServer Joindre un serveur
+	// (POST /ed2k/servers/connect)
+	ConnectEd2kServer(ctx context.Context, request ConnectEd2kServerRequestObject) (ConnectEd2kServerResponseObject, error)
+	// DisconnectEd2kServer Quitter le serveur courant
+	// (POST /ed2k/servers/disconnect)
+	DisconnectEd2kServer(ctx context.Context, request DisconnectEd2kServerRequestObject) (DisconnectEd2kServerResponseObject, error)
+	// ListEd2kSharedFiles Fichiers partagés par l'instance
+	// (GET /ed2k/shared)
+	ListEd2kSharedFiles(ctx context.Context, request ListEd2kSharedFilesRequestObject) (ListEd2kSharedFilesResponseObject, error)
+	// ReloadEd2kSharedFiles Reparcourir les répertoires partagés
+	// (POST /ed2k/shared/reload)
+	ReloadEd2kSharedFiles(ctx context.Context, request ReloadEd2kSharedFilesRequestObject) (ReloadEd2kSharedFilesResponseObject, error)
+	// GetEd2kSnapshot État complet du module en une requête
+	// (GET /ed2k/snapshot)
+	GetEd2kSnapshot(ctx context.Context, request GetEd2kSnapshotRequestObject) (GetEd2kSnapshotResponseObject, error)
+	// GetEd2kStats Compteurs du démon
+	// (GET /ed2k/stats)
+	GetEd2kStats(ctx context.Context, request GetEd2kStatsRequestObject) (GetEd2kStatsResponseObject, error)
+	// GetEd2kStatus État du module eD2k/Kad
+	// (GET /ed2k/status)
+	GetEd2kStatus(ctx context.Context, request GetEd2kStatusRequestObject) (GetEd2kStatusResponseObject, error)
+	// ListEd2kUploads Envois en cours et file d'attente
+	// (GET /ed2k/uploads)
+	ListEd2kUploads(ctx context.Context, request ListEd2kUploadsRequestObject) (ListEd2kUploadsResponseObject, error)
 	// ListFolders Arborescence des dossiers
 	// (GET /folders)
 	ListFolders(ctx context.Context, request ListFoldersRequestObject) (ListFoldersResponseObject, error)
@@ -10199,6 +13991,749 @@ func (sh *strictHandler) ContinueReading(w http.ResponseWriter, r *http.Request,
 		sh.options.ResponseErrorHandlerFunc(w, r, err)
 	} else if validResponse, ok := response.(ContinueReadingResponseObject); ok {
 		if err := validResponse.VisitContinueReadingResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ForgetEd2kDaemon operation middleware
+func (sh *strictHandler) ForgetEd2kDaemon(w http.ResponseWriter, r *http.Request) {
+	var request ForgetEd2kDaemonRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ForgetEd2kDaemon(ctx, request.(ForgetEd2kDaemonRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ForgetEd2kDaemon")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ForgetEd2kDaemonResponseObject); ok {
+		if err := validResponse.VisitForgetEd2kDaemonResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetEd2kDaemon operation middleware
+func (sh *strictHandler) GetEd2kDaemon(w http.ResponseWriter, r *http.Request) {
+	var request GetEd2kDaemonRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetEd2kDaemon(ctx, request.(GetEd2kDaemonRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetEd2kDaemon")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetEd2kDaemonResponseObject); ok {
+		if err := validResponse.VisitGetEd2kDaemonResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SetEd2kDaemon operation middleware
+func (sh *strictHandler) SetEd2kDaemon(w http.ResponseWriter, r *http.Request) {
+	var request SetEd2kDaemonRequestObject
+
+	var body SetEd2kDaemonJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetEd2kDaemon(ctx, request.(SetEd2kDaemonRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetEd2kDaemon")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetEd2kDaemonResponseObject); ok {
+		if err := validResponse.VisitSetEd2kDaemonResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListEd2kDestinations operation middleware
+func (sh *strictHandler) ListEd2kDestinations(w http.ResponseWriter, r *http.Request) {
+	var request ListEd2kDestinationsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListEd2kDestinations(ctx, request.(ListEd2kDestinationsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListEd2kDestinations")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListEd2kDestinationsResponseObject); ok {
+		if err := validResponse.VisitListEd2kDestinationsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SetEd2kDestination operation middleware
+func (sh *strictHandler) SetEd2kDestination(w http.ResponseWriter, r *http.Request) {
+	var request SetEd2kDestinationRequestObject
+
+	var body SetEd2kDestinationJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetEd2kDestination(ctx, request.(SetEd2kDestinationRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetEd2kDestination")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetEd2kDestinationResponseObject); ok {
+		if err := validResponse.VisitSetEd2kDestinationResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListEd2kDownloads operation middleware
+func (sh *strictHandler) ListEd2kDownloads(w http.ResponseWriter, r *http.Request) {
+	var request ListEd2kDownloadsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListEd2kDownloads(ctx, request.(ListEd2kDownloadsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListEd2kDownloads")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListEd2kDownloadsResponseObject); ok {
+		if err := validResponse.VisitListEd2kDownloadsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ActOnEd2kDownload operation middleware
+func (sh *strictHandler) ActOnEd2kDownload(w http.ResponseWriter, r *http.Request, hash Ed2kHash) {
+	var request ActOnEd2kDownloadRequestObject
+
+	request.Hash = hash
+
+	var body ActOnEd2kDownloadJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ActOnEd2kDownload(ctx, request.(ActOnEd2kDownloadRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ActOnEd2kDownload")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ActOnEd2kDownloadResponseObject); ok {
+		if err := validResponse.VisitActOnEd2kDownloadResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SetEd2kDownloadPriority operation middleware
+func (sh *strictHandler) SetEd2kDownloadPriority(w http.ResponseWriter, r *http.Request, hash Ed2kHash) {
+	var request SetEd2kDownloadPriorityRequestObject
+
+	request.Hash = hash
+
+	var body SetEd2kDownloadPriorityJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetEd2kDownloadPriority(ctx, request.(SetEd2kDownloadPriorityRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetEd2kDownloadPriority")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetEd2kDownloadPriorityResponseObject); ok {
+		if err := validResponse.VisitSetEd2kDownloadPriorityResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListEd2kDownloadSources operation middleware
+func (sh *strictHandler) ListEd2kDownloadSources(w http.ResponseWriter, r *http.Request, hash Ed2kHash) {
+	var request ListEd2kDownloadSourcesRequestObject
+
+	request.Hash = hash
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListEd2kDownloadSources(ctx, request.(ListEd2kDownloadSourcesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListEd2kDownloadSources")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListEd2kDownloadSourcesResponseObject); ok {
+		if err := validResponse.VisitListEd2kDownloadSourcesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// StreamEd2kEvents operation middleware
+func (sh *strictHandler) StreamEd2kEvents(w http.ResponseWriter, r *http.Request, params StreamEd2kEventsParams) {
+	var request StreamEd2kEventsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.StreamEd2kEvents(ctx, request.(StreamEd2kEventsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "StreamEd2kEvents")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(StreamEd2kEventsResponseObject); ok {
+		if err := validResponse.VisitStreamEd2kEventsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// SetEd2kKadRunning operation middleware
+func (sh *strictHandler) SetEd2kKadRunning(w http.ResponseWriter, r *http.Request) {
+	var request SetEd2kKadRunningRequestObject
+
+	var body SetEd2kKadRunningJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.SetEd2kKadRunning(ctx, request.(SetEd2kKadRunningRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "SetEd2kKadRunning")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(SetEd2kKadRunningResponseObject); ok {
+		if err := validResponse.VisitSetEd2kKadRunningResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// AddEd2kLink operation middleware
+func (sh *strictHandler) AddEd2kLink(w http.ResponseWriter, r *http.Request) {
+	var request AddEd2kLinkRequestObject
+
+	var body AddEd2kLinkJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.AddEd2kLink(ctx, request.(AddEd2kLinkRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "AddEd2kLink")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(AddEd2kLinkResponseObject); ok {
+		if err := validResponse.VisitAddEd2kLinkResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ClearEd2kLogs operation middleware
+func (sh *strictHandler) ClearEd2kLogs(w http.ResponseWriter, r *http.Request) {
+	var request ClearEd2kLogsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ClearEd2kLogs(ctx, request.(ClearEd2kLogsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ClearEd2kLogs")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ClearEd2kLogsResponseObject); ok {
+		if err := validResponse.VisitClearEd2kLogsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetEd2kLogs operation middleware
+func (sh *strictHandler) GetEd2kLogs(w http.ResponseWriter, r *http.Request) {
+	var request GetEd2kLogsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetEd2kLogs(ctx, request.(GetEd2kLogsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetEd2kLogs")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetEd2kLogsResponseObject); ok {
+		if err := validResponse.VisitGetEd2kLogsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListEd2kPublications operation middleware
+func (sh *strictHandler) ListEd2kPublications(w http.ResponseWriter, r *http.Request, params ListEd2kPublicationsParams) {
+	var request ListEd2kPublicationsRequestObject
+
+	request.Params = params
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListEd2kPublications(ctx, request.(ListEd2kPublicationsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListEd2kPublications")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListEd2kPublicationsResponseObject); ok {
+		if err := validResponse.VisitListEd2kPublicationsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// StopEd2kSearch operation middleware
+func (sh *strictHandler) StopEd2kSearch(w http.ResponseWriter, r *http.Request) {
+	var request StopEd2kSearchRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.StopEd2kSearch(ctx, request.(StopEd2kSearchRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "StopEd2kSearch")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(StopEd2kSearchResponseObject); ok {
+		if err := validResponse.VisitStopEd2kSearchResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetEd2kSearchResults operation middleware
+func (sh *strictHandler) GetEd2kSearchResults(w http.ResponseWriter, r *http.Request) {
+	var request GetEd2kSearchResultsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetEd2kSearchResults(ctx, request.(GetEd2kSearchResultsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetEd2kSearchResults")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetEd2kSearchResultsResponseObject); ok {
+		if err := validResponse.VisitGetEd2kSearchResultsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// StartEd2kSearch operation middleware
+func (sh *strictHandler) StartEd2kSearch(w http.ResponseWriter, r *http.Request) {
+	var request StartEd2kSearchRequestObject
+
+	var body StartEd2kSearchJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.StartEd2kSearch(ctx, request.(StartEd2kSearchRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "StartEd2kSearch")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(StartEd2kSearchResponseObject); ok {
+		if err := validResponse.VisitStartEd2kSearchResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DownloadEd2kSearchResult operation middleware
+func (sh *strictHandler) DownloadEd2kSearchResult(w http.ResponseWriter, r *http.Request, hash Ed2kHash) {
+	var request DownloadEd2kSearchResultRequestObject
+
+	request.Hash = hash
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DownloadEd2kSearchResult(ctx, request.(DownloadEd2kSearchResultRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DownloadEd2kSearchResult")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DownloadEd2kSearchResultResponseObject); ok {
+		if err := validResponse.VisitDownloadEd2kSearchResultResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListEd2kServers operation middleware
+func (sh *strictHandler) ListEd2kServers(w http.ResponseWriter, r *http.Request) {
+	var request ListEd2kServersRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListEd2kServers(ctx, request.(ListEd2kServersRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListEd2kServers")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListEd2kServersResponseObject); ok {
+		if err := validResponse.VisitListEd2kServersResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ConnectEd2kServer operation middleware
+func (sh *strictHandler) ConnectEd2kServer(w http.ResponseWriter, r *http.Request) {
+	var request ConnectEd2kServerRequestObject
+
+	var body ConnectEd2kServerJSONRequestBody
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		if !errors.Is(err, io.EOF) {
+			sh.options.RequestErrorHandlerFunc(w, r, fmt.Errorf("can't decode JSON body: %w", err))
+			return
+		}
+	} else {
+		request.Body = &body
+	}
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ConnectEd2kServer(ctx, request.(ConnectEd2kServerRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ConnectEd2kServer")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ConnectEd2kServerResponseObject); ok {
+		if err := validResponse.VisitConnectEd2kServerResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// DisconnectEd2kServer operation middleware
+func (sh *strictHandler) DisconnectEd2kServer(w http.ResponseWriter, r *http.Request) {
+	var request DisconnectEd2kServerRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.DisconnectEd2kServer(ctx, request.(DisconnectEd2kServerRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "DisconnectEd2kServer")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(DisconnectEd2kServerResponseObject); ok {
+		if err := validResponse.VisitDisconnectEd2kServerResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListEd2kSharedFiles operation middleware
+func (sh *strictHandler) ListEd2kSharedFiles(w http.ResponseWriter, r *http.Request) {
+	var request ListEd2kSharedFilesRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListEd2kSharedFiles(ctx, request.(ListEd2kSharedFilesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListEd2kSharedFiles")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListEd2kSharedFilesResponseObject); ok {
+		if err := validResponse.VisitListEd2kSharedFilesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ReloadEd2kSharedFiles operation middleware
+func (sh *strictHandler) ReloadEd2kSharedFiles(w http.ResponseWriter, r *http.Request) {
+	var request ReloadEd2kSharedFilesRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ReloadEd2kSharedFiles(ctx, request.(ReloadEd2kSharedFilesRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ReloadEd2kSharedFiles")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ReloadEd2kSharedFilesResponseObject); ok {
+		if err := validResponse.VisitReloadEd2kSharedFilesResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetEd2kSnapshot operation middleware
+func (sh *strictHandler) GetEd2kSnapshot(w http.ResponseWriter, r *http.Request) {
+	var request GetEd2kSnapshotRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetEd2kSnapshot(ctx, request.(GetEd2kSnapshotRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetEd2kSnapshot")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetEd2kSnapshotResponseObject); ok {
+		if err := validResponse.VisitGetEd2kSnapshotResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetEd2kStats operation middleware
+func (sh *strictHandler) GetEd2kStats(w http.ResponseWriter, r *http.Request) {
+	var request GetEd2kStatsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetEd2kStats(ctx, request.(GetEd2kStatsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetEd2kStats")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetEd2kStatsResponseObject); ok {
+		if err := validResponse.VisitGetEd2kStatsResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// GetEd2kStatus operation middleware
+func (sh *strictHandler) GetEd2kStatus(w http.ResponseWriter, r *http.Request) {
+	var request GetEd2kStatusRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.GetEd2kStatus(ctx, request.(GetEd2kStatusRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "GetEd2kStatus")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(GetEd2kStatusResponseObject); ok {
+		if err := validResponse.VisitGetEd2kStatusResponse(w); err != nil {
+			sh.options.ResponseErrorHandlerFunc(w, r, err)
+		}
+	} else if response != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// ListEd2kUploads operation middleware
+func (sh *strictHandler) ListEd2kUploads(w http.ResponseWriter, r *http.Request) {
+	var request ListEd2kUploadsRequestObject
+
+	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, request interface{}) (interface{}, error) {
+		return sh.ssi.ListEd2kUploads(ctx, request.(ListEd2kUploadsRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "ListEd2kUploads")
+	}
+
+	response, err := handler(r.Context(), w, r, request)
+
+	if err != nil {
+		sh.options.ResponseErrorHandlerFunc(w, r, err)
+	} else if validResponse, ok := response.(ListEd2kUploadsResponseObject); ok {
+		if err := validResponse.VisitListEd2kUploadsResponse(w); err != nil {
 			sh.options.ResponseErrorHandlerFunc(w, r, err)
 		}
 	} else if response != nil {
@@ -11450,302 +15985,485 @@ func (sh *strictHandler) GetVersion(w http.ResponseWriter, r *http.Request) {
 // const string: with thousands of chunks the chained `+` fold is several
 // times slower for the Go compiler than parsing a slice literal.
 var swaggerSpec = []string{
-	"7L1bbxxHli76VwKcc1BunmKRttQ9GDYODnSxejSHltWi5QZ2l9EVlbmqGFJmRCouZdKGgH6d5z0/wJiX",
-	"cXUD8zQvG35zYv+R+SUbsVZEXqoy60KVRLlnHmyRrKzMyIgVK9blW9/6/ihReaEkSGuOzr8/KrjmOVjQ",
-	"+NtDnrwGmT5Nn3N75f8g5NH5UeF/GR5JnsPR+dE0XnM0PNLwxgkN6dG51Q6GRya5gpz7L86Uzrk9Oj9y",
-	"Tvgr7U3hv2ysFnJ+9Pbt8OiRykXyNO15ShI+fcdnOG2U9temYBItCiuUf9bXPAOn2UTCtaVrJiwFlnFW",
-	"8DmwQpfLpFymIC2M2JcFf+OAnbPyB6ZBLtQNaGYhy2As3zj/75C94jkXxl+RKGms9iMejeXRkN7tjQN9",
-	"03g5GlbzXdbHfiGmmusbmqH28F+AsRqEtP6BTgKbimkmlL0qf3zj/IhzYYbMKmfBsAxM+3PDFsKIaQZm",
-	"1DO+rHr0ftNdDXmD+DTv/S5LeyFyYden5pnKpxpYOiiXWbnMvZiP2ONyOePOsl+fDVmR8ZmSKfvs7Kz/",
-	"9f2tm8PJ+bXIXX50/tnZ2fAoF5J++7QamJAW5qBxZJdXXMNX6jXI9eH9E1glWepYJkCywk0zkQy9MDEv",
-	"YhrKf3N+TQ1niS6X3H+rGmV7Hi0+YNMcrs8ZDur3+LJ9IxvwJCl/NEPGkwQKWy4ZSKahyAQrlNMoTf6R",
-	"5V+8bL1xgklgBbgFSMsKbsayUNqCZukA5In1l7HJA2evlBbf4ftM2H/++V9IankmDLDJ2J2d3UtEPscf",
-	"YDJkBdcMriEvsg27KM7Apjd+aUBvFEeHF7yTLL71XzaFkgaCEk1fgN9nKJ6JkhYk/siLIhMJTsJpodU0",
-	"g/z/eWUUikn9uP9Lw+zo/OjvTmtFfUqfmtPn9C166KpOoEVhOc/8iMslHL0dHj1ReirSlGTxQ43lsVbC",
-	"GiakcbOZMNyfNW+HR8+UfaKcTD/stBijnE6ACWm1cgs+zSAM5qlM4Ro+6HAuBjybupzJgT9qDJsJKbyy",
-	"+ovVfoQpXJdLP7qXkoc982HHR1qATw1IO2RwXQhdLplyTMgFz0SKU/e1/wkH8ISL7MMOsH42K5fJlXIo",
-	"52/jfsUN+CBJlKOxFFoVoK2gnZlo4BbSB7a1rVNu4cSKHNb39vAoFabI+M0z1Bbfr38OORdZ5yci3UF5",
-	"DI8ybuyFmgu5z6hyfv1gDi+49b+vqfJHGTdGzMIaMDy8eAaMO6u0MOUSRuzpXCpdLoEZwTJv8aiZyJgc",
-	"gAlqXEcbgxTw6jmHOs9qkVjoMFCe0+2qe6DKn3ID/ugLzwI549KO6ntPlcqAS7y3ynC6Qfpj9o9HPM2F",
-	"H4XX1kffdEyI/0B2r9Hbpm7/4xGuQnV5eFTrbYYNOamfpaavILH+WQ+dyNKncqY6BEzlnVbJI/w7mwvL",
-	"+FSXy3m5HHWt61x9DdoI2itrny7qz1Y2BX3ATLnMubTijYOh37TjoxQW4yN2pbQ/tTPgBkad1lRzhuJj",
-	"hvF1muPqmpBHPLmCS8vJo2gP7cskcQXJYepY4q9kabnUYlEuUSoWYi7BWjBDlii3AG2d9r94Q9wwq7k0",
-	"iUrLJZjRWI7lV8pZdsO8mGoItnZivTXLUiicIHuX6+RKLMCwdKC0mAvpzfcEDEuuxGymwYxlWi4TLdBs",
-	"CZZ/xhNgyo+3XNYmPX2YKin9bil/8OJry+UcNG2MtgBMbyz9UO1jIe1v7nduIJBWi52vvhJd0xvMXass",
-	"z3CokOD8MQN6IfwExEmhuferv8PDcn79ML7Jys4O5nOi5EzMnS6XI/Y/yqVWzIi5FDMBzMmwzlJJNlVa",
-	"krDv8FgJ34Kx/yjsPrpQZSmYPb6xIu1xFYZh7cJMd8q590nXNz1vauLmW977rPMtE7UAHU3SFT1xBbmQ",
-	"Qebq7TBiF8AS7zJ42eevvGPHJv/ftyK1V//vhBWZs+V/WHQhUhhLPFENaJYNXr64YJkTJ3n5lxxamrye",
-	"QBqPl/4rP5cd7vKDArT3TFJgyRXXc/B+Ffvk4vdPn/+KnbOUW37y8sVTlg68WS9y70OnwD79DSuucUSZ",
-	"/9LQ7x4+m4nkCjSbZcpZv6UyYBbywuDwW6/NuPY7dDT2PkuGnmsC0nIhaWcnFqwZskwsdLk0jC8g8TfI",
-	"hLFA3kq5XAjvjDgJ/kQLFrJxRRGcQ05++lg+QJOHWS5pHrMVQ61cel8oWGjon/hXDaoS/aAMxrLQKnWC",
-	"jrusWrJUed1fLjVoZqJ5lfQux/5GykxkEC2UNf3g9a6fc+GdMi5RF4QYzpAZ/wc/pgQlb9R390vxHeyo",
-	"qGYoRN3y/VgZ48dB1qKf6zDPQ388cStmjDsMv8zENYR90A5ujOXXIkVFnHGmeSJk30TGsdZmRDL9zp9q",
-	"U43//3uvvdPZ0fAICjftNCt2tuHk3PE5dB38KbCHj56f3P/7zrnNmkGerc+RLp927c+v4NrCkCWc/HPp",
-	"cq+RDfMGXobra5nh/iMvmD//ld1jP/80xB9Gv44//uMl+/mnnqn0h/GjaFPvoOKCrdElxF23N+BV8I6T",
-	"QBf3GuTG+odscTBQk1/ilf4rLs85xUTWbmeFzboftFCZy2GnCekyQZtxMHpIJbHN+Y4v1NiGTRXRPE0a",
-	"eqC1C3uPsudBZNvHmbCQt3/YOpM4UfQIrjW/obM8hlY7zhNStsZptK1AS1H+qAFtvu32KY2r960uowC0",
-	"n3kJLgvGoVc4hk008PRmQrsjixFRNgGtlZ4wDGOhkofryp8dS9KgA7+0euYNxnSAzokwVlO4DndQ1DgF",
-	"yNS/w/AIjw76ER/sDY2bVJPhMDzCp3bqoMewEEnHOvGi2OQsJE7r4JCvOAuax1jegBcF1yAyxm+8Mi6X",
-	"ubcVeRXh6/bO9vBsLwH2cmxl37YuMm79LbbJI83W83h159YLnl91y9ZQ65nrkrCV2zfOlm9hejQ84jLV",
-	"Ch8ilLclUzCvrSq8yylfS/Wt7FziJ5XdteZOiqTSuyt7iKTYm2TA0nCuAjozxtv/ypmT8Gcz6lTSKRRd",
-	"Z/RZ+2ztdl1wS4iN0uVkNaxEl8tyGe6bcyGHaDEZpxfeI3ZsxoWtwmALkfoj/Ql31+t38h4ft8EEy7zK",
-	"0Ily2gxZucz43JVLlpY/emNyIDIm0RqWFs2wInOGaQGydcg15PqKG39er7/UF9y8cZXZxxJ/qMdI+Yi9",
-	"rIeXhwu955OWy4Xf1U5kWbkcS0m7jZf/jhEWb5ZZ78yiRkm8CxwsV39G+zXVvADuQnzdW5EyGcswRX6W",
-	"vZlq2tPTfibGAOIMNrQUOD2WfgEWIri/wV0AfLW+6dl12+9n0nSarY/9keCtZZijq5G6YKDGyUHxGQRn",
-	"Ipi1A66nGkbd9ssGb8trkQxspwk6Ymhtkrrs2BP1I7xS/1JmN53BMIshHzR7NeAhlKu0itCZEXsGJDtA",
-	"Ato5/05mKnndFW67oIVjPLgphgsjvDKI3ksI5Hbdd5tt0kyXRJ0xbGqmhjZozEK9mxoD79KopPt+p3ln",
-	"wJbLP2hhm0dCY0K2xWZDbmcXMdw9flgljKqxdb1VyIRuU+k7mNI77rrXgvIqlauDdtnwKOdyzo+Gftpe",
-	"+1/FdWsdtp68G85PfGRLFDbMxGOwIVC+EjCr0AS7vOX7nr3d7RGtlH2uYSaud5y0JmyiPYGNW+06m7fa",
-	"Lvsp5p03z8rLNnXHXnsF38msv9S8+vtODklrhtb8kpXBhnt3jeoLLsUs5HA7tvCOs7iv44xR753fNY4R",
-	"Hblt71ojapreJT1w0wR0e4lXIOZXO+9C7/vseq15rNw06zIK8O+syLgMWQQLCYYQuWPofGGcNIPEWzje",
-	"HgjmgQGXAQPpD10YyzTch88hBMCCI+QtDgwiYmhPCbMaW2psJoy99nm2lFUbUCA0nsGFY2S8ccmzG8zC",
-	"rUTFd4od4FQ2pqlr6WL+dG14n2vtp8Zb3Phc9uLJI/YP93/998OQMAhBVGD+nuyLp198PpaTvoTupCsD",
-	"klaKfuXRtRcdnJbET4oul4kwwxAX5n5hvJswcFZkwqCt2mluob9MfnCaCn9Xnj1vDWQ9lbti/PG8MFVe",
-	"2wxrfAvgLKFvtajSzY1R1BMtvDcikw5hfZqCtGImeJVfqnxqVv6ZCZlkTgfL1UmmeVEojZdO3RyHMpYa",
-	"ELEAaHpazf2clf+BBh7ohZ+Z7mid95Bccw4a26s/nkV/2PQexnLKs2GY3nthc6WFd4VoxraHbvDTOt4V",
-	"BtojwnMNxryb+k3RXd/x4pn3j672i7wXnVHfx62IFsscDNnZyZQbSHfa8yvnxmpIuRCYR5cB6gYhV8od",
-	"y1VeJzRDLnDEXoB3KxN1VS61105jiekgUlKU5qB8al5kPOlIb3DntW2iHL5OKmYzuhPJ3y6vAzqBlUOQ",
-	"1HB9eQhuB1eq5+WfVe9cZTrRfSt/tARn3GEwxnK9Z4Kl3lGbjuMXwNNLutIbUEW6bx6nN8H/VCaaElYU",
-	"RkmuEJKKKWxc413yqxvtgVWzICxY9erNVRk2IAL1W27axS/xqvW93Nyf7Td+whOXWXTHQzLtFUKTKCyb",
-	"lstXeEzEAGZrAjYZY51WSAXoPNu6F/f8bi04PMu+nB2d/3F3EfpmuHlO0nKJycYAX1AGj0FmBiLD/axy",
-	"YUZry7622F3r1hhGw6d00ssAxrL/VET9TILR6VJeJly+cLIjdJ2mkHafT33mwxdgDCqfcNYgkKiK/WVk",
-	"TZTL5KpctlFFXSZDR9LyFrp/R9+SZtVcAsjuZ2vI1aJvPt5JWbWnUDsphZwPmXFJAsYM2Qzhe0w5lngr",
-	"JsvofFr3BWmTd42wy9WtVEY9+PY0DIME1HeuZ6Fapy65vASuk6sXYFzWhYZ5KYFpSK5Ae7Nfg1VOS39a",
-	"uGsmOR0XKTBdLg1uJFOhfGZKps6bfpKwAuQyUDz2nIU7avbzXxk3tlxqcc1+/oktMC4rNG5A4/8cQoWI",
-	"B+BjGSTUDhlYb+ZZlUO0eRtXQnyCd2AMy8u/ZKBZknFjQHNhxzIbOG82L0LK3KEfgShyR/tf+EtZcuW9",
-	"lk5kEqr7A+T1KP26830u6fKdnFMUGbq+e/Hjk98xpIYp00d7mJEtxM5mv+IdgKC3ipuvH3JumnlVpneM",
-	"SzXjNSEutSUGRetwiORxn3CsZo9vmw/GSowLIV+/mxdxC0QOBtzB7AXiaeFmbg9FmUI3Hjnjxr40+73G",
-	"fjJpu2teXoA0IOayXLKXz57+/uXnX3z+7KuQDKyrXNgluAyhSFc8ufJHvbdhEiW9r1su2flYYkKPkmGY",
-	"y6NwiobMMZDGCduHBHKm24DbxUxe2yT10raBGNVDeiUxfVSD5Lcq59ULFu8uGzV86J3jlFtAOH1Rhq65",
-	"jcGApvtRv27XZK4qi1tstv5tYhJVtLDntC+jWuwwdFdeim6wIie0vp2SYZXmcwiVl10rL2divlegaz1M",
-	"tZt8CPMYZtxltjt/sJpiMvf8zlAJz/ZJKLUzpetP6bNe1eshQ8sQs9oLkWL8IphvFrxVtgN0qCt9hfPb",
-	"fPtWGnNDjOryRia1Z1s7eLc9aXoc9I5Hby2faXrdb7+JpX8dioWjK1BVK26MoLUXpPxz1M4EPGlWx3J3",
-	"7T+UcC2UNMw44S3XlQhNnxi2tvNaEFnoqprg1UrJYkBVaJhpMFcMj6PWEzeqhPC1/qnA4pMtFs1L03GE",
-	"NOd45TltNVFN9lqlSy10L4tM8dSfJZ1g9H3smr2BvZvwtEU661QDNPL/H2666pTKJXovA3+RXUUnd7qi",
-	"O54sdXCrfn4HzrKagc6ZNl2YrPdeELZDXRWVmVuQjs1EZnUI2Sbtuq90UP7rHD7CAqv1yUaLInFa2JtL",
-	"v5MCNgC4Bv3AkdVDvz2J0/dPf/jqaLixhpmpKU7RQnA2ef7l5VfslDt7dZqpuZCTEXvssAAuBbYQwNBP",
-	"h7H85NNfs1xInNCU6sZ/xX4btJtyC8hiljCDFVUzrqqRcbZxvPXsX1lbUEWjCLVj7cE/bMLc/agePh4y",
-	"Mhy8ekUgh0HAl7Eqee0tZNw2WL7gLUvNKRY4ePD8KZuqayGTTLkUPz8+fgRVFYA3rDPOQl2sf/9yqYU/",
-	"QI+P2QXE7BL7nRo2qhi+uingEsc7lqlj38LUD6v+/DHX4fmNfCF7kjlr/TMlAW3n5VKWS10uzVh+Msn5",
-	"a2BzkKC5hcmvRuwrLG0plwuVuZgqpBdKVJ6DTICJRGD4Mxz9hAMcy0SlMGRGSCUxiUejMiwVC9BzSlaM",
-	"5UuJtgJmIMOUfTJBMK/k2alfIl6IU/oosX/y147mavIrSgRCCLyPpS6XWPDtz5s4XYi2jxivBJhJrspl",
-	"ztk55lLiOBJgEFBgcQhj6SdyIPKqKgVfHUGRVORKKcBHT/Ed/u7vGOVxjf/topGw9OesX4qMsz/GzO43",
-	"n/i3Muenp99+++1Iz5ITSIVVeqT0/FTPEv+fv+5Xfj16M72/ohKkK54XbOIFeoJSFDKC580ZH8tIB2C8",
-	"JDhvD6RgjAsRr6nG/L1fNacxe6O0xYqiEXsM7tpPNb1cjmLp7+Qks5oLuswvuRWJy7wsn/s5OGGT0Wh0",
-	"irvwhA7UdNLOG1RKgUcw3JBpPtO8/PfkSmiGVXIaXuFc/7a6pQFjhJInGhbqdXVTzsLfKW/mxfWNw6JB",
-	"DSnkXKZUc1TbQGPJ6kQV+8R/pstlTHIHQW9pkwrMV+McfhWX/zmfCxkA6WNZ/0angNMGnG7WjKFdJqDN",
-	"dxJIJ7J47GK0kuflj144J0m46reMvG6sYQpbjiQ3sJwwKSIevtB+qHo0lheDUOPkX6v11KpK8Oe/rgD/",
-	"qfoE3y/g2iUuNwl5XRQ0OfVbdPHpxIujnANzUrxxJBkgMQ/g59IVsXLOUMWcwV1rtfLrwLFk1DADbObV",
-	"Es0BZ5QYDemtEftaCc0m/nkvPn/w+IvPR3kaQA+ZSEAaPA4Dk8SD3z2/OLk3OjtR5Dg4nQWtHzffXDrc",
-	"deG75pTPi8x/ZXRl86xh3RzV2ps9eP60kXA7PzobfTo6O0lhgcZVAZIX4uj8yN/lXoBr4uF5yqkKnjBU",
-	"gHabt2NQULyBeHQhjH0QL1rhsPjs7GxDVf96Nf+aU1E9eqdAYKzY3xYmrm7cYUKsIzxUXlgKL94/+7Rv",
-	"CNVrn7Y4F/BL97Z/qebXeNusJIoPb5wP3hLgc9N+jbfDo0KZjsV5hJGlOC80C2DsQ5XevMPC3N54Lbgx",
-	"3yqddsKyvgOWcH9g+s1sWEiJjtgFZ5mSc+cVfTQ6MLGiyx/n/twYe+04R+D8K2cSh+gbW1Vp+wPDGES5",
-	"I1S+/MGfJGzBtUB3ciy9VohsRn6uaf/mKkATciEvQM69AfnpZ122tuoEmgW6oHPmzdhRo5zngGZyw0Ku",
-	"5rZbqtvMNG/XduqnewnETtuwbzOFSo4PtqWGR/c/+2z7N9YISdp78Uu30CJUbvi36N6Jb4e1zjz9nqCr",
-	"b0k4MuisKHNFoYMdkCqXoB3EWcyMR+uVcCpDNJFmfKG0MGQ4GyYVCrF3jfzpxa3l3mY0BIETNfSKjjGY",
-	"zXgCmhXa25JUMnMljFXaH4DMSSr9tsAINhbC5JbrFBOQM+5CQpHsNbwWgW6DNRIxtAYsn5dLqo++wMMS",
-	"3wo3WngQ2vS1AWTQ2I0fpuXS8MQi1UM0IZBbBEtypEPDkGXeiAiwy2CsgUyUDuC7ENNva8fHuCS1dmyy",
-	"2PUgLOpLThukUG+/WdtO9zvpO1be50PuABrR5m9U1EoH2jKP46vC1n2DNkdy1ResGDJd/keGpjEFANBs",
-	"tl5HE3TNK3hKu1cQSSTrQNkayzeOY5anXM4zhLmRsJKiR3zvMG4nUy4L73MzNc38qYKCXpdqjmX5QyzD",
-	"D3f13hUkhjwKyExVLeWPKcTIuqyiCEDnZM51Cicz5by3MHMmuFuNkSvphd0g/kCgbYs7x+uFgphHiB2r",
-	"VTgKTuNr0JfJTp1rThPEEHSJFVFj2f4S+SODiENlKSwEyBRfXTSunWYR60yoiLEslDEt2pR6orp2HMWS",
-	"D7bj7taYWaVP6sJ81ebOViNiDyIktImSHn6mwL6kBe6ISpk36vyK1dv1oNP3DO+9vZXdcfYB7Q4ql/vb",
-	"17tf4HvC7YyV05CmPqGEwy6O3wO68rAn6OEEo10a1CEeDzCoczcu3sM2qWqsgqRIBBlgYIihdftaVoFp",
-	"1HPBJVzFUQQ8W2UnVUGtNMavWUpBbYKbrYanx3ISU0wUv5vViFIseoUca2CKAjIM6lWxTZBo+uOz8bTF",
-	"6gQcTjPQFCJD/ksR3kbl6MjVVaUDlcC4jo4GbwCv45FeIXo7DiHkyTuYM7yFQKE/8/kgsibAtfDnro2M",
-	"u04yShFUb0EgFnSadsp90kP7uXwCT0WslymXVeSKsIrePY7PNj2l0PXJVg2n+uPwcMwLd+MMH073hIx5",
-	"h9K5DN5d2OMN7fOhWDAbVTmNEiY0LqrMhJc8ciH9JkROKwh6aCzlAGWXzEvl4scto9x4fw20VjJQ9aXC",
-	"eIsJsxFoyHqDuACdg7XBHS2XRD5El4THGb+Xmzm+o/M/ftPpoEP0MZua0tmrFS2pnO1Xk09TyAuFDvV5",
-	"rSqFdzqlG8bSgcpn9W8feU4r+ksCAYeqJvZSRv2GRIqZmEtYq7bBApmg4gijFrMJhje4xyqPvEe/+Vc7",
-	"lILbgmhY2YOtq2+3+e530e7QXplBoCTeIAZPvCjtKgZhuP1yUP5zlR9YyayEFF3U1tz5w7PI6CQLZSa6",
-	"XBoqtwFjMXMQxMVvBK1Cis7cGFsuc457DA/YS9E4nknU8JikGzXuO2QJShsRlcRkz0Jl5ZKdE3c7QsiT",
-	"K17+O4LY68e2s054IDc2PpXIhBrOsezMYzUPbYzL8Iw4QvvSV1XyqktuXzREx/xyxfdDnB3PSOKuSUTe",
-	"wXK9vbPRs/te1PAGr7rD+Po3oAHriv7t9yVFIDHm4K+nAyu4vIFmccBdUocLqzMJOV5wc2ShFIPl6gbQ",
-	"3s2VToJ0VkEPCW4BI/YCN0DK7p/dqziA6rvzsaQtFqyxDjG+xDc6lPhW4YfKyqK/3MIma0YgzrZkHVaZ",
-	"YaxFOt2YUhkyKzTYISuUkNarDqNchujsEdKFXMcn3fus9eB7w19gQiPA8dbdxnYQrZnV+IAJip6N+Mg7",
-	"WkRuFR2y1nA37ckKPBsc/9Uy0hSNQWInqLbPgMeIe3M/jthFC8nzLUyZGYD0O1Jbcu+80SNShPcgpGXA",
-	"jSGXCM1IP3zM7+OzsozH4G82KJeJ5tLbkPUp07Unfwf2gbNXl3UV6sGy1BIgNZdRi3XQmG3UUjtwKTUe",
-	"sEu+uvxnGxFcFa/AJjnpur5TNJCNeWMmyyvp1BtLOtgeEZ0E0tW83ZtJt8dynXU71L0BK5yee0XNElX+",
-	"hDHNQcDABEBYoPT/gcrmtEquuJBQ17C/tCIDxgvtFbtfDbTtov0dswMsJdINLZAAHbMHMmXeUlOuKP/N",
-	"S1o7hcwSpbXKC0deyqr4PffjRn7zw8retJtd+0ukNGaZmBJGbkfe7AaT+ApeWlqN4RXjikKLHGnUb1Er",
-	"vkqSvRP8AmVmIdIPGLVtxee+Rs0Umc8r1vnmHsGw+Ddvh91x0t+BbVDbv0dzsfGUrnCDt/oNuhh3FOnc",
-	"ROLfMZ2oc6qKpt4Q9KNY87lf7Lnui/V2+H1nY6CKTnivjlI99wrsuzsuZINX2N9xpX5fZP6UDLS33TiB",
-	"Rm49UU5XwUXUZguRwjAc0gj8hhGbUFX+hChlbJPhNsD1KExlhsT5KAdKWroHhFAGHtXVYPobLumaFaA5",
-	"ITHJhEx/+zAErM/QlzrF5l2BDWgOde+uiYYEpJ0ENEKEORKuSJRLxh2zWlDYmk4HXYXGmgQJBBqK7d1C",
-	"8rgG8ULBdXSHU+Q9mVK9YYtiH9mSENfaqCbHIFMgWTH902iUtp0TSG/YqFOINNo7zd1KU7gmJ2z5Qwcn",
-	"LGYiQ3DBCxa2xDAoEBXTZRcD+zDybyKOGkOCiSWW/xr1ieQMAUzaPxNVad2GFl5rUfBGYT9FLSt599sE",
-	"ZADZ9DV3o0+p08PaYxuW3FY9FMqTd7iSWtW910RZzefdcYA8J8uIZukXht3yB0WISITx1+dNwi3P1Lx1",
-	"4pxOXfa6PypxAYaJZvAcAUyhiIaqKzb0S2R8waUdSxuqFAL7TkD4m3LplbggDAeVKXODGkRpb4r4uyfI",
-	"b/bGKRGqFoJTQRxxsZKt5meqonQBwp2uvIC3uqfCai50twX70GWvH+CoDpc4SyLXQa25UOtX6j9uMvxb",
-	"9Ut3h4U2Snhrhizn10/p4k/Pzs624oXDi/vHfIig4MpEzWYQcSH7mtzVd3extTu6XjK6Qbm8kxhjtX8f",
-	"BMCXZJmyAcbS3CrbtnPOZSSauO2GTlayX7Q1F0po2s8UbB/LW+3nDuCkkIS/8Cqjwk5GpJmQqViI1EFm",
-	"mCTIlXc/Q/dMP0g/T//553+hoQv0YC0E5TccSyep7IvlnD5rQisZ5EX5l1BdY9gbx70FCScS3Iwha4yJ",
-	"NOtjiTk772SyC2iQyely6YzxJ2Rw+EP+oku5fIGrUxny70u9hLjF8ChXi241Qlc8EV1w7ueh1wEt5YQu",
-	"nbDz6BRjvbJBZWtijZy3/cYyFtqNGJHR1yWBfcCrWU8Hpcfg7SR8/2HVfCEMyL/UZHT0X1k5vhddGKzC",
-	"KOZ3qgYvK1FTjmlyTvZThN+HkuaNkPSLdpHnoy+fXX7+4uvyn1uiy14gMJW6AiD7Y4p5EnoqAnYIm6N5",
-	"Aey3FewcnU66uVQEJ7oMFdvh70MCongXwj8+55oSlFi7yeA6yRy0XalyabUTFktBboGdZzcBgV5B570/",
-	"N5bZdrT8G2wp5l/c+zIaKhBD/TpjCZLaAqKKjHRzSNLaKtb1YuAFNLRxwBc1IdQtYSyxktOrZ10uqyYQ",
-	"umoyRg3IQklxPZWhKh7rLGP4zntWoTyeShbrCfevS2j9Hrj8o0AJv1+4JfJkrXtil2vqs+4z5litO59q",
-	"jW0p6EDsccsaCnyjX7YTXh97oxD++iOHjJ79wwftPlx1ikESlUAqR+h0jlGLIYqbt9ZCOArrtVaU2ar+",
-	"6FRdw+4U1MumzlndR03LKeAZUnb/7D5Re9w/u0eInvtn97CGZCZ0Tjvb+L2GaRkZHazm7paDG0YOFmLv",
-	"e/JM77g/3rt735nIxPm/vYTvJa+rFSKWi4zOjk1i0FMd8ogobKmkHHljAkQGZwmhNsfHYFmjn83xcbDM",
-	"dblEHnQejPOxDAlFA5ojxGrEHg1CxSGhfajCA81vU4A0FZP1gDurcm6FyRF5MJYIWYAsgyEmhwSd1cwK",
-	"DN6SwC246ExXfp6Kg8jRIezoZlfCfbjAbtMO764rCDZvEIwMlj+wV8rpO9ksj6IcYesfv3NCQ2Gzs9l3",
-	"ipxovan9C86wyarTjCBcCAzz/hvPIbYuzlDnpthXWQnD/Ab2I6pIOcCM5Sef/uZsyO59djZkv7l/9ivv",
-	"J1GHqowPcffNtf8W4459p1TOQjEf4cNxcxB4klKPCE3HhJE3QQtxDdSnmMbaq4kXGBa+vaXSZWJQy4am",
-	"dVFxN3/aFY7Z+kBEef0eH7KD9sfE9ClfiFlbrCunbiokx/Gu7y367qsC5rf97rcwLfb97nrz/dCre1hR",
-	"NeXgZcHp2E8iBloCsrBcJhn3WpNjuCUTGsbyE5AnFsGwkwdJAoWdeCF78PXTJ5G/5Q8wfR5//qfnn/+O",
-	"oigDf0lAUapCmXKJXDBApnUM3RIXvrfVQ+VUqCdN+dxLJeJ7/VFDKFPnjVYVaGQCFT4SjIS9gemhAFYI",
-	"ck8dlqtO5ZSACsDeuVahZ/kMuthw/vPP/8J+8xn7v8cyti+mtiRCIloNqtc9Gh5dAU+B+KoxP3yCHD8q",
-	"a6/i+np//hWfb7vm66DfV5YX82xhTdpg8rRcFt7n8LqDltrE1S2XDRIeWvfzugc48hsPxFwqHUw1zJxx",
-	"EbmK/JqiwSbwIDfRVcqoMrhBqtT5Lv5t7nX5AE8lJgERc3wHGj9ulVCaE6Sloe01Lm+fsq9i5v5Udx0J",
-	"9EuwT+og+12bGs3hbgFFdWQDPlTE6XCj7ARuuRCiuBN5+wKBnhhdCt5ZWsdMdjcy6vhlkLo+B7Jh97fL",
-	"JqjOWQTuItcIK50z7y5gHxGvK0IbmS0cgOyClE+GsRwNEkNJqZJJ/MoQqQpYgm1R2v1xGMG/6tuhosaC",
-	"lcAOZVhQw5IC4tIQ4VSDXGyFSe0lWVAxmhtB/ipJXOHtndAjtBEJoWSeVLHLysyZcgljWQfCgvPSE735",
-	"Qi3gY/EpeuPbUSpak7Ohq/tYttu6d/bZRNYLDbmSFlFsP/+VjUbs558CNYAEZzXPhEFYWxf18+quptHf",
-	"gebZxO3dOcge8uN15RNnntjnAkAy7pgciFTpQ6ijwwTKX8TYeAwThQZZ1PIgKJ/d9Vne6OLX6Tc9pqwf",
-	"5QBNw4JcoaRoFsyoqQ3VroalIgeJrChjSdlEDGNXwGdsAedNSqwIK5eBLzfj3idF4gvkPqvb2o5lTEsh",
-	"7UO5TDgiWxfCOMiYt8LCUyI2ttuHqvoXfpQBrWp0HRIdP4MPKLkUh936hacyhev1ov044EbOYmdLD6Xt",
-	"9HuMZ73tFVNMtEzQg51gloU6cUWcNSUJqIMfSDbL3PWQWfDuincr/L9YxoZBefTKY8dkRGyPGGYfqvtj",
-	"76+AkGYaKhmXIaiACO0U8zaYhIiijCZ/dUpWd8BK1Dx3gSsy1Hn77R2RLtSLkX6uwhhKSghom1eYd6Hg",
-	"yV/y6tRu+yihNZQ3DZxkE+8HTQh/PpaTlgt1jsNB7spJBVGvSjQTJYloXfqJG8tPJk9nJ8+UhJMvuE2u",
-	"Jr+qQtP3zu5TcIRcPqp7dZJGV6X+p/6IAsMmY3d2di8R+Rx/gAnCCpRDrYEdIv0LeMuq4SAHucY95lce",
-	"xnKl9t/Pbrmc84zQ8Bzdt6owHFiT1RHrHyc9GuN57Ax1mPTQMywEVrE/XasDHoZnmp2lz6vGlu1juDNa",
-	"c9YdrVkNiJEYJZh1QgwtbN45fampjyJu9C6xn0LebdjoKR6CAYWLorBf+GgsG/Ej1hE+ipjgP8D0eb2g",
-	"MayQDbiUSiaYR8YAC6OqXNIoARbjT+AbAuRpihZT5ijg7iiZ9Eq9xhKZn//KXiFqT2C/diQmDIPV7Oef",
-	"sL4+uER0qcEuBVhY498hUJ2GkBZdfHxccHN83ApuDdnU355qhLEePyjeqllpKxY1Yl7vooAbIKWEfeGj",
-	"0UAvERvkcmtBpiFhTiPBOppySXe3IIWmpaK8Nn4h6HNq30Khs8zPpHI6RSJj+hVktZp+Vf47pHXQkFZV",
-	"dsWrHp1IEywdhIGHPfQRm1AHAtYQEN8Fud/d7Gr0l63RNF2wied1HcPBDOn7nUxhFfQlYjnuJJL0ecDN",
-	"tOE4jYmtpm57kr9VgVLj9kOYqHpf7ObSCIdgjv8+YoKqwyA28/75rwwp3h3GAbC6HM8Gr9KRIpy4s7ip",
-	"2xL3mDvvYV0P5yBVo+vC8zeW5S4kpCmqgZhuFQDQkpHOUOLx8QsiAQ4NGRuE/4mSs0zYQKeKHZQpq494",
-	"Xb8x2JzPJRwfD5nhbjaW3t82mOL8Dm3OiouLfTKhmmivv7FOiowFQgegxz2gc5A1TsZI4liATqMMm9Z2",
-	"CKemCOVc6ErY6A5pKDTINH6GmOziSqGPgZ8w7tgU81IRj4KdK2k+WsToNSYZ39jL/IwOHX9U+8GEnRq7",
-	"v6blj2YsY2HMldKZQtLMJi/USk+EMENrjGDn2EF2yAKLVXe72X6uyAPtr9tFLfdpj/RhkQo7buwYyWts",
-	"Ddq2Z9u37UOevqB5u5sDRGqYC2N1wLhuPUU6D2hdsXN2qo9nisItn/pN/+sR+x+47wPlasYRHjrqYvgI",
-	"rJ93H0qvXxAJQL07+evhFie3zXhDN/jw0WzdS5y6zwg71hOi5HxA2+cwZqgf/hZAJEk5EV+f+KMozGFn",
-	"ffSjcOGLcN3+RdIHKTl8l+autaLbUofQ17+1B8xlYisg76Xh0eztQQs6F/L2MP920RI9B6nCAuB7Pay7",
-	"osAobdPPvVKxd2LWIBTheuVVZNwOmdXCv08KzGAYk6xgQuVSx+jyxxQawVCDOYoZ1jyFTjfBUp6W/2qR",
-	"+Zrrqa64tZHTjzigkc4scTpUe1OUsmaDR0R94nKHqbtA6R7TvtEMz4BZZTmCuQwfy9DVZ9i2qVZB9kUm",
-	"iHftf//PkE69aM5GgPAiAHnK/XC9tSIDzTxagAjZyUN0yNsjaNt4Nx2nj1LCSNkXR0zkPiFgkXMhWQXB",
-	"p2Bx6PnSQzV/IYx9Etb2HagKvnkP+cTd9yK9wNadGG+7R97xMPtNT5UGk4SOQbVE9EGKu/lxBcgQSwtJ",
-	"vRhmrBqmoSjnfM6NkFFYTFV9m4bGXqCtEsiV1ZA2bHAVq+Wq2noiLEMxSgd8qnSKDx3LGjWACQZyCDhL",
-	"lC5Mk2u3wgmUS4z6rW8KrBHMy2UqsMa3qvuLGxXF21Am0RguO+Ht1E7mSay3PxDAeK/u0EXIfq/CwCEX",
-	"RK6Uge3HC7AVuMAFNc7ohgawvZEBzQbPRX/q/cMxl8Ud25/wf+dWLH+rtSqHsegCC1t99PUadUFrntas",
-	"69366fj4AQbQ0btzLFdp+WOGQYyaprf8gSWQOYH6ZoWFoHkOj+Xlg2eXkcaFO6t0bCRXxz789ATqAj91",
-	"mPFIwF3jYbxQhGFYR+JcNIjnQs+8JFE6LZeh5SXoCMGiPEHIpIxlSKUE1t9olswxNV71LPCjDckIkTHl",
-	"Fj0QBs1lOHgrkvrDqK2Eyz/0wQCHt1RqnZSMt2n6vKaIqlvdNacprQUuSz8TfyUqf+uNGp5jd6SWgqia",
-	"GK2R/Zsrjovd1heZSl73xjeoEybWPiFpACWrOKo9tKUJggAydEVz12wKBoHkkZMHS2UNjCXa8rjZxVRT",
-	"p03qCXvRVJyUerTlj5ge92qF+kV5g+N//0+/TYlbKb4tdq1C7OWs6sy5iPT05JdF1gRvuCPpQABwlsth",
-	"hKj5H6V3DRJYKKHHUjkMuxI/M5XHsguMvdpAxmAGV9QYFBVMVR8G2hsBDx97IyC+CFG1BJ9EUHNWUb//",
-	"I5VCBaQ4PmY5N2/cymsCVRdWZIjCeANfGBOswrHMhPGiYIbBUtGQXIFGwsRYAhC6NAgNiY20koGRIq3Y",
-	"XyJBreHCCGIdVyk5JqR4bdWJiOxaQ+seOl62GRGpHS5eg8W3NEcR2YZu7Vi2u3eFE6bdPJk6HQ+4TASE",
-	"AUmMay9CUpO7sQw02j2cuqQ4Lry0H0yFq7Sj+v331NSpsxXhI2jBlNtM92nNxHMe+p1WWwETt1Xz2Lrb",
-	"L3VC5WOJMi8ygZibQUMdxAYYwQMOQGFkO01suSTI61jiZRG0HUSi02Q92NmkgadfyuxmBxz8gezisw9o",
-	"F4fAeVPm/9YPo68bOnAPgzUKSOcB9IKg9qgAawA+aowstl8jy66lLhtlAX1Qf69OCbnPjIgAl5qzr3XE",
-	"ENw/ueKJQ7Jgw4LP3tbneBLsUwUwllQGEGA4qqgoaPHEIofeadAj9nlAT1bIfcbdSQoZHrukgXOBQMFA",
-	"OBI7soSQGDuvvjBkuaAO185WPSNcAdQnJ+PMuKnQsVE5UQa1opA6tAXwx0/zEeUPLFfCCmoXTecqhBro",
-	"sVyoTEnLBZ7gyAIidIizNHDiJjL/GJa7zIoiE1WvyLFUScJD80doHNAVWwURJpKmK5eWW5aL62D2UzUo",
-	"JjRzMkOClUDd1IO4ICF5gDajqKjyf3lljEgmf8B0dx7IVHLXkQ0J3z7vDG48i+0lWkEO5LQM+6lxXKDY",
-	"UJa50LhpTIImX9ISv56jodiptqDDu4iD/8Uo9juqbfivFf2otL9yDe2/x9niZOXe9LWH0NDU9WgGJZGj",
-	"bcheOfPGDcofUA2WS78NYjFY82hvQi0Lpb3aDwC4FZg0VVhkTpwkRF3KnVWIuHZ6SApfitDoJUGkuhSh",
-	"7SD+hg6REoaVy1zQ7dAEbOQsV86dqMej0exlh1JABAYMbCSEsDCDG2pTj+dpHHTgQ19jG7IEVxedjI8v",
-	"ceoPrBGjxf1+bNLtagqf/+FT3STGkL6UdqWZR8otnFiB/S62NMZo3WOfmq6mrH/QUO8hgJnei60cmkar",
-	"wsEOWuRKUTOTnkzqXHurCbeQtzXm5OvVAHN6mgORjdjPf2UvKjxWXTXFfv4plMQgVJxaBxN1JiqQyVqu",
-	"fkK+oYas/HFRwdkbkLCxTIN1XNe8yhpnXHDTg0T8R5XDx5Hhl3Btn8pL6O4m8DxGhanql1CYFHlApoVy",
-	"qbH+yPLcm59Hw92Sk4G7ZTU3OYx82LsmOXvus9YnKpBst9511zJvErVD5Dzru9XS2rsfSCGGRekuEPOn",
-	"v+kiL+bu+o2DjD6tuiHFMA+FgCLHJybLXq7xcoXG0Y3+3euZhb7c+UU19INKamtGdhKPkIzfKiD1nXcR",
-	"inYT2EMIxsNu7uktqfCudG9840PZAMF93vGofy1k2llvi3T+5wyRfl5JRJbXJNS451zO+dHwaKrUa2x+",
-	"dd3JgB/rs7oCXErZ5xpm4rpLiYW0sqG0ld8ba/llthDrVARj2VWjvkNyOXTFqqfvrpPLQTAeg+Ui2yrV",
-	"IdMMvzDm+CqBu6bNCLIeg0GxiW9PI5NKHZx+X5mlGzlYCTw2rAAcw15W08DOMQxcpkQ8hKmEsWznGTC0",
-	"xU3C05pR+vg4chUfHzcJN8k/kJYJaXliDTtnGpLQU4yvklUTbVIsw417IyAxZHD6KubTDPkYKBxDWp9d",
-	"NEhVKdJXkbY6MWQIel+IwG/dT05a66pbQqz6mpF3lNo8XBGH2Brp4w0T93AJr8l2Z2+jfgLGGG+t1j10",
-	"/ZDAjo+j248Vjki92Gi1EZIZWLRbLs1YYvSuBZRioVEYMom30kjEpdBIVwW4lir/11iG3Bk6P8afMcKE",
-	"Eu2qW2sljlUzMtE2u/uLEg4pZoc4Unc8wj4ytsU9zw+KonzUG+wwR84X+KI7bszew6UBJOrtnRVWoELG",
-	"HFhpHlxUEDZi+nEjd9PX7FEAKgX8VGwYsXH1kkQ5/yr9ONQ+nFcgr20bI30wrrHciOPajNLiLZRWSDGv",
-	"Frw3erN3Yq8OL2KHBm+tCBLNXqTNKcr/sKEzNukfesCos23DbdFaHwk0q7nJ/hubhbkF0WX5U2O0NXhW",
-	"Y09vU8qn39OSv91UN/4Cm6wfdP9sJxV5iePawwoOQvGhWfI7meSzVnT4dgvUqInoc82+QtbjFOYaO0Wk",
-	"LtSUlD9pRJz7X1JvCkthxWzEkHWp5s8ZtgC4b5yo8Qehf3JaW8iNlC0Dye6f/UOr4wwKJ2Xv6+x41con",
-	"1BwTZs7JALRIsQW0CFW7ad3UwUyqyseGid7kXgRJqAEeaMui6ziqbvREZGAmrO6cQV0d0PYWOVKyQ6Mn",
-	"db8nVyWe3lXgu7h4QjaonyRohzaJJHJ1y5+O+drcpaLqd7S5f+BKK95Aq9DZauj23TLMvu0y3qnwE3K1",
-	"gPRR1dt1W/1n6/p9Ml+VU/5fIMO/QYtg8j/U36+m+kfUBhX7J0z8xE4C8nceiv8jONRv1YO3MdohibdR",
-	"Te/i5Kyg/z8KfXLYDTUnt2i/Mr5g5m1JY4Rb71RW+2FdsHdtpdDjs3XIYxt3v4s87mHfHVg69zDv3p8s",
-	"fzxm4rsJySa7st0e+ZbSUsOb+oWkhcL5SJXX/X4qZwohfLgTeGUBMX6xUl7jrdcaDrbnwWMSLvvxaC+t",
-	"QLJUHhnhonGGCXKusde9iezexEYcYJ2Y+MiIKBBxYVheIC3mYsqlAe7Qc9DmRib409Qlr8EynokcZISs",
-	"caJCNJTgaRDV+cP/s7PPCGddxb7JJJiJrFxSeyy4LpeJw8KC0DQ5pUTSd1xIgsfkIsvI4oylz0RHlFKl",
-	"hOsJB10mXL63/Mxn73B8vnHgWg0k+8oYwoW7HIbPqwmmyf3FaLyOdF1H5fRegWi/ZfohJxdkiEYWK8Rr",
-	"ZwMl2cL/9vzLly9+//LLp60Bcdy+ynkhpd6RTgyRoNc/ypu4RNmGNUZYeRaIld+4yKy/GtMhlkV/tQbv",
-	"ptqxLLghogvMbCqB0C8hU5H0Mjx4EX/h5J2H0lf8LSd3Nw7DK2wHQPmb7uSLgZaoLeLy/UK2wj/WTT5T",
-	"aIx+H8l3RaZ4uqntdKBywO4/LpJuB9Qyr5t0Usw/8Gwzojk0ArD8LgFpa91cLuf8pOpGwWIzCiYFIZq5",
-	"vyRXWLpRl6HRp9gWOlJJWMgLhQ3hY5nnQGG9BqZmvb8Yg/+Yk5iQTTMJTaSRamaZgmaTmchgQsla/67U",
-	"PSlR0mAJJwst9bCvF/4YNl1kA7fcr1mzyAeNMD+AscQT1Z/nAdXfaB4aWuxljlmtCma5Tgl0U4AJXbcN",
-	"x/qI2Gci8v/GIk1MmJRLjVnH0AAw9Ii0xGReGxNVy28dIe8Oky94mCLyGySbjJLpdxOqfJzNQuVj+UNM",
-	"NSgT6zcyCId7BH9X/B7Q6AMSsucFWgfStmKFHV1BqJCeI+t6B5CE0OyhAW7o8xbqqyj/gYqReuGSCg2V",
-	"+qxcEtE5XSRTnPdQ9YtLWWAsSgrdnVH3e+R2nUn2SQ9RNRLX9nSmdH6ScsupOXiiIofWLDT+Dt/6Kui/",
-	"hqrFjXVirAaek77oo9bp7CH+IGxgEoQhm4y+EwX+m0w1/qu5njDl2GRUpDNs572VKXv4oduplH+mTpug",
-	"2YOvHzz7Km7xHapNN+X3V0fZ2d88MLB7S5mH9rwY0w7FckaAlKSwIjBlrc0ylubFMsF0AKbgyBfU4Peh",
-	"1s9Bizb6+VB5WqgMCbpz6EU9dugqBJbiht6zgBqDqupJkTfK6mm69ksUolTdNeyPNmyIx/Y3y4xURF57",
-	"5FjhwvzwWTqom67+d1Plzp5Y7dZQvQVan977kAN8Eo6gZtkqtg3PBXW7mIm5qygXDxAlfhyPxHYXnx1d",
-	"kVblx3prUKc1SPvShNqm95RRx/t3zCVFH7Egl9+6/LAjnlndsTEnzl5VU3KawkIksDle/jhcc1AfpPHg",
-	"ndwQGsRWLyTedhdH5IJI1poUxgdhnav4kCtOBrNt/k+/px+2YIBfEKcG5WEMWWwhCIkuc3yPYDFb5RDy",
-	"yN11QOc0SKorBiWHIapgLzvZIpYuQKeOGlMg4wlWluNLhYYUapqJORqH6CnXH3rDSjk7ZDcs9r7wOsI7",
-	"87UKs5oLiTQZ2MCAxffT1N8U3yWKMHVoBR2rJBNA65IwwPj8sWwOr7use6FeQxClNduyo3tMXJWN4dBt",
-	"R/ahk6X+HdLLsPqtAQhpf3P/aDvD78otdtksl5W0QXNxKpYXML+whnCVqDlZ7ZvebZqpuXL2hGdZ03df",
-	"UZV4zYMsey/68q6X/d0Xumf6Gx3yokbrXYac69f9gcPfaeUKpGstl5mYYufxPDZZqfosIzQjsM2CNJBP",
-	"Qztmb5aPJc8y0OaEStdMDBC4Igvd9YjU1YWO/Qgzd2xe/mtyJfrqMP2h/wWO/L20nW2foVvrp9aqIZFM",
-	"G7/LU/Lbefa89aRVuVqXm+4ut/jC4fY7JYylVBZfnmAzhNc6gLRRS2MshcGamN4UjwGuqaihp0Q4UnAV",
-	"GQjJLFyjjZVPReyFj/2/RS4yrpG6yWox1zzPYciENCDRERxLPJKTBPlR8HjlxoIW1+znnwItif/jA2PL",
-	"Jf11WF+UGH8VAn6qpnhVl7kUQt/vSCLTpK2qOqV4oyfz5o9BHrDu9AzNxdoxuYJ9A53jnWlmyqXpAxe9",
-	"2RdgtTsL8vBDlTVvDJTjfL0A47JuSPqLcmmwCcZhNCjUJS1b3KBVGV+p+O1IW0CorL01L/X2FXnktFH6",
-	"o1k7/8LYqbAzd0d95qgS/Y6KCkLyFc/JMI7NK3z6Pf0bfIo+z7dvrTus4Xi/j8gaTirM4LtxAtSbYruY",
-	"rJ13Jk5hsjsi8TKwGlgk34mwvNA/NeZVqvYAd4GVeFwuLRdZIO0kmesXuSuu4SQT8vWmxK4h9pwG9z43",
-	"NUuAPwnRjcXWjVc8ucImxyE5BHpRLkfspfTOIsjgmsb8LE+Q1b9K2WaitzAUFZwf7gWO9sD0AWECdkut",
-	"xlHsQB7g77tbUAPknWkokIYVbpp5E4UnVsxMJw6qr8LppWS0tHgL4nBuUIceH2NUo5FjfOME4ywbvHxx",
-	"QegA7KxI2bpAU4dJAHBZ1ccXGp33Y5Y/hZzLlEpShywdYMXoG6L9nHOdwsmMqCgQQUN8UCSZcM2TQFLb",
-	"gBR9+bKKUQ4j6H4NYlDj80fsYlDjj/C+GFfh2C8AC7gzPgt9kglmxmWEBOGMUfuNmZAMiwyosFvoxHm3",
-	"JTTSJEgR5d4cdQ8AbZSkwlyDzAUUTcGADDCCSmGiFh+C6cSax4qanVqWK6T+ZZ/75w/rITlKecY5QRLc",
-	"gElycoW9p5mpPKf1Bx34dbGRXxwWtsrUSG2L1W3Mm9QxT0vUXETcVWkVdnz8xg1EIo6PR+zSqxejZLd2",
-	"GVILGMx6N4lc+zsf1Dv4cIRY1BBqnWAiSF3gLv78OsmcETMqgZ7U3f3bOcI+LxCuC6HBPLC7kk/FpGI3",
-	"I2EcXFjsteGFt5qMOhOCfApZR25UpHASsQnDZqXiQoWOLaN3ZbPdQBBWz9Bd59cax0S3vg9MGsOwAbxy",
-	"c+ZvvRqvbqTQODN6YbcN++T0e/xlJzB2c3/vYB/TfQ9sHndgaXHRq4jcLwVK2Iy47rxmp99jc/m3vVbl",
-	"8fELpDfEm/kDzp+LdDYEYHagNDw+9sdE1S+rcXInEHnTcVhpuTRiLmFITbjTAeZOkDndfx7IHP3MDxlq",
-	"iXKJ9TQyUr6wFE/V+2f3I3rHMIs1ggn3Rm5VT6PRWpkJf85yYcPZLvwfpYtttf0YONHJRJrWdSfOT1X6",
-	"KGibff12/DZ2j3/PXnZrlJ1pUAJaEV9NlOy9RQ4Sp4W9OTr/4zftlGjg2h/cRgDXW0kmakEgm53kcnR8",
-	"vGnlFreA8zfXbbh7q8ke2P+3IkVlthaTq/MJ24WD2vvzhZjt295/GL77qoD5bb/7LUyLfb+7JoRP8xDu",
-	"qTvgj9gTvA+T5XKuElEu0bzNBiBPLIZdYy/4yoQ0ASKFMuDVrjf2ka1krWf931aL+UPu1zj/Tfr3Sjfc",
-	"ctdG8Pc+G5ddUMbTguTUS45FuBn1/4suYeoqV2ksNVRgUerARHyWVaj+vDoI0wbWB4+Omqe3OptqT6qq",
-	"6/ziwdNnX33+7MGzr1bRsDQ2v4zeE1Pan3EGM+QDKv6msjQ0qNGpJt77GRaLsAK8Q+SfruOZvfHc+SJO",
-	"6QdSYO/zjKrepUMzxM/gsOdSddtDinnB52BOv0do3dvDHFIYHv/AZ1TbwMa32Wheb+5z/N4Pvo/n8AqU",
-	"xXufXP7jsfzvk+uddjQljPbZzFZpPoeTiAreGEOntn4zgc06YyQ9RBlbwXSRxWaeV2I206Gd55QbYGDH",
-	"EtPGBvsCh1B8KADZVNBEA30Yx3nQ6Hnz7XcLoLdGszWKXt1/JwbeePGdxNIfVvDwBgy93indhIx9JUUV",
-	"Jamx7JXCXolYphKNgUavAfRy4/VCvlJiLjkiFuSA0OtYExr7KIdeKoVWqYu70TCs7/MXhVYzxF/OWcKd",
-	"t0FM5exWGexGkWpfpLW91IcLt8qZmO8Afqnjiyt5vHvsnE1ApshUORmyCRXq+J/8rCrpf3IG/mRMNhmO",
-	"5cQfaX8y9oaKoFTCM38HrZRtV0xE0RweCfMYZtxltru1ZGREjoTH5t7R8CjzN96T3nhD/y7UdRqseeep",
-	"IsvzT6/hxk8M3RV/G7FHq2oqJk+8LZ25cD4MHjx/2jlR3fTIODt3HsJdUVS96ubd2+/eBSfyY1JM0CJA",
-	"bmiuHkj+6ql3+n3FZb0ZBt3mv4ptXzsomQc3jBeFE9j9hEeu47HEUkZLeojvSKzcJFIesQvwQjlzaMck",
-	"hICuWGw66PJDG+/QyF5gXRwaaaAthG5/GT6jbqtVcTJ3UTqtnvwI9vZ75z///C/NFKfCZBoVQ4evxkx5",
-	"FrpAbmRQXlO8+9n/D+OK7kEhdxlf8RB0TX9rdUGP12XLDEjIa6onQ02Pqv23gW5pwx7t5Xi+QLAungeM",
-	"Tw1UXeOPj6tkqsEMfaK0FqGfbTwkKzo6bE5KFQQUbQDLC6zUDVzPmKUmQS2U0zoa9V7EqfVEy4Ydy7AX",
-	"AkEBNxBz9rEciSqodEDiycCCikYR9FtFMGKoAUF76yX27g87mTPqr4olkOUy1CSk0cZZ0Bcx/98exRsn",
-	"0KzCZv+ah43cTzL9HnbiHZlQaxbOndkkX+bCUD/bllcVMznRf6qEetRpdtwpS+t226LSp5Ex+78QYfa7",
-	"2CCnaW12h2ama12Ig2V+l6ekt4rT0P8k5C5/MUnhxyHXSgXUHW90m2WzIbzfizLrcHBD4P2zs7MAWVGv",
-	"z9mMZwa9tEH0ZB3zNyeMETLCMFe7uaFNdxXez4CFSBYPELNyiRV2YCzaYCCZhvLflLAIuIrHku06A74C",
-	"896l7N0KOpG1v0vlqtc7cCmp1zuFZSoQfVyLu4nPfE2ZHWyxO2g4PaF/fp/U3sikv9XWjUyutJKBqZ2l",
-	"kFlONCkkRBqpwNAamiSInp9U1XiQjWXFsSIt+21MTGnIiQPYrNxeZCwbqBwsdWVBKURAH9EAX3HzhdIw",
-	"QYIjIkRCB6uIqLlU+DlCp0XkeblMBQ9wCgrb4piJzlhzazUvqNllppBJFM3GJBiCU+WSzBt+XBrGrcWu",
-	"ep01KTcyee6ybFtVyiOnDVD/84ACjAxrfqpYY6aIQGJIUMYWcLCvjsUIIonriNNvbN7YnXzAcvnW3XJ+",
-	"TSmMT8/OzoZ1RuPT4W3yEntZcsiBsXv49Xnwk7sA9SSg61Je/pnk+AaIG1ur5IqLsDCdeL4giTuokDj+",
-	"6un1l3dRLY+q1jHvEPQ9TGlq4opyqUMkoW5pYyLHSEO/xGDFhhDwI0o816xEiGqt6Z/+kvuz58c5oSv9",
-	"KaQyF1yU2A4zfNWMJUiW+SN7xF7AKxXxXMqGqmzyibQWi8h7mDUSQIZqyvFaie3SY1t0f5ZSB3FdLvGN",
-	"qOKyUIbIhKQIgC7ypWJUhso2Z0oQDPhB4Fv/9dkZMkZhEv0VVnFyvZJ7r/TqAiR5frWCGstKQ4Vu6ogb",
-	"DqqMzzeoJ3N1sPC0Q8dvj4TIjUzIWfTCmPPrp/StX5+dbcmNxCd9+F64eC3RLb43rfMcu/KzdAAyueLl",
-	"v8tA+OUkK1yWxU6UCSyU0BXmYqDkWBL23ChxQhslHQT1tUuLvvhu1ch2ooqsw49ITZGJZt312Xb98pCn",
-	"L0j87lSPfR7UvFcgReudksTlLvPvxK6UNqRPunWaN5uQtp6EqKcsN2A6M87Ctd46nAqJ+gQkC7yVg8C/",
-	"JpQcsZdWZMJUjb1NTDuHou+0XFqisvBKQUg/A9yKqciwrhcsdtQPfDRA7HRB1fSAZb4Or/EeYwEPncjS",
-	"p3KmOrEBkgyVSOMw9RdvzGN/XU/m+sFjboyF3C9R+w7fH02Ba9APnL3yN/RGCn6701J7Ko1FTFWg+fBi",
-	"4HR2dH50ygtxuvgU/ZTwzDWTmUtbLofVovstLvhcKmMR1hktNhrpevMEfHiWBX4xpA65xh8rbhWwDXKY",
-	"6obISrB+u3aL1WGs08SbYJKhvkOsnlu/yUU416gTfEAGDdHuxjvVqMTG7TRiMjru9rw3lbHiDzTonyv9",
-	"+s3b/xMAAP//",
+	"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",
+	"/0OZR0cojL/z6ftP/w4AAP//",
 }
 
 // decodeSpec returns the embedded OpenAPI spec as raw JSON bytes,

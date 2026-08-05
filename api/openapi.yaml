@@ -57,6 +57,18 @@ tags:
     description: Lecture — manifeste, pages et couvertures
   - name: progress
     description: Progression de lecture et synchronisation
+  - name: ed2k
+    description: |
+      Module eD2k/Kad — pilotage d'un démon aMule.
+
+      boxincloud ne réimplémente aucun protocole pair-à-pair : ces routes
+      commandent un démon `amuled` par son protocole External Connections, et
+      n'en exposent jamais les détails. Aucun opcode, aucun nom de tag et aucune
+      valeur empruntée au démon n'apparaît dans ce contrat.
+
+      Le module est **désactivé par défaut** (`BOXINCLOUD_ED2K_ENABLED=false`).
+      Désactivé, il répond quand même : `GET /ed2k/status` renvoie l'état
+      `disabled`, et les routes qui agissent répondent 409.
 
 security:
   - bearerAuth: []
@@ -2456,6 +2468,854 @@ paths:
 
   # ─── Recherche fédérée ──────────────────────────────────────────────────────
 
+  # ─── Module eD2k/Kad ────────────────────────────────────────────────────────
+
+  /ed2k/status:
+    get:
+      operationId: getEd2kStatus
+      summary: État du module eD2k/Kad
+      description: |
+        Répond toujours, y compris module désactivé ou démon absent : « pas de
+        démon déclaré » est un ÉTAT, et le premier qu'une instance fraîche
+        connaît. En faire une erreur obligerait l'interface à traiter le cas
+        nominal comme une panne.
+      tags: [ed2k]
+      responses:
+        "200":
+          description: État courant
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Ed2kStatus" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /ed2k/events:
+    get:
+      operationId: streamEd2kEvents
+      summary: Flux d'événements du module
+      description: |
+        Flux Server-Sent Events. Le premier message porte l'état complet, les
+        suivants les changements.
+
+        Le protocole External Connections ne pousse rien : les événements sont
+        **dérivés** par comparaison d'instantanés successifs du démon. La
+        latence d'un événement vaut donc la cadence de scrutation. Voir
+        `docs/adr/005-temps-reel-sse-evenements-derives.md`.
+
+        Le jeton est accepté en paramètre d'URL : `EventSource` ne sait pas
+        porter d'en-tête `Authorization`.
+
+        À l'étape 0, seul l'événement `status` est émis.
+      tags: [ed2k]
+      parameters:
+        - $ref: "#/components/parameters/TokenQuery"
+      responses:
+        "200":
+          description: Flux ouvert
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: |
+                  Suite de trames SSE. Chaque trame porte un `event:` nommé et
+                  un `data:` JSON — pour `status`, un `Ed2kStatus`.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /ed2k/daemon:
+    get:
+      operationId: getEd2kDaemon
+      summary: Démon aMule déclaré
+      description: |
+        Le mot de passe External Connections n'est jamais retourné : il est
+        chiffré en base et ne ressort pas du service, même pour un
+        administrateur. Même discipline que les identifiants des backends de
+        stockage.
+      tags: [ed2k]
+      responses:
+        "200":
+          description: Démon déclaré
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Ed2kDaemon" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+    put:
+      operationId: setEd2kDaemon
+      summary: Déclarer ou remplacer le démon aMule
+      description: |
+        L'adresse est contrôlée avant enregistrement : c'est une valeur saisie
+        depuis l'interface qui devient une connexion émise **par** le serveur.
+        Les adresses d'une installation auto-hébergée — `amuled`,
+        `192.168.1.10`, `127.0.0.1` — passent ; celles des services de
+        métadonnées d'instance sont refusées.
+      tags: [ed2k]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Ed2kDaemonInput" }
+      responses:
+        "200":
+          description: Démon enregistré
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Ed2kDaemon" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+    delete:
+      operationId: forgetEd2kDaemon
+      summary: Oublier le démon déclaré
+      description: |
+        N'arrête pas le démon et ne touche à aucun téléchargement : seule la
+        déclaration côté boxincloud disparaît. Oublier un démon absent réussit
+        aussi — le résultat demandé est atteint dans les deux cas.
+      tags: [ed2k]
+      responses:
+        "204":
+          description: Démon oublié
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+
+  # ─── Module eD2k/Kad — lecture ──────────────────────────────────────────────
+  #
+  # Ces routes ne font que LIRE. Elles servent le dernier instantané scruté du
+  # démon, jamais une mesure prise à la demande : le protocole External
+  # Connections coûte un aller-retour par requête, et vingt onglets ouverts
+  # feraient vingt fois le travail pour la même réponse.
+  #
+  # C'est pourquoi chacune date ce qu'elle rend (`takenAt`). Sans cette date, un
+  # client ne peut pas distinguer des chiffres frais de chiffres figés depuis
+  # dix minutes parce que le démon ne répond plus — les deux arrivent avec un
+  # 200 et la même tête.
+
+  /ed2k/snapshot:
+    get:
+      operationId: getEd2kSnapshot
+      summary: État complet du module en une requête
+      description: |
+        Tout ce que le serveur sait du démon : connexion, compteurs, file de
+        téléchargement, envois, file d'attente, serveurs et fichiers partagés.
+
+        Une seule requête plutôt que six, parce que le serveur les sert de
+        toute façon depuis le MÊME instantané : les découper ferait payer six
+        allers-retours pour des données déjà cohérentes entre elles, et
+        laisserait l'interface afficher une file de téléchargement d'un
+        instant à côté de statistiques d'un autre.
+
+        Les sources d'un fichier n'y sont pas : elles se comptent en centaines
+        par fichier et n'intéressent que celui qu'on regarde. Elles ont leur
+        propre route.
+      tags: [ed2k]
+      responses:
+        "200":
+          description: Instantané courant
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Ed2kSnapshot" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+
+  /ed2k/downloads:
+    get:
+      operationId: listEd2kDownloads
+      summary: File de téléchargement
+      description: |
+        Les fichiers en cours de réception, terminés compris tant que le démon
+        les garde : un fichier fini reste dans la liste jusqu'à ce qu'il soit
+        assemblé et déplacé, et le faire disparaître plus tôt donnerait
+        l'impression qu'il a été perdu.
+
+        L'ordre est celui du démon. Le tri appartient à l'interface, qui seule
+        sait sur quelle colonne l'utilisateur a cliqué.
+      tags: [ed2k]
+      responses:
+        "200":
+          description: File courante
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [takenAt, downloads]
+                properties:
+                  takenAt:
+                    type: string
+                    format: date-time
+                    description: Date de l'instantané d'où sortent ces lignes.
+                  downloads:
+                    type: array
+                    items: { $ref: "#/components/schemas/Ed2kDownload" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+
+  /ed2k/downloads/{hash}/sources:
+    get:
+      operationId: listEd2kDownloadSources
+      summary: Sources d'un téléchargement
+      description: |
+        Les pairs qui détiennent tout ou partie de ce fichier.
+
+        Route séparée de la file, et interrogée seulement quand on déplie une
+        ligne : un fichier populaire compte plusieurs centaines de sources, et
+        les joindre à la file multiplierait par cent le poids d'un écran dont
+        on ne regarde qu'une ligne à la fois.
+      tags: [ed2k]
+      parameters:
+        - $ref: "#/components/parameters/Ed2kHash"
+      responses:
+        "200":
+          description: Sources connues pour ce fichier
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [takenAt, sources]
+                properties:
+                  takenAt:
+                    type: string
+                    format: date-time
+                    description: Date de l'instantané d'où sortent ces sources.
+                  sources:
+                    type: array
+                    items: { $ref: "#/components/schemas/Ed2kSource" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+
+  /ed2k/uploads:
+    get:
+      operationId: listEd2kUploads
+      summary: Envois en cours et file d'attente
+      description: |
+        Les deux ensembles arrivent ensemble parce qu'ils se lisent ensemble :
+        ce qui part maintenant, et qui attend son tour. Séparés, on ne verrait
+        jamais qu'une file de trois cents pairs alimente les cinq transferts
+        d'à côté.
+      tags: [ed2k]
+      responses:
+        "200":
+          description: Transferts sortants et pairs en attente
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [takenAt, uploads, queuedPeers]
+                properties:
+                  takenAt:
+                    type: string
+                    format: date-time
+                    description: Date de l'instantané d'où sortent ces lignes.
+                  uploads:
+                    type: array
+                    description: Transferts sortants actifs.
+                    items: { $ref: "#/components/schemas/Ed2kUpload" }
+                  queuedPeers:
+                    type: array
+                    description: Pairs qui attendent un de nos fichiers.
+                    items: { $ref: "#/components/schemas/Ed2kQueuedPeer" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+
+  /ed2k/servers:
+    get:
+      operationId: listEd2kServers
+      summary: Serveurs eD2k connus
+      description: |
+        La liste entière, pas seulement le serveur joint : un serveur mort ne
+        se distingue d'un serveur qu'on n'a jamais essayé que par son compteur
+        d'échecs, et c'est en voyant la liste complète qu'on décide d'en
+        changer.
+      tags: [ed2k]
+      responses:
+        "200":
+          description: Serveurs connus de l'instance
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [takenAt, servers]
+                properties:
+                  takenAt:
+                    type: string
+                    format: date-time
+                    description: Date de l'instantané d'où sort cette liste.
+                  servers:
+                    type: array
+                    items: { $ref: "#/components/schemas/Ed2kServer" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+
+  /ed2k/shared:
+    get:
+      operationId: listEd2kSharedFiles
+      summary: Fichiers partagés par l'instance
+      description: |
+        Ce que ce démon met à disposition du réseau, avec ce que chaque fichier
+        a réellement rapporté. C'est le seul endroit qui répond à « qu'est-ce
+        que je donne, et à qui ça sert » — une question qu'on ne se pose qu'une
+        fois, mais dont la réponse décide de ce qu'on garde en partage.
+      tags: [ed2k]
+      responses:
+        "200":
+          description: Fichiers partagés
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [takenAt, files]
+                properties:
+                  takenAt:
+                    type: string
+                    format: date-time
+                    description: Date de l'instantané d'où sort cette liste.
+                  files:
+                    type: array
+                    items: { $ref: "#/components/schemas/Ed2kSharedFile" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+
+  /ed2k/stats:
+    get:
+      operationId: getEd2kStats
+      summary: Compteurs du démon
+      description: |
+        Débits, plafonds, tailles estimées des deux réseaux. Séparé de
+        l'instantané complet parce qu'un affichage de compteurs se rafraîchit
+        plus souvent que des listes de plusieurs centaines de lignes, et n'a
+        aucune raison de les transporter à chaque fois.
+      tags: [ed2k]
+      responses:
+        "200":
+          description: Compteurs courants
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [takenAt, stats, connection]
+                properties:
+                  takenAt:
+                    type: string
+                    format: date-time
+                    description: Date de l'instantané d'où sortent ces chiffres.
+                  stats:
+                    $ref: "#/components/schemas/Ed2kStats"
+                  connection:
+                    $ref: "#/components/schemas/Ed2kConnection"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+
+  /ed2k/downloads/{hash}/action:
+    post:
+      operationId: actOnEd2kDownload
+      summary: Agir sur un téléchargement
+      description: |
+        Met en pause, reprend, arrête ou annule un fichier.
+
+        `stop` n'est pas une pause : il libère les sources, et reprendre ensuite
+        les fait toutes rechercher — plusieurs minutes avant que le transfert ne
+        reparte. `pause` les garde.
+
+        `cancel` efface ce qui a été reçu et ne se défait pas.
+
+        La réponse ne confirme rien d'autre que la réception : amuled n'accuse
+        pas l'effet. L'état suivant, servi par le flux d'événements ou par
+        `/ed2k/snapshot`, fait foi.
+      tags: [ed2k]
+      parameters:
+        - $ref: "#/components/parameters/Ed2kHash"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [pause, resume, stop, cancel]
+      responses:
+        "202":
+          description: Commande transmise au démon
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /ed2k/downloads/{hash}/priority:
+    put:
+      operationId: setEd2kDownloadPriority
+      summary: Changer la priorité d'un téléchargement
+      description: |
+        `auto` n'est pas une valeur mais un mode : le démon monte alors la
+        priorité d'un fichier presque terminé et abaisse celle d'un fichier sans
+        source.
+      tags: [ed2k]
+      parameters:
+        - $ref: "#/components/parameters/Ed2kHash"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [priority]
+              properties:
+                priority:
+                  $ref: "#/components/schemas/Ed2kPriority"
+      responses:
+        "202":
+          description: Commande transmise au démon
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /ed2k/links:
+    post:
+      operationId: addEd2kLink
+      summary: Mettre un lien ed2k:// en file
+      description: |
+        Seuls les liens `ed2k://` sont acceptés — ni magnet, ni HTTP. Ce n'est
+        pas une limite temporaire : le module ne parle que ces deux réseaux.
+
+        La grammaire du lien est validée par amuled, pas ici : c'est lui qui la
+        connaît et la fait évoluer. Seul le protocole est vérifié en amont, pour
+        que le refus dise ce qu'on attendait.
+      tags: [ed2k]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [link]
+              properties:
+                link:
+                  type: string
+                  minLength: 1
+                  example: "ed2k://|file|debian.iso|1234|ABCDEF...|/"
+      responses:
+        "202":
+          description: Lien transmis au démon
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /ed2k/servers/connect:
+    post:
+      operationId: connectEd2kServer
+      summary: Joindre un serveur
+      description: |
+        Sans adresse, le démon choisit : il prend le premier serveur de sa liste
+        qui répond. C'est le geste courant — on veut être connecté, rarement à
+        un serveur précis.
+      tags: [ed2k]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ip: { type: string }
+                port: { type: integer, minimum: 1, maximum: 65535 }
+      responses:
+        "202":
+          description: Commande transmise au démon
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+
+  /ed2k/servers/disconnect:
+    post:
+      operationId: disconnectEd2kServer
+      summary: Quitter le serveur courant
+      tags: [ed2k]
+      responses:
+        "202":
+          description: Commande transmise au démon
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+
+  /ed2k/kad:
+    post:
+      operationId: setEd2kKadRunning
+      summary: Démarrer ou arrêter Kad
+      description: |
+        Démarrer n'est pas se connecter : Kad met plusieurs minutes à trouver
+        ses pairs, et l'état distingue les deux.
+
+        Un démon dont la configuration désactive Kad refuse la commande, en
+        disant pourquoi. Le refus remonte tel quel.
+      tags: [ed2k]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [running]
+              properties:
+                running: { type: boolean }
+      responses:
+        "202":
+          description: Commande transmise au démon
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+
+  /ed2k/shared/reload:
+    post:
+      operationId: reloadEd2kSharedFiles
+      summary: Reparcourir les répertoires partagés
+      description: |
+        Le parcours est asynchrone côté démon : la commande rend la main tout de
+        suite, et la liste se met à jour au fil des instantanés suivants.
+      tags: [ed2k]
+      responses:
+        "202":
+          description: Commande transmise au démon
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+
+  /ed2k/search:
+    post:
+      operationId: startEd2kSearch
+      summary: Lancer une recherche
+      description: |
+        **Une seule recherche à la fois, et c'est le démon qui l'impose** :
+        démarrer une recherche efface les résultats de la précédente. Deux
+        personnes qui cherchent en même temps se marcheront donc dessus — c'est
+        une conséquence directe du fait qu'amuled est un moteur unique partagé.
+
+        La recherche est asynchrone : cette route rend la main tout de suite, et
+        l'appelant sonde ensuite `GET /ed2k/search` pour la progression et les
+        résultats.
+
+        Un réseau hors ligne fait refuser la demande, en disant lequel.
+      tags: [ed2k]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [query, network]
+              properties:
+                query: { type: string, minLength: 1 }
+                network:
+                  type: string
+                  enum: [server, global, kad]
+                  description: |
+                    `server` interroge le serveur joint, `global` tous les
+                    serveurs connus en UDP, `kad` le réseau Kademlia.
+                fileType:
+                  type: string
+                  description: Catégorie aMule — Audio, Video, Image, Doc, Pro, Iso.
+                extension: { type: string }
+                minSize: { type: integer, format: int64 }
+                maxSize: { type: integer, format: int64 }
+                availability:
+                  type: integer
+                  description: Nombre minimal de sources. Zéro ne filtre pas.
+      responses:
+        "202":
+          description: Recherche lancée
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+    get:
+      operationId: getEd2kSearchResults
+      summary: Progression et résultats de la recherche
+      description: |
+        Rend les deux ensemble : une interface qui affiche une barre de
+        progression au-dessus d'une liste les redemanderait sinon en deux
+        requêtes, et pourrait afficher une progression qui ne correspond pas aux
+        résultats montrés.
+      tags: [ed2k]
+      responses:
+        "200":
+          description: État de la recherche
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [progress, complete, results]
+                properties:
+                  progress: { type: integer, minimum: 0, maximum: 100 }
+                  complete:
+                    type: boolean
+                    description: |
+                      Vrai aussi quand aucune recherche ne tourne : le démon rend
+                      la même valeur dans les deux cas, et prétendre les
+                      distinguer produirait une information fausse.
+                  results:
+                    type: array
+                    items: { $ref: "#/components/schemas/Ed2kSearchResult" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+    delete:
+      operationId: stopEd2kSearch
+      summary: Interrompre la recherche
+      description: |
+        Réussit même si aucune recherche ne tourne : l'interface l'envoie en
+        quittant l'écran, sans avoir à savoir où en était le démon.
+      tags: [ed2k]
+      responses:
+        "202":
+          description: Arrêt transmis
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+
+  /ed2k/search/{hash}/download:
+    post:
+      operationId: downloadEd2kSearchResult
+      summary: Mettre un résultat en file
+      description: |
+        Par son empreinte, jamais par le numéro interne du démon : celui-ci
+        change d'une recherche à l'autre.
+      tags: [ed2k]
+      parameters:
+        - $ref: "#/components/parameters/Ed2kHash"
+      responses:
+        "202":
+          description: Commande transmise au démon
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /ed2k/destinations:
+    get:
+      operationId: listEd2kDestinations
+      summary: Destinations par catégorie
+      description: |
+        Ce que devient un fichier terminé, selon la catégorie que le démon lui a
+        donnée. C'est la décision fondatrice du module : « Linux » reste sur
+        disque, « BD » entre dans une bibliothèque et devient un album.
+
+        Une catégorie sans règle laisse ses fichiers sur disque — le défaut, et
+        le bon comportement pour tout ce qui n'est pas une bande dessinée.
+      tags: [ed2k]
+      responses:
+        "200":
+          description: Règles déclarées
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [destinations]
+                properties:
+                  destinations:
+                    type: array
+                    items: { $ref: "#/components/schemas/Ed2kDestination" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+    put:
+      operationId: setEd2kDestination
+      summary: Déclarer la destination d'une catégorie
+      description: |
+        Une bibliothèque nulle rétablit le défaut — laisser sur disque — sans
+        faire disparaître le libellé qu'on voudra revoir.
+      tags: [ed2k]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Ed2kDestinationInput" }
+      responses:
+        "200":
+          description: Règle enregistrée
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Ed2kDestination" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /ed2k/publications:
+    get:
+      operationId: listEd2kPublications
+      summary: Ce que le pont a fait
+      description: |
+        Le journal des fichiers terminés et de leur sort : publiés dans une
+        bibliothèque, laissés sur disque, ou en erreur.
+
+        Il existe aussi pour une raison technique : les événements du flux sont
+        DÉRIVÉS de la comparaison de deux instantanés, et un téléchargement qui
+        démarre et se termine entre deux tours n'en produit aucun. La détection
+        repose donc sur l'état, et cette liste est ce qui en garde la trace.
+      tags: [ed2k]
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 500 }
+      responses:
+        "200":
+          description: Publications récentes
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [publications]
+                properties:
+                  publications:
+                    type: array
+                    items: { $ref: "#/components/schemas/Ed2kPublication" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+
+  /ed2k/logs:
+    get:
+      operationId: getEd2kLogs
+      summary: Journal du démon
+      description: |
+        Le journal d'exploitation, tel que le démon l'écrit. Il n'est pas
+        conservé par boxincloud : amuled tient une fenêtre glissante qu'il perd
+        à chaque redémarrage.
+
+        Le journal de mise au point existe dans le protocole mais n'est pas
+        exposé : il noierait ce qu'on vient chercher ici.
+      tags: [ed2k]
+      responses:
+        "200":
+          description: Lignes du journal, la plus ancienne d'abord
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [lines]
+                properties:
+                  lines:
+                    type: array
+                    items: { type: string }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+    delete:
+      operationId: clearEd2kLogs
+      summary: Vider le journal du démon
+      tags: [ed2k]
+      responses:
+        "202":
+          description: Commande transmise au démon
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+
 components:
   securitySchemes:
     bearerAuth:
@@ -2523,6 +3383,18 @@ components:
       in: query
       schema: { type: integer, minimum: 1, maximum: 200 }
       description: Nombre d'éléments. Défaut 50, plafond 200.
+
+    Ed2kHash:
+      name: hash
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: "^[0-9a-f]{32}$"
+      description: |
+        Empreinte eD2k du fichier, en hexadécimal minuscule. C'est l'identité
+        du fichier sur le réseau, et la seule clé stable : le nom change, le
+        numéro interne du démon aussi d'un redémarrage à l'autre.
 
     TokenQuery:
       name: token
@@ -2992,6 +3864,708 @@ components:
             comicId: { type: string, format: uuid }
         - $ref: "#/components/schemas/ProgressUpdate"
 
+    Ed2kStatus:
+      type: object
+      description: État du module eD2k/Kad, tel qu'affiché en tête de l'interface.
+      required: [enabled, state, detail, incomingDir]
+      properties:
+        enabled:
+          type: boolean
+          description: |
+            Reflète la configuration de déploiement
+            (`BOXINCLOUD_ED2K_ENABLED`), pas l'état de la connexion.
+        state:
+          $ref: "#/components/schemas/Ed2kState"
+        detail:
+          type: string
+          description: |
+            Pourquoi le module est dans cet état, en clair. Un état sans raison
+            oblige à chercher ailleurs ce que le serveur sait déjà.
+        daemon:
+          $ref: "#/components/schemas/Ed2kDaemon"
+        incomingDir:
+          type: string
+          description: |
+            Répertoire d'arrivée du démon, tel que ce serveur le voit. Exposé
+            parce qu'un montage manquant est la première cause de
+            « le téléchargement est fini mais rien n'arrive ».
+
+    Ed2kState:
+      type: string
+      description: |
+        Situation du module.
+
+        L'énumération est complète dès maintenant, y compris les valeurs qu'une
+        instance ne produit pas encore : ajouter une valeur à une énumération de
+        réponse casse un client strict, et la déclarer d'avance évite d'imposer
+        cette rupture plus tard.
+      enum:
+        - disabled
+        - unconfigured
+        - disconnected
+        - connecting
+        - connected
+
+    Ed2kDaemon:
+      type: object
+      description: |
+        Démon aMule déclaré. Ne porte jamais le mot de passe External
+        Connections — il est chiffré en base et ne ressort pas du service.
+      required: [host, port]
+      properties:
+        host:
+          type: string
+          description: Adresse joignable **depuis le serveur**, pas depuis le navigateur.
+        port: { type: integer, minimum: 1, maximum: 65535 }
+        label:
+          type: string
+          description: Nom libre, pour distinguer deux instances dans les journaux.
+        lastState:
+          $ref: "#/components/schemas/Ed2kState"
+        lastDetail:
+          type: string
+          description: Raison du dernier état constaté.
+        lastSeenAt:
+          type: string
+          format: date-time
+          description: |
+            Dernière réponse effective du démon. N'est pas rafraîchi par un
+            échec, sans quoi l'interface afficherait « vu à l'instant » pour un
+            démon injoignable depuis une heure.
+
+    Ed2kDaemonInput:
+      type: object
+      required: [host, port, password]
+      properties:
+        host:
+          type: string
+          minLength: 1
+          description: |
+            `amuled` sur un réseau interne, ou l'adresse d'un aMule déjà
+            installé. Contrôlée avant enregistrement.
+        port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+          description: Port External Connections du démon. 4712 par défaut chez aMule.
+        password:
+          type: string
+          minLength: 1
+          description: |
+            Mot de passe External Connections. Chiffré en base avec la clé
+            maître de l'instance ; jamais retourné.
+        label:
+          type: string
+
+    # ─── Module eD2k/Kad — lecture ──────────────────────────────────────────
+    #
+    # Ces schémas décalquent les types du domaine du serveur
+    # (`internal/amule/types.go`). Rien n'y vient du protocole External
+    # Connections : aucun opcode, aucun nom de tag, aucun entier emprunté à
+    # aMule. Les codes du démon — état d'un téléchargement, priorité — sont
+    # traduits en chaînes stables, parce qu'un entier obligerait chaque client
+    # à porter la table de correspondance, et que cette table changerait avec
+    # la version d'aMule sans que rien ne le signale.
+
+    Ed2kDownloadStatus:
+      type: string
+      description: |
+        État d'un téléchargement.
+
+        L'énumération est complète dès maintenant, y compris les valeurs qu'une
+        instance ne produit pas encore : ajouter une valeur à une énumération
+        de réponse casse un client strict, et la déclarer d'avance évite
+        d'imposer cette rupture plus tard.
+
+        `unknown` est le repli explicite pour un code que le serveur ne
+        reconnaît pas. Il vaut mieux qu'une valeur inventée : l'interface peut
+        dire « état inconnu » au lieu d'affirmer quelque chose de faux.
+      enum:
+        - waiting
+        - downloading
+        - paused
+        - stopped
+        - erroneous
+        - completing
+        - completed
+        - hashing
+        - allocating
+        - unknown
+
+    Ed2kPriority:
+      type: string
+      description: |
+        Priorité d'un fichier, en téléchargement comme en partage. `auto`
+        signifie que le démon la gère lui-même, ce qui n'est pas une valeur de
+        plus dans l'échelle mais l'absence de choix.
+
+        Énumération complète dès maintenant, pour la même raison
+        qu'`Ed2kDownloadStatus`.
+      enum:
+        - verylow
+        - low
+        - normal
+        - high
+        - veryhigh
+        - auto
+
+    Ed2kIdType:
+      type: string
+      description: |
+        Distingue un client joignable d'un client qui ne l'est pas.
+
+        - `high` — les connexions entrantes arrivent, tout fonctionne ;
+        - `low` — elles n'arrivent pas ; le client reste utilisable mais dépend
+          d'intermédiaires, ce qui limite ses sources ;
+        - `none` — pas connecté, la question ne se pose pas encore.
+
+        Énumération complète dès maintenant, pour la même raison
+        qu'`Ed2kDownloadStatus`.
+      enum:
+        - high
+        - low
+        - none
+
+    Ed2kSourceCounts:
+      type: object
+      description: |
+        D'où viennent les sources d'un fichier.
+
+        Les quatre nombres ne s'additionnent pas : `transferring` est un
+        sous-ensemble de `total`, et `a4af` compte des sources qui travaillent
+        sur un AUTRE fichier et pourraient basculer sur celui-ci.
+      required: [total, notCurrent, transferring, a4af]
+      properties:
+        total: { type: integer, format: int32 }
+        notCurrent:
+          type: integer
+          format: int32
+          description: Sources connues mais pas engagées sur ce fichier.
+        transferring:
+          type: integer
+          format: int32
+          description: Sources qui envoient effectivement des données.
+        a4af:
+          type: integer
+          format: int32
+          description: |
+            « Asked For Another File » — sources occupées sur un autre de nos
+            fichiers, qui basculeront sur celui-ci quand il aura la priorité.
+
+    Ed2kDownload:
+      type: object
+      description: Un fichier en cours de réception.
+      required:
+        [
+          hash,
+          name,
+          size,
+          sizeDone,
+          sizeXfer,
+          speed,
+          status,
+          priority,
+          category,
+          sources,
+          partCount,
+          availableParts,
+        ]
+      properties:
+        hash:
+          type: string
+          description: |
+            Empreinte eD2k en hexadécimal minuscule. Identité du fichier sur le
+            réseau, et clé stable de l'interface.
+        name: { type: string }
+        size:
+          type: integer
+          format: int64
+          description: Taille finale du fichier, en octets.
+        sizeDone:
+          type: integer
+          format: int64
+          description: |
+            Octets acquis ET vérifiés. C'est ce nombre qui fait la barre de
+            progression.
+        sizeXfer:
+          type: integer
+          format: int64
+          description: |
+            Octets ayant transité, corruption comprise. L'écart avec `sizeDone`
+            est ce qui explique un téléchargement qui « recule ».
+        speed:
+          type: integer
+          format: int64
+          description: Octets par seconde.
+        status:
+          $ref: "#/components/schemas/Ed2kDownloadStatus"
+        priority:
+          $ref: "#/components/schemas/Ed2kPriority"
+        category:
+          type: integer
+          format: int32
+          description: Catégorie du démon. Zéro pour « aucune ».
+        sources:
+          $ref: "#/components/schemas/Ed2kSourceCounts"
+        partCount:
+          type: integer
+          format: int32
+          description: Nombre de parties du fichier.
+        availableParts:
+          type: integer
+          format: int32
+          description: |
+            Parties qu'au moins une source détient. Un fichier dont certaines
+            parties manquent partout ne finira jamais, et c'est la seule façon
+            de le voir avant d'avoir attendu des heures.
+        etaSeconds:
+          type: integer
+          format: int64
+          description: |
+            Temps restant estimé, en secondes. **Absent** quand l'estimation
+            n'a pas de sens : vitesse nulle, fichier en pause, ou terminé.
+            Rendre « l'infini » obligerait chaque client à le détecter.
+        lastSeenComplete:
+          type: string
+          format: date-time
+          description: |
+            Dernière fois qu'une source détenait le fichier entier. Absent si
+            cela n'est jamais arrivé — ce qui est en soi l'information.
+
+    Ed2kSource:
+      type: object
+      description: Un pair qui détient tout ou partie d'un fichier.
+      required:
+        [userHash, name, software, version, ip, port, lowId, speed, queueRank, availableParts, downloading]
+      properties:
+        userHash:
+          type: string
+          description: |
+            Identifie le client sur le réseau, indépendamment de son IP. C'est
+            la seule identité qui survit à un changement d'adresse.
+        name: { type: string }
+        software:
+          type: string
+          description: « eMule », « aMule », « Shareaza »…
+        version: { type: string }
+        ip:
+          type: string
+          description: |
+            Vide si le pair est en LowID : il n'a alors pas d'adresse
+            joignable.
+        port: { type: integer, format: int32 }
+        lowId:
+          type: boolean
+          description: |
+            Le pair n'accepte pas de connexion entrante. Il passe par un
+            serveur, ce qui coûte plus cher et échoue plus souvent.
+        speed:
+          type: integer
+          format: int64
+          description: Octets par seconde, sur ce fichier.
+        queueRank:
+          type: integer
+          format: int32
+          description: |
+            Notre rang dans la file d'attente de ce pair. Zéro signifie « pas
+            en file » — soit on transfère, soit il ne nous a pas classés.
+        availableParts:
+          type: integer
+          format: int32
+          description: Parties que ce pair détient, sur `Ed2kDownload.partCount`.
+        downloading:
+          type: boolean
+          description: Vrai si ce pair nous envoie des données en ce moment.
+
+    Ed2kUpload:
+      type: object
+      description: Un transfert sortant en cours.
+      required:
+        [
+          userHash,
+          name,
+          software,
+          version,
+          ip,
+          port,
+          fileHash,
+          fileName,
+          speed,
+          transferred,
+          totalUploaded,
+          sessionUploaded,
+        ]
+      properties:
+        userHash: { type: string }
+        name: { type: string }
+        software: { type: string }
+        version: { type: string }
+        ip: { type: string }
+        port: { type: integer, format: int32 }
+        fileHash:
+          type: string
+          description: Empreinte eD2k du fichier servi.
+        fileName: { type: string }
+        speed:
+          type: integer
+          format: int64
+          description: Octets par seconde.
+        transferred:
+          type: integer
+          format: int64
+          description: Octets envoyés sur ce transfert.
+        totalUploaded:
+          type: integer
+          format: int64
+          description: |
+            Cumul historique envoyé à ce pair, toutes sessions confondues.
+            C'est la base du système de crédits : ce qu'on a donné à quelqu'un
+            détermine ce qu'il nous rend.
+        sessionUploaded:
+          type: integer
+          format: int64
+          description: Envoyé depuis que ce pair est connecté.
+
+    Ed2kQueuedPeer:
+      type: object
+      description: Un pair en attente d'un de nos fichiers.
+      required: [userHash, name, ip, port, fileHash, score]
+      properties:
+        userHash: { type: string }
+        name: { type: string }
+        ip: { type: string }
+        port: { type: integer, format: int32 }
+        fileHash: { type: string }
+        score:
+          type: integer
+          format: int32
+          description: |
+            Note calculée par le démon : elle mêle ancienneté dans la file et
+            crédits acquis. Elle n'est pas un rang — deux pairs peuvent la
+            partager.
+        waitedSince:
+          type: string
+          format: date-time
+          description: Depuis quand ce pair patiente. Absent si le démon l'ignore.
+
+    Ed2kSharedFile:
+      type: object
+      description: Un fichier que cette instance met à disposition.
+      required: [hash, name, size, path, priority, requests, accepted, transferred, complete]
+      properties:
+        hash: { type: string }
+        name: { type: string }
+        size: { type: integer, format: int64 }
+        path:
+          type: string
+          description: Chemin du fichier tel que le démon le voit, pas ce serveur.
+        priority:
+          $ref: "#/components/schemas/Ed2kPriority"
+        requests:
+          type: integer
+          format: int64
+          description: Nombre de fois où le fichier a été demandé.
+        accepted:
+          type: integer
+          format: int64
+          description: |
+            Nombre de fois où il a été effectivement servi. L'écart avec
+            `requests` mesure ce que la file d'attente a refusé.
+        transferred:
+          type: integer
+          format: int64
+          description: Octets envoyés depuis ce fichier.
+        complete:
+          type: boolean
+          description: |
+            Faux pour un fichier encore en cours de téléchargement — il est
+            partagé lui aussi, c'est le principe du réseau.
+
+    Ed2kServer:
+      type: object
+      description: Un serveur eD2k connu de l'instance.
+      required:
+        [ip, port, name, description, version, ping, users, maxUsers, files, failed, static, priority, connected]
+      properties:
+        ip: { type: string }
+        port: { type: integer, format: int32 }
+        name: { type: string }
+        description: { type: string }
+        version: { type: string }
+        ping:
+          type: integer
+          format: int32
+          description: Latence en millisecondes. Zéro signifie « jamais mesurée ».
+        users: { type: integer, format: int32 }
+        maxUsers:
+          type: integer
+          format: int32
+          description: Plafond annoncé par le serveur. Zéro signifie « non annoncé ».
+        files: { type: integer, format: int32 }
+        failed:
+          type: integer
+          format: int32
+          description: |
+            Échecs de connexion consécutifs. Un serveur mort le reste, et ce
+            compteur est ce qui permet de le voir.
+        static:
+          type: boolean
+          description: |
+            Serveur épinglé par l'utilisateur : il survit aux mises à jour de
+            la liste, contrairement aux autres.
+        priority:
+          $ref: "#/components/schemas/Ed2kPriority"
+        connected:
+          type: boolean
+          description: Serveur auquel l'instance est reliée. Un seul à la fois.
+
+    Ed2kNetworkState:
+      type: object
+      description: |
+        Lien avec le réseau serveur.
+
+        Nommé `Ed2kNetworkState` et non `Ed2kState` : ce dernier est déjà
+        l'énumération qui décrit la situation du MODULE — activé, démon
+        déclaré, connecté. Les deux répondent à des questions différentes, et
+        leur donner le même nom obligerait à lire le contexte pour savoir
+        laquelle on regarde.
+      required: [connected, connecting, clientId, id]
+      properties:
+        connected: { type: boolean }
+        connecting:
+          type: boolean
+          description: |
+            Distinct de `connected` : une tentative en cours n'est ni un
+            succès ni un échec, et l'interface doit pouvoir dire laquelle des
+            trois.
+        server:
+          allOf:
+            - $ref: "#/components/schemas/Ed2kServer"
+          description: Serveur joint. Absent si aucun.
+        clientId:
+          type: integer
+          format: int64
+          description: |
+            Identifiant attribué par le serveur. Sur 32 bits non signés, d'où
+            le `int64` — un `int32` ferait déborder la moitié des valeurs
+            légitimes en négatif.
+        id:
+          $ref: "#/components/schemas/Ed2kIdType"
+
+    Ed2kKadState:
+      type: object
+      description: Lien avec le réseau Kademlia.
+      required: [running, connected, firewalled, firewalledUdp]
+      properties:
+        running:
+          type: boolean
+          description: |
+            Le moteur Kad tourne. Distinct de `connected` : un Kad démarré peut
+            chercher ses pairs pendant plusieurs minutes.
+        connected:
+          type: boolean
+          description: Le moteur a trouvé le réseau.
+        firewalled:
+          type: boolean
+          description: |
+            Les connexions entrantes n'arrivent pas. Kad fonctionne alors en
+            dégradé — on peut chercher, mais on est moins trouvable.
+        firewalledUdp:
+          type: boolean
+          description: |
+            Distinct de `firewalled` : Kad utilise UDP pour ses recherches et
+            TCP pour les transferts, et les deux peuvent être bloqués
+            séparément.
+
+    Ed2kConnection:
+      type: object
+      description: |
+        Les deux réseaux, ensemble. Ils sont indépendants — on peut être
+        connecté à Kad sans serveur, et l'inverse — et les afficher séparément
+        laisserait croire qu'une panne de l'un est une panne du module.
+      required: [ed2k, kad]
+      properties:
+        ed2k:
+          $ref: "#/components/schemas/Ed2kNetworkState"
+        kad:
+          $ref: "#/components/schemas/Ed2kKadState"
+
+    Ed2kStats:
+      type: object
+      description: Instantané des compteurs du démon.
+      required:
+        [
+          upSpeed,
+          downSpeed,
+          upLimit,
+          downLimit,
+          upOverhead,
+          downOverhead,
+          totalSources,
+          bannedPeers,
+          uploadQueueLength,
+          ed2kUsers,
+          kadUsers,
+          ed2kFiles,
+          kadFiles,
+        ]
+      properties:
+        upSpeed: { type: integer, format: int64, description: Octets par seconde. }
+        downSpeed: { type: integer, format: int64, description: Octets par seconde. }
+        upLimit:
+          type: integer
+          format: int64
+          description: |
+            Plafond configuré, en octets par seconde. Zéro signifie « aucune
+            limite », ce qui n'est pas la même chose que « débit nul ».
+        downLimit:
+          type: integer
+          format: int64
+          description: Plafond configuré. Zéro signifie « aucune limite ».
+        upOverhead:
+          type: integer
+          format: int64
+          description: |
+            Débit consommé par le protocole lui-même, hors données de fichier.
+            Sur une liaison domestique, il explique la différence entre le
+            plafond réglé et ce que mesure la box.
+        downOverhead: { type: integer, format: int64 }
+        totalSources:
+          type: integer
+          format: int32
+          description: Sources connues, tous fichiers confondus.
+        bannedPeers:
+          type: integer
+          format: int32
+          description: Pairs écartés pour comportement abusif.
+        uploadQueueLength:
+          type: integer
+          format: int32
+          description: |
+            Pairs qui attendent un de nos fichiers. C'est la mesure de ce qu'on
+            doit au réseau.
+        ed2kUsers:
+          type: integer
+          format: int32
+          description: Taille estimée du réseau serveur. Zéro tant qu'aucune estimation n'existe.
+        kadUsers:
+          type: integer
+          format: int32
+          description: Taille estimée du réseau Kad.
+        ed2kFiles: { type: integer, format: int32 }
+        kadFiles: { type: integer, format: int32 }
+
+    Ed2kSnapshot:
+      type: object
+      description: |
+        État complet du démon à un instant.
+
+        C'est l'unité de travail de la scrutation côté serveur : on en prend
+        un, on le compare au précédent, et la différence produit les
+        événements du flux SSE. Le servir tel quel évite qu'un client
+        reconstitue à six requêtes une cohérence que le serveur avait déjà.
+      required:
+        [takenAt, connection, stats, downloads, uploads, queuedPeers, servers, sharedFiles]
+      properties:
+        takenAt:
+          type: string
+          format: date-time
+          description: |
+            Date de l'instantané. L'interface en a besoin pour dire depuis
+            combien de temps elle regarde des chiffres qui ne bougent plus.
+        connection:
+          $ref: "#/components/schemas/Ed2kConnection"
+        stats:
+          $ref: "#/components/schemas/Ed2kStats"
+        downloads:
+          type: array
+          items: { $ref: "#/components/schemas/Ed2kDownload" }
+        uploads:
+          type: array
+          items: { $ref: "#/components/schemas/Ed2kUpload" }
+        queuedPeers:
+          type: array
+          items: { $ref: "#/components/schemas/Ed2kQueuedPeer" }
+        servers:
+          type: array
+          items: { $ref: "#/components/schemas/Ed2kServer" }
+        sharedFiles:
+          type: array
+          items: { $ref: "#/components/schemas/Ed2kSharedFile" }
+
+    Ed2kSearchResult:
+      type: object
+      description: Un fichier trouvé sur le réseau.
+      required: [hash, name, size, sources, completeSources, alreadyQueued]
+      properties:
+        hash: { type: string }
+        name: { type: string }
+        size: { type: integer, format: int64 }
+        sources:
+          type: integer
+          description: Pairs détenant tout ou partie du fichier.
+        completeSources:
+          type: integer
+          description: |
+            Pairs détenant la TOTALITÉ. C'est ce nombre qui dit si un fichier
+            finira : cent sources partielles qui n'ont jamais la même partie ne
+            complètent rien.
+        alreadyQueued:
+          type: boolean
+          description: Déjà présent dans la file de téléchargement.
+
+    Ed2kDestination:
+      type: object
+      description: Ce que devient un fichier terminé d'une catégorie donnée.
+      required: [category, label, folder]
+      properties:
+        category:
+          type: integer
+          description: |
+            La catégorie telle que le démon la numérote. Zéro est sa catégorie
+            par défaut, celle de tout fichier ajouté sans précision.
+        label: { type: string }
+        libraryId:
+          type: string
+          format: uuid
+          description: |
+            Absent signifie « laisser sur disque » — le défaut, et le bon
+            comportement pour ce qui n'est pas une bande dessinée.
+        folder:
+          type: string
+          description: Dossier dans la bibliothèque. Vide pour la racine.
+
+    Ed2kDestinationInput:
+      type: object
+      required: [category, label]
+      properties:
+        category: { type: integer, minimum: 0 }
+        label: { type: string, minLength: 1 }
+        libraryId: { type: string, format: uuid, nullable: true }
+        folder: { type: string }
+
+    Ed2kPublication:
+      type: object
+      description: Le sort d'un fichier terminé.
+      required: [hash, name, size, category, status]
+      properties:
+        hash: { type: string }
+        name: { type: string }
+        size: { type: integer, format: int64 }
+        category: { type: integer }
+        status:
+          type: string
+          enum: [pending, published, skipped, error]
+          description: |
+            `skipped` n'est pas un échec : c'est le cas nominal d'une catégorie
+            qui laisse ses fichiers sur disque.
+        detail: { type: string }
+        libraryId: { type: string, format: uuid }
+        comicId:
+          type: string
+          format: uuid
+          description: L'album créé, quand la publication a réussi.
+
     Problem:
       type: object
       description: |
@@ -3050,6 +4624,15 @@ components:
 
     NotIndexed:
       description: L'album n'a pas fini d'être indexé
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+
+    Ed2kDisabled:
+      description: |
+        Le module eD2k est désactivé sur cette instance
+        (`BOXINCLOUD_ED2K_ENABLED=false`). Un 409 plutôt qu'un 404 : la route
+        existe et existera encore une fois le module activé.
       content:
         application/problem+json:
           schema: { $ref: "#/components/schemas/Problem" }

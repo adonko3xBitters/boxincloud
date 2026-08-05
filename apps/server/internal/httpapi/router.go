@@ -19,6 +19,7 @@ import (
 	"github.com/go-chi/cors"
 
 	"github.com/adonko3xBitters/boxincloud/server/internal/accounts"
+	"github.com/adonko3xBitters/boxincloud/server/internal/amule"
 	"github.com/adonko3xBitters/boxincloud/server/internal/auth"
 	"github.com/adonko3xBitters/boxincloud/server/internal/cache"
 	"github.com/adonko3xBitters/boxincloud/server/internal/catalog"
@@ -52,7 +53,13 @@ type Deps struct {
 	Progress  *progress.Service
 	Tools     *catalog.Tools
 	Cache     *cache.Cache
-	WebFS     fs.FS // application web embarquée ; nil pour ne rien servir
+
+	// Ed2k est toujours câblé, même module désactivé : le service sait alors le
+	// dire, ce qui vaut mieux qu'une dépendance nulle que chaque handler
+	// devrait tester.
+	Ed2k *amule.Service
+
+	WebFS fs.FS // application web embarquée ; nil pour ne rien servir
 }
 
 // requestTimeout borne une requête d'API ordinaire.
@@ -95,6 +102,7 @@ func NewRouter(d Deps) http.Handler {
 		"Reader":    d.Reader != nil,
 		"Progress":  d.Progress != nil,
 		"Cache":     d.Cache != nil,
+		"Ed2k":      d.Ed2k != nil,
 	} {
 		if !wired {
 			panic("httpapi : dépendance " + name + " non câblée dans NewRouter")
@@ -320,6 +328,58 @@ func NewRouter(d Deps) http.Handler {
 			r.Get("/libraries/{libraryID}/access", accountsHandler.ListLibraryGrants)
 			r.Post("/libraries/{libraryID}/access", accountsHandler.Grant)
 			r.Delete("/libraries/{libraryID}/access/{userID}", accountsHandler.Revoke)
+
+			// ── Module eD2k/Kad ─────────────────────────────────────
+			//
+			// Réservé à l'administration en totalité : le module engage la
+			// bande passante, les ports et l'adresse IP de l'instance. Le
+			// flux d'événements est ailleurs — il ne peut pas partager le
+			// délai des requêtes ordinaires.
+			ed2kHandler := handlers.NewEd2k(d.Ed2k)
+
+			r.Get("/ed2k/status", ed2kHandler.Status)
+			r.Get("/ed2k/daemon", ed2kHandler.GetDaemon)
+			r.Put("/ed2k/daemon", ed2kHandler.SetDaemon)
+			r.Delete("/ed2k/daemon", ed2kHandler.ForgetDaemon)
+
+			// Lecture de l'état. Toutes servent l'instantané que la
+			// scrutation tient à jour, sans parler au démon — sans quoi dix
+			// onglets ouverts décupleraient la charge sur lui.
+			//
+			// La seule exception est la liste des sources d'un fichier, qui
+			// ne figure pas dans l'instantané : la collecter coûterait une
+			// requête par fichier à chaque tour.
+			r.Get("/ed2k/snapshot", ed2kHandler.Snapshot)
+			r.Get("/ed2k/downloads", ed2kHandler.Downloads)
+			r.Get("/ed2k/downloads/{hash}/sources", ed2kHandler.Sources)
+			r.Get("/ed2k/uploads", ed2kHandler.Uploads)
+			r.Get("/ed2k/servers", ed2kHandler.Servers)
+			r.Get("/ed2k/shared", ed2kHandler.SharedFiles)
+			r.Get("/ed2k/stats", ed2kHandler.Stats)
+
+			// Ce qui agit. Toutes répondent 202 : amuled n'accuse que
+			// réception, jamais l'effet, et prétendre le contraire ferait
+			// croire que la réponse décrit le résultat.
+			r.Post("/ed2k/downloads/{hash}/action", ed2kHandler.Act)
+			r.Put("/ed2k/downloads/{hash}/priority", ed2kHandler.SetPriority)
+			r.Post("/ed2k/links", ed2kHandler.AddLink)
+			r.Post("/ed2k/servers/connect", ed2kHandler.ConnectServer)
+			r.Post("/ed2k/servers/disconnect", ed2kHandler.DisconnectServer)
+			r.Post("/ed2k/kad", ed2kHandler.SetKad)
+			r.Post("/ed2k/shared/reload", ed2kHandler.ReloadShared)
+
+			// La recherche. Une seule à la fois, le démon l'impose.
+			r.Post("/ed2k/search", ed2kHandler.StartSearch)
+			r.Get("/ed2k/search", ed2kHandler.SearchResults)
+			r.Delete("/ed2k/search", ed2kHandler.StopSearch)
+			r.Post("/ed2k/search/{hash}/download", ed2kHandler.DownloadSearchResult)
+
+			// Le pont vers la bibliothèque, et le journal du démon.
+			r.Get("/ed2k/destinations", ed2kHandler.Destinations)
+			r.Put("/ed2k/destinations", ed2kHandler.SetDestination)
+			r.Get("/ed2k/publications", ed2kHandler.Publications)
+			r.Get("/ed2k/logs", ed2kHandler.Logs)
+			r.Delete("/ed2k/logs", ed2kHandler.ClearLogs)
 		})
 
 		// ── Opérations longues sur l'arborescence ───────────────────────
@@ -351,6 +411,27 @@ func NewRouter(d Deps) http.Handler {
 
 			adminHandler := handlers.NewAdmin(d.Libraries, d.Catalog, d.Ingest, d.Cache)
 			r.Post("/libraries/{libraryID}/upload", adminHandler.Upload)
+		})
+
+		/*
+			── Flux d'événements du module eD2k ────────────────────────────
+
+			Isolé pour deux raisons, dont aucune n'est cosmétique.
+
+			Aucun délai de requête : un flux SSE reste ouvert tant que l'onglet
+			l'est, c'est-à-dire potentiellement des jours. Le placer dans le
+			groupe ordinaire le ferait couper au bout de trente secondes, et
+			l'interface se reconnecterait en boucle sans que rien ne le dise.
+
+			Jeton accepté en paramètre d'URL : `EventSource` ne sait pas porter
+			d'en-tête `Authorization`. C'est exactement le cas prévu par le
+			groupe voisin, et la même réserve s'applique — on l'accepte là où il
+			n'y a pas d'alternative, nulle part ailleurs.
+		*/
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.AuthenticateAllowingQueryToken(d.Auth))
+
+			r.Get("/ed2k/events", handlers.NewEd2k(d.Ed2k).Events)
 		})
 
 		/*

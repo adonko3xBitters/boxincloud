@@ -33,8 +33,24 @@ services:
       BOXINCLOUD_PUBLIC_URL: ${BOXINCLOUD_PUBLIC_URL:-http://localhost:8080}
       BOXINCLOUD_LOG_LEVEL: ${BOXINCLOUD_LOG_LEVEL:-info}
       BOXINCLOUD_CACHE_MAX_SIZE: ${BOXINCLOUD_CACHE_MAX_SIZE:-10GB}
+
+      # Module eD2k/Kad. Désactivé par défaut, et c'est délibéré : un client
+      # pair-à-pair ouvre des ports entrants et publie l'adresse IP de
+      # l'instance sur deux réseaux publics.
+      #
+      # Pour l'activer :  docker compose --profile ed2k up -d
+      # et passer cette variable à true.
+      BOXINCLOUD_ED2K_ENABLED: ${BOXINCLOUD_ED2K_ENABLED:-false}
+      BOXINCLOUD_ED2K_INCOMING_DIR: /downloads/incoming
     volumes:
       - boxincloud-data:/var/lib/boxincloud
+
+      # Le répertoire d'arrivée du démon, EN LECTURE SEULE.
+      #
+      # C'est tout ce dont le pont vers la bibliothèque a besoin, et cette
+      # restriction rend structurellement impossible qu'un défaut de boxincloud
+      # abîme la zone de travail d'amuled.
+      - amule-incoming:/downloads/incoming:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -103,7 +119,43 @@ services:
       echo 'bucket ' $$MINIO_BUCKET ' prêt'
       "
 
+  # ─── Démon aMule ───────────────────────────────────────────────────────────
+  #
+  # Sous profil : sans `--profile ed2k`, ce service n'existe pas et le fichier
+  # se comporte exactement comme avant. Deux conteneurs pour qui n'en veut pas,
+  # trois pour qui l'active.
+  #
+  # Voir docs/adr/007-amuled-processus-separe.md.
+  amuled:
+    profiles: [ed2k]
+    image: ${AMULE_IMAGE:-ghcr.io/ngosang/amule:latest}
+    restart: unless-stopped
+    environment:
+      # Mot de passe des connexions externes. amuled en conserve l'empreinte ;
+      # c'est ce mot de passe EN CLAIR qui se déclare dans boxincloud, page
+      # eD2k / Kad.
+      GUI_PWD: ${AMULE_EC_PASSWORD:-boxincloud}
+    ports:
+      # Les ports du PROTOCOLE, qui doivent entrer : sans eux, l'instance
+      # obtient un LowID et Kad reste derrière un pare-feu. C'est une propriété
+      # du réseau eD2k, pas un défaut à corriger.
+      - "${AMULE_TCP_PORT:-4662}:4662/tcp"
+      - "${AMULE_UDP_PORT:-4672}:4672/udp"
+      #
+      # Le port EC n'est PAS publié, et ne doit jamais l'être : il donne le
+      # pilotage complet du démon. Seul boxincloud le joint, par le réseau
+      # interne du compose.
+    volumes:
+      - amule-config:/home/amule/.aMule
+      - amule-temp:/downloads/temp
+      - amule-incoming:/downloads/incoming
+
 volumes:
   boxincloud-data:
   postgres-data:
   minio-data:
+
+  # Partagés entre amuled et boxincloud : le premier écrit, le second lit.
+  amule-config:
+  amule-temp:
+  amule-incoming:

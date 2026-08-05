@@ -65,6 +65,12 @@ Lecture
                                 Extrait la page n d'une archive et compte les
                                 requêtes Range effectuées
 
+eD2k / Kad
+  ed2k ping                     Joint le démon aMule déclaré, s'authentifie et
+                                mesure l'aller-retour. Dit lequel des quatre
+                                points a lâché : adresse, mot de passe, version
+                                du protocole ou réseau.
+
 Configuration : variables d'environnement, comme le serveur. Voir .env.example.
 `
 
@@ -113,6 +119,10 @@ func run(args []string) error {
 		return err
 	}
 
+	// Le démon aMule journalise le nom et la version de qui s'y connecte :
+	// autant qu'il distingue le CLI d'une instance de serveur.
+	core.Ed2k.SetVersion(version)
+
 	cmd := &commands{core: core, pool: pool, cfg: cfg, log: log}
 
 	switch args[0] {
@@ -149,6 +159,9 @@ func run(args []string) error {
 
 	case "user":
 		return cmd.user(ctx, args[1:])
+
+	case "ed2k":
+		return cmd.ed2k(ctx, args[1:])
 
 	default:
 		fmt.Print(usage)

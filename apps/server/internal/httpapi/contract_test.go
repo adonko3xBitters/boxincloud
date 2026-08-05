@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/getkin/kin-openapi/openapi3filter"
@@ -105,6 +106,20 @@ func newContractHarness(t *testing.T) *contractHarness {
 			RefreshTokenTTL: 24 * 60 * 60 * 1e9,
 		},
 		Jobs: config.Jobs{Enabled: false},
+
+		// Le module eD2k est ACTIF dans le harnais, alors qu'il est éteint par
+		// défaut en production.
+		//
+		// C'est délibéré : ces tests doivent exercer les routes pour de vrai.
+		// Module éteint, elles répondraient toutes 409 sans jamais atteindre le
+		// service, et le contrôle des droits comme la conformité au contrat ne
+		// prouveraient plus rien. Le défaut à false est vérifié là où il vit,
+		// dans internal/config.
+		Ed2k: config.Ed2k{
+			Enabled:      true,
+			IncomingDir:  t.TempDir(),
+			PollInterval: time.Second,
+		},
 	}
 
 	core, err := app.BuildCore(context.Background(), cfg, pool, log)
@@ -127,6 +142,7 @@ func newContractHarness(t *testing.T) *contractHarness {
 		Cache:     core.Cache,
 		Reader:    core.Reader,
 		Progress:  core.Progress,
+		Ed2k:      core.Ed2k,
 	})
 
 	spec, err := gen.GetSpec()

@@ -616,7 +616,318 @@ export const en: Record<MessageKey, string> = {
   "discovery.title": "Discover",
   "discovery.dialogLabel": "Federated search",
 
+  // ── eD2k / Kad module ──────────────────────────────────────────────────────
+  "ed2k.title": "eD2k / Kad",
+  "ed2k.menuHint": "Drive an aMule daemon from this instance",
+  "ed2k.intro":
+    "This module drives an aMule daemon over its External Connections protocol. boxincloud reimplements no peer-to-peer protocol: aMule stays the engine, the interface lives here.",
+  "ed2k.adminOnly": "Administrators only",
+  "ed2k.adminOnlyHint":
+    "This module commits the instance's bandwidth, ports and IP address. Driving it requires an administrator account.",
+
+  "ed2k.state.disabled": "Disabled",
+  "ed2k.state.unconfigured": "No daemon declared",
+  "ed2k.state.disconnected": "Daemon declared",
+  "ed2k.state.connecting": "Connecting…",
+  "ed2k.state.connected": "Connected",
+
+  "ed2k.disabledTitle": "Module disabled on this instance",
+  "ed2k.disabledHint":
+    "Nothing is running and no port is open. To turn it on, set BOXINCLOUD_ED2K_ENABLED to true in the server configuration, then restart it.",
+
+  "ed2k.daemon.title": "aMule daemon",
+  "ed2k.daemon.hint":
+    "The address must be reachable from the SERVER, not from this browser — “amuled” on an internal network, or the address of the NAS already running aMule.",
+  "ed2k.daemon.host": "Host",
+  "ed2k.daemon.port": "Port",
+  "ed2k.daemon.portHint": "The daemon's External Connections port. 4712 on aMule.",
+  "ed2k.daemon.password": "EC password",
+  "ed2k.daemon.passwordHint":
+    "Encrypted at rest and never shown again: it must be typed in on every save.",
+  "ed2k.daemon.label": "Name",
+  "ed2k.daemon.labelHint": "Optional, to tell instances apart in the logs.",
+  "ed2k.daemon.save": "Save",
+  "ed2k.daemon.forget": "Forget this daemon",
+  "ed2k.daemon.forgetConfirm":
+    "Forget this daemon? It keeps running and no download is touched: only the boxincloud-side declaration goes away.",
+  "ed2k.daemon.lastSeen": "Last contact",
+  "ed2k.daemon.never": "never",
+  "ed2k.daemon.declared": "Daemon declared: {host}",
+
+  "ed2k.incoming": "Incoming directory",
+  "ed2k.incomingHint":
+    "As the server sees it, read-only. A missing mount here is the first cause of “the download finished but nothing arrived”.",
+
+  "ed2k.next.title": "What is not here yet",
+  "ed2k.next.hint":
+    "This step reads and does not act: no button pauses, resumes, connects or removes anything. Commands, search and eD2k link submission land in the next step.",
+
+  "ed2k.nav.label": "Module sections",
+  "ed2k.section.dashboard": "Dashboard",
+  "ed2k.section.downloads": "Downloads",
+  "ed2k.section.uploads": "Uploads",
+  "ed2k.section.shared": "Shared",
+  "ed2k.section.servers": "Servers",
+  "ed2k.section.kad": "Kad",
+  "ed2k.section.stats": "Statistics",
+  "ed2k.section.settings": "Settings",
+
+  "ed2k.needsDaemon": "No daemon declared",
+  "ed2k.needsDaemonHint":
+    "There is nothing to read until an aMule daemon is declared. Fill in its address and External Connections password under Settings.",
+  "ed2k.openSettings": "Open settings",
+  "ed2k.takenAt": "Read at {time}",
+  "ed2k.readOnly": "Read-only",
+  "ed2k.yes": "yes",
+  "ed2k.no": "no",
+
+  "ed2k.unit.byte": "B",
+  "ed2k.unit.kilo": "kB",
+  "ed2k.unit.mega": "MB",
+  "ed2k.unit.giga": "GB",
+  "ed2k.unit.tera": "TB",
+  "ed2k.unit.perSecond": "{value}/s",
+  "ed2k.unit.second": "{value} s",
+  "ed2k.unit.minute": "{value} min",
+  "ed2k.unit.hour": "{value} h",
+  "ed2k.unit.day": "{value} d",
+
+  "ed2k.col.name": "Name",
+  "ed2k.col.size": "Size",
+  "ed2k.col.progress": "Progress",
+  "ed2k.col.received": "Done",
+  "ed2k.col.speed": "Speed",
+  "ed2k.col.eta": "Left",
+  "ed2k.col.sources": "Sources",
+  "ed2k.col.parts": "Parts",
+  "ed2k.col.priority": "Priority",
+  "ed2k.col.status": "Status",
+  "ed2k.col.peer": "Peer",
+  "ed2k.col.software": "Client",
+  "ed2k.col.address": "Address",
+  "ed2k.col.rank": "Rank",
+  "ed2k.col.available": "Available",
+  "ed2k.col.file": "File",
+  "ed2k.col.sent": "Sent",
+  "ed2k.col.session": "Session",
+  "ed2k.col.total": "Total",
+  "ed2k.col.score": "Score",
+  "ed2k.col.waiting": "Waiting since",
+  "ed2k.col.path": "Path",
+  "ed2k.col.requests": "Requests",
+  "ed2k.col.accepted": "Served",
+  "ed2k.col.complete": "Complete",
+  "ed2k.col.ping": "Ping",
+  "ed2k.col.users": "Users",
+  "ed2k.col.files": "Files",
+  "ed2k.col.failed": "Failures",
+  "ed2k.col.static": "Pinned",
+  "ed2k.col.description": "Description",
+
+  "ed2k.status.waiting": "Waiting",
+  "ed2k.status.downloading": "Downloading",
+  "ed2k.status.paused": "Paused",
+  "ed2k.status.stopped": "Stopped",
+  "ed2k.status.erroneous": "Failed",
+  "ed2k.status.completing": "Completing",
+  "ed2k.status.completed": "Completed",
+  "ed2k.status.hashing": "Hashing",
+  "ed2k.status.allocating": "Allocating",
+  "ed2k.status.unknown": "Unknown state",
+
+  "ed2k.priority.verylow": "Very low",
+  "ed2k.priority.low": "Low",
+  "ed2k.priority.normal": "Normal",
+  "ed2k.priority.high": "High",
+  "ed2k.priority.veryhigh": "Very high",
+  "ed2k.priority.auto": "Auto",
+
+  "ed2k.id.high": "HighID",
+  "ed2k.id.low": "LowID",
+  "ed2k.id.none": "No ID",
+  "ed2k.id.lowHint":
+    "Incoming connections do not get through: sources go via a server, are fewer and drop more often. Open the daemon's TCP port to fix it.",
+
+  "ed2k.dashboard.serverNetwork": "Server network",
+  "ed2k.dashboard.kadNetwork": "Kad network",
+  "ed2k.dashboard.noServer": "No server",
+  "ed2k.dashboard.connecting": "Connecting",
+  "ed2k.dashboard.notConnected": "Not connected",
+  "ed2k.dashboard.activeDownloads": "Active downloads",
+  "ed2k.dashboard.queueLength": "Peers waiting",
+  "ed2k.dashboard.sharedCount": "Shared files",
+  "ed2k.dashboard.knownSources": "Known sources",
+  "ed2k.dashboard.transfers": "What is moving",
+  "ed2k.dashboard.transfersEmpty": "Nothing is moving",
+  "ed2k.dashboard.transfersEmptyHint":
+    "No file is receiving or sending data right now. The queue may be empty, or every source may be queued.",
+  "ed2k.dashboard.seeAll": "See the whole queue",
+
+  "ed2k.downloads.hint":
+    "What the daemon is receiving. A finished file stays here until it is assembled and moved to the incoming directory.",
+  "ed2k.downloads.empty": "Empty queue",
+  "ed2k.downloads.emptyHint":
+    "The daemon is downloading nothing. A file added from aMule, or through an eD2k link, will show up in this list.",
+  "ed2k.downloads.expand": "Show the sources of {name}",
+  "ed2k.downloads.sourcesEmpty": "No source",
+  "ed2k.downloads.sourcesEmptyHint":
+    "None of the peers reached holds this file. A server or Kad has to find one first.",
+  "ed2k.downloads.wasted":
+    "{value} received in excess: corrupted data was rejected on verification.",
+
+  "ed2k.uploads.hint":
+    "What the daemon is sending, and who is waiting. What you give decides what you get: eD2k credits reward the peers you have already served.",
+  "ed2k.uploads.active": "Outgoing transfers",
+  "ed2k.uploads.queue": "Waiting queue",
+  "ed2k.uploads.empty": "No upload",
+  "ed2k.uploads.emptyHint":
+    "Nobody is downloading from this instance right now, and nobody is waiting. That is expected if nothing is shared, or if the daemon just started.",
+  "ed2k.uploads.queueEmpty": "Empty waiting queue",
+
+  "ed2k.shared.hint":
+    "What this instance offers, and what each file actually returned. A file still downloading is shared too — that is how the network works.",
+  "ed2k.shared.empty": "Nothing is shared",
+  "ed2k.shared.emptyHint":
+    "The daemon publishes no file. Check its shared directories in its own configuration: boxincloud reads them, it does not set them.",
+  "ed2k.shared.partial": "partial",
+
+  "ed2k.servers.hint":
+    "Known servers, not just the one in use. A dead server only differs from a never-tried one by its failure counter.",
+  "ed2k.servers.empty": "No known server",
+  "ed2k.servers.emptyHint":
+    "The daemon's list is empty. It fills from a server.met file, loaded by aMule at startup or when its list is updated.",
+  "ed2k.servers.connected": "Connected",
+
+  "ed2k.kad.hint":
+    "Kad needs no server: peers find each other. That is what keeps things running when every server goes down.",
+  "ed2k.kad.running": "Engine running",
+  "ed2k.kad.connected": "Network found",
+  "ed2k.kad.firewalled": "Incoming connections blocked",
+  "ed2k.kad.firewalledUdp": "UDP blocked",
+  "ed2k.kad.firewalledHint":
+    "You can search, but you are harder to find: other peers cannot reach this host.",
+  "ed2k.kad.udpHint":
+    "Kad searches over UDP and transfers over TCP. Both are blocked separately, and a closed UDP port stops every search.",
+  "ed2k.kad.searchingHint":
+    "The engine is running but has not found its peers yet. That takes several minutes on a first start.",
+  "ed2k.kad.stopped": "Kad is stopped",
+  "ed2k.kad.stoppedHint":
+    "The Kademlia engine is not running on this daemon. It is started from aMule's own configuration; boxincloud only reads its state at this step.",
+  "ed2k.kad.users": "Estimated users",
+  "ed2k.kad.files": "Estimated files",
+
+  "ed2k.stats.hint":
+    "The daemon's counters, as it reports them. Network sizes are estimates it computes itself, not measurements.",
+  "ed2k.stats.transfer": "Throughput",
+  "ed2k.stats.network": "Networks",
+  "ed2k.stats.peers": "Peers",
+  "ed2k.stats.downSpeed": "Download",
+  "ed2k.stats.upSpeed": "Upload",
+  "ed2k.stats.downLimit": "Download cap",
+  "ed2k.stats.upLimit": "Upload cap",
+  "ed2k.stats.downOverhead": "Protocol in",
+  "ed2k.stats.upOverhead": "Protocol out",
+  "ed2k.stats.overheadHint":
+    "What the protocol itself consumes, beyond file data. It is the gap between the cap you set and what the router reports.",
+  "ed2k.stats.unlimited": "no cap",
+  "ed2k.stats.totalSources": "Known sources",
+  "ed2k.stats.bannedPeers": "Banned peers",
+  "ed2k.stats.uploadQueue": "Peers waiting",
+  "ed2k.stats.ed2kUsers": "eD2k users",
+  "ed2k.stats.kadUsers": "Kad users",
+  "ed2k.stats.ed2kFiles": "eD2k files",
+  "ed2k.stats.kadFiles": "Kad files",
+
+  // ── eD2k and Kad networks ──────────────────────────────────────────────────
+  "ed2k.net.ed2k": "eD2k network",
+  "ed2k.net.kad": "Kad network",
+  "ed2k.net.connected": "Connected",
+  "ed2k.net.connecting": "Connecting…",
+  "ed2k.net.disconnected": "Disconnected",
+  "ed2k.net.stopped": "Stopped",
+  "ed2k.net.searching": "Looking for the network…",
+  "ed2k.net.noServer": "No server joined",
+  "ed2k.net.firewalled": "Firewalled",
+  "ed2k.net.firewalledUdp": "UDP blocked",
+  "ed2k.net.lowIdHint":
+    "Incoming connections are not getting through. The client still works, but relies on intermediaries and finds far fewer sources. Forwarding the TCP port to this machine fixes it.",
+  "ed2k.net.kadHint":
+    "Kad works without a server. It takes several minutes to find its peers after a start.",
+  "ed2k.net.kadStoppedHint":
+    "Kad is stopped. Without it, only sources known to the servers are found.",
+  "ed2k.servers.static": "Pinned",
+  "ed2k.stats.banned": "Banned peers",
+  "ed2k.stats.networks": "Network size",
 
 
+  // ── eD2k module commands ───────────────────────────────────────────────────
+  "ed2k.col.actions": "Actions",
+  "ed2k.action.pause": "Pause",
+  "ed2k.action.resume": "Resume",
+  "ed2k.action.cancel": "Cancel",
+  "ed2k.action.cancelConfirm": "Confirm?",
+  "ed2k.link.add": "Add a link",
+  "ed2k.link.label": "ed2k:// link",
+  "ed2k.link.hint":
+    "Paste an ed2k:// link. Its shape is validated by the daemon, which knows it better than we do; only other protocols are refused up front.",
+  "ed2k.link.submit": "Queue it",
+  "ed2k.servers.connect": "Connect",
+  "ed2k.servers.connectAuto": "Connect automatically",
+  "ed2k.servers.disconnect": "Disconnect",
+  "ed2k.shared.reload": "Rescan",
+  "ed2k.kad.start": "Start Kad",
+  "ed2k.kad.stop": "Stop Kad",
+
+
+  // ── eD2k / Kad search ──────────────────────────────────────────────────────
+  "ed2k.section.search": "Search",
+  "ed2k.col.completeSources": "Complete",
+  "ed2k.search.hint":
+    "Search the eD2k servers or Kad. A couple of complete sources beats a large number of partial ones: they are what decides whether a file will ever finish.",
+  "ed2k.search.query": "Terms",
+  "ed2k.search.network": "Network",
+  "ed2k.search.net.global": "All servers",
+  "ed2k.search.net.server": "Connected server",
+  "ed2k.search.net.kad": "Kad",
+  "ed2k.search.submit": "Search",
+  "ed2k.search.searching": "searching… {percent}%",
+  "ed2k.search.download": "Download",
+  "ed2k.search.queued": "Already queued",
+  "ed2k.search.idle": "Run a search to see results.",
+  "ed2k.search.empty": "No results",
+  "ed2k.search.emptyHint":
+    "Try other terms, or another network: servers and Kad do not index the same files.",
+  "ed2k.search.shared":
+    "The daemon holds one search at a time: starting a new one wipes the previous results, including someone else's.",
+
+
+  // ── Library bridge ─────────────────────────────────────────────────────────
+  "ed2k.section.bridge": "Library",
+  "ed2k.col.category": "Category",
+  "ed2k.col.detail": "Detail",
+  "ed2k.bridge.hint":
+    "What a finished file becomes. The category the daemon gave it decides: stay on disk, or enter a library and become an indexed album.",
+  "ed2k.bridge.rules": "Rules per category",
+  "ed2k.bridge.ruleHint":
+    "The category is the one the daemon numbers — zero is its default. Without a library, the file stays where the daemon put it, which is right for anything that is not a comic.",
+  "ed2k.bridge.label": "Name",
+  "ed2k.bridge.library": "Destination",
+  "ed2k.bridge.folder": "Folder",
+  "ed2k.bridge.onDisk": "Leave on disk",
+  "ed2k.bridge.history": "What the bridge did",
+  "ed2k.bridge.empty": "No finished file",
+  "ed2k.bridge.emptyHint": "Completed downloads will show up here, with what became of them.",
+  "ed2k.pub.pending": "In progress",
+  "ed2k.pub.published": "Published",
+  "ed2k.pub.skipped": "On disk",
+  "ed2k.pub.error": "Failed",
+
+  // ── Daemon log ─────────────────────────────────────────────────────────────
+  "ed2k.section.logs": "Log",
+  "ed2k.logs.hint":
+    "The daemon's operational log. boxincloud does not keep it: amuled holds a sliding window and loses it on every restart.",
+  "ed2k.logs.clear": "Clear",
+  "ed2k.logs.empty": "Empty log",
+  "ed2k.logs.emptyHint": "The daemon has written nothing since it last started.",
 
 };

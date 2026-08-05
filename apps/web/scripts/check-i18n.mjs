@@ -69,7 +69,15 @@ fausse, ce qui est pire que pas de mesure du tout.
 L'expression exige une majuscule ou un accent, et refuse ce qui contient une
 accolade : `{t("clé")}` est déjà traduit, et le compter serait absurde.
 */
-const JSX_TEXT = />\s*([A-ZÀ-Üa-zà-ü][^<>{}\n]{2,}?)\s*</g;
+/*
+  Le `>` d'une fermeture de balise, jamais celui d'une flèche.
+
+  Sans la garde, `=> Promise<unknown>` est lu comme du texte JSX : le `>` de la
+  flèche ouvre la capture, `Promise` la remplit, et le `<` du générique la
+  ferme. Le contrôle signalait donc une signature TypeScript comme une chaîne
+  française à traduire.
+*/
+const JSX_TEXT = /(?<!=)>\s*([A-ZÀ-Üa-zà-ü][^<>{}\n]{2,}?)\s*</g;
 
 /** Ce qui ressemble à du texte mais n'en est pas. */
 const NOT_TEXT = [
@@ -94,6 +102,13 @@ const NOT_TEXT = [
 
   // Constante du DOM : `dataTransfer.types` contient littéralement « Files ».
   /^Files$/,
+
+  // Noms de variables d'environnement, affichés tels quels dans un `<code>`
+  // pour qu'on puisse les recopier : « BOXINCLOUD_ED2K_ENABLED=true ». Ce sont
+  // des identifiants que le serveur lit ; les traduire produirait une
+  // configuration qui ne marche pas, et la moitié de leur utilité est de
+  // pouvoir être copiés au caractère près.
+  /^[A-Z][A-Z0-9_]*(=\S*)?$/,
 
   // Noms de langues, écrits dans leur propre langue et jamais traduits :
   // quelqu'un qui ne lit pas la langue courante doit reconnaître la sienne,

@@ -182,6 +182,28 @@ function TopBar() {
               {t("settings.open")}
             </Link>
 
+            {/*
+              Le module eD2k, pour les administrateurs seuls.
+
+              Ici plutôt que dans la barre latérale : celle-ci porte la
+              bibliothèque — bibliothèques, dossiers, séries, listes — et une
+              entrée qui n'a rien à voir avec les albums y ferait tache. Ce
+              menu, lui, répond déjà à « que puis-je administrer ».
+
+              Masqué aux comptes ordinaires : l'API refuserait de toute façon,
+              et proposer une porte fermée n'apprend rien à personne.
+            */}
+            {user?.role === "admin" && (
+              <Link
+                href="/ed2k"
+                onClick={() => setMenuOpen(false)}
+                title={t("ed2k.menuHint")}
+                className="pressable block w-full rounded px-2 py-1.5 text-left text-ui text-muted hover:bg-surface-hover hover:text-fg"
+              >
+                {t("ed2k.title")}
+              </Link>
+            )}
+
             <LanguagePicker />
 
             <button

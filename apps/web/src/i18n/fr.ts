@@ -627,6 +627,339 @@ export const fr = {
 
 
   // Codes d'échec rendus par le serveur, traduits ici.
+
+  // ── Module eD2k / Kad ──────────────────────────────────────────────────────
+  "ed2k.title": "eD2k / Kad",
+  "ed2k.menuHint": "Piloter un démon aMule depuis cette instance",
+  "ed2k.intro":
+    "Ce module pilote un démon aMule par son protocole External Connections. boxincloud ne réimplémente aucun protocole pair-à-pair : le moteur reste aMule, l'interface est ici.",
+  "ed2k.adminOnly": "Réservé aux administrateurs",
+  "ed2k.adminOnlyHint":
+    "Ce module engage la bande passante, les ports et l'adresse IP de l'instance. Son pilotage demande un compte administrateur.",
+
+  // États du module. Le serveur rend un code stable, traduit ici.
+  "ed2k.state.disabled": "Désactivé",
+  "ed2k.state.unconfigured": "Aucun démon déclaré",
+  "ed2k.state.disconnected": "Démon déclaré",
+  "ed2k.state.connecting": "Connexion…",
+  "ed2k.state.connected": "Connecté",
+
+  "ed2k.disabledTitle": "Module désactivé sur cette instance",
+  "ed2k.disabledHint":
+    "Rien n'est démarré, aucun port n'est ouvert. Pour l'activer, passez BOXINCLOUD_ED2K_ENABLED à true dans la configuration du serveur, puis redémarrez-le.",
+
+  "ed2k.daemon.title": "Démon aMule",
+  "ed2k.daemon.hint":
+    "L'adresse doit être joignable depuis le SERVEUR, pas depuis ce navigateur — « amuled » sur un réseau interne, ou l'adresse du NAS où aMule tourne déjà.",
+  "ed2k.daemon.host": "Hôte",
+  "ed2k.daemon.port": "Port",
+  "ed2k.daemon.portHint": "Port External Connections du démon. 4712 chez aMule.",
+  "ed2k.daemon.password": "Mot de passe EC",
+  "ed2k.daemon.passwordHint":
+    "Chiffré en base et jamais réaffiché : il doit être ressaisi à chaque enregistrement.",
+  "ed2k.daemon.label": "Nom",
+  "ed2k.daemon.labelHint": "Facultatif, pour s'y retrouver dans les journaux.",
+  "ed2k.daemon.save": "Enregistrer",
+  "ed2k.daemon.forget": "Oublier ce démon",
+  "ed2k.daemon.forgetConfirm":
+    "Oublier ce démon ? Le démon continue de tourner et aucun téléchargement n'est touché : seule la déclaration côté boxincloud disparaît.",
+  "ed2k.daemon.lastSeen": "Dernier contact",
+  "ed2k.daemon.never": "jamais",
+  "ed2k.daemon.declared": "Démon déclaré : {host}",
+
+  "ed2k.incoming": "Répertoire d'arrivée",
+  "ed2k.incomingHint":
+    "Tel que le serveur le voit, en lecture seule. Un montage manquant ici est la première cause de « le téléchargement est fini mais rien n'arrive ».",
+
+  "ed2k.next.title": "Ce qui n'est pas encore là",
+  "ed2k.next.hint":
+    "Cette étape lit et n'agit pas : aucun bouton ne met en pause, ne relance, ne connecte ni ne supprime. Les commandes, la recherche et l'ajout de liens eD2k arrivent à l'étape suivante.",
+
+  // Rail latéral. Les sections vivent dans l'URL, comme la configuration.
+  "ed2k.nav.label": "Sections du module",
+  "ed2k.section.dashboard": "Tableau de bord",
+  "ed2k.section.downloads": "Téléchargements",
+  "ed2k.section.uploads": "Envois",
+  "ed2k.section.shared": "Partagés",
+  "ed2k.section.servers": "Serveurs",
+  "ed2k.section.kad": "Kad",
+  "ed2k.section.stats": "Statistiques",
+  "ed2k.section.settings": "Paramètres",
+
+  // Ce qui manque, dit une fois et partagé par tous les panneaux.
+  "ed2k.needsDaemon": "Aucun démon déclaré",
+  "ed2k.needsDaemonHint":
+    "Il n'y a rien à lire tant qu'aucun démon aMule n'est déclaré. Renseignez son adresse et son mot de passe External Connections dans Paramètres.",
+  "ed2k.openSettings": "Ouvrir les paramètres",
+  "ed2k.takenAt": "Relevé à {time}",
+  "ed2k.readOnly": "Lecture seule",
+  "ed2k.yes": "oui",
+  "ed2k.no": "non",
+
+  // Unités. Séparées du reste : elles s'accolent à un nombre et changent de
+  // forme d'une langue à l'autre — « ko » ici, « kB » ailleurs.
+  "ed2k.unit.byte": "o",
+  "ed2k.unit.kilo": "ko",
+  "ed2k.unit.mega": "Mo",
+  "ed2k.unit.giga": "Go",
+  "ed2k.unit.tera": "To",
+  "ed2k.unit.perSecond": "{value}/s",
+  "ed2k.unit.second": "{value} s",
+  "ed2k.unit.minute": "{value} min",
+  "ed2k.unit.hour": "{value} h",
+  "ed2k.unit.day": "{value} j",
+
+  // En-têtes de colonnes. Partagées entre panneaux : « Vitesse » veut dire la
+  // même chose dans une file de téléchargement et dans une liste d'envois.
+  "ed2k.col.name": "Nom",
+  "ed2k.col.size": "Taille",
+  "ed2k.col.progress": "Progression",
+  "ed2k.col.received": "Reçu",
+  "ed2k.col.speed": "Vitesse",
+  "ed2k.col.eta": "Reste",
+  "ed2k.col.sources": "Sources",
+  "ed2k.col.parts": "Parties",
+  "ed2k.col.priority": "Priorité",
+  "ed2k.col.status": "État",
+  "ed2k.col.peer": "Pair",
+  "ed2k.col.software": "Logiciel",
+  "ed2k.col.address": "Adresse",
+  "ed2k.col.rank": "Rang",
+  "ed2k.col.available": "Disponibles",
+  "ed2k.col.file": "Fichier",
+  "ed2k.col.sent": "Envoyé",
+  "ed2k.col.session": "Session",
+  "ed2k.col.total": "Total",
+  "ed2k.col.score": "Score",
+  "ed2k.col.waiting": "Attend depuis",
+  "ed2k.col.path": "Chemin",
+  "ed2k.col.requests": "Demandes",
+  "ed2k.col.accepted": "Servis",
+  "ed2k.col.complete": "Complet",
+  "ed2k.col.ping": "Ping",
+  "ed2k.col.users": "Utilisateurs",
+  "ed2k.col.files": "Fichiers",
+  "ed2k.col.failed": "Échecs",
+  "ed2k.col.static": "Épinglé",
+  "ed2k.col.description": "Description",
+
+  // États d'un téléchargement. Le serveur rend un code stable, traduit ici.
+  "ed2k.status.waiting": "En attente",
+  "ed2k.status.downloading": "Réception",
+  "ed2k.status.paused": "En pause",
+  "ed2k.status.stopped": "Arrêté",
+  "ed2k.status.erroneous": "En erreur",
+  "ed2k.status.completing": "Assemblage",
+  "ed2k.status.completed": "Terminé",
+  "ed2k.status.hashing": "Vérification",
+  "ed2k.status.allocating": "Réservation disque",
+  "ed2k.status.unknown": "État inconnu",
+
+  "ed2k.priority.verylow": "Très basse",
+  "ed2k.priority.low": "Basse",
+  "ed2k.priority.normal": "Normale",
+  "ed2k.priority.high": "Haute",
+  "ed2k.priority.veryhigh": "Très haute",
+  "ed2k.priority.auto": "Auto",
+
+  // Le type d'identifiant décide de tout : un LowID n'est joignable par
+  // personne, et c'est la première chose à regarder quand rien n'arrive.
+  "ed2k.id.high": "HighID",
+  "ed2k.id.low": "LowID",
+  "ed2k.id.none": "Pas d'identifiant",
+  "ed2k.id.lowHint":
+    "Les connexions entrantes n'arrivent pas : les sources passent par un serveur, sont moins nombreuses et tombent plus souvent. Ouvrez le port TCP du démon pour y remédier.",
+
+  // ── Tableau de bord ────────────────────────────────────────────────────────
+  "ed2k.dashboard.serverNetwork": "Réseau serveur",
+  "ed2k.dashboard.kadNetwork": "Réseau Kad",
+  "ed2k.dashboard.noServer": "Aucun serveur",
+  "ed2k.dashboard.connecting": "Connexion en cours",
+  "ed2k.dashboard.notConnected": "Non connecté",
+  "ed2k.dashboard.activeDownloads": "Téléchargements actifs",
+  "ed2k.dashboard.queueLength": "Pairs en attente",
+  "ed2k.dashboard.sharedCount": "Fichiers partagés",
+  "ed2k.dashboard.knownSources": "Sources connues",
+  "ed2k.dashboard.transfers": "Ce qui bouge",
+  "ed2k.dashboard.transfersEmpty": "Rien ne transite",
+  "ed2k.dashboard.transfersEmptyHint":
+    "Aucun fichier ne reçoit ni n'envoie de données en ce moment. La file peut être vide, ou toutes les sources en attente.",
+  "ed2k.dashboard.seeAll": "Voir la file complète",
+
+  // ── Téléchargements ────────────────────────────────────────────────────────
+  "ed2k.downloads.hint":
+    "Ce que le démon reçoit. Un fichier terminé reste ici jusqu'à son assemblage et son déplacement vers le répertoire d'arrivée.",
+  "ed2k.downloads.empty": "File vide",
+  "ed2k.downloads.emptyHint":
+    "Le démon ne télécharge rien. Un fichier ajouté depuis aMule, ou par un lien eD2k, apparaîtra dans cette liste.",
+  "ed2k.downloads.expand": "Voir les sources de {name}",
+  "ed2k.downloads.sourcesEmpty": "Aucune source",
+  "ed2k.downloads.sourcesEmptyHint":
+    "Personne ne détient ce fichier parmi les pairs joints. Il faut attendre qu'un serveur ou Kad en trouve.",
+  "ed2k.downloads.wasted":
+    "{value} reçus en trop : des données corrompues ont été rejetées à la vérification.",
+
+  // ── Envois ─────────────────────────────────────────────────────────────────
+  "ed2k.uploads.hint":
+    "Ce que le démon envoie, et qui attend son tour. Ce qu'on donne détermine ce qu'on reçoit : le système de crédits d'eD2k récompense les pairs qu'on a déjà servis.",
+  "ed2k.uploads.active": "Transferts sortants",
+  "ed2k.uploads.queue": "File d'attente",
+  "ed2k.uploads.empty": "Aucun envoi",
+  "ed2k.uploads.emptyHint":
+    "Personne ne télécharge depuis cette instance en ce moment, et personne n'attend. C'est normal si rien n'est partagé, ou si le démon vient de démarrer.",
+  "ed2k.uploads.queueEmpty": "File d'attente vide",
+
+  // ── Partagés ───────────────────────────────────────────────────────────────
+  "ed2k.shared.hint":
+    "Ce que cette instance met à disposition, et ce que chaque fichier a réellement rapporté. Un fichier en cours de téléchargement est partagé lui aussi — c'est le principe du réseau.",
+  "ed2k.shared.empty": "Rien n'est partagé",
+  "ed2k.shared.emptyHint":
+    "Le démon ne publie aucun fichier. Vérifiez les répertoires partagés dans sa propre configuration : boxincloud les lit, il ne les définit pas.",
+  "ed2k.shared.partial": "en cours",
+
+  // ── Serveurs ───────────────────────────────────────────────────────────────
+  "ed2k.servers.hint":
+    "Les serveurs connus, pas seulement celui qui est joint. Un serveur mort ne se distingue d'un serveur jamais essayé que par son compteur d'échecs.",
+  "ed2k.servers.empty": "Aucun serveur connu",
+  "ed2k.servers.emptyHint":
+    "La liste du démon est vide. Elle se remplit depuis un fichier server.met, chargé par aMule au démarrage ou à la mise à jour de sa liste.",
+  "ed2k.servers.connected": "Connecté",
+
+  // ── Kad ────────────────────────────────────────────────────────────────────
+  "ed2k.kad.hint":
+    "Kad se passe de serveur : les pairs se trouvent entre eux. C'est ce qui permet de continuer quand tous les serveurs tombent.",
+  "ed2k.kad.running": "Moteur démarré",
+  "ed2k.kad.connected": "Réseau trouvé",
+  "ed2k.kad.firewalled": "Connexions entrantes bloquées",
+  "ed2k.kad.firewalledUdp": "UDP bloqué",
+  "ed2k.kad.firewalledHint":
+    "On peut chercher, mais on est moins trouvable : les autres pairs n'arrivent pas jusqu'ici.",
+  "ed2k.kad.udpHint":
+    "Kad cherche en UDP et transfère en TCP. Les deux se bloquent séparément, et un UDP fermé empêche toute recherche.",
+  "ed2k.kad.searchingHint":
+    "Le moteur tourne mais n'a pas encore trouvé ses pairs. Cela prend plusieurs minutes au premier démarrage.",
+  "ed2k.kad.stopped": "Kad est arrêté",
+  "ed2k.kad.stoppedHint":
+    "Le moteur Kademlia ne tourne pas sur ce démon. Il se démarre depuis la configuration d'aMule ; boxincloud ne fait que lire son état à cette étape.",
+  "ed2k.kad.users": "Utilisateurs estimés",
+  "ed2k.kad.files": "Fichiers estimés",
+
+  // ── Statistiques ───────────────────────────────────────────────────────────
+  "ed2k.stats.hint":
+    "Les compteurs du démon, tels qu'il les rend. Les tailles de réseau sont des estimations qu'il calcule lui-même, pas des mesures.",
+  "ed2k.stats.transfer": "Débits",
+  "ed2k.stats.network": "Réseaux",
+  "ed2k.stats.peers": "Pairs",
+  "ed2k.stats.downSpeed": "Réception",
+  "ed2k.stats.upSpeed": "Envoi",
+  "ed2k.stats.downLimit": "Plafond en réception",
+  "ed2k.stats.upLimit": "Plafond en envoi",
+  "ed2k.stats.downOverhead": "Protocole reçu",
+  "ed2k.stats.upOverhead": "Protocole envoyé",
+  "ed2k.stats.overheadHint":
+    "Ce que le protocole consomme hors données de fichier. C'est la différence entre le plafond réglé et ce que mesure la box.",
+  "ed2k.stats.unlimited": "sans limite",
+  "ed2k.stats.totalSources": "Sources connues",
+  "ed2k.stats.bannedPeers": "Pairs bannis",
+  "ed2k.stats.uploadQueue": "Pairs en attente",
+  "ed2k.stats.ed2kUsers": "Utilisateurs eD2k",
+  "ed2k.stats.kadUsers": "Utilisateurs Kad",
+  "ed2k.stats.ed2kFiles": "Fichiers eD2k",
+  "ed2k.stats.kadFiles": "Fichiers Kad",
+
+  // ── Réseaux eD2k et Kad ────────────────────────────────────────────────────
+  "ed2k.net.ed2k": "Réseau eD2k",
+  "ed2k.net.kad": "Réseau Kad",
+  "ed2k.net.connected": "Connecté",
+  "ed2k.net.connecting": "Connexion…",
+  "ed2k.net.disconnected": "Déconnecté",
+  "ed2k.net.stopped": "Arrêté",
+  "ed2k.net.searching": "Recherche du réseau…",
+  "ed2k.net.noServer": "Aucun serveur joint",
+  "ed2k.net.firewalled": "Derrière un pare-feu",
+  "ed2k.net.firewalledUdp": "UDP bloqué",
+  "ed2k.net.lowIdHint":
+    "Les connexions entrantes n'arrivent pas. Le client reste utilisable, mais dépend d'intermédiaires et trouve nettement moins de sources. Rediriger le port TCP vers cette machine corrige le problème.",
+  "ed2k.net.kadHint":
+    "Kad fonctionne sans serveur. Il met plusieurs minutes à trouver ses pairs après un démarrage.",
+  "ed2k.net.kadStoppedHint":
+    "Kad est arrêté. Sans lui, seules les sources connues des serveurs sont trouvées.",
+  "ed2k.servers.static": "Épinglé",
+  "ed2k.stats.banned": "Pairs bannis",
+  "ed2k.stats.networks": "Taille des réseaux",
+
+
+  // ── Commandes du module eD2k ───────────────────────────────────────────────
+  "ed2k.col.actions": "Actions",
+  "ed2k.action.pause": "Pause",
+  "ed2k.action.resume": "Reprendre",
+  "ed2k.action.cancel": "Annuler",
+  "ed2k.action.cancelConfirm": "Confirmer ?",
+  "ed2k.link.add": "Ajouter un lien",
+  "ed2k.link.label": "Lien ed2k://",
+  "ed2k.link.hint":
+    "Collez un lien ed2k://. La forme est validée par le démon, qui la connaît mieux que nous ; seuls les autres protocoles sont refusés d'emblée.",
+  "ed2k.link.submit": "Mettre en file",
+  "ed2k.servers.connect": "Se connecter",
+  "ed2k.servers.connectAuto": "Connexion automatique",
+  "ed2k.servers.disconnect": "Se déconnecter",
+  "ed2k.shared.reload": "Reparcourir",
+  "ed2k.kad.start": "Démarrer Kad",
+  "ed2k.kad.stop": "Arrêter Kad",
+
+
+  // ── Recherche eD2k / Kad ───────────────────────────────────────────────────
+  "ed2k.section.search": "Recherche",
+  "ed2k.col.completeSources": "Complètes",
+  "ed2k.search.hint":
+    "Cherchez sur les serveurs eD2k ou sur Kad. Un double des sources complètes vaut mieux qu'un grand nombre de sources partielles : ce sont elles qui déterminent si un fichier finira.",
+  "ed2k.search.query": "Termes",
+  "ed2k.search.network": "Réseau",
+  "ed2k.search.net.global": "Tous les serveurs",
+  "ed2k.search.net.server": "Serveur joint",
+  "ed2k.search.net.kad": "Kad",
+  "ed2k.search.submit": "Chercher",
+  "ed2k.search.searching": "recherche… {percent} %",
+  "ed2k.search.download": "Télécharger",
+  "ed2k.search.queued": "Déjà en file",
+  "ed2k.search.idle": "Lancez une recherche pour voir des résultats.",
+  "ed2k.search.empty": "Aucun résultat",
+  "ed2k.search.emptyHint":
+    "Essayez d'autres termes, ou un autre réseau : les serveurs et Kad n'indexent pas les mêmes fichiers.",
+  "ed2k.search.shared":
+    "Le démon ne tient qu'une recherche à la fois : en lancer une nouvelle efface les résultats de la précédente, y compris ceux de quelqu'un d'autre.",
+
+
+  // ── Pont vers la bibliothèque ──────────────────────────────────────────────
+  "ed2k.section.bridge": "Bibliothèque",
+  "ed2k.col.category": "Catégorie",
+  "ed2k.col.detail": "Détail",
+  "ed2k.bridge.hint":
+    "Ce qu'un fichier terminé devient. La catégorie donnée par le démon décide : rester sur disque, ou entrer dans une bibliothèque et devenir un album indexé.",
+  "ed2k.bridge.rules": "Règles par catégorie",
+  "ed2k.bridge.ruleHint":
+    "La catégorie est celle que le démon numérote — zéro est la sienne par défaut. Sans bibliothèque, le fichier reste où le démon l'a mis, ce qui est le bon comportement pour tout ce qui n'est pas une bande dessinée.",
+  "ed2k.bridge.label": "Nom",
+  "ed2k.bridge.library": "Destination",
+  "ed2k.bridge.folder": "Dossier",
+  "ed2k.bridge.onDisk": "Laisser sur disque",
+  "ed2k.bridge.history": "Ce que le pont a fait",
+  "ed2k.bridge.empty": "Aucun fichier terminé",
+  "ed2k.bridge.emptyHint":
+    "Les téléchargements achevés apparaîtront ici, avec ce qu'il en a été fait.",
+  "ed2k.pub.pending": "En cours",
+  "ed2k.pub.published": "Publié",
+  "ed2k.pub.skipped": "Sur disque",
+  "ed2k.pub.error": "Échec",
+
+  // ── Journal du démon ───────────────────────────────────────────────────────
+  "ed2k.section.logs": "Journal",
+  "ed2k.logs.hint":
+    "Le journal d'exploitation du démon. Il n'est pas conservé par boxincloud : amuled tient une fenêtre glissante qu'il perd à chaque redémarrage.",
+  "ed2k.logs.clear": "Vider",
+  "ed2k.logs.empty": "Journal vide",
+  "ed2k.logs.emptyHint": "Le démon n'a rien écrit depuis son dernier démarrage.",
+
 } as const;
 
 /** Les clés du catalogue. Toute traduction doit les couvrir toutes. */

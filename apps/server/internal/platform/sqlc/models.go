@@ -454,6 +454,41 @@ type Device struct {
 	CreatedAt  pgtype.Timestamptz
 }
 
+type Ed2kDaemon struct {
+	ID          bool
+	Host        string
+	Port        int32
+	PasswordEnc []byte
+	Label       *string
+	LastState   *string
+	LastDetail  *string
+	LastSeenAt  pgtype.Timestamptz
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+}
+
+type Ed2kDestination struct {
+	Category  int32
+	Label     string
+	LibraryID uuid.NullUUID
+	Folder    string
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+}
+
+type Ed2kPublication struct {
+	Hash      string
+	Name      string
+	Size      int64
+	Category  int32
+	LibraryID uuid.NullUUID
+	ComicID   uuid.NullUUID
+	Status    string
+	Detail    *string
+	CreatedAt pgtype.Timestamptz
+	UpdatedAt pgtype.Timestamptz
+}
+
 type Favorite struct {
 	UserID    uuid.UUID
 	ComicID   uuid.UUID

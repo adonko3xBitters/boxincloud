@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -62,6 +63,60 @@ func adminOnlyRoutes(h *contractHarness) []adminRoute {
 		{http.MethodGet, "/api/v1/libraries/" + library + "/scans", nil},
 
 		{http.MethodGet, "/api/v1/accounts", nil},
+
+		// Module eD2k/Kad — réservé en totalité.
+		//
+		// Il engage la bande passante, les ports et l'adresse IP de l'instance,
+		// et la déclaration du démon porte un mot de passe. Les niveaux d'accès
+		// plus fins arrivent à l'étape 6 ; d'ici là, la règle est simple, et ces
+		// quatre lignes sont ce qui la tient.
+		{http.MethodGet, "/api/v1/ed2k/status", nil},
+		{http.MethodGet, "/api/v1/ed2k/daemon", nil},
+		{http.MethodPut, "/api/v1/ed2k/daemon", map[string]any{
+			"host": "amuled", "port": 4712, "password": "essai",
+		}},
+		{http.MethodDelete, "/api/v1/ed2k/daemon", nil},
+
+		// Les routes de lecture. Elles exposent les adresses IP de pairs
+		// tiers, ce qui suffit à les réserver — indépendamment du fait
+		// qu'elles décrivent ce que l'instance télécharge.
+		{http.MethodGet, "/api/v1/ed2k/snapshot", nil},
+		{http.MethodGet, "/api/v1/ed2k/downloads", nil},
+		{http.MethodGet, "/api/v1/ed2k/downloads/" + strings.Repeat("ab", 16) + "/sources", nil},
+		{http.MethodGet, "/api/v1/ed2k/uploads", nil},
+		{http.MethodGet, "/api/v1/ed2k/servers", nil},
+		{http.MethodGet, "/api/v1/ed2k/shared", nil},
+		{http.MethodGet, "/api/v1/ed2k/stats", nil},
+
+		// Les commandes. Un compte ordinaire ne doit pas pouvoir mettre en
+		// pause le téléchargement d'un autre, ni couper le serveur.
+		{http.MethodPost, "/api/v1/ed2k/downloads/" + strings.Repeat("ab", 16) + "/action",
+			map[string]any{"action": "pause"}},
+		{http.MethodPut, "/api/v1/ed2k/downloads/" + strings.Repeat("ab", 16) + "/priority",
+			map[string]any{"priority": "high"}},
+		{http.MethodPost, "/api/v1/ed2k/links",
+			map[string]any{"link": "ed2k://|file|x|1|" + strings.Repeat("AB", 16) + "|/"}},
+		{http.MethodPost, "/api/v1/ed2k/servers/connect", nil},
+		{http.MethodPost, "/api/v1/ed2k/servers/disconnect", nil},
+		{http.MethodPost, "/api/v1/ed2k/kad", map[string]any{"running": false}},
+		{http.MethodPost, "/api/v1/ed2k/shared/reload", nil},
+
+		// La recherche. Elle engage le réseau au nom de l'instance, et ses
+		// résultats décrivent ce que quelqu'un a cherché.
+		{http.MethodPost, "/api/v1/ed2k/search",
+			map[string]any{"query": "x", "network": "global"}},
+		{http.MethodGet, "/api/v1/ed2k/search", nil},
+		{http.MethodDelete, "/api/v1/ed2k/search", nil},
+		{http.MethodPost, "/api/v1/ed2k/search/" + strings.Repeat("ab", 16) + "/download", nil},
+
+		// Le pont et les journaux. Les destinations décident où atterrit du
+		// contenu ; les journaux exposent l'activité réseau de l'instance.
+		{http.MethodGet, "/api/v1/ed2k/destinations", nil},
+		{http.MethodPut, "/api/v1/ed2k/destinations",
+			map[string]any{"category": 0, "label": "essai"}},
+		{http.MethodGet, "/api/v1/ed2k/publications", nil},
+		{http.MethodGet, "/api/v1/ed2k/logs", nil},
+		{http.MethodDelete, "/api/v1/ed2k/logs", nil},
 	}
 }
 

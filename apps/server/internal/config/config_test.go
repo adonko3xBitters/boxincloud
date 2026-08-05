@@ -90,3 +90,54 @@ func TestLoadValid(t *testing.T) {
 		t.Error("JWTSecret devrait se rabattre sur SecretKey quand il n'est pas défini")
 	}
 }
+
+// TestLoadEd2kDisabledByDefault vérifie l'interrupteur le plus important du
+// module : il est fermé tant que personne ne l'a ouvert.
+//
+// Une inversion de ce défaut ferait ouvrir des ports pair-à-pair à toutes les
+// instances existantes lors d'une simple mise à jour, sans que personne ne
+// l'ait demandé. C'est le genre de régression qu'un test doit rendre bruyante.
+func TestLoadEd2kDisabledByDefault(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://localhost/boxincloud")
+	t.Setenv("BOXINCLOUD_SECRET_KEY", strings.Repeat("ab", 32))
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load() : %v", err)
+	}
+	if cfg.Ed2k.Enabled {
+		t.Error("le module eD2k doit être désactivé par défaut")
+	}
+}
+
+// TestLoadEd2kRejectsAbsurdPollInterval : les bornes ne valent que module actif.
+func TestLoadEd2kRejectsAbsurdPollInterval(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://localhost/boxincloud")
+	t.Setenv("BOXINCLOUD_SECRET_KEY", strings.Repeat("ab", 32))
+	t.Setenv("BOXINCLOUD_ED2K_ENABLED", "true")
+	t.Setenv("BOXINCLOUD_ED2K_POLL_INTERVAL", "10ms")
+
+	_, err := Load()
+	if err == nil {
+		t.Fatal("Load() devrait refuser une cadence de scrutation de 10ms")
+	}
+	if !strings.Contains(err.Error(), "BOXINCLOUD_ED2K_POLL_INTERVAL") {
+		t.Errorf("le message devrait nommer la variable fautive, obtenu :\n%v", err)
+	}
+}
+
+// TestLoadIgnoresEd2kWhenDisabled est la moitié qui compte.
+//
+// Un contrôle posé trop haut empêcherait un serveur de bibliothèque de démarrer
+// à cause d'une variable héritée d'un essai, pour un module éteint.
+func TestLoadIgnoresEd2kWhenDisabled(t *testing.T) {
+	t.Setenv("DATABASE_URL", "postgres://localhost/boxincloud")
+	t.Setenv("BOXINCLOUD_SECRET_KEY", strings.Repeat("ab", 32))
+	t.Setenv("BOXINCLOUD_ED2K_ENABLED", "false")
+	t.Setenv("BOXINCLOUD_ED2K_POLL_INTERVAL", "10ms")
+	t.Setenv("BOXINCLOUD_ED2K_INCOMING_DIR", "")
+
+	if _, err := Load(); err != nil {
+		t.Fatalf("une configuration eD2k aberrante ne doit rien casser module éteint : %v", err)
+	}
+}

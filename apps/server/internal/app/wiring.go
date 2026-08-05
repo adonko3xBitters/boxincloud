@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 
@@ -10,6 +11,7 @@ import (
 	"github.com/riverqueue/river"
 
 	"github.com/adonko3xBitters/boxincloud/server/internal/accounts"
+	"github.com/adonko3xBitters/boxincloud/server/internal/amule"
 	"github.com/adonko3xBitters/boxincloud/server/internal/auth"
 	"github.com/adonko3xBitters/boxincloud/server/internal/cache"
 	"github.com/adonko3xBitters/boxincloud/server/internal/catalog"
@@ -23,6 +25,7 @@ import (
 	"github.com/adonko3xBitters/boxincloud/server/internal/platform/db"
 	"github.com/adonko3xBitters/boxincloud/server/internal/platform/jobs"
 	"github.com/adonko3xBitters/boxincloud/server/internal/platform/sqlc"
+	"github.com/adonko3xBitters/boxincloud/server/internal/platform/sse"
 	"github.com/adonko3xBitters/boxincloud/server/internal/progress"
 	"github.com/adonko3xBitters/boxincloud/server/internal/reader"
 	"github.com/adonko3xBitters/boxincloud/server/internal/storage/local"
@@ -47,6 +50,7 @@ type Core struct {
 	Indexer   indexer.Repository
 	Ingest    *ingest.Service
 	Jobs      *jobs.Client
+	Ed2k      *amule.Service
 }
 
 // BuildCore assemble les services métier au-dessus d'un pool PostgreSQL.
@@ -138,6 +142,61 @@ func BuildCore(ctx context.Context, cfg *config.Config, pool *db.Pool, log *slog
 	ingestService.SetFolderRegistrar(folderService.Ensure)
 	ingestService.SetWriteGuard(folderService.EnsureWritable)
 
+	/*
+		Module eD2k/Kad.
+
+		Construit TOUJOURS, même désactivé : le service sait alors dire qu'il
+		l'est, ce qui vaut mieux qu'une dépendance nulle que chaque handler
+		devrait tester — et cela préserve la garantie du routeur, où une
+		dépendance oubliée fait échouer la construction plutôt que la requête.
+
+		Le concentrateur d'événements lui appartient : c'est lui qui produit les
+		changements d'état, et personne d'autre n'a de raison de publier sur ce
+		flux.
+	*/
+	ed2kService := amule.NewService(
+		amule.NewPostgresRepository(queries),
+		sealer,
+		sse.NewHub(log, sse.Options{}),
+		amule.Options{
+			Enabled:      cfg.Ed2k.Enabled,
+			IncomingDir:  cfg.Ed2k.IncomingDir,
+			PollInterval: cfg.Ed2k.PollInterval,
+		},
+		log,
+	)
+
+	/*
+		Le pont du module eD2k vers la bibliothèque.
+
+		Deux branchements, et aucun ne rompt les règles du projet.
+
+		Le répertoire d'arrivée du démon devient un backend LOCAL en lecture
+		seule : le module lit donc les octets par storage.Provider, comme tout
+		le reste, et la règle n°1 tient à la lettre. La lecture seule rend en
+		outre impossible qu'un défaut de notre côté abîme la zone de travail du
+		démon.
+
+		L'ingestion est branchée par une interface que le module déclare
+		lui-même : `amule` n'importe pas `ingest`, et c'est ici qu'ils se
+		rencontrent — règle n°2.
+
+		Un répertoire absent n'empêche pas de démarrer. C'est le cas d'une
+		instance dont le module est actif mais dont le volume n'est pas encore
+		monté, et refuser de démarrer pour cela serait disproportionné : le pont
+		reste simplement inactif, et le dit.
+	*/
+	if cfg.Ed2k.Enabled {
+		incoming, err := local.New(local.Options{Root: cfg.Ed2k.IncomingDir, ReadOnly: true})
+		if err != nil {
+			log.Warn("répertoire d'arrivée eD2k inutilisable, le pont reste inactif",
+				slog.String("dir", cfg.Ed2k.IncomingDir), slog.Any("err", err))
+		} else {
+			ed2kService.SetIncoming(incoming)
+			ed2kService.SetPublisher(&ingestPublisher{ingest: ingestService})
+		}
+	}
+
 	return &Core{
 		Queries:  queries,
 		Auth:     authService,
@@ -154,7 +213,37 @@ func BuildCore(ctx context.Context, cfg *config.Config, pool *db.Pool, log *slog
 		Ingest:    ingestService,
 		Folders:   folderService,
 		Jobs:      jobClient,
+		Ed2k:      ed2kService,
 	}, nil
+}
+
+/*
+ingestPublisher adapte l'ingestion à ce qu'attend le pont eD2k.
+
+Le module déclare l'interface minimale dont il a besoin ; cet adaptateur la
+satisfait avec le service d'ingestion, qui sait déjà écrire en flux vers un
+backend distant et enfiler l'indexation. Rien à réécrire, donc — juste à
+présenter.
+*/
+type ingestPublisher struct {
+	ingest *ingest.Service
+}
+
+func (p *ingestPublisher) Publish(
+	ctx context.Context, libraryID uuid.UUID, folder, filename string,
+	size int64, content io.Reader,
+) (uuid.UUID, error) {
+	result, err := p.ingest.Upload(ctx, ingest.UploadParams{
+		LibraryID: libraryID,
+		Folder:    folder,
+		Filename:  filename,
+		Size:      size,
+		Content:   content,
+	})
+	if err != nil {
+		return uuid.Nil, err
+	}
+	return result.ComicID, nil
 }
 
 // jobScanner enfile un scan de bibliothèque.
