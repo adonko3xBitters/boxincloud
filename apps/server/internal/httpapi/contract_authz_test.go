@@ -62,6 +62,19 @@ func adminOnlyRoutes(h *contractHarness) []adminRoute {
 		{http.MethodGet, "/api/v1/libraries/" + library + "/scans", nil},
 
 		{http.MethodGet, "/api/v1/accounts", nil},
+
+		// Module eD2k/Kad — réservé en totalité.
+		//
+		// Il engage la bande passante, les ports et l'adresse IP de l'instance,
+		// et la déclaration du démon porte un mot de passe. Les niveaux d'accès
+		// plus fins arrivent à l'étape 6 ; d'ici là, la règle est simple, et ces
+		// quatre lignes sont ce qui la tient.
+		{http.MethodGet, "/api/v1/ed2k/status", nil},
+		{http.MethodGet, "/api/v1/ed2k/daemon", nil},
+		{http.MethodPut, "/api/v1/ed2k/daemon", map[string]any{
+			"host": "amuled", "port": 4712, "password": "essai",
+		}},
+		{http.MethodDelete, "/api/v1/ed2k/daemon", nil},
 	}
 }
 

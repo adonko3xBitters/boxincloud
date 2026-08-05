@@ -10,6 +10,7 @@ import (
 	"github.com/riverqueue/river"
 
 	"github.com/adonko3xBitters/boxincloud/server/internal/accounts"
+	"github.com/adonko3xBitters/boxincloud/server/internal/amule"
 	"github.com/adonko3xBitters/boxincloud/server/internal/auth"
 	"github.com/adonko3xBitters/boxincloud/server/internal/cache"
 	"github.com/adonko3xBitters/boxincloud/server/internal/catalog"
@@ -23,6 +24,7 @@ import (
 	"github.com/adonko3xBitters/boxincloud/server/internal/platform/db"
 	"github.com/adonko3xBitters/boxincloud/server/internal/platform/jobs"
 	"github.com/adonko3xBitters/boxincloud/server/internal/platform/sqlc"
+	"github.com/adonko3xBitters/boxincloud/server/internal/platform/sse"
 	"github.com/adonko3xBitters/boxincloud/server/internal/progress"
 	"github.com/adonko3xBitters/boxincloud/server/internal/reader"
 	"github.com/adonko3xBitters/boxincloud/server/internal/storage/local"
@@ -47,6 +49,7 @@ type Core struct {
 	Indexer   indexer.Repository
 	Ingest    *ingest.Service
 	Jobs      *jobs.Client
+	Ed2k      *amule.Service
 }
 
 // BuildCore assemble les services métier au-dessus d'un pool PostgreSQL.
@@ -138,6 +141,29 @@ func BuildCore(ctx context.Context, cfg *config.Config, pool *db.Pool, log *slog
 	ingestService.SetFolderRegistrar(folderService.Ensure)
 	ingestService.SetWriteGuard(folderService.EnsureWritable)
 
+	/*
+		Module eD2k/Kad.
+
+		Construit TOUJOURS, même désactivé : le service sait alors dire qu'il
+		l'est, ce qui vaut mieux qu'une dépendance nulle que chaque handler
+		devrait tester — et cela préserve la garantie du routeur, où une
+		dépendance oubliée fait échouer la construction plutôt que la requête.
+
+		Le concentrateur d'événements lui appartient : c'est lui qui produit les
+		changements d'état, et personne d'autre n'a de raison de publier sur ce
+		flux.
+	*/
+	ed2kService := amule.NewService(
+		amule.NewPostgresRepository(queries),
+		sealer,
+		sse.NewHub(log, sse.Options{}),
+		amule.Options{
+			Enabled:     cfg.Ed2k.Enabled,
+			IncomingDir: cfg.Ed2k.IncomingDir,
+		},
+		log,
+	)
+
 	return &Core{
 		Queries:  queries,
 		Auth:     authService,
@@ -154,6 +180,7 @@ func BuildCore(ctx context.Context, cfg *config.Config, pool *db.Pool, log *slog
 		Ingest:    ingestService,
 		Folders:   folderService,
 		Jobs:      jobClient,
+		Ed2k:      ed2kService,
 	}, nil
 }
 

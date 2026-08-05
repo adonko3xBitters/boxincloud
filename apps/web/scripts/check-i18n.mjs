@@ -95,6 +95,13 @@ const NOT_TEXT = [
   // Constante du DOM : `dataTransfer.types` contient littéralement « Files ».
   /^Files$/,
 
+  // Noms de variables d'environnement, affichés tels quels dans un `<code>`
+  // pour qu'on puisse les recopier : « BOXINCLOUD_ED2K_ENABLED=true ». Ce sont
+  // des identifiants que le serveur lit ; les traduire produirait une
+  // configuration qui ne marche pas, et la moitié de leur utilité est de
+  // pouvoir être copiés au caractère près.
+  /^[A-Z][A-Z0-9_]*(=\S*)?$/,
+
   // Noms de langues, écrits dans leur propre langue et jamais traduits :
   // quelqu'un qui ne lit pas la langue courante doit reconnaître la sienne,
   // ce que « Anglais » ne permet pas.

@@ -46,6 +46,7 @@ type Config struct {
 	Auth     Auth
 	Cache    Cache
 	Upload   Upload
+	Ed2k     Ed2k
 
 	// SecretKey chiffre les identifiants des backends de stockage en base.
 	SecretKey []byte
@@ -73,6 +74,52 @@ type Cache struct {
 	Dir     string
 	MaxSize int64 // octets
 }
+
+/*
+Ed2k configure le module eD2k/Kad, qui pilote un démon aMule.
+
+Ne figure ici que ce qui relève du DÉPLOIEMENT : le module existe-t-il, où est
+monté le répertoire d'arrivée du démon, à quelle cadence l'interroger. L'adresse
+du démon et son mot de passe n'y sont pas — ils sont administrés depuis
+l'interface et stockés en base, comme les backends de stockage, pour qu'on
+puisse changer de démon sans redémarrer.
+
+Voir docs/adr/007-amuled-processus-separe.md.
+*/
+type Ed2k struct {
+	// Enabled est l'interrupteur d'exploitation, et il vaut false par défaut.
+	//
+	// Un client pair-à-pair ouvre des ports, publie l'adresse IP de l'instance
+	// sur deux réseaux publics et consomme de la bande passante en permanence.
+	// Une bibliothèque familiale n'a aucune raison de payer cela sans l'avoir
+	// demandé.
+	Enabled bool
+
+	// IncomingDir est le répertoire d'arrivée du démon, vu depuis ce serveur.
+	//
+	// Monté en LECTURE SEULE : le pont vers la bibliothèque n'a besoin que de
+	// lire un fichier terminé, et cette restriction rend structurellement
+	// impossible qu'un défaut de notre côté abîme la zone de travail du démon.
+	IncomingDir string
+
+	// PollInterval est la cadence de base de la scrutation.
+	//
+	// EC ne pousse aucun événement : tout ce que l'interface affiche vient
+	// d'instantanés comparés deux à deux (ADR-005). Cette valeur est la cadence
+	// quand quelque chose bouge ; elle se relâche au repos et s'arrête
+	// complètement quand aucun navigateur n'est abonné.
+	PollInterval time.Duration
+}
+
+// Bornes de la cadence de scrutation.
+//
+// En dessous du minimum, on martèle le démon pour une différence qu'aucun œil
+// ne perçoit. Au-delà du maximum, l'interface a l'air figée et les événements
+// dérivés manquent des transitions courtes.
+const (
+	minPollInterval = 250 * time.Millisecond
+	maxPollInterval = 30 * time.Second
+)
 
 // Upload borne ce qu'un client peut envoyer.
 type Upload struct {
@@ -183,6 +230,27 @@ func Load() (*Config, error) {
 	cfg.Cache = Cache{
 		Dir:     envString("BOXINCLOUD_CACHE_DIR", "./data/cache"),
 		MaxSize: size,
+	}
+
+	// ── Module eD2k/Kad ──────────────────────────────────────────────────
+	cfg.Ed2k = Ed2k{
+		Enabled:      envBool("BOXINCLOUD_ED2K_ENABLED", false),
+		IncomingDir:  envString("BOXINCLOUD_ED2K_INCOMING_DIR", "./data/incoming"),
+		PollInterval: envDuration("BOXINCLOUD_ED2K_POLL_INTERVAL", time.Second),
+	}
+
+	// Les contrôles ne s'appliquent qu'au module actif : une valeur aberrante
+	// dans un environnement où le module est éteint ne doit pas empêcher un
+	// serveur de bibliothèque de démarrer.
+	if cfg.Ed2k.Enabled {
+		if cfg.Ed2k.IncomingDir == "" {
+			fail("BOXINCLOUD_ED2K_INCOMING_DIR est obligatoire quand BOXINCLOUD_ED2K_ENABLED=true" +
+				" — c'est le répertoire d'arrivée du démon aMule, monté en lecture seule")
+		}
+		if cfg.Ed2k.PollInterval < minPollInterval || cfg.Ed2k.PollInterval > maxPollInterval {
+			fail("BOXINCLOUD_ED2K_POLL_INTERVAL doit être compris entre %s et %s (reçu %s)",
+				minPollInterval, maxPollInterval, cfg.Ed2k.PollInterval)
+		}
 	}
 
 	if len(errs) > 0 {

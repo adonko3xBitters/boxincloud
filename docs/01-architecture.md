@@ -58,6 +58,19 @@ On configure donc `output: 'export'`, et le bundle est embarqué dans le binaire
 | Mobile | Flutter + Riverpod + Drift + Dio | Client de premier rang |
 | Licence | **AGPL-3.0** | Cohérent avec Immich, Komga, Jellyfin. Protège contre un fork SaaS propriétaire |
 
+### Décisions ultérieures
+
+Les trois ADR ci-dessus datent de la conception initiale et sont restés dans ce
+document. Les suivants vivent dans [`docs/adr/`](adr/), un fichier par décision —
+c'est la règle posée par [CONTRIBUTING.md](../CONTRIBUTING.md#décisions-darchitecture).
+
+| ADR | Décision |
+|---|---|
+| [004](adr/004-amuled-plutot-que-reimplementation.md) | Le module eD2k/Kad pilote **amuled** au lieu de réimplémenter les protocoles |
+| [005](adr/005-temps-reel-sse-evenements-derives.md) | Temps réel en **SSE**, avec des événements dérivés d'instantanés |
+| [006](adr/006-frontiere-ec-etanche.md) | Aucun type du protocole External Connections ne franchit `amule.Service` |
+| [007](adr/007-amuled-processus-separe.md) | amuled est un **processus séparé**, et le module est désactivé par défaut |
+
 ---
 
 ## 3. Vue d'ensemble

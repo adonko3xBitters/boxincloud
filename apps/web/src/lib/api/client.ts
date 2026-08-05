@@ -22,6 +22,9 @@ export type Progress = Schemas["Progress"];
 export type Problem = Schemas["Problem"];
 export type ComicPage = Schemas["ComicPage"];
 export type SeriesPage = Schemas["SeriesPage"];
+export type Ed2kStatus = Schemas["Ed2kStatus"];
+export type Ed2kState = Schemas["Ed2kState"];
+export type Ed2kDaemon = Schemas["Ed2kDaemon"];
 
 /**
  * Base de l'API.

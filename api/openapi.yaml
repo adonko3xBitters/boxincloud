@@ -57,6 +57,18 @@ tags:
     description: Lecture — manifeste, pages et couvertures
   - name: progress
     description: Progression de lecture et synchronisation
+  - name: ed2k
+    description: |
+      Module eD2k/Kad — pilotage d'un démon aMule.
+
+      boxincloud ne réimplémente aucun protocole pair-à-pair : ces routes
+      commandent un démon `amuled` par son protocole External Connections, et
+      n'en exposent jamais les détails. Aucun opcode, aucun nom de tag et aucune
+      valeur empruntée au démon n'apparaît dans ce contrat.
+
+      Le module est **désactivé par défaut** (`BOXINCLOUD_ED2K_ENABLED=false`).
+      Désactivé, il répond quand même : `GET /ed2k/status` renvoie l'état
+      `disabled`, et les routes qui agissent répondent 409.
 
 security:
   - bearerAuth: []
@@ -2456,6 +2468,135 @@ paths:
 
   # ─── Recherche fédérée ──────────────────────────────────────────────────────
 
+  # ─── Module eD2k/Kad ────────────────────────────────────────────────────────
+
+  /ed2k/status:
+    get:
+      operationId: getEd2kStatus
+      summary: État du module eD2k/Kad
+      description: |
+        Répond toujours, y compris module désactivé ou démon absent : « pas de
+        démon déclaré » est un ÉTAT, et le premier qu'une instance fraîche
+        connaît. En faire une erreur obligerait l'interface à traiter le cas
+        nominal comme une panne.
+      tags: [ed2k]
+      responses:
+        "200":
+          description: État courant
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Ed2kStatus" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /ed2k/events:
+    get:
+      operationId: streamEd2kEvents
+      summary: Flux d'événements du module
+      description: |
+        Flux Server-Sent Events. Le premier message porte l'état complet, les
+        suivants les changements.
+
+        Le protocole External Connections ne pousse rien : les événements sont
+        **dérivés** par comparaison d'instantanés successifs du démon. La
+        latence d'un événement vaut donc la cadence de scrutation. Voir
+        `docs/adr/005-temps-reel-sse-evenements-derives.md`.
+
+        Le jeton est accepté en paramètre d'URL : `EventSource` ne sait pas
+        porter d'en-tête `Authorization`.
+
+        À l'étape 0, seul l'événement `status` est émis.
+      tags: [ed2k]
+      parameters:
+        - $ref: "#/components/parameters/TokenQuery"
+      responses:
+        "200":
+          description: Flux ouvert
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                description: |
+                  Suite de trames SSE. Chaque trame porte un `event:` nommé et
+                  un `data:` JSON — pour `status`, un `Ed2kStatus`.
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /ed2k/daemon:
+    get:
+      operationId: getEd2kDaemon
+      summary: Démon aMule déclaré
+      description: |
+        Le mot de passe External Connections n'est jamais retourné : il est
+        chiffré en base et ne ressort pas du service, même pour un
+        administrateur. Même discipline que les identifiants des backends de
+        stockage.
+      tags: [ed2k]
+      responses:
+        "200":
+          description: Démon déclaré
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Ed2kDaemon" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+    put:
+      operationId: setEd2kDaemon
+      summary: Déclarer ou remplacer le démon aMule
+      description: |
+        L'adresse est contrôlée avant enregistrement : c'est une valeur saisie
+        depuis l'interface qui devient une connexion émise **par** le serveur.
+        Les adresses d'une installation auto-hébergée — `amuled`,
+        `192.168.1.10`, `127.0.0.1` — passent ; celles des services de
+        métadonnées d'instance sont refusées.
+      tags: [ed2k]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Ed2kDaemonInput" }
+      responses:
+        "200":
+          description: Démon enregistré
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Ed2kDaemon" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+    delete:
+      operationId: forgetEd2kDaemon
+      summary: Oublier le démon déclaré
+      description: |
+        N'arrête pas le démon et ne touche à aucun téléchargement : seule la
+        déclaration côté boxincloud disparaît. Oublier un démon absent réussit
+        aussi — le résultat demandé est atteint dans les deux cas.
+      tags: [ed2k]
+      responses:
+        "204":
+          description: Démon oublié
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+
 components:
   securitySchemes:
     bearerAuth:
@@ -2992,6 +3133,99 @@ components:
             comicId: { type: string, format: uuid }
         - $ref: "#/components/schemas/ProgressUpdate"
 
+    Ed2kStatus:
+      type: object
+      description: État du module eD2k/Kad, tel qu'affiché en tête de l'interface.
+      required: [enabled, state, detail, incomingDir]
+      properties:
+        enabled:
+          type: boolean
+          description: |
+            Reflète la configuration de déploiement
+            (`BOXINCLOUD_ED2K_ENABLED`), pas l'état de la connexion.
+        state:
+          $ref: "#/components/schemas/Ed2kState"
+        detail:
+          type: string
+          description: |
+            Pourquoi le module est dans cet état, en clair. Un état sans raison
+            oblige à chercher ailleurs ce que le serveur sait déjà.
+        daemon:
+          $ref: "#/components/schemas/Ed2kDaemon"
+        incomingDir:
+          type: string
+          description: |
+            Répertoire d'arrivée du démon, tel que ce serveur le voit. Exposé
+            parce qu'un montage manquant est la première cause de
+            « le téléchargement est fini mais rien n'arrive ».
+
+    Ed2kState:
+      type: string
+      description: |
+        Situation du module.
+
+        L'énumération est complète dès maintenant, y compris les valeurs qu'une
+        instance ne produit pas encore : ajouter une valeur à une énumération de
+        réponse casse un client strict, et la déclarer d'avance évite d'imposer
+        cette rupture plus tard.
+      enum:
+        - disabled
+        - unconfigured
+        - disconnected
+        - connecting
+        - connected
+
+    Ed2kDaemon:
+      type: object
+      description: |
+        Démon aMule déclaré. Ne porte jamais le mot de passe External
+        Connections — il est chiffré en base et ne ressort pas du service.
+      required: [host, port]
+      properties:
+        host:
+          type: string
+          description: Adresse joignable **depuis le serveur**, pas depuis le navigateur.
+        port: { type: integer, minimum: 1, maximum: 65535 }
+        label:
+          type: string
+          description: Nom libre, pour distinguer deux instances dans les journaux.
+        lastState:
+          $ref: "#/components/schemas/Ed2kState"
+        lastDetail:
+          type: string
+          description: Raison du dernier état constaté.
+        lastSeenAt:
+          type: string
+          format: date-time
+          description: |
+            Dernière réponse effective du démon. N'est pas rafraîchi par un
+            échec, sans quoi l'interface afficherait « vu à l'instant » pour un
+            démon injoignable depuis une heure.
+
+    Ed2kDaemonInput:
+      type: object
+      required: [host, port, password]
+      properties:
+        host:
+          type: string
+          minLength: 1
+          description: |
+            `amuled` sur un réseau interne, ou l'adresse d'un aMule déjà
+            installé. Contrôlée avant enregistrement.
+        port:
+          type: integer
+          minimum: 1
+          maximum: 65535
+          description: Port External Connections du démon. 4712 par défaut chez aMule.
+        password:
+          type: string
+          minLength: 1
+          description: |
+            Mot de passe External Connections. Chiffré en base avec la clé
+            maître de l'instance ; jamais retourné.
+        label:
+          type: string
+
     Problem:
       type: object
       description: |
@@ -3050,6 +3284,15 @@ components:
 
     NotIndexed:
       description: L'album n'a pas fini d'être indexé
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+
+    Ed2kDisabled:
+      description: |
+        Le module eD2k est désactivé sur cette instance
+        (`BOXINCLOUD_ED2K_ENABLED=false`). Un 409 plutôt qu'un 404 : la route
+        existe et existera encore une fois le module activé.
       content:
         application/problem+json:
           schema: { $ref: "#/components/schemas/Problem" }

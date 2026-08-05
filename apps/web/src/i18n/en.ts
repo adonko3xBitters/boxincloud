@@ -616,7 +616,49 @@ export const en: Record<MessageKey, string> = {
   "discovery.title": "Discover",
   "discovery.dialogLabel": "Federated search",
 
+  // ── eD2k / Kad module ──────────────────────────────────────────────────────
+  "ed2k.title": "eD2k / Kad",
+  "ed2k.menuHint": "Drive an aMule daemon from this instance",
+  "ed2k.intro":
+    "This module drives an aMule daemon over its External Connections protocol. boxincloud reimplements no peer-to-peer protocol: aMule stays the engine, the interface lives here.",
+  "ed2k.adminOnly": "Administrators only",
+  "ed2k.adminOnlyHint":
+    "This module commits the instance's bandwidth, ports and IP address. Driving it requires an administrator account.",
 
+  "ed2k.state.disabled": "Disabled",
+  "ed2k.state.unconfigured": "No daemon declared",
+  "ed2k.state.disconnected": "Daemon declared",
+  "ed2k.state.connecting": "Connecting…",
+  "ed2k.state.connected": "Connected",
 
+  "ed2k.disabledTitle": "Module disabled on this instance",
+  "ed2k.disabledHint":
+    "Nothing is running and no port is open. To turn it on, set BOXINCLOUD_ED2K_ENABLED to true in the server configuration, then restart it.",
 
+  "ed2k.daemon.title": "aMule daemon",
+  "ed2k.daemon.hint":
+    "The address must be reachable from the SERVER, not from this browser — “amuled” on an internal network, or the address of the NAS already running aMule.",
+  "ed2k.daemon.host": "Host",
+  "ed2k.daemon.port": "Port",
+  "ed2k.daemon.portHint": "The daemon's External Connections port. 4712 on aMule.",
+  "ed2k.daemon.password": "EC password",
+  "ed2k.daemon.passwordHint":
+    "Encrypted at rest and never shown again: it must be typed in on every save.",
+  "ed2k.daemon.label": "Name",
+  "ed2k.daemon.labelHint": "Optional, to tell instances apart in the logs.",
+  "ed2k.daemon.save": "Save",
+  "ed2k.daemon.forget": "Forget this daemon",
+  "ed2k.daemon.forgetConfirm":
+    "Forget this daemon? It keeps running and no download is touched: only the boxincloud-side declaration goes away.",
+  "ed2k.daemon.lastSeen": "Last contact",
+  "ed2k.daemon.never": "never",
+  "ed2k.daemon.declared": "Daemon declared: {host}",
+
+  "ed2k.incoming": "Incoming directory",
+  "ed2k.incomingHint":
+    "As the server sees it, read-only. A missing mount here is the first cause of “the download finished but nothing arrived”.",
+
+  "ed2k.next.title": "What is not here yet",
+  "ed2k.next.hint":
+    "This step declares the daemon and nothing more: no connection is attempted yet. The External Connections client, the download queue, search, servers and Kad land in the next steps.",
 };

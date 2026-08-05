@@ -10,6 +10,8 @@ import type {
   Comic,
   ComicPage,
   Device,
+  Ed2kDaemon,
+  Ed2kStatus,
   Library,
   Manifest,
   Progress,
@@ -576,3 +578,31 @@ export const getCacheStats = () => request<CacheStats>("/cache");
 
 export const purgeCache = () =>
   request<{ entries: number; bytes: number }>("/cache", { method: "DELETE" });
+
+// ─── Module eD2k/Kad ─────────────────────────────────────────────────────────
+
+export const getEd2kStatus = () => request<Ed2kStatus>("/ed2k/status");
+
+export const getEd2kDaemon = () => request<Ed2kDaemon>("/ed2k/daemon");
+
+export const setEd2kDaemon = (input: {
+  host: string;
+  port: number;
+  password: string;
+  label?: string;
+}) => request<Ed2kDaemon>("/ed2k/daemon", { method: "PUT", body: input });
+
+export const forgetEd2kDaemon = () => request<void>("/ed2k/daemon", { method: "DELETE" });
+
+/**
+ * Adresse du flux d'événements du module.
+ *
+ * Le jeton passe en paramètre d'URL, parce qu'`EventSource` ne sait pas porter
+ * d'en-tête `Authorization` — le serveur l'accepte explicitement sur cette
+ * route, et sur celles-là seulement.
+ */
+export function ed2kEventsURL(): string {
+  const token = getAccessToken();
+  const url = `${API_BASE}/ed2k/events`;
+  return token ? `${url}?token=${encodeURIComponent(token)}` : url;
+}

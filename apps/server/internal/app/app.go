@@ -81,6 +81,7 @@ func Build(ctx context.Context, cfg *config.Config, log *slog.Logger, build hand
 		Progress:  core.Progress,
 		Tools:     core.Tools,
 		Cache:     core.Cache,
+		Ed2k:      core.Ed2k,
 		WebFS:     webFS,
 	})
 
@@ -109,6 +110,20 @@ func (a *App) Run(ctx context.Context) error {
 		a.log.Info("workers démarrés", slog.Int("max_workers", a.cfg.Jobs.MaxWorkers))
 	} else {
 		a.log.Info("workers désactivés (BOXINCLOUD_JOBS_ENABLED=false)")
+	}
+
+	// Le module eD2k s'annonce dans les deux cas.
+	//
+	// Un module actif ouvre des ports et publie l'adresse de l'instance sur
+	// deux réseaux publics : cela ne doit pas se découvrir en lisant la
+	// configuration. Et quand il est éteint, la ligne évite de chercher
+	// pourquoi la page reste vide.
+	if a.cfg.Ed2k.Enabled {
+		a.log.Info("module eD2k/Kad actif",
+			slog.String("incoming_dir", a.cfg.Ed2k.IncomingDir),
+			slog.Duration("poll_interval", a.cfg.Ed2k.PollInterval))
+	} else {
+		a.log.Info("module eD2k/Kad désactivé (BOXINCLOUD_ED2K_ENABLED=false)")
 	}
 
 	errCh := make(chan error, 1)

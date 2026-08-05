@@ -1382,6 +1382,97 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/ed2k/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * État du module eD2k/Kad
+         * @description Répond toujours, y compris module désactivé ou démon absent : « pas de
+         *     démon déclaré » est un ÉTAT, et le premier qu'une instance fraîche
+         *     connaît. En faire une erreur obligerait l'interface à traiter le cas
+         *     nominal comme une panne.
+         */
+        get: operations["getEd2kStatus"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ed2k/events": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Flux d'événements du module
+         * @description Flux Server-Sent Events. Le premier message porte l'état complet, les
+         *     suivants les changements.
+         *
+         *     Le protocole External Connections ne pousse rien : les événements sont
+         *     **dérivés** par comparaison d'instantanés successifs du démon. La
+         *     latence d'un événement vaut donc la cadence de scrutation. Voir
+         *     `docs/adr/005-temps-reel-sse-evenements-derives.md`.
+         *
+         *     Le jeton est accepté en paramètre d'URL : `EventSource` ne sait pas
+         *     porter d'en-tête `Authorization`.
+         *
+         *     À l'étape 0, seul l'événement `status` est émis.
+         */
+        get: operations["streamEd2kEvents"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ed2k/daemon": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Démon aMule déclaré
+         * @description Le mot de passe External Connections n'est jamais retourné : il est
+         *     chiffré en base et ne ressort pas du service, même pour un
+         *     administrateur. Même discipline que les identifiants des backends de
+         *     stockage.
+         */
+        get: operations["getEd2kDaemon"];
+        /**
+         * Déclarer ou remplacer le démon aMule
+         * @description L'adresse est contrôlée avant enregistrement : c'est une valeur saisie
+         *     depuis l'interface qui devient une connexion émise **par** le serveur.
+         *     Les adresses d'une installation auto-hébergée — `amuled`,
+         *     `192.168.1.10`, `127.0.0.1` — passent ; celles des services de
+         *     métadonnées d'instance sont refusées.
+         */
+        put: operations["setEd2kDaemon"];
+        post?: never;
+        /**
+         * Oublier le démon déclaré
+         * @description N'arrête pas le démon et ne touche à aucun téléchargement : seule la
+         *     déclaration côté boxincloud disparaît. Oublier un démon absent réussit
+         *     aussi — le résultat demandé est atteint dans les deux cas.
+         */
+        delete: operations["forgetEd2kDaemon"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1797,6 +1888,73 @@ export interface components {
             /** Format: uuid */
             comicId: string;
         } & components["schemas"]["ProgressUpdate"];
+        /** @description État du module eD2k/Kad, tel qu'affiché en tête de l'interface. */
+        Ed2kStatus: {
+            /**
+             * @description Reflète la configuration de déploiement
+             *     (`BOXINCLOUD_ED2K_ENABLED`), pas l'état de la connexion.
+             */
+            enabled: boolean;
+            state: components["schemas"]["Ed2kState"];
+            /**
+             * @description Pourquoi le module est dans cet état, en clair. Un état sans raison
+             *     oblige à chercher ailleurs ce que le serveur sait déjà.
+             */
+            detail: string;
+            daemon?: components["schemas"]["Ed2kDaemon"];
+            /**
+             * @description Répertoire d'arrivée du démon, tel que ce serveur le voit. Exposé
+             *     parce qu'un montage manquant est la première cause de
+             *     « le téléchargement est fini mais rien n'arrive ».
+             */
+            incomingDir: string;
+        };
+        /**
+         * @description Situation du module.
+         *
+         *     L'énumération est complète dès maintenant, y compris les valeurs qu'une
+         *     instance ne produit pas encore : ajouter une valeur à une énumération de
+         *     réponse casse un client strict, et la déclarer d'avance évite d'imposer
+         *     cette rupture plus tard.
+         * @enum {string}
+         */
+        Ed2kState: "disabled" | "unconfigured" | "disconnected" | "connecting" | "connected";
+        /**
+         * @description Démon aMule déclaré. Ne porte jamais le mot de passe External
+         *     Connections — il est chiffré en base et ne ressort pas du service.
+         */
+        Ed2kDaemon: {
+            /** @description Adresse joignable **depuis le serveur**, pas depuis le navigateur. */
+            host: string;
+            port: number;
+            /** @description Nom libre, pour distinguer deux instances dans les journaux. */
+            label?: string;
+            lastState?: components["schemas"]["Ed2kState"];
+            /** @description Raison du dernier état constaté. */
+            lastDetail?: string;
+            /**
+             * Format: date-time
+             * @description Dernière réponse effective du démon. N'est pas rafraîchi par un
+             *     échec, sans quoi l'interface afficherait « vu à l'instant » pour un
+             *     démon injoignable depuis une heure.
+             */
+            lastSeenAt?: string;
+        };
+        Ed2kDaemonInput: {
+            /**
+             * @description `amuled` sur un réseau interne, ou l'adresse d'un aMule déjà
+             *     installé. Contrôlée avant enregistrement.
+             */
+            host: string;
+            /** @description Port External Connections du démon. 4712 par défaut chez aMule. */
+            port: number;
+            /**
+             * @description Mot de passe External Connections. Chiffré en base avec la clé
+             *     maître de l'instance ; jamais retourné.
+             */
+            password: string;
+            label?: string;
+        };
         /**
          * @description Erreur au format RFC 9457, servie avec le type MIME
          *     `application/problem+json`.
@@ -1867,6 +2025,19 @@ export interface components {
         };
         /** @description L'album n'a pas fini d'être indexé */
         NotIndexed: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /**
+         * @description Le module eD2k est désactivé sur cette instance
+         *     (`BOXINCLOUD_ED2K_ENABLED=false`). Un 409 plutôt qu'un 404 : la route
+         *     existe et existera encore une fois le module activé.
+         */
+        Ed2kDisabled: {
             headers: {
                 [name: string]: unknown;
             };
@@ -4247,6 +4418,129 @@ export interface operations {
             400: components["responses"]["BadRequest"];
             401: components["responses"]["Unauthorized"];
             422: components["responses"]["ValidationFailed"];
+        };
+    };
+    getEd2kStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description État courant */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ed2kStatus"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    streamEd2kEvents: {
+        parameters: {
+            query?: {
+                /**
+                 * @description Jeton d'accès, accepté en repli pour les requêtes qui ne peuvent pas
+                 *     porter d'en-tête `Authorization` — une balise `<img>`, par exemple.
+                 */
+                token?: components["parameters"]["TokenQuery"];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Flux ouvert */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/event-stream": string;
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+        };
+    };
+    getEd2kDaemon: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Démon déclaré */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ed2kDaemon"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Ed2kDisabled"];
+        };
+    };
+    setEd2kDaemon: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Ed2kDaemonInput"];
+            };
+        };
+        responses: {
+            /** @description Démon enregistré */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ed2kDaemon"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Ed2kDisabled"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    forgetEd2kDaemon: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Démon oublié */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Ed2kDisabled"];
         };
     };
 }

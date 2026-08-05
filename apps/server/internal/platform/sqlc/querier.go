@@ -73,6 +73,7 @@ type Querier interface {
 	// ─── Pages ───────────────────────────────────────────────────────────────────
 	DeleteComicPages(ctx context.Context, comicID uuid.UUID) error
 	DeleteDevice(ctx context.Context, arg DeleteDeviceParams) error
+	DeleteEd2kDaemon(ctx context.Context) error
 	DeleteExpiredSessions(ctx context.Context) (int64, error)
 	DeleteFolderTree(ctx context.Context, arg DeleteFolderTreeParams) (int64, error)
 	DeleteLibrary(ctx context.Context, id uuid.UUID) error
@@ -115,6 +116,11 @@ type Querier interface {
 	GetComicPage(ctx context.Context, arg GetComicPageParams) (ComicPage, error)
 	GetDefaultStorageBackend(ctx context.Context) (StorageBackend, error)
 	GetDevice(ctx context.Context, id uuid.UUID) (Device, error)
+	// Module eD2k/Kad — connexion au démon aMule.
+	//
+	// La ligne est unique par construction (CHECK (id) dans la migration), ce qui
+	// permet à toutes ces requêtes de se passer de clé : il n'y a rien à désigner.
+	GetEd2kDaemon(ctx context.Context) (Ed2kDaemon, error)
 	GetFolder(ctx context.Context, arg GetFolderParams) (Folder, error)
 	GetFolderAccessCode(ctx context.Context, arg GetFolderAccessCodeParams) (GetFolderAccessCodeRow, error)
 	GetFolderByID(ctx context.Context, id uuid.UUID) (Folder, error)
@@ -331,6 +337,11 @@ type Querier interface {
 	SetComicPlaceholder(ctx context.Context, arg SetComicPlaceholderParams) error
 	SetComicState(ctx context.Context, arg SetComicStateParams) error
 	SetDefaultStorageBackend(ctx context.Context, id uuid.UUID) error
+	// Écrit le dernier état constaté sans toucher aux identifiants.
+	//
+	// Séparée de l'upsert délibérément : la boucle de scrutation met cet état à
+	// jour, et elle n'a aucune raison de pouvoir réécrire un mot de passe.
+	SetEd2kDaemonState(ctx context.Context, arg SetEd2kDaemonStateParams) error
 	// ─── Favoris ─────────────────────────────────────────────────────────────────
 	SetFavorite(ctx context.Context, arg SetFavoriteParams) error
 	SetFolderAccessCode(ctx context.Context, arg SetFolderAccessCodeParams) (Folder, error)
@@ -370,6 +381,7 @@ type Querier interface {
 	UpsertComic(ctx context.Context, arg UpsertComicParams) (UpsertComicRow, error)
 	// ─── Appareils ───────────────────────────────────────────────────────────────
 	UpsertDevice(ctx context.Context, arg UpsertDeviceParams) (Device, error)
+	UpsertEd2kDaemon(ctx context.Context, arg UpsertEd2kDaemonParams) (Ed2kDaemon, error)
 	// Un dossier constaté par le parcours ne perd pas son caractère explicite :
 	// l'utilisateur l'a voulu, y déposer des fichiers ne défait pas sa décision.
 	UpsertFolder(ctx context.Context, arg UpsertFolderParams) (Folder, error)

@@ -454,6 +454,19 @@ type Device struct {
 	CreatedAt  pgtype.Timestamptz
 }
 
+type Ed2kDaemon struct {
+	ID          bool
+	Host        string
+	Port        int32
+	PasswordEnc []byte
+	Label       *string
+	LastState   *string
+	LastDetail  *string
+	LastSeenAt  pgtype.Timestamptz
+	CreatedAt   pgtype.Timestamptz
+	UpdatedAt   pgtype.Timestamptz
+}
+
 type Favorite struct {
 	UserID    uuid.UUID
 	ComicID   uuid.UUID

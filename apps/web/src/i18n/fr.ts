@@ -627,6 +627,53 @@ export const fr = {
 
 
   // Codes d'échec rendus par le serveur, traduits ici.
+
+  // ── Module eD2k / Kad ──────────────────────────────────────────────────────
+  "ed2k.title": "eD2k / Kad",
+  "ed2k.menuHint": "Piloter un démon aMule depuis cette instance",
+  "ed2k.intro":
+    "Ce module pilote un démon aMule par son protocole External Connections. boxincloud ne réimplémente aucun protocole pair-à-pair : le moteur reste aMule, l'interface est ici.",
+  "ed2k.adminOnly": "Réservé aux administrateurs",
+  "ed2k.adminOnlyHint":
+    "Ce module engage la bande passante, les ports et l'adresse IP de l'instance. Son pilotage demande un compte administrateur.",
+
+  // États du module. Le serveur rend un code stable, traduit ici.
+  "ed2k.state.disabled": "Désactivé",
+  "ed2k.state.unconfigured": "Aucun démon déclaré",
+  "ed2k.state.disconnected": "Démon déclaré",
+  "ed2k.state.connecting": "Connexion…",
+  "ed2k.state.connected": "Connecté",
+
+  "ed2k.disabledTitle": "Module désactivé sur cette instance",
+  "ed2k.disabledHint":
+    "Rien n'est démarré, aucun port n'est ouvert. Pour l'activer, passez BOXINCLOUD_ED2K_ENABLED à true dans la configuration du serveur, puis redémarrez-le.",
+
+  "ed2k.daemon.title": "Démon aMule",
+  "ed2k.daemon.hint":
+    "L'adresse doit être joignable depuis le SERVEUR, pas depuis ce navigateur — « amuled » sur un réseau interne, ou l'adresse du NAS où aMule tourne déjà.",
+  "ed2k.daemon.host": "Hôte",
+  "ed2k.daemon.port": "Port",
+  "ed2k.daemon.portHint": "Port External Connections du démon. 4712 chez aMule.",
+  "ed2k.daemon.password": "Mot de passe EC",
+  "ed2k.daemon.passwordHint":
+    "Chiffré en base et jamais réaffiché : il doit être ressaisi à chaque enregistrement.",
+  "ed2k.daemon.label": "Nom",
+  "ed2k.daemon.labelHint": "Facultatif, pour s'y retrouver dans les journaux.",
+  "ed2k.daemon.save": "Enregistrer",
+  "ed2k.daemon.forget": "Oublier ce démon",
+  "ed2k.daemon.forgetConfirm":
+    "Oublier ce démon ? Le démon continue de tourner et aucun téléchargement n'est touché : seule la déclaration côté boxincloud disparaît.",
+  "ed2k.daemon.lastSeen": "Dernier contact",
+  "ed2k.daemon.never": "jamais",
+  "ed2k.daemon.declared": "Démon déclaré : {host}",
+
+  "ed2k.incoming": "Répertoire d'arrivée",
+  "ed2k.incomingHint":
+    "Tel que le serveur le voit, en lecture seule. Un montage manquant ici est la première cause de « le téléchargement est fini mais rien n'arrive ».",
+
+  "ed2k.next.title": "Ce qui n'est pas encore là",
+  "ed2k.next.hint":
+    "Cette étape déclare le démon et rien de plus : aucune connexion n'est encore tentée. Le client External Connections, la file de téléchargement, la recherche, les serveurs et Kad arrivent aux étapes suivantes.",
 } as const;
 
 /** Les clés du catalogue. Toute traduction doit les couvrir toutes. */
