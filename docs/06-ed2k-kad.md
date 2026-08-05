@@ -26,8 +26,9 @@ Le profil ajoute le conteneur ; la variable branche le module. L'un sans l'autre
 ne sert à rien — et le module désactivé répond quand même : sa page dit son état
 au lieu d'échouer.
 
-Puis, dans l'interface : menu du compte → **eD2k / Kad** → **Paramètres**, où se
-déclarent l'adresse du démon et son mot de passe.
+Puis, dans l'interface : onglet **eD2k / Kad** en haut de page → **Paramètres**,
+où se déclarent l'adresse du démon et son mot de passe. L'onglet n'apparaît
+qu'aux administrateurs.
 
 > **Le mot de passe déclaré ici est celui EN CLAIR.** Dans `amule.conf`,
 > `ECPassword` n'est pas le mot de passe mais son empreinte MD5. C'est la
@@ -57,13 +58,18 @@ ECPassword=<empreinte MD5 du mot de passe>
 | **Recherche** | serveurs eD2k, recherche globale, Kad ; mise en file d'un résultat |
 | **Envois** | transferts sortants et file d'attente des pairs |
 | **Partagés** | bibliothèque partagée, demandes, servis, octets envoyés |
-| **Serveurs** | liste, connexion, déconnexion, ping, utilisateurs, échecs |
+| **Serveurs** | import d'une liste, ajout et retrait, connexion, ping, utilisateurs, échecs |
 | **Statistiques** | débits, plafonds, taille des deux réseaux, état de joignabilité |
 | **Bibliothèque** | destinations par catégorie, et ce que le pont a fait |
 | **Journal** | le journal d'exploitation du démon |
 
 Le tout en temps réel : un flux Server-Sent Events porte les changements d'état,
 et les tableaux se rafraîchissent à leur propre cadence.
+
+> **Le premier geste sur une instance neuve est d'importer une liste de
+> serveurs.** Écran **Serveurs** → **Importer une liste**, avec l'adresse d'un
+> `server.met` publié — `https://upd.emule-security.org/server.met` par exemple.
+> Sans serveurs, rien ne fonctionne : ni connexion, ni recherche, ni source.
 
 ## Le pont vers la bibliothèque
 

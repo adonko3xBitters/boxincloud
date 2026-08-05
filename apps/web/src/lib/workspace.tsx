@@ -72,7 +72,15 @@ export function WorkspaceProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
 
   const [scope, setScopeRaw] = useState<Scope>({ kind: "all" });
-  const [view, setView] = useState<ViewMode>("grid");
+  /*
+    Le pêle-mêle est la vue d'ouverture.
+
+    C'est celle qui montre le plus : une couverture en grand, ce qui l'entoure,
+    et la liste complète en dessous. La grille seule dit moins — elle donne des
+    vignettes, mais ni les pages, ni la taille, ni la série, qu'il faut alors
+    aller chercher album par album.
+  */
+  const [view, setView] = useState<ViewMode>("coverflow");
   const [readStatus, setReadStatus] = useState<ReadStatus>("");
   const [sort, setSort] = useState<SortOrder>("recent");
 

@@ -11,6 +11,9 @@ import type { MessageKey } from "./fr";
 export const en: Record<MessageKey, string> = {
   // ── General ────────────────────────────────────────────────────────────
   "app.tagline": "Your comics, graphic novels and manga library",
+
+  "nav.label": "Sections",
+  "nav.library": "Library",
   "action.cancel": "Cancel",
   "action.close": "Close",
   "action.save": "Save",

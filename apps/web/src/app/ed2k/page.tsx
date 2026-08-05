@@ -1,11 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { BrandLockup } from "@/components/brand";
+import { NavTabs } from "@/components/nav-tabs";
 import { Badge, EmptyState, ErrorState, Spinner, cx } from "@/components/ui";
 import { BridgePanel } from "@/components/ed2k/bridge-panel";
 import { DownloadsPanel } from "@/components/ed2k/downloads-panel";
@@ -269,34 +269,18 @@ function Frame({
     <div className="flex h-dvh flex-col overflow-hidden bg-surface-sunken">
       <header className="flex h-13 shrink-0 items-center gap-3 border-b border-border bg-surface px-4">
         <BrandLockup />
-
-        <nav className="ml-2 flex items-center gap-2" aria-label="fil d'Ariane">
-          <span aria-hidden="true" className="text-subtle">
-            /
-          </span>
-          <span className="text-ui font-medium text-fg">{t("ed2k.title")}</span>
-        </nav>
+        <NavTabs active="ed2k" />
 
         {/* L'état du module vit dans l'en-tête, pas dans un panneau : il vaut
             pour tous, et le chercher section par section serait absurde. */}
         {status && (
-          <>
-            <Badge tone={STATE_TONES[status.state]}>{t(STATE_LABELS[status.state])}</Badge>
+          <div className="ml-auto flex min-w-0 items-center gap-2">
             <span className="hidden truncate text-meta text-subtle sm:block">
               {status.detail}
             </span>
-          </>
+            <Badge tone={STATE_TONES[status.state]}>{t(STATE_LABELS[status.state])}</Badge>
+          </div>
         )}
-
-        <Link
-          href="/"
-          className={cx(
-            "pressable ml-auto shrink-0 rounded-md border border-border px-2.5 py-1",
-            "text-ui text-muted hover:bg-surface-hover hover:text-fg",
-          )}
-        >
-          ← boxincloud
-        </Link>
       </header>
 
       <main className="min-h-0 flex-1 overflow-y-auto">

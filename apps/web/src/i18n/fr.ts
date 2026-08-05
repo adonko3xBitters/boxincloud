@@ -16,6 +16,10 @@
 export const fr = {
   // ── Général ────────────────────────────────────────────────────────────
   "app.tagline": "Votre bibliothèque de BD, comics et mangas",
+
+  // ── Onglets de premier niveau ──────────────────────────────────────────────
+  "nav.label": "Sections",
+  "nav.library": "Bibliothèque",
   "action.cancel": "Annuler",
   "action.close": "Fermer",
   "action.save": "Enregistrer",
