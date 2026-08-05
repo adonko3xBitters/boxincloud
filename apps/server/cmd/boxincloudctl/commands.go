@@ -13,6 +13,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/adonko3xBitters/boxincloud/server/internal/amule"
+	"github.com/adonko3xBitters/boxincloud/server/internal/amule/ec"
 	"github.com/adonko3xBitters/boxincloud/server/internal/app"
 	"github.com/adonko3xBitters/boxincloud/server/internal/archive"
 	"github.com/adonko3xBitters/boxincloud/server/internal/config"
@@ -535,5 +537,74 @@ func (c *commands) userSetPassword(ctx context.Context, args []string) error {
 	_ = revoked
 
 	fmt.Printf("→ mot de passe de %s changé, sessions révoquées\n", username)
+	return nil
+}
+
+// ─── Module eD2k/Kad ─────────────────────────────────────────────────────────
+
+func (c *commands) ed2k(ctx context.Context, args []string) error {
+	if len(args) == 0 {
+		return errors.New("usage : boxincloudctl ed2k <ping>")
+	}
+
+	switch args[0] {
+	case "ping":
+		return c.ed2kPing(ctx)
+	default:
+		return errors.New("sous-commande inconnue : " + args[0])
+	}
+}
+
+/*
+ed2kPing joint le démon aMule et mesure l'aller-retour.
+
+C'est l'outil de diagnostic du module, et il existe pour une raison précise :
+quand l'interface affiche « démon injoignable », il faut pouvoir savoir si le
+problème est l'adresse, le mot de passe, la version du protocole ou le réseau —
+et le savoir depuis le serveur, là où la connexion part réellement, plutôt que
+depuis un navigateur qui n'en voit que le résultat.
+*/
+func (c *commands) ed2kPing(ctx context.Context) error {
+	result, err := c.core.Ed2k.Ping(ctx)
+
+	// L'adresse est affichée même en cas d'échec : la moitié des problèmes de
+	// connexion sont une adresse qui n'est pas celle qu'on croyait.
+	if result.Address != "" {
+		fmt.Printf("démon        %s\n", result.Address)
+	}
+
+	if err != nil {
+		// L'indice s'imprime, il n'entre pas dans l'erreur.
+		//
+		// Une erreur est une phrase que d'autres enveloppent et journalisent ;
+		// y coller trois lignes d'explication les rend illisibles partout
+		// ailleurs. L'aide, elle, ne concerne que la personne devant ce
+		// terminal.
+		switch {
+		case errors.Is(err, amule.ErrDisabled):
+			fmt.Println("\nPassez BOXINCLOUD_ED2K_ENABLED à true, puis relancez.")
+
+		case errors.Is(err, amule.ErrNotConfigured):
+			fmt.Println("\nDéclarez le démon depuis l'interface, page eD2k / Kad.")
+
+		case errors.Is(err, ec.ErrProtocolVersion):
+			fmt.Printf("\nCe client parle la version 0x%04X du protocole External Connections.\n"+
+				"amuled exige une correspondance EXACTE, pas une compatibilité ascendante :\n"+
+				"une version différente des deux côtés ne se contourne pas, elle se met à jour.\n",
+				ec.ProtocolVersion)
+
+		case errors.Is(err, ec.ErrAuthFailed):
+			fmt.Println("\nRappel : dans amule.conf, ECPassword n'est PAS le mot de passe en\n" +
+				"clair, c'est son empreinte MD5. Le mot de passe déclaré ici est celui\n" +
+				"en clair.")
+		}
+		return err
+	}
+
+	fmt.Printf("version      %s\n", result.ServerVersion)
+	fmt.Printf("protocole    0x%04X\n", result.ProtocolVersion)
+	fmt.Printf("poignée      %s\n", result.Handshake.Round(time.Millisecond))
+	fmt.Printf("aller-retour %s\n", result.RoundTrip.Round(time.Microsecond))
+
 	return nil
 }

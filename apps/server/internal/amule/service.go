@@ -19,6 +19,11 @@ import (
 type Options struct {
 	Enabled     bool
 	IncomingDir string
+
+	// Version est annoncée au démon à l'authentification et apparaît dans son
+	// journal, à la ligne « Connecting client ». C'est ce qui rend une instance
+	// identifiable dans les journaux d'un démon qui en accueille plusieurs.
+	Version string
 }
 
 /*
@@ -43,6 +48,24 @@ func NewService(repo Repository, sealer *crypto.Sealer, hub *sse.Hub, opts Optio
 
 // Enabled indique si le module est actif dans la configuration.
 func (s *Service) Enabled() bool { return s.opts.Enabled }
+
+/*
+SetVersion renseigne la version annoncée au démon.
+
+Par un setter plutôt que par les options : la version vient des drapeaux de
+compilation, que seul le binaire connaît, alors que le service est construit
+depuis la configuration. Faire remonter l'information jusqu'à BuildCore
+demanderait de changer sa signature dans trois appelants pour un champ
+d'affichage.
+
+Ce que cela apporte : dans le journal d'un démon partagé, la ligne
+« Connecting client » distingue enfin les instances entre elles.
+*/
+func (s *Service) SetVersion(version string) {
+	if version != "" {
+		s.opts.Version = version
+	}
+}
 
 // Hub expose le concentrateur d'événements, pour le handler de flux.
 func (s *Service) Hub() *sse.Hub { return s.hub }

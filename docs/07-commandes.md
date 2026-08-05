@@ -199,6 +199,38 @@ C'est l'outil de mesure du cœur du projet. Il montre ce qu'une page coûte
 réellement sur du stockage objet — une requête Range, un pourcentage de
 l'archive — plutôt que de le supposer.
 
+### eD2k / Kad
+
+| Commande | Effet |
+|---|---|
+| `ed2k ping` | Joint le démon aMule déclaré, s'authentifie, et mesure l'aller-retour. |
+
+```
+$ make ctl ARGS="ed2k ping"
+démon        127.0.0.1:4712
+version      3.0.1
+protocole    0x0204
+poignée      2ms
+aller-retour 288µs
+```
+
+C'est l'outil de diagnostic du module. Quand l'interface affiche « démon
+injoignable », quatre choses peuvent avoir lâché — l'adresse, le mot de passe,
+la version du protocole, le réseau — et cette commande dit **laquelle**, depuis
+le serveur, là où la connexion part réellement.
+
+Deux pièges qu'elle nomme explicitement plutôt que de les laisser deviner :
+
+- **`ECPassword` dans `amule.conf` n'est pas le mot de passe en clair**, c'est
+  son empreinte MD5. Ce qui se déclare dans boxincloud est le mot de passe en
+  clair.
+- **La version du protocole se compare à l'identique.** amuled n'a pas de
+  compatibilité ascendante sur External Connections : une version différente ne
+  se contourne pas, elle se met à jour des deux côtés.
+
+Le module doit être actif (`BOXINCLOUD_ED2K_ENABLED=true`) et un démon déclaré
+depuis l'interface, page **eD2k / Kad**.
+
 ---
 
 ## `npm` — interface web

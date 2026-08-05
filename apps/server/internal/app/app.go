@@ -59,6 +59,7 @@ func Build(ctx context.Context, cfg *config.Config, log *slog.Logger, build hand
 	if err != nil {
 		return closeOnError(err)
 	}
+	core.Ed2k.SetVersion(build.Version)
 
 	webFS, err := web.FS()
 	if err != nil {
