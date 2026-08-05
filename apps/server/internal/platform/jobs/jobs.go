@@ -32,6 +32,11 @@ import (
 type Client struct {
 	river *river.Client[pgx.Tx]
 	log   *slog.Logger
+
+	// processing dit si ce client exécute des jobs, ou s'il se contente d'en
+	// enfiler. Le distinguer est nécessaire parce que River refuse de démarrer
+	// un client sans queue — voir Start.
+	processing bool
 }
 
 // Migrate applique les migrations propres à River.
@@ -88,7 +93,7 @@ func New(pool *db.Pool, cfg config.Jobs, log *slog.Logger, register func(*river.
 		return nil, fmt.Errorf("création du client River : %w", err)
 	}
 
-	return &Client{river: rc, log: log}, nil
+	return &Client{river: rc, log: log, processing: cfg.Enabled}, nil
 }
 
 // RegisterBuiltins enregistre les workers d'infrastructure, indépendants du
@@ -97,8 +102,27 @@ func RegisterBuiltins(workers *river.Workers, log *slog.Logger) {
 	river.AddWorker(workers, &PingWorker{log: log})
 }
 
-// Start démarre les workers. Sans effet si les jobs sont désactivés.
+/*
+Start démarre les workers. Sans effet si les jobs sont désactivés.
+
+Ce garde manquait, et son absence rendait BOXINCLOUD_JOBS_ENABLED=false
+INUTILISABLE : River refuse de démarrer un client sans queue configurée, si bien
+que le serveur s'arrêtait au démarrage sur « Queues and Workers must be
+configured for a client to start working ».
+
+Le message accusait la configuration de River, que personne n'écrit à la main,
+et non la variable d'environnement qui l'avait produite. Le mode était pourtant
+documenté deux fonctions plus haut comme prévu et utile — pour boxincloudctl,
+ou pour séparer l'API des workers.
+
+C'est ici que le garde doit vivre, et pas chez l'appelant : seul ce paquet sait
+qu'une queue est nécessaire au démarrage, et le lui faire savoir depuis app
+diffuserait un détail de River dans le cycle de vie du serveur.
+*/
 func (c *Client) Start(ctx context.Context) error {
+	if !c.processing {
+		return nil
+	}
 	if err := c.river.Start(ctx); err != nil {
 		return fmt.Errorf("démarrage des workers : %w", err)
 	}
@@ -106,7 +130,13 @@ func (c *Client) Start(ctx context.Context) error {
 }
 
 // Stop attend la fin des jobs en cours puis arrête les workers.
+//
+// Symétrique de Start : arrêter ce qui n'a jamais démarré n'est pas une erreur,
+// et le contraire obligerait chaque appelant à retenir s'il avait démarré.
 func (c *Client) Stop(ctx context.Context) error {
+	if !c.processing {
+		return nil
+	}
 	return c.river.Stop(ctx)
 }
 
