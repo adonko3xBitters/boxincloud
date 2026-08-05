@@ -23,15 +23,22 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button, cx } from "@/components/ui";
 import { useT } from "@/i18n";
 
+import { useEd2kError } from "./errors";
+
 /**
  * useCommand exécute une commande et rafraîchit ce qu'elle a changé.
  *
  * L'erreur est GARDÉE plutôt que jetée : un refus du démon — « Kad is disabled
  * in preferences » — est exactement ce qu'il faut montrer, et le perdre
  * laisserait un bouton qui ne fait rien sans dire pourquoi.
+ *
+ * Elle est aussi TRADUITE. Afficher `err.message` revenait à montrer le `detail`
+ * du serveur, qui est en anglais : une interface française annonçait « no aMule
+ * daemon has been declared » sans dire où aller le déclarer.
  */
 export function useCommand() {
   const queryClient = useQueryClient();
+  const describe = useEd2kError();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,7 +51,7 @@ export function useCommand() {
       // file, une connexion modifie l'état et la liste des serveurs.
       await queryClient.invalidateQueries({ queryKey: ["ed2k"] });
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      setError(describe(err));
     } finally {
       setBusy(false);
     }

@@ -143,6 +143,26 @@ func Conflict(detail string) Problem {
 	}
 }
 
+/*
+DaemonRefused : un système externe a compris la demande et l'a rejetée.
+
+502 et non 500 : rien n'est cassé chez nous. Un 500 déclencherait une alerte
+d'exploitation et enverrait chercher un bogue là où il n'y en a pas.
+
+Le `detail` porte les mots de ce système, tels quels. C'est la seule exception
+à la règle « le serveur ne rédige pas de message d'erreur affichable » : lui
+seul sait pourquoi il a dit non, et le remplacer par une phrase de notre cru
+détruirait la seule information utile. L'interface l'encadre et l'attribue.
+*/
+func DaemonRefused(detail string) Problem {
+	return Problem{
+		Type:   "https://boxincloud.dev/problems/daemon-refused",
+		Title:  "Bad Gateway",
+		Status: http.StatusBadGateway,
+		Detail: detail,
+	}
+}
+
 func ServiceUnavailable(detail string) Problem {
 	return Problem{
 		Type:   "https://boxincloud.dev/problems/service-unavailable",

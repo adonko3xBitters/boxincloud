@@ -369,3 +369,52 @@ func TestCondenseSaleSansZerosDeTete(t *testing.T) {
 		t.Error("deux écritures du même sel donnent deux condensés")
 	}
 }
+
+/*
+TestIPv4EncodeAdresseEtPort.
+
+Les octets sont vérifiés UN PAR UN, contre une valeur écrite à la main.
+
+C'est justifié ici et nulle part ailleurs : ce tag ne se relit pas côté client,
+il n'existe que pour être compris du démon. Un test qui l'encoderait puis le
+décoderait avec notre propre code passerait avec un ordre d'octets inversé, et
+la faute ne se verrait qu'à l'usage — sous la forme d'un démon qui agit sur un
+serveur autre que celui demandé.
+*/
+func TestIPv4EncodeAdresseEtPort(t *testing.T) {
+	tag, ok := IPv4(TagServer, "203.0.113.10", 4661)
+	if !ok {
+		t.Fatal("adresse valide refusée")
+	}
+
+	if tag.Type != TypeIPv4 {
+		t.Errorf("type = %d, attendu TypeIPv4 (%d)", tag.Type, TypeIPv4)
+	}
+
+	// 203.0.113.10 dans l'ordre où on l'écrit, puis 4661 en gros-boutien.
+	want := []byte{203, 0, 113, 10, 0x12, 0x35}
+	if !bytes.Equal(tag.Value, want) {
+		t.Errorf("valeur = % x, attendu % x", tag.Value, want)
+	}
+}
+
+// TestIPv4RefuseCeQuiNEnEstPas : un nom d'hôte, une IPv6 ou un port hors bornes
+// n'ont pas de représentation sur six octets. En fabriquer une remplie de zéros
+// désignerait 0.0.0.0 — une adresse que le démon chercherait pour de bon.
+func TestIPv4RefuseCeQuiNEnEstPas(t *testing.T) {
+	for _, tc := range []struct {
+		ip   string
+		port int
+	}{
+		{"", 4661},
+		{"serveur.example.org", 4661},
+		{"::1", 4661},
+		{"203.0.113", 4661},
+		{"203.0.113.10", -1},
+		{"203.0.113.10", 65536},
+	} {
+		if _, ok := IPv4(TagServer, tc.ip, tc.port); ok {
+			t.Errorf("%q:%d accepté, attendu un refus", tc.ip, tc.port)
+		}
+	}
+}

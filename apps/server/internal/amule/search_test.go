@@ -2,6 +2,7 @@ package amule
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"testing"
 	"time"
@@ -345,4 +346,171 @@ func TestIntegrationJournauxSontLisibles(t *testing.T) {
 	}
 
 	t.Logf("%d lignes, la première : %q", len(lines), lines[0].Text)
+}
+
+// ─── Liste des serveurs ──────────────────────────────────────────────────────
+
+/*
+TestIntegrationImportDeListeEstAccepte.
+
+Sans serveurs, rien ne fonctionne : ni connexion, ni recherche, ni source. C'est
+le premier geste sur une instance neuve, et il manquait.
+
+Le démon de test est hors ligne — il n'ira donc pas chercher l'URL — mais il
+doit ACCEPTER la commande. Un opcode ou un tag faux produirait un refus, ce qui
+est précisément ce qu'on vérifie ici.
+*/
+func TestIntegrationImportDeListeEstAccepte(t *testing.T) {
+	env := amuletest.Start(t)
+	svc := testService(t, env)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	if err := svc.UpdateServerList(ctx, "https://upd.emule-security.org/server.met"); err != nil {
+		t.Fatalf("import d'une liste de serveurs : %v", err)
+	}
+}
+
+// TestIntegrationAjoutEtRetraitDUnServeur suit un serveur d'un bout à l'autre.
+//
+// Vérifié sur l'ÉTAT, comme les autres commandes : le démon n'accuse que
+// réception, et une commande mal formée obtiendrait la même réponse qu'une
+// commande juste.
+func TestIntegrationAjoutEtRetraitDUnServeur(t *testing.T) {
+	env := amuletest.Start(t)
+	svc := testService(t, env)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	// TEST-NET-3, jamais routable. TEST-NET-1 (192.0.2.0/24) serait plus
+	// naturel mais aMule le REFUSE : « Server not added ». Il filtre certaines
+	// plages réservées, et 203.0.113.0/24 n'en fait pas partie.
+	const ip, port = "203.0.113.10", 4661
+
+	if err := svc.AddServer(ctx, ip, port, "serveur d'essai"); err != nil {
+		t.Fatalf("ajout : %v", err)
+	}
+
+	server := waitForServer(t, svc, ip, port, true)
+	if server.Name != "serveur d'essai" {
+		t.Errorf("nom = %q, attendu « serveur d'essai »", server.Name)
+	}
+
+	if err := svc.RemoveServer(ctx, ip, port); err != nil {
+		t.Fatalf("retrait : %v", err)
+	}
+	waitForServer(t, svc, ip, port, false)
+}
+
+/*
+TestIntegrationRetraitDUnServeurAbsentNommeLAdresse.
+
+Ce test existe pour une raison précise : il distingue deux refus qui, sans lui,
+se confondraient.
+
+`EC_TAG_SERVER` porte SIX OCTETS — quatre pour l'adresse, deux pour le port —
+et non la chaîne « ip:port » qu'attend l'ajout. Avec le mauvais type, le démon
+ne voit aucune désignation et répond « need to define server to be removed ».
+Avec le bon, il cherche vraiment, ne trouve rien, et NOMME l'adresse cherchée.
+
+C'est cette seconde phrase qu'on exige : elle ne peut sortir que d'un tag que
+le démon a su relire.
+*/
+func TestIntegrationRetraitDUnServeurAbsentNommeLAdresse(t *testing.T) {
+	env := amuletest.Start(t)
+	svc := testService(t, env)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	err := svc.RemoveServer(ctx, "203.0.113.99", 4661)
+	if err == nil {
+		t.Fatal("le démon a prétendu retirer un serveur qu'il n'a jamais eu")
+	}
+
+	if !strings.Contains(err.Error(), "203.0.113.99") {
+		t.Errorf("refus = %v — attendu qu'il nomme l'adresse cherchée ; "+
+			"sans elle, le démon n'a pas su relire la désignation", err)
+	}
+}
+
+// TestRemoveServerRefuseCeQuiNEstPasUneIPv4 : le tag de désignation ne peut pas
+// porter un nom d'hôte. Le refuser ici plutôt que d'envoyer six octets nuls,
+// qui feraient agir le démon sur autre chose que ce qui était demandé.
+func TestRemoveServerRefuseCeQuiNEstPasUneIPv4(t *testing.T) {
+	svc := newTestService(t, &fakeRepo{}, enabled())
+
+	for _, ip := range []string{"", "serveur.example.org", "::1", "203.0.113"} {
+		var invalid ValidationError
+		if err := svc.RemoveServer(t.Context(), ip, 4661); !errors.As(err, &invalid) {
+			t.Errorf("%q : erreur = %v, attendu une ValidationError", ip, err)
+		}
+	}
+}
+
+// TestUpdateServerListRefuseUnAutreSchema : c'est le DÉMON qui va chercher
+// l'URL. Un `file://` lui ferait lire son propre disque.
+func TestUpdateServerListRefuseUnAutreSchema(t *testing.T) {
+	svc := newTestService(t, &fakeRepo{}, enabled())
+
+	for _, url := range []string{
+		"file:///etc/passwd",
+		"/home/moi/server.met",
+		"ftp://exemple.org/server.met",
+		"",
+	} {
+		if err := svc.UpdateServerList(t.Context(), url); !errors.Is(err, ErrInvalidURL) {
+			t.Errorf("%q : erreur = %v, attendu ErrInvalidURL", url, err)
+		}
+	}
+}
+
+// waitForServer attend qu'un serveur soit présent, ou absent, de la liste.
+func waitForServer(t *testing.T, svc *Service, ip string, port int, present bool) Server {
+	t.Helper()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+
+	deadline := time.Now().Add(15 * time.Second)
+	for time.Now().Before(deadline) {
+		conn, err := serviceDialer{svc: svc}.Open(ctx)
+		if err != nil {
+			t.Fatalf("session : %v", err)
+		}
+		resp, err := conn.Do(ctx, requestServers())
+		_ = conn.Close()
+		if err != nil {
+			t.Fatalf("liste des serveurs : %v", err)
+		}
+
+		servers, err := decodeServers(resp)
+		if err != nil {
+			t.Fatalf("décodage : %v", err)
+		}
+
+		for _, server := range servers {
+			if server.IP == ip && server.Port == port {
+				if present {
+					return server
+				}
+				break
+			}
+		}
+		if !present {
+			found := false
+			for _, server := range servers {
+				if server.IP == ip && server.Port == port {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return Server{}
+			}
+		}
+		time.Sleep(250 * time.Millisecond)
+	}
+
+	t.Fatalf("le serveur %s:%d n'est jamais devenu présent=%v", ip, port, present)
+	return Server{}
 }

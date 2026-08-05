@@ -795,8 +795,22 @@ export const en: Record<MessageKey, string> = {
     "Known servers, not just the one in use. A dead server only differs from a never-tried one by its failure counter.",
   "ed2k.servers.empty": "No known server",
   "ed2k.servers.emptyHint":
-    "The daemon's list is empty. It fills from a server.met file, loaded by aMule at startup or when its list is updated.",
+    "Nothing will work while this list is empty: no connection, no search, no sources. Import a published list with the button above — it is the first thing to do on a fresh instance.",
   "ed2k.servers.connected": "Connected",
+  "ed2k.servers.import": "Import a list",
+  "ed2k.servers.importHint":
+    "The address of a published server.met file. The daemon fetches it, not your browser; the list fills within seconds.",
+  "ed2k.servers.importUrl": "List address",
+  "ed2k.servers.importSubmit": "Import",
+  "ed2k.servers.add": "Add a server",
+  "ed2k.servers.addHint":
+    "For a server that appears on no published list. Importing above is the usual case.",
+  "ed2k.servers.addIp": "Address",
+  "ed2k.servers.addPort": "Port",
+  "ed2k.servers.addName": "Name (optional)",
+  "ed2k.servers.addSubmit": "Add",
+  "ed2k.servers.remove": "Remove",
+  "ed2k.servers.removeConfirm": "Confirm",
 
   "ed2k.kad.hint":
     "Kad needs no server: peers find each other. That is what keeps things running when every server goes down.",
@@ -929,5 +943,12 @@ export const en: Record<MessageKey, string> = {
   "ed2k.logs.clear": "Clear",
   "ed2k.logs.empty": "Empty log",
   "ed2k.logs.emptyHint": "The daemon has written nothing since it last started.",
+
+  "ed2k.error.disabled":
+    "The eD2k module is disabled on this instance. It is enabled through the BOXINCLOUD_ED2K_ENABLED variable, server-side.",
+  "ed2k.error.noDaemon":
+    "No aMule daemon has been declared. Go to Settings to give its address and password.",
+  "ed2k.error.refused": "The aMule daemon refused the command, without saying why.",
+  "ed2k.error.refusedWith": "The aMule daemon refused the command. It replies:",
 
 };

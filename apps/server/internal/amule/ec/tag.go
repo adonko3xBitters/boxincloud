@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"net/netip"
 )
 
 /*
@@ -83,6 +84,37 @@ func Hash(name TagName, h []byte) Tag {
 	value := make([]byte, 16)
 	copy(value, h)
 	return Tag{Name: name, Type: TypeHash16, Value: value}
+}
+
+/*
+IPv4 construit un tag d'adresse-et-port, en six octets.
+
+C'est ainsi que le démon DÉSIGNE un serveur dans une commande. Une chaîne
+« ip:port » ne convient pas, et c'est un piège coûteux : `EC_TAG_SERVER` en
+texte est accepté sans broncher, puis relu comme six octets bruts. Le démon ne
+trouve alors aucun serveur à cette adresse, et se rabat silencieusement sur son
+comportement par défaut — pour `SERVER_CONNECT`, se connecter à n'importe lequel.
+
+Format : les quatre octets de la notation pointée dans l'ordre où on les écrit,
+puis le port en gros-boutien. C'est exactement ce que `serverAddressFromIPv4`
+sait relire, à l'autre bout.
+
+Une adresse qui n'est pas une IPv4 littérale rend `false` : le tag ne peut pas
+porter un nom d'hôte, et en fabriquer un vide ferait agir le démon sur autre
+chose que ce qui était demandé.
+*/
+func IPv4(name TagName, ip string, port int) (Tag, bool) {
+	addr, err := netip.ParseAddr(ip)
+	if err != nil || !addr.Is4() || port < 0 || port > 65535 {
+		return Tag{}, false
+	}
+
+	octets := addr.As4()
+	value := make([]byte, 0, 6)
+	value = append(value, octets[:]...)
+	value = binary.BigEndian.AppendUint16(value, uint16(port))
+
+	return Tag{Name: name, Type: TypeIPv4, Value: value}, true
 }
 
 /*

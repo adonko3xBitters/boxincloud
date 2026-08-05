@@ -822,8 +822,22 @@ export const fr = {
     "Les serveurs connus, pas seulement celui qui est joint. Un serveur mort ne se distingue d'un serveur jamais essayé que par son compteur d'échecs.",
   "ed2k.servers.empty": "Aucun serveur connu",
   "ed2k.servers.emptyHint":
-    "La liste du démon est vide. Elle se remplit depuis un fichier server.met, chargé par aMule au démarrage ou à la mise à jour de sa liste.",
+    "Rien ne fonctionnera tant que cette liste est vide : ni connexion, ni recherche, ni source. Importez une liste publiée avec le bouton ci-dessus — c'est le premier geste sur une instance neuve.",
   "ed2k.servers.connected": "Connecté",
+  "ed2k.servers.import": "Importer une liste",
+  "ed2k.servers.importHint":
+    "L'adresse d'un fichier server.met publié. C'est le démon qui va le chercher, pas votre navigateur ; la liste se remplit dans les secondes qui suivent.",
+  "ed2k.servers.importUrl": "Adresse de la liste",
+  "ed2k.servers.importSubmit": "Importer",
+  "ed2k.servers.add": "Ajouter un serveur",
+  "ed2k.servers.addHint":
+    "Pour un serveur qui ne figure sur aucune liste publiée. Le cas courant est plutôt l'import ci-dessus.",
+  "ed2k.servers.addIp": "Adresse",
+  "ed2k.servers.addPort": "Port",
+  "ed2k.servers.addName": "Nom (facultatif)",
+  "ed2k.servers.addSubmit": "Ajouter",
+  "ed2k.servers.remove": "Retirer",
+  "ed2k.servers.removeConfirm": "Confirmer",
 
   // ── Kad ────────────────────────────────────────────────────────────────────
   "ed2k.kad.hint":
@@ -959,6 +973,14 @@ export const fr = {
   "ed2k.logs.clear": "Vider",
   "ed2k.logs.empty": "Journal vide",
   "ed2k.logs.emptyHint": "Le démon n'a rien écrit depuis son dernier démarrage.",
+
+  // ── Échecs propres au module ───────────────────────────────────────────────
+  "ed2k.error.disabled":
+    "Le module eD2k est désactivé sur cette instance. Il s'active par la variable BOXINCLOUD_ED2K_ENABLED, côté serveur.",
+  "ed2k.error.noDaemon":
+    "Aucun démon aMule n'est déclaré. Allez dans Paramètres pour indiquer son adresse et son mot de passe.",
+  "ed2k.error.refused": "Le démon aMule a refusé la commande, sans dire pourquoi.",
+  "ed2k.error.refusedWith": "Le démon aMule a refusé la commande. Il répond :",
 
 } as const;
 

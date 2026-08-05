@@ -219,8 +219,20 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
     throw error;
   }
 
-  if (res.status === 204) return undefined as T;
-  return (await res.json()) as T;
+  /*
+    Une réponse sans corps n'est pas seulement un 204.
+
+    Les commandes du module eD2k répondent 202 avec un corps vide — « transmis
+    au démon », qui n'accuse que réception. Ne traiter que le 204 faisait échouer
+    `res.json()` sur « Unexpected end of JSON input », et une commande qui avait
+    parfaitement réussi s'affichait en rouge.
+
+    On lit donc le texte et on ne l'analyse que s'il y a quelque chose : cela
+    couvre 202, 204, et tout ce qui viendra sans corps.
+  */
+  const raw = await res.text();
+  if (raw === "") return undefined as T;
+  return JSON.parse(raw) as T;
 }
 
 /**

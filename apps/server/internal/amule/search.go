@@ -361,7 +361,8 @@ func (s *Service) query(ctx context.Context, req ec.Packet) (ec.Packet, error) {
 
 	if p != nil {
 		if conn := p.Session(); conn != nil {
-			return conn.Do(ctx, req)
+			resp, err := conn.Do(ctx, req)
+			return resp, translateEC(err)
 		}
 	}
 
@@ -371,5 +372,6 @@ func (s *Service) query(ctx context.Context, req ec.Packet) (ec.Packet, error) {
 	}
 	defer func() { _ = conn.Close() }()
 
-	return conn.Do(ctx, req)
+	resp, err := conn.Do(ctx, req)
+	return resp, translateEC(err)
 }

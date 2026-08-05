@@ -136,12 +136,53 @@ func (s *Service) Status(ctx context.Context) Status {
 		LastSeenAt: stored.LastSeenAt,
 	}
 
-	// À l'étape 0, un démon déclaré n'est jamais joint : le client EC arrive à
-	// l'étape 1. L'état le dit tel quel plutôt que d'annoncer une connexion qui
-	// n'a pas lieu.
-	status.State = StateDisconnected
-	status.Detail = "démon déclaré, client External Connections pas encore implémenté"
+	/*
+		L'état vient de la SCRUTATION quand elle tourne, de la base sinon.
+
+		La distinction compte. Une session ouverte est un fait observable, que
+		seule la boucle connaît ; l'état persisté, lui, est le dernier constat —
+		utile après un redémarrage, quand la boucle n'a encore rien tenté.
+
+		Ce bloc portait un texte d'attente disant que le client External
+		Connections n'existait pas encore. Il n'a pas été retiré quand le client
+		est arrivé, si bien que l'interface annonçait « pas encore implémenté »
+		au-dessus d'une recherche qui fonctionnait.
+	*/
+	status.State, status.Detail = s.liveState(stored)
 	return status
+}
+
+/*
+liveState rend l'état réel du module.
+
+Trois sources, dans l'ordre de fiabilité :
+
+ 1. la session en cours, si la scrutation en tient une — c'est un fait, pas une
+    mémoire ;
+ 2. le dernier état persisté, qui explique une panne survenue avant le
+    redémarrage ;
+ 3. faute des deux, « déclaré mais pas encore joint », qui est exact au
+    démarrage : la boucle n'ouvre une session que lorsqu'un navigateur regarde.
+*/
+func (s *Service) liveState(stored StoredDaemon) (State, string) {
+	s.session.mu.Lock()
+	p := s.session.poller
+	s.session.mu.Unlock()
+
+	if p != nil && p.Session() != nil {
+		return StateConnected, "session External Connections ouverte"
+	}
+
+	if stored.LastState != "" {
+		detail := stored.LastDetail
+		if detail == "" {
+			detail = "dernier état constaté"
+		}
+		return State(stored.LastState), detail
+	}
+
+	return StateDisconnected, "démon déclaré, pas encore joint — " +
+		"la session s'ouvre quand quelqu'un regarde le module"
 }
 
 // Daemon retourne le démon déclaré, sans son mot de passe.

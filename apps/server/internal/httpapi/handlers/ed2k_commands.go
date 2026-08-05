@@ -3,6 +3,7 @@ package handlers
 import (
 	"errors"
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 
@@ -124,6 +125,81 @@ func (h *Ed2k) DisconnectServer(w http.ResponseWriter, r *http.Request) {
 	accepted(w)
 }
 
+/*
+UpdateServerList importe une liste publiée.
+
+Le premier geste sur une instance neuve : sans serveurs, ni connexion, ni
+recherche, ni source. C'est le démon qui va chercher l'adresse — l'API ne fait
+que la lui transmettre, après avoir vérifié le schéma.
+*/
+func (h *Ed2k) UpdateServerList(w http.ResponseWriter, r *http.Request) {
+	if !requireAdmin(w, r) {
+		return
+	}
+
+	var body struct {
+		URL string `json:"url"`
+	}
+	if !decodeJSON(w, r, &body) {
+		return
+	}
+
+	if err := h.svc.UpdateServerList(r.Context(), body.URL); err != nil {
+		writeEd2kCommandError(w, r, err, "url")
+		return
+	}
+	accepted(w)
+}
+
+func (h *Ed2k) AddServer(w http.ResponseWriter, r *http.Request) {
+	if !requireAdmin(w, r) {
+		return
+	}
+
+	var body struct {
+		IP   string `json:"ip"`
+		Port int    `json:"port"`
+		Name string `json:"name"`
+	}
+	if !decodeJSON(w, r, &body) {
+		return
+	}
+
+	if err := h.svc.AddServer(r.Context(), body.IP, body.Port, body.Name); err != nil {
+		writeEd2kCommandError(w, r, err, "ip")
+		return
+	}
+	accepted(w)
+}
+
+/*
+RemoveServer retire un serveur, désigné en query.
+
+Un DELETE porte mal un corps — plusieurs intermédiaires le suppriment, et
+`fetch` refuse de l'écrire. L'adresse tient en deux paramètres, elle passe donc
+dans l'URL.
+*/
+func (h *Ed2k) RemoveServer(w http.ResponseWriter, r *http.Request) {
+	if !requireAdmin(w, r) {
+		return
+	}
+
+	ip := r.URL.Query().Get("ip")
+	port, err := strconv.Atoi(r.URL.Query().Get("port"))
+	if err != nil {
+		problem.Write(w, r, problem.Validation(map[string]string{
+			"port": "obligatoire, entier",
+		}))
+		return
+	}
+
+	if err := h.svc.RemoveServer(r.Context(), ip, port); err != nil {
+		writeEd2kCommandError(w, r, err, "ip")
+		return
+	}
+	accepted(w)
+}
+
 func (h *Ed2k) SetKad(w http.ResponseWriter, r *http.Request) {
 	if !requireAdmin(w, r) {
 		return
@@ -178,7 +254,7 @@ func writeEd2kCommandError(w http.ResponseWriter, r *http.Request, err error, fi
 			"hash": "not a valid eD2k hash (16 bytes, hexadecimal)",
 		}))
 
-	case errors.Is(err, amule.ErrInvalidLink):
+	case errors.Is(err, amule.ErrInvalidLink), errors.Is(err, amule.ErrInvalidURL):
 		problem.Write(w, r, problem.Validation(map[string]string{
 			field: err.Error(),
 		}))

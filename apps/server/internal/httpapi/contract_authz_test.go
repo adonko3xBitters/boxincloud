@@ -98,6 +98,11 @@ func adminOnlyRoutes(h *contractHarness) []adminRoute {
 			map[string]any{"link": "ed2k://|file|x|1|" + strings.Repeat("AB", 16) + "|/"}},
 		{http.MethodPost, "/api/v1/ed2k/servers/connect", nil},
 		{http.MethodPost, "/api/v1/ed2k/servers/disconnect", nil},
+		{http.MethodPost, "/api/v1/ed2k/servers/import",
+			map[string]any{"url": "https://example.invalid/server.met"}},
+		{http.MethodPost, "/api/v1/ed2k/servers",
+			map[string]any{"ip": "203.0.113.10", "port": 4661}},
+		{http.MethodDelete, "/api/v1/ed2k/servers?ip=203.0.113.10&port=4661", nil},
 		{http.MethodPost, "/api/v1/ed2k/kad", map[string]any{"running": false}},
 		{http.MethodPost, "/api/v1/ed2k/shared/reload", nil},
 

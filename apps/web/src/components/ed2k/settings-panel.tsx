@@ -14,11 +14,15 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button, Input } from "@/components/ui";
 import { useT } from "@/i18n";
 import * as api from "@/lib/api/endpoints";
+import { describeFields } from "@/lib/api/problem";
 import type { Ed2kStatus } from "@/lib/api/client";
+
+import { useEd2kError } from "./errors";
 
 export function DaemonForm({ status }: { status: Ed2kStatus }) {
   const t = useT();
   const queryClient = useQueryClient();
+  const describe = useEd2kError();
 
   const declared = status.daemon;
 
@@ -50,10 +54,8 @@ export function DaemonForm({ status }: { status: Ed2kStatus }) {
       setPassword("");
       await queryClient.invalidateQueries({ queryKey: ["ed2k"] });
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("error.generic"));
-      if (err && typeof err === "object" && "fieldErrors" in err) {
-        setFields((err as { fieldErrors: Record<string, string> }).fieldErrors);
-      }
+      setError(describe(err));
+      setFields(describeFields(err, t));
     } finally {
       setBusy(false);
     }
@@ -68,7 +70,7 @@ export function DaemonForm({ status }: { status: Ed2kStatus }) {
       setPassword("");
       await queryClient.invalidateQueries({ queryKey: ["ed2k"] });
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("error.generic"));
+      setError(describe(err));
     } finally {
       setBusy(false);
     }

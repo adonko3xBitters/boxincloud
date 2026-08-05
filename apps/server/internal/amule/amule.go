@@ -14,12 +14,11 @@ OpenAPI et l'interface ne connaissent que les types déclarés ici — un `State
 un `Daemon`, un `Status`. C'est ce qui permettra de changer de version d'aMule
 sans toucher au reste. Voir docs/adr/006-frontiere-ec-etanche.md.
 
-# Ce que fait ce paquet à l'étape 0
+# Ce que fait ce paquet
 
-Il porte la configuration du démon et sait dire dans quel état se trouve le
-module. Il ne parle encore à personne : le client EC arrive à l'étape 1. Cet
-état intermédiaire est assumé et visible dans l'interface, plutôt que masqué
-derrière un écran qui ferait croire à une panne.
+Il porte la configuration du démon, ouvre une session EC, scrute son état à
+cadence adaptative, en dérive des événements, lui transmet des commandes, et
+publie dans la bibliothèque ce qu'il a fini de télécharger.
 */
 package amule
 
@@ -29,15 +28,16 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/adonko3xBitters/boxincloud/server/internal/amule/ec"
 )
 
 /*
 State décrit la situation du module, d'un seul coup d'œil.
 
-L'énumération est déclarée ENTIÈRE dès maintenant, y compris les valeurs que
-l'étape 0 ne produit pas encore. Ajouter une valeur à une énumération de réponse
-est une rupture pour un client strict ; les déclarer toutes tout de suite évite
-d'imposer cette rupture à l'étape 1.
+L'énumération est déclarée ENTIÈRE, y compris les valeurs qu'une instance donnée
+ne produira jamais. Ajouter une valeur à une énumération de réponse est une
+rupture pour un client strict ; les déclarer toutes d'emblée l'évite.
 */
 type State string
 
@@ -104,6 +104,46 @@ var (
 	// ErrNotConfigured — aucun démon n'est déclaré.
 	ErrNotConfigured = errors.New("amule : aucun démon déclaré")
 )
+
+/*
+RefusedError : le démon a compris la commande et l'a rejetée.
+
+À distinguer d'une panne. Le démon va bien, il est joignable, il a lu la
+requête — et il dit non, pour une raison qui lui appartient : Kad désactivé dans
+ses préférences, adresse dans une plage qu'il écarte, fichier déjà en file.
+
+`Detail` sont SES mots, en anglais, conservés tels quels. C'est le seul endroit
+du projet où un texte non traduit atteint l'écran, et c'est délibéré : personne
+d'autre que le démon ne sait pourquoi il a refusé, et une phrase de notre cru
+— « la commande a échoué » — ferait perdre la seule information utile. L'interface
+l'encadre en français et attribue la citation.
+*/
+type RefusedError struct {
+	Detail string
+}
+
+func (e RefusedError) Error() string {
+	if e.Detail == "" {
+		return "amule : le démon a refusé la commande"
+	}
+	return "amule : le démon a refusé la commande : " + e.Detail
+}
+
+/*
+translateEC ramène une erreur du codec vers le domaine.
+
+L'ADR-006 veut qu'aucun type de `ec` ne franchisse `amule.Service`. Un
+`ec.RefusedError` remonté tel quel le ferait — les handlers devraient importer
+`ec` pour le reconnaître, et la frontière serait percée par le chemin d'erreur,
+qui est celui qu'on surveille le moins.
+*/
+func translateEC(err error) error {
+	var refused ec.RefusedError
+	if errors.As(err, &refused) {
+		return RefusedError{Detail: refused.Detail}
+	}
+	return err
+}
 
 /*
 ValidationError porte les erreurs de saisie, champ par champ.

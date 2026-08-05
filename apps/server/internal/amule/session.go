@@ -192,7 +192,7 @@ func (s *Service) Sources(ctx context.Context, hash string) ([]Source, error) {
 
 	resp, err := conn.Do(ctx, requestSources(hash))
 	if err != nil {
-		return nil, err
+		return nil, translateEC(err)
 	}
 	return decodeSources(resp)
 }

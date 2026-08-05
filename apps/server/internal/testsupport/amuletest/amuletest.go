@@ -115,7 +115,14 @@ UDPPort=4672
 UDPEnable=0
 Autoconnect=0
 ConnectToKad=0
-ConnectToED2K=0
+
+# ConnectToED2K n'est PAS « se connecter au démarrage » : c'est le drapeau qui
+# ALLUME le réseau eD2k. À zéro, le démon devient Kad-only et renvoie une liste
+# de serveurs vide quoi qu'on ajoute — de quoi croire à un défaut de décodage.
+#
+# Autoconnect=0 et Serverlist=0 suffisent à le garder hors ligne : sans liste,
+# sans URL et sans connexion automatique, il n'a nulle part où aller.
+ConnectToED2K=1
 Serverlist=0
 AddServerListFromServer=0
 AddServerListFromClient=0

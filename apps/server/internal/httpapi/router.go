@@ -365,6 +365,9 @@ func NewRouter(d Deps) http.Handler {
 			r.Post("/ed2k/links", ed2kHandler.AddLink)
 			r.Post("/ed2k/servers/connect", ed2kHandler.ConnectServer)
 			r.Post("/ed2k/servers/disconnect", ed2kHandler.DisconnectServer)
+			r.Post("/ed2k/servers/import", ed2kHandler.UpdateServerList)
+			r.Post("/ed2k/servers", ed2kHandler.AddServer)
+			r.Delete("/ed2k/servers", ed2kHandler.RemoveServer)
 			r.Post("/ed2k/kad", ed2kHandler.SetKad)
 			r.Post("/ed2k/shared/reload", ed2kHandler.ReloadShared)
 

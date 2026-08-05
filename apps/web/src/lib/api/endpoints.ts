@@ -673,6 +673,24 @@ export const connectEd2kServer = (target?: { ip: string; port: number }) =>
 export const disconnectEd2kServer = () =>
   request<void>("/ed2k/servers/disconnect", { method: "POST" });
 
+/**
+ * Importe une liste de serveurs publiée.
+ *
+ * C'est le DÉMON qui va chercher l'adresse, pas le navigateur : sans cela, il
+ * faudrait que la page atteigne un site tiers, ce que sa politique de sécurité
+ * interdit — et l'import échouerait pour une raison sans rapport.
+ */
+export const importEd2kServerList = (url: string) =>
+  request<void>("/ed2k/servers/import", { method: "POST", body: { url } });
+
+export const addEd2kServer = (server: { ip: string; port: number; name?: string }) =>
+  request<void>("/ed2k/servers", { method: "POST", body: server });
+
+export const removeEd2kServer = (ip: string, port: number) =>
+  request<void>(`/ed2k/servers?ip=${encodeURIComponent(ip)}&port=${port}`, {
+    method: "DELETE",
+  });
+
 export const setEd2kKadRunning = (running: boolean) =>
   request<void>("/ed2k/kad", { method: "POST", body: { running } });
 

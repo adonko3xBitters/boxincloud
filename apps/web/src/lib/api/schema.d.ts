@@ -1594,8 +1594,21 @@ export interface paths {
          */
         get: operations["listEd2kServers"];
         put?: never;
-        post?: never;
-        delete?: never;
+        /**
+         * Ajouter un serveur à la main
+         * @description Pour un serveur qui ne figure sur aucune liste publiée. Le cas courant
+         *     est plutôt l'import d'un `server.met` — voir `/ed2k/servers/import`.
+         *
+         *     amuled refuse certaines plages d'adresses réservées ; son refus remonte
+         *     tel quel.
+         */
+        post: operations["addEd2kServer"];
+        /**
+         * Retirer un serveur de la liste
+         * @description Ne déconnecte pas : retirer le serveur auquel on est relié laisse la
+         *     session en cours, c'est le démon qui en décide.
+         */
+        delete: operations["removeEd2kServer"];
         options?: never;
         head?: never;
         patch?: never;
@@ -1947,6 +1960,33 @@ export interface paths {
         post?: never;
         /** Vider le journal du démon */
         delete: operations["clearEd2kLogs"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ed2k/servers/import": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Importer une liste de serveurs
+         * @description **Le premier geste sur une instance neuve.** Sans serveurs, rien ne
+         *     fonctionne : ni connexion, ni recherche, ni source.
+         *
+         *     C'est LE DÉMON qui va chercher l'adresse, pas boxincloud. Seul le schéma
+         *     est vérifié en amont — un `file://` lui ferait lire son propre disque.
+         *
+         *     Le téléchargement est asynchrone : la commande rend la main tout de
+         *     suite, et la liste se remplit au fil des instantanés suivants.
+         */
+        post: operations["importEd2kServerList"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -3018,6 +3058,22 @@ export interface components {
          *     existe et existera encore une fois le module activé.
          */
         Ed2kDisabled: {
+            headers: {
+                [name: string]: unknown;
+            };
+            content: {
+                "application/problem+json": components["schemas"]["Problem"];
+            };
+        };
+        /**
+         * @description Le démon aMule a compris la demande et l'a rejetée.
+         *
+         *     502 et non 500 : rien n'est en panne côté boxincloud. Le `detail` porte
+         *     les mots du démon, en anglais et tels quels — « Kad is disabled in
+         *     preferences ». C'est la seule réponse du contrat dont le `detail` est
+         *     destiné à l'affichage : seul le démon sait pourquoi il a dit non.
+         */
+        Ed2kDaemonRefused: {
             headers: {
                 [name: string]: unknown;
             };
@@ -5478,6 +5534,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Ed2kDisabled"];
+            502: components["responses"]["Ed2kDaemonRefused"];
         };
     };
     setEd2kDaemon: {
@@ -5506,6 +5563,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Ed2kDisabled"];
             422: components["responses"]["ValidationFailed"];
+            502: components["responses"]["Ed2kDaemonRefused"];
         };
     };
     forgetEd2kDaemon: {
@@ -5527,6 +5585,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Ed2kDisabled"];
+            502: components["responses"]["Ed2kDaemonRefused"];
         };
     };
     getEd2kSnapshot: {
@@ -5550,6 +5609,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Ed2kDisabled"];
+            502: components["responses"]["Ed2kDaemonRefused"];
         };
     };
     listEd2kDownloads: {
@@ -5580,6 +5640,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Ed2kDisabled"];
+            502: components["responses"]["Ed2kDaemonRefused"];
         };
     };
     listEd2kDownloadSources: {
@@ -5618,6 +5679,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             404: components["responses"]["NotFound"];
             409: components["responses"]["Ed2kDisabled"];
+            502: components["responses"]["Ed2kDaemonRefused"];
         };
     };
     listEd2kUploads: {
@@ -5651,6 +5713,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Ed2kDisabled"];
+            502: components["responses"]["Ed2kDaemonRefused"];
         };
     };
     listEd2kServers: {
@@ -5681,6 +5744,64 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Ed2kDisabled"];
+            502: components["responses"]["Ed2kDaemonRefused"];
+        };
+    };
+    addEd2kServer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    ip: string;
+                    port: number;
+                    name?: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Commande transmise au démon */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Ed2kDisabled"];
+            422: components["responses"]["ValidationFailed"];
+            502: components["responses"]["Ed2kDaemonRefused"];
+        };
+    };
+    removeEd2kServer: {
+        parameters: {
+            query: {
+                ip: string;
+                port: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Commande transmise au démon */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Ed2kDisabled"];
+            422: components["responses"]["ValidationFailed"];
+            502: components["responses"]["Ed2kDaemonRefused"];
         };
     };
     listEd2kSharedFiles: {
@@ -5711,6 +5832,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Ed2kDisabled"];
+            502: components["responses"]["Ed2kDaemonRefused"];
         };
     };
     getEd2kStats: {
@@ -5742,6 +5864,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Ed2kDisabled"];
+            502: components["responses"]["Ed2kDaemonRefused"];
         };
     };
     actOnEd2kDownload: {
@@ -5778,6 +5901,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Ed2kDisabled"];
             422: components["responses"]["ValidationFailed"];
+            502: components["responses"]["Ed2kDaemonRefused"];
         };
     };
     setEd2kDownloadPriority: {
@@ -5813,6 +5937,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Ed2kDisabled"];
             422: components["responses"]["ValidationFailed"];
+            502: components["responses"]["Ed2kDaemonRefused"];
         };
     };
     addEd2kLink: {
@@ -5842,6 +5967,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Ed2kDisabled"];
             422: components["responses"]["ValidationFailed"];
+            502: components["responses"]["Ed2kDaemonRefused"];
         };
     };
     connectEd2kServer: {
@@ -5870,6 +5996,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Ed2kDisabled"];
+            502: components["responses"]["Ed2kDaemonRefused"];
         };
     };
     disconnectEd2kServer: {
@@ -5891,6 +6018,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Ed2kDisabled"];
+            502: components["responses"]["Ed2kDaemonRefused"];
         };
     };
     setEd2kKadRunning: {
@@ -5918,6 +6046,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Ed2kDisabled"];
+            502: components["responses"]["Ed2kDaemonRefused"];
         };
     };
     reloadEd2kSharedFiles: {
@@ -5939,6 +6068,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Ed2kDisabled"];
+            502: components["responses"]["Ed2kDaemonRefused"];
         };
     };
     getEd2kSearchResults: {
@@ -5971,6 +6101,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Ed2kDisabled"];
+            502: components["responses"]["Ed2kDaemonRefused"];
         };
     };
     startEd2kSearch: {
@@ -6014,6 +6145,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Ed2kDisabled"];
             422: components["responses"]["ValidationFailed"];
+            502: components["responses"]["Ed2kDaemonRefused"];
         };
     };
     stopEd2kSearch: {
@@ -6035,6 +6167,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Ed2kDisabled"];
+            502: components["responses"]["Ed2kDaemonRefused"];
         };
     };
     downloadEd2kSearchResult: {
@@ -6064,6 +6197,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Ed2kDisabled"];
             422: components["responses"]["ValidationFailed"];
+            502: components["responses"]["Ed2kDaemonRefused"];
         };
     };
     listEd2kDestinations: {
@@ -6089,6 +6223,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Ed2kDisabled"];
+            502: components["responses"]["Ed2kDaemonRefused"];
         };
     };
     setEd2kDestination: {
@@ -6117,6 +6252,7 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Ed2kDisabled"];
             422: components["responses"]["ValidationFailed"];
+            502: components["responses"]["Ed2kDaemonRefused"];
         };
     };
     listEd2kPublications: {
@@ -6144,6 +6280,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Ed2kDisabled"];
+            502: components["responses"]["Ed2kDaemonRefused"];
         };
     };
     getEd2kLogs: {
@@ -6169,6 +6306,7 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Ed2kDisabled"];
+            502: components["responses"]["Ed2kDaemonRefused"];
         };
     };
     clearEd2kLogs: {
@@ -6190,6 +6328,37 @@ export interface operations {
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Ed2kDisabled"];
+            502: components["responses"]["Ed2kDaemonRefused"];
+        };
+    };
+    importEd2kServerList: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example https://upd.emule-security.org/server.met */
+                    url: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Import transmis au démon */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Ed2kDisabled"];
+            422: components["responses"]["ValidationFailed"];
+            502: components["responses"]["Ed2kDaemonRefused"];
         };
     };
 }

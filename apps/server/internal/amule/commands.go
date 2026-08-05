@@ -77,7 +77,7 @@ func (s *Service) do(ctx context.Context, req ec.Packet) error {
 	if p != nil {
 		if conn := p.Session(); conn != nil {
 			if _, err := conn.Do(ctx, req); err != nil {
-				return err
+				return translateEC(err)
 			}
 			p.Nudge()
 			return nil
@@ -93,7 +93,7 @@ func (s *Service) do(ctx context.Context, req ec.Packet) error {
 	defer func() { _ = conn.Close() }()
 
 	if _, err := conn.Do(ctx, req); err != nil {
-		return err
+		return translateEC(err)
 	}
 	if p != nil {
 		p.Nudge()
@@ -211,7 +211,12 @@ func (s *Service) ConnectServer(ctx context.Context, ip string, port int) error 
 		return s.do(ctx, ec.New(ec.OpConnect))
 	}
 
-	tag := ec.Text(ec.TagServer, fmt.Sprintf("%s:%d", ip, port))
+	tag, ok := ec.IPv4(ec.TagServer, ip, port)
+	if !ok {
+		return ValidationError{Fields: map[string]string{
+			"ip": "attendu une adresse IPv4 littérale et un port valide",
+		}}
+	}
 	return s.do(ctx, ec.New(ec.OpServerConnect, tag))
 }
 
@@ -272,4 +277,95 @@ func (s *Service) AddLink(ctx context.Context, link string) error {
 // suite, et la liste se met à jour au fil des instantanés suivants.
 func (s *Service) ReloadSharedFiles(ctx context.Context) error {
 	return s.do(ctx, ec.New(ec.OpSharedfilesReload))
+}
+
+// ─── Liste des serveurs ──────────────────────────────────────────────────────
+
+/*
+Sans serveurs, rien ne fonctionne.
+
+Une instance neuve a une liste VIDE : pas de connexion possible, donc pas de
+recherche et pas de source. C'est le premier geste à faire, et il n'existait
+pas — un oubli qui rendait le module inutilisable tel quel.
+
+Deux façons de remplir la liste : importer un `server.met` publié, ce que tout
+le monde fait, ou ajouter une adresse à la main.
+*/
+
+// ErrInvalidURL signale une adresse de liste qui n'en est pas une.
+var ErrInvalidURL = errors.New("amule : adresse de liste de serveurs invalide")
+
+/*
+UpdateServerList demande au démon d'importer un server.met.
+
+C'est LE DÉMON qui va chercher l'URL, pas boxincloud : le contrôle porte donc
+sur ce qui a un sens pour lui, à savoir un schéma qu'il sait traiter. Un lien
+`file://` ou un chemin local ferait lire son propre disque, ce qui n'est pas ce
+qu'on lui demande ici.
+
+Le téléchargement est asynchrone côté démon : la commande rend la main tout de
+suite, et la liste se remplit au fil des instantanés suivants.
+*/
+func (s *Service) UpdateServerList(ctx context.Context, url string) error {
+	url = strings.TrimSpace(url)
+
+	lower := strings.ToLower(url)
+	if !strings.HasPrefix(lower, "http://") && !strings.HasPrefix(lower, "https://") {
+		return fmt.Errorf("%w : attendu une adresse http:// ou https://", ErrInvalidURL)
+	}
+
+	return s.do(ctx, ec.New(ec.OpServerUpdateFromURL, ec.Text(ec.TagString, url)))
+}
+
+/*
+AddServer ajoute un serveur à la main.
+
+Utile quand on connaît l'adresse d'un serveur qui ne figure sur aucune liste
+publiée — le cas d'un serveur privé, ou d'un serveur récent.
+*/
+func (s *Service) AddServer(ctx context.Context, ip string, port int, name string) error {
+	ip = strings.TrimSpace(ip)
+	fields := map[string]string{}
+
+	if ip == "" {
+		fields["ip"] = "obligatoire"
+	}
+	if port < 1 || port > 65535 {
+		fields["port"] = "doit être compris entre 1 et 65535"
+	}
+	if len(fields) > 0 {
+		return ValidationError{Fields: fields}
+	}
+
+	/*
+		Deux tags FRÈRES, et non un tag et son enfant.
+
+		Le démon lit le nom par une recherche à la racine du paquet. Placé sous
+		l'adresse, il reste invisible : le serveur est bien ajouté, mais sous un
+		nom qui vaut son adresse — un défaut qu'on ne voit qu'en relisant la
+		liste, jamais dans la réponse à la commande.
+	*/
+	tags := []ec.Tag{ec.Text(ec.TagServerAddress, fmt.Sprintf("%s:%d", ip, port))}
+	if name = strings.TrimSpace(name); name != "" {
+		tags = append(tags, ec.Text(ec.TagServerName, name))
+	}
+
+	return s.do(ctx, ec.New(ec.OpServerAdd, tags...))
+}
+
+// RemoveServer retire un serveur de la liste.
+//
+// N'affecte pas la connexion en cours : retirer le serveur auquel on est relié
+// ne déconnecte pas, c'est le démon qui en décide.
+func (s *Service) RemoveServer(ctx context.Context, ip string, port int) error {
+	// Retirer DÉSIGNE un serveur existant : c'est `EC_TAG_SERVER` en six
+	// octets, comme pour la connexion, et non l'adresse textuelle qu'attend
+	// l'ajout. Les deux commandes se ressemblent et ne se parlent pas pareil.
+	tag, ok := ec.IPv4(ec.TagServer, ip, port)
+	if !ok {
+		return ValidationError{Fields: map[string]string{
+			"ip": "attendu une adresse IPv4 littérale et un port valide",
+		}}
+	}
+	return s.do(ctx, ec.New(ec.OpServerRemove, tag))
 }

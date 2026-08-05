@@ -13,15 +13,16 @@
  * permet de repérer les entrées à retirer d'une liste importée il y a deux ans.
  */
 
+import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
-import { Badge } from "@/components/ui";
+import { Badge, Button, Input } from "@/components/ui";
 import { useT } from "@/i18n";
 import * as api from "@/lib/api/endpoints";
 
 import { DASH, useEd2kFormat } from "./format";
 import { PRIORITY_LABELS } from "./labels";
-import { ActionButton, CommandError, PanelAction, useCommand } from "./commands";
+import { ActionButton, CommandError, ConfirmButton, PanelAction, useCommand } from "./commands";
 import { Async, PanelHeader, REFRESH_MS } from "./panel";
 import { Num, Row, Table, Text, type Column } from "./table";
 
@@ -33,7 +34,7 @@ const COLUMNS: Column[] = [
   { key: "ping", label: "ed2k.col.ping", width: "84px", align: "right" },
   { key: "failed", label: "ed2k.col.failed", width: "84px", align: "right" },
   { key: "priority", label: "ed2k.col.priority", width: "104px" },
-  { key: "actions", label: "ed2k.col.actions", width: "110px" },
+  { key: "actions", label: "ed2k.col.actions", width: "170px" },
 ];
 
 export function ServersPanel() {
@@ -41,6 +42,7 @@ export function ServersPanel() {
   const format = useEd2kFormat();
 
   const command = useCommand();
+  const [form, setForm] = useState<"import" | "add" | null>(null);
 
   const query = useQuery({
     queryKey: ["ed2k", "servers"],
@@ -63,6 +65,23 @@ export function ServersPanel() {
           en-tête, là où le choix ligne par ligne reste possible sans être
           imposé.
         */}
+        {/*
+          L'import passe AVANT la connexion, et en bouton principal.
+
+          Sur une instance neuve la liste est vide, et « se connecter » n'a alors
+          rien à joindre : le premier geste est de remplir la liste. Mettre la
+          connexion en tête aurait fait cliquer sur un bouton qui échoue.
+        */}
+        <PanelAction
+          label={t("ed2k.servers.import")}
+          variant="primary"
+          onClick={() => setForm(form === "import" ? null : "import")}
+        />
+        <PanelAction
+          label={t("ed2k.servers.add")}
+          variant="ghost"
+          onClick={() => setForm(form === "add" ? null : "add")}
+        />
         <PanelAction
           label={t("ed2k.servers.connectAuto")}
           busy={command.busy}
@@ -75,6 +94,11 @@ export function ServersPanel() {
           onClick={() => void command.run(() => api.disconnectEd2kServer())}
         />
       </PanelHeader>
+
+      {form === "import" && (
+        <ImportForm command={command} onDone={() => setForm(null)} />
+      )}
+      {form === "add" && <AddServerForm command={command} onDone={() => setForm(null)} />}
 
       <CommandError error={command.error} onDismiss={command.clearError} />
 
@@ -119,7 +143,7 @@ export function ServersPanel() {
 
                 <Text>{t(PRIORITY_LABELS[server.priority])}</Text>
 
-                <span className="min-w-0">
+                <span className="flex min-w-0 items-center gap-1">
                   {server.connected ? (
                     <ActionButton
                       label={t("ed2k.servers.disconnect")}
@@ -137,6 +161,20 @@ export function ServersPanel() {
                       }
                     />
                   )}
+
+                  {/*
+                    Retirer ne détruit rien qu'on ne puisse retrouver : un
+                    ré-import remet la liste. La confirmation en deux temps
+                    protège malgré tout du clic voisin, la colonne étant étroite.
+                  */}
+                  <ConfirmButton
+                    label={t("ed2k.servers.remove")}
+                    confirmLabel={t("ed2k.servers.removeConfirm")}
+                    disabled={command.busy}
+                    onConfirm={() =>
+                      void command.run(() => api.removeEd2kServer(server.ip, server.port))
+                    }
+                  />
                 </span>
               </Row>
             ))}
@@ -144,5 +182,121 @@ export function ServersPanel() {
         )}
       </Async>
     </section>
+  );
+}
+
+/**
+ * Import d'une liste publiée.
+ *
+ * Le champ est une simple adresse : la validation appartient au serveur, qui
+ * n'accepte que http et https — un `file://` ferait lire au démon son propre
+ * disque, et c'est le seul contrôle qui ait un sens ici.
+ */
+function ImportForm({
+  command,
+  onDone,
+}: {
+  command: ReturnType<typeof useCommand>;
+  onDone: () => void;
+}) {
+  const t = useT();
+  const [url, setUrl] = useState("https://upd.emule-security.org/server.met");
+
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        void command.run(() => api.importEd2kServerList(url)).then(onDone);
+      }}
+      className="mb-3 flex flex-wrap items-end gap-2 rounded-lg border border-border bg-surface p-3"
+    >
+      <div className="min-w-[280px] flex-1">
+        <Input
+          name="url"
+          label={t("ed2k.servers.importUrl")}
+          hint={t("ed2k.servers.importHint")}
+          value={url}
+          onChange={(event) => setUrl(event.target.value)}
+          autoComplete="off"
+        />
+      </div>
+
+      <Button type="submit" size="sm" loading={command.busy} disabled={url.trim() === ""}>
+        {t("ed2k.servers.importSubmit")}
+      </Button>
+      <Button type="button" variant="ghost" size="sm" onClick={onDone}>
+        {t("action.cancel")}
+      </Button>
+    </form>
+  );
+}
+
+/** Ajout d'un serveur à la main, pour ce qui ne figure sur aucune liste. */
+function AddServerForm({
+  command,
+  onDone,
+}: {
+  command: ReturnType<typeof useCommand>;
+  onDone: () => void;
+}) {
+  const t = useT();
+  const [ip, setIp] = useState("");
+  const [port, setPort] = useState("4661");
+  const [name, setName] = useState("");
+
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        void command
+          .run(() => api.addEd2kServer({ ip, port: Number(port), name: name || undefined }))
+          .then(onDone);
+      }}
+      className="mb-3 flex flex-wrap items-end gap-2 rounded-lg border border-border bg-surface p-3"
+    >
+      <div className="min-w-[180px] flex-1">
+        <Input
+          name="ip"
+          label={t("ed2k.servers.addIp")}
+          hint={t("ed2k.servers.addHint")}
+          value={ip}
+          onChange={(event) => setIp(event.target.value)}
+          autoComplete="off"
+        />
+      </div>
+
+      <div className="w-24">
+        <Input
+          name="port"
+          label={t("ed2k.servers.addPort")}
+          inputMode="numeric"
+          value={port}
+          onChange={(event) => setPort(event.target.value)}
+          autoComplete="off"
+        />
+      </div>
+
+      <div className="min-w-[160px] flex-1">
+        <Input
+          name="name"
+          label={t("ed2k.servers.addName")}
+          value={name}
+          onChange={(event) => setName(event.target.value)}
+          autoComplete="off"
+        />
+      </div>
+
+      <Button
+        type="submit"
+        size="sm"
+        loading={command.busy}
+        disabled={ip.trim() === "" || port.trim() === ""}
+      >
+        {t("ed2k.servers.addSubmit")}
+      </Button>
+      <Button type="button" variant="ghost" size="sm" onClick={onDone}>
+        {t("action.cancel")}
+      </Button>
+    </form>
   );
 }

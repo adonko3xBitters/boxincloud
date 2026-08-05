@@ -180,7 +180,10 @@ dans le contrat, et elle répondra dès que la configuration changera. Un 404
 ferait conclure à une erreur de version.
 */
 func writeEd2kError(w http.ResponseWriter, r *http.Request, err error) {
-	var invalid amule.ValidationError
+	var (
+		invalid amule.ValidationError
+		refused amule.RefusedError
+	)
 
 	switch {
 	case errors.Is(err, amule.ErrDisabled):
@@ -192,6 +195,11 @@ func writeEd2kError(w http.ResponseWriter, r *http.Request, err error) {
 
 	case errors.As(err, &invalid):
 		problem.Write(w, r, problem.Validation(invalid.Fields))
+
+	// Le démon a répondu, et il a dit non. Ce n'est pas une panne de boxincloud,
+	// et son explication vaut mieux que la nôtre.
+	case errors.As(err, &refused):
+		problem.Write(w, r, problem.DaemonRefused(refused.Detail))
 
 	default:
 		writeInternal(w, r, err)

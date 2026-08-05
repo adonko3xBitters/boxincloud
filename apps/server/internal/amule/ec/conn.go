@@ -25,6 +25,29 @@ var (
 	ErrClosed = errors.New("ec : connexion fermée")
 )
 
+/*
+RefusedError : le démon a compris la commande et l'a rejetée.
+
+Un type plutôt qu'une chaîne formatée, parce que le `Detail` doit ressortir
+INTACT jusqu'à l'écran. « Kad is disabled in preferences » dit exactement quoi
+faire ; noyé dans une phrase à nous, il faudrait le ré-extraire par découpage.
+
+C'est un refus, pas une panne : la distinction porte le statut HTTP.
+*/
+type RefusedError struct {
+	Op     string
+	Detail string
+}
+
+func (e RefusedError) Error() string {
+	if e.Detail == "" {
+		return "le démon a refusé " + e.Op
+	}
+	return "le démon a refusé " + e.Op + " : " + e.Detail
+}
+
+var ()
+
 // Conn est une session External Connections avec un démon aMule.
 //
 // Sûre d'emploi concurrent : les échanges sont sérialisés. Le protocole n'a
@@ -302,10 +325,8 @@ func (c *Conn) exchange(ctx context.Context, req Packet, timeout time.Duration) 
 	// OpFailed porte une explication du démon : la remonter évite de laisser
 	// l'appelant deviner ce qui a déplu.
 	if resp.Op == OpFailed {
-		if detail, ok := resp.Text(TagString); ok && detail != "" {
-			return resp, fmt.Errorf("le démon a refusé %s : %s", req.Op, detail)
-		}
-		return resp, fmt.Errorf("le démon a refusé %s", req.Op)
+		detail, _ := resp.Text(TagString)
+		return resp, RefusedError{Op: req.Op.String(), Detail: detail}
 	}
 
 	return resp, nil
