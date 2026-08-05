@@ -19,7 +19,7 @@ comme la priorité de départ.
 */
 func TestPriorityCodesEtLectureSontDAccord(t *testing.T) {
 	for priority, code := range priorityCodes {
-		relu := mapPartfilePriority(uint64(code)) //nolint:gosec // codes de 0 à 5
+		relu := mapPartfilePriority(code)
 		if relu != priority {
 			t.Errorf("priorité %q écrite en %d, relue %q", priority, code, relu)
 		}

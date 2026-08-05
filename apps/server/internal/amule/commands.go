@@ -164,7 +164,7 @@ une table qui sait rendre 11, ce qu'aucun démon n'attend en entrée.
 Les deux tables doivent rester d'accord. Un test les compare, plutôt que de
 faire confiance à la relecture.
 */
-var priorityCodes = map[Priority]int{
+var priorityCodes = map[Priority]uint64{
 	PriorityLow:      prLow,
 	PriorityNormal:   prNormal,
 	PriorityHigh:     prHigh,
@@ -192,7 +192,7 @@ func (s *Service) SetDownloadPriority(ctx context.Context, hash string, priority
 	}
 
 	tag := ec.Hash(ec.TagPartfile, raw)
-	tag.Children = []ec.Tag{ec.Uint(ec.TagPartfilePrio, uint64(code))}
+	tag.Children = []ec.Tag{ec.Uint(ec.TagPartfilePrio, code)}
 
 	return s.do(ctx, ec.New(ec.OpPartfilePrioSet, tag))
 }
