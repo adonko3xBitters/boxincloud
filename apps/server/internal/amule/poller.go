@@ -294,6 +294,20 @@ type poller struct {
 	snapshot *Snapshot
 	state    State
 
+	/*
+		conn est la session ouverte par la boucle, ou nil.
+
+		Exposée aux commandes par Session(). Partager la session PLUTÔT que d'en
+		ouvrir une par commande économise une connexion et une authentification
+		à chaque clic — soit une centaine de millisecondes sur un geste dont on
+		attend qu'il paraisse instantané.
+
+		Le partage est sûr sans verrou supplémentaire : ec.Conn sérialise
+		lui-même ses échanges. Une commande envoyée pendant une collecte attend
+		son tour, et aucune des deux ne peut lire la réponse de l'autre.
+	*/
+	conn *ec.Conn
+
 	started   atomic.Bool
 	startOnce sync.Once
 	stopOnce  sync.Once
@@ -437,7 +451,9 @@ func (p *poller) run(ctx context.Context) {
 		delay = p.opts.MinReconnect
 		p.setState(StateConnected, "session External Connections ouverte")
 
+		p.setSession(conn)
 		err = p.pollLoop(ctx, conn)
+		p.setSession(nil)
 		closeSession(conn)
 
 		switch {
@@ -567,6 +583,43 @@ func (p *poller) wait(ctx context.Context, d time.Duration) bool {
 		return true
 	case <-tick:
 		return true
+	}
+}
+
+// setSession publie la session courante, ou la retire.
+func (p *poller) setSession(conn *ec.Conn) {
+	p.mu.Lock()
+	p.conn = conn
+	p.mu.Unlock()
+}
+
+/*
+Session rend la session ouverte par la boucle, ou nil.
+
+Nil signifie « pas de session en cours » : la scrutation dort faute de
+spectateur, ou le démon est injoignable. L'appelant ouvre alors la sienne — une
+commande doit pouvoir partir même quand personne ne regarde.
+*/
+func (p *poller) Session() *ec.Conn {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.conn
+}
+
+/*
+Nudge demande une collecte immédiate.
+
+Après une commande, l'interface doit voir l'effet tout de suite. Sans ce
+réveil, une mise en pause resterait invisible jusqu'à cinq secondes — la
+cadence au repos — et l'utilisateur cliquerait une seconde fois en croyant que
+rien ne s'est passé.
+
+Ne bloque jamais : si un réveil est déjà en attente, un second n'apporte rien.
+*/
+func (p *poller) Nudge() {
+	select {
+	case p.wake <- struct{}{}:
+	default:
 	}
 }
 
