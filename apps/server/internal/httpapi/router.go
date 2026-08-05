@@ -373,6 +373,13 @@ func NewRouter(d Deps) http.Handler {
 			r.Get("/ed2k/search", ed2kHandler.SearchResults)
 			r.Delete("/ed2k/search", ed2kHandler.StopSearch)
 			r.Post("/ed2k/search/{hash}/download", ed2kHandler.DownloadSearchResult)
+
+			// Le pont vers la bibliothèque, et le journal du démon.
+			r.Get("/ed2k/destinations", ed2kHandler.Destinations)
+			r.Put("/ed2k/destinations", ed2kHandler.SetDestination)
+			r.Get("/ed2k/publications", ed2kHandler.Publications)
+			r.Get("/ed2k/logs", ed2kHandler.Logs)
+			r.Delete("/ed2k/logs", ed2kHandler.ClearLogs)
 		})
 
 		// ── Opérations longues sur l'arborescence ───────────────────────

@@ -3179,6 +3179,143 @@ paths:
         "422":
           $ref: "#/components/responses/ValidationFailed"
 
+  /ed2k/destinations:
+    get:
+      operationId: listEd2kDestinations
+      summary: Destinations par catégorie
+      description: |
+        Ce que devient un fichier terminé, selon la catégorie que le démon lui a
+        donnée. C'est la décision fondatrice du module : « Linux » reste sur
+        disque, « BD » entre dans une bibliothèque et devient un album.
+
+        Une catégorie sans règle laisse ses fichiers sur disque — le défaut, et
+        le bon comportement pour tout ce qui n'est pas une bande dessinée.
+      tags: [ed2k]
+      responses:
+        "200":
+          description: Règles déclarées
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [destinations]
+                properties:
+                  destinations:
+                    type: array
+                    items: { $ref: "#/components/schemas/Ed2kDestination" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+    put:
+      operationId: setEd2kDestination
+      summary: Déclarer la destination d'une catégorie
+      description: |
+        Une bibliothèque nulle rétablit le défaut — laisser sur disque — sans
+        faire disparaître le libellé qu'on voudra revoir.
+      tags: [ed2k]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Ed2kDestinationInput" }
+      responses:
+        "200":
+          description: Règle enregistrée
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Ed2kDestination" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /ed2k/publications:
+    get:
+      operationId: listEd2kPublications
+      summary: Ce que le pont a fait
+      description: |
+        Le journal des fichiers terminés et de leur sort : publiés dans une
+        bibliothèque, laissés sur disque, ou en erreur.
+
+        Il existe aussi pour une raison technique : les événements du flux sont
+        DÉRIVÉS de la comparaison de deux instantanés, et un téléchargement qui
+        démarre et se termine entre deux tours n'en produit aucun. La détection
+        repose donc sur l'état, et cette liste est ce qui en garde la trace.
+      tags: [ed2k]
+      parameters:
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 500 }
+      responses:
+        "200":
+          description: Publications récentes
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [publications]
+                properties:
+                  publications:
+                    type: array
+                    items: { $ref: "#/components/schemas/Ed2kPublication" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+
+  /ed2k/logs:
+    get:
+      operationId: getEd2kLogs
+      summary: Journal du démon
+      description: |
+        Le journal d'exploitation, tel que le démon l'écrit. Il n'est pas
+        conservé par boxincloud : amuled tient une fenêtre glissante qu'il perd
+        à chaque redémarrage.
+
+        Le journal de mise au point existe dans le protocole mais n'est pas
+        exposé : il noierait ce qu'on vient chercher ici.
+      tags: [ed2k]
+      responses:
+        "200":
+          description: Lignes du journal, la plus ancienne d'abord
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [lines]
+                properties:
+                  lines:
+                    type: array
+                    items: { type: string }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+    delete:
+      operationId: clearEd2kLogs
+      summary: Vider le journal du démon
+      tags: [ed2k]
+      responses:
+        "202":
+          description: Commande transmise au démon
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+
 components:
   securitySchemes:
     bearerAuth:
@@ -4376,6 +4513,58 @@ components:
         alreadyQueued:
           type: boolean
           description: Déjà présent dans la file de téléchargement.
+
+    Ed2kDestination:
+      type: object
+      description: Ce que devient un fichier terminé d'une catégorie donnée.
+      required: [category, label, folder]
+      properties:
+        category:
+          type: integer
+          description: |
+            La catégorie telle que le démon la numérote. Zéro est sa catégorie
+            par défaut, celle de tout fichier ajouté sans précision.
+        label: { type: string }
+        libraryId:
+          type: string
+          format: uuid
+          description: |
+            Absent signifie « laisser sur disque » — le défaut, et le bon
+            comportement pour ce qui n'est pas une bande dessinée.
+        folder:
+          type: string
+          description: Dossier dans la bibliothèque. Vide pour la racine.
+
+    Ed2kDestinationInput:
+      type: object
+      required: [category, label]
+      properties:
+        category: { type: integer, minimum: 0 }
+        label: { type: string, minLength: 1 }
+        libraryId: { type: string, format: uuid, nullable: true }
+        folder: { type: string }
+
+    Ed2kPublication:
+      type: object
+      description: Le sort d'un fichier terminé.
+      required: [hash, name, size, category, status]
+      properties:
+        hash: { type: string }
+        name: { type: string }
+        size: { type: integer, format: int64 }
+        category: { type: integer }
+        status:
+          type: string
+          enum: [pending, published, skipped, error]
+          description: |
+            `skipped` n'est pas un échec : c'est le cas nominal d'une catégorie
+            qui laisse ses fichiers sur disque.
+        detail: { type: string }
+        libraryId: { type: string, format: uuid }
+        comicId:
+          type: string
+          format: uuid
+          description: L'album créé, quand la publication a réussi.
 
     Problem:
       type: object

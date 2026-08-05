@@ -13,6 +13,7 @@ import (
 	"github.com/adonko3xBitters/boxincloud/server/internal/platform/crypto"
 	"github.com/adonko3xBitters/boxincloud/server/internal/platform/netguard"
 	"github.com/adonko3xBitters/boxincloud/server/internal/platform/sse"
+	"github.com/adonko3xBitters/boxincloud/server/internal/storage"
 )
 
 // Options porte ce que le déploiement décide, par opposition à ce qui
@@ -54,6 +55,12 @@ type Service struct {
 
 	// session porte la scrutation, armée par Start. Voir session.go.
 	session sessionState
+
+	// publisher et incoming forment le pont vers la bibliothèque. Nuls tant
+	// qu'ils ne sont pas branchés : le module fonctionne sans, il ne publie
+	// simplement rien. Voir bridge.go.
+	publisher Publisher
+	incoming  storage.Provider
 }
 
 func NewService(repo Repository, sealer *crypto.Sealer, hub *sse.Hub, opts Options, log *slog.Logger) *Service {

@@ -43,4 +43,23 @@ type Repository interface {
 	// doit pas rafraîchir la date de dernier contact, sans quoi l'interface
 	// affiche « vu à l'instant » pour un démon injoignable depuis une heure.
 	SetState(ctx context.Context, state State, detail string, seen bool) error
+
+	// ─── Pont vers la bibliothèque ───────────────────────────────────────
+
+	ListDestinations(ctx context.Context) ([]Destination, error)
+	GetDestination(ctx context.Context, category int) (Destination, error)
+	SaveDestination(ctx context.Context, d Destination) (Destination, error)
+
+	/*
+		ClaimPublication réserve le traitement d'un fichier terminé.
+
+		Rend false si l'empreinte est déjà connue. C'est ce qui rend le pont
+		idempotent SANS verrou : deux tours de scrutation qui verraient le même
+		fichier terminé ne produiront qu'une publication, le second n'obtenant
+		pas la réservation.
+	*/
+	ClaimPublication(ctx context.Context, p Publication) (bool, error)
+
+	SetPublicationResult(ctx context.Context, hash string, result Publication) error
+	ListPublications(ctx context.Context, limit int) ([]Publication, error)
 }

@@ -35,6 +35,12 @@ type Querier interface {
 	CanAccessLibrary(ctx context.Context, arg CanAccessLibraryParams) (*bool, error)
 	// Le dossier ou l'un de ses ancêtres autorise-t-il ce compte à écrire ?
 	CanWriteFolder(ctx context.Context, arg CanWriteFolderParams) (bool, error)
+	// Réserve une publication.
+	//
+	// L'insertion échoue si l'empreinte est déjà connue : c'est ce qui rend le pont
+	// idempotent sans verrou. Deux tours de scrutation qui verraient le même
+	// fichier terminé ne produiront qu'une publication.
+	ClaimEd2kPublication(ctx context.Context, arg ClaimEd2kPublicationParams) (Ed2kPublication, error)
 	// Un seul backend par défaut : on retire le drapeau aux autres avant de le
 	// poser, l'index unique partiel refuserait sinon la mise à jour.
 	ClearDefaultStorageBackend(ctx context.Context, id uuid.UUID) error
@@ -74,6 +80,7 @@ type Querier interface {
 	DeleteComicPages(ctx context.Context, comicID uuid.UUID) error
 	DeleteDevice(ctx context.Context, arg DeleteDeviceParams) error
 	DeleteEd2kDaemon(ctx context.Context) error
+	DeleteEd2kDestination(ctx context.Context, category int32) error
 	DeleteExpiredSessions(ctx context.Context) (int64, error)
 	DeleteFolderTree(ctx context.Context, arg DeleteFolderTreeParams) (int64, error)
 	DeleteLibrary(ctx context.Context, id uuid.UUID) error
@@ -121,6 +128,9 @@ type Querier interface {
 	// La ligne est unique par construction (CHECK (id) dans la migration), ce qui
 	// permet à toutes ces requêtes de se passer de clé : il n'y a rien à désigner.
 	GetEd2kDaemon(ctx context.Context) (Ed2kDaemon, error)
+	GetEd2kDestination(ctx context.Context, category int32) (Ed2kDestination, error)
+	// Publications : le journal du pont, et la garantie de ne rien publier deux fois.
+	GetEd2kPublication(ctx context.Context, hash string) (Ed2kPublication, error)
 	GetFolder(ctx context.Context, arg GetFolderParams) (Folder, error)
 	GetFolderAccessCode(ctx context.Context, arg GetFolderAccessCodeParams) (GetFolderAccessCodeRow, error)
 	GetFolderByID(ctx context.Context, id uuid.UUID) (Folder, error)
@@ -178,6 +188,9 @@ type Querier interface {
 	// conviendrait pas aux deux.
 	ListComicsPage(ctx context.Context, arg ListComicsPageParams) ([]ListComicsPageRow, error)
 	ListDevicesByUser(ctx context.Context, userID uuid.UUID) ([]Device, error)
+	// Destinations : ce que devient un fichier terminé, selon sa catégorie.
+	ListEd2kDestinations(ctx context.Context) ([]Ed2kDestination, error)
+	ListEd2kPublications(ctx context.Context, limit int32) ([]Ed2kPublication, error)
 	ListExcludedComics(ctx context.Context, libraryID uuid.UUID) ([]Comic, error)
 	ListFavoriteIDs(ctx context.Context, userID uuid.UUID) ([]uuid.UUID, error)
 	ListFavorites(ctx context.Context, arg ListFavoritesParams) ([]ListFavoritesRow, error)
@@ -342,6 +355,7 @@ type Querier interface {
 	// Séparée de l'upsert délibérément : la boucle de scrutation met cet état à
 	// jour, et elle n'a aucune raison de pouvoir réécrire un mot de passe.
 	SetEd2kDaemonState(ctx context.Context, arg SetEd2kDaemonStateParams) error
+	SetEd2kPublicationResult(ctx context.Context, arg SetEd2kPublicationResultParams) error
 	// ─── Favoris ─────────────────────────────────────────────────────────────────
 	SetFavorite(ctx context.Context, arg SetFavoriteParams) error
 	SetFolderAccessCode(ctx context.Context, arg SetFolderAccessCodeParams) (Folder, error)
@@ -382,6 +396,7 @@ type Querier interface {
 	// ─── Appareils ───────────────────────────────────────────────────────────────
 	UpsertDevice(ctx context.Context, arg UpsertDeviceParams) (Device, error)
 	UpsertEd2kDaemon(ctx context.Context, arg UpsertEd2kDaemonParams) (Ed2kDaemon, error)
+	UpsertEd2kDestination(ctx context.Context, arg UpsertEd2kDestinationParams) (Ed2kDestination, error)
 	// Un dossier constaté par le parcours ne perd pas son caractère explicite :
 	// l'utilisateur l'a voulu, y déposer des fichiers ne défait pas sa décision.
 	UpsertFolder(ctx context.Context, arg UpsertFolderParams) (Folder, error)

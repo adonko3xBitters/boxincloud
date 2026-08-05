@@ -298,3 +298,51 @@ func TestIntegrationProgressionEtResultatsRepondent(t *testing.T) {
 		t.Errorf("arrêt d'une recherche inexistante : %v", err)
 	}
 }
+
+// ─── Journaux ────────────────────────────────────────────────────────────────
+
+// TestIntegrationJournauxSontLisibles : le démon écrit dès son démarrage, ce
+// journal n'est donc jamais vide — c'est le seul de ses états qui porte du
+// contenu réel sur une instance au repos.
+func TestIntegrationJournauxSontLisibles(t *testing.T) {
+	env := amuletest.Start(t)
+	svc := testService(t, env)
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	lines, err := svc.Logs(ctx)
+	if err != nil {
+		t.Fatalf("journaux : %v", err)
+	}
+	if len(lines) == 0 {
+		t.Fatal("journal vide : un démon qui vient de démarrer a forcément écrit")
+	}
+
+	// Aucune ligne vide ne doit passer : elles n'apportent rien et l'espacement
+	// se règle à l'affichage.
+	for i, line := range lines {
+		if strings.TrimSpace(line.Text) == "" {
+			t.Errorf("ligne %d vide", i)
+		}
+	}
+	/*
+		Le démon envoie TOUT le journal dans un seul tag, séparé par des sauts
+		de ligne. Un décodeur qui rendrait ce tag tel quel donnerait une unique
+		« ligne » de plusieurs dizaines de kilo-octets — et le test passerait,
+		puisqu'elle n'est ni vide ni absente.
+
+		D'où ce contrôle : un démon qui vient de démarrer écrit une vingtaine de
+		lignes, et aucune ne doit contenir de saut de ligne.
+	*/
+	if len(lines) < 5 {
+		t.Errorf("%d ligne(s) seulement : le journal n'a probablement pas été découpé",
+			len(lines))
+	}
+	for i, line := range lines {
+		if strings.Contains(line.Text, "\n") {
+			t.Fatalf("la ligne %d contient un saut de ligne : le découpage n'a pas eu lieu", i)
+		}
+	}
+
+	t.Logf("%d lignes, la première : %q", len(lines), lines[0].Text)
+}

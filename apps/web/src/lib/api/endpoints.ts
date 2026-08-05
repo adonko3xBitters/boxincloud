@@ -12,7 +12,9 @@ import type {
   Device,
   Ed2kConnection,
   Ed2kDaemon,
+  Ed2kDestination,
   Ed2kDownload,
+  Ed2kPublication,
   Ed2kQueuedPeer,
   Ed2kServer,
   Ed2kSearchResult,
@@ -701,3 +703,22 @@ export const stopEd2kSearch = () => request<void>("/ed2k/search", { method: "DEL
 
 export const downloadEd2kSearchResult = (hash: string) =>
   request<void>(`/ed2k/search/${hash}/download`, { method: "POST" });
+
+// ─── Module eD2k : pont vers la bibliothèque, journaux ───────────────────────
+
+export const listEd2kDestinations = () =>
+  request<{ destinations: Ed2kDestination[] }>("/ed2k/destinations");
+
+export const setEd2kDestination = (input: {
+  category: number;
+  label: string;
+  libraryId?: string | null;
+  folder?: string;
+}) => request<Ed2kDestination>("/ed2k/destinations", { method: "PUT", body: input });
+
+export const listEd2kPublications = (limit = 100) =>
+  request<{ publications: Ed2kPublication[] }>("/ed2k/publications", { query: { limit } });
+
+export const getEd2kLogs = () => request<{ lines: string[] }>("/ed2k/logs");
+
+export const clearEd2kLogs = () => request<void>("/ed2k/logs", { method: "DELETE" });

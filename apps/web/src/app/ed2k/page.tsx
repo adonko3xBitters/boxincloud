@@ -7,7 +7,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { BrandLockup } from "@/components/brand";
 import { Badge, EmptyState, ErrorState, Spinner, cx } from "@/components/ui";
+import { BridgePanel } from "@/components/ed2k/bridge-panel";
 import { DownloadsPanel } from "@/components/ed2k/downloads-panel";
+import { LogsPanel } from "@/components/ed2k/logs-panel";
 import { SearchPanel } from "@/components/ed2k/search-panel";
 import { ServersPanel } from "@/components/ed2k/servers-panel";
 import { SharedPanel } from "@/components/ed2k/shared-panel";
@@ -38,6 +40,8 @@ type SectionKey =
   | "partages"
   | "serveurs"
   | "statistiques"
+  | "bibliotheque"
+  | "journal"
   | "parametres";
 
 type Section = {
@@ -60,6 +64,8 @@ const SECTIONS = [
   { key: "partages", title: "ed2k.section.shared", render: () => <SharedPanel /> },
   { key: "serveurs", title: "ed2k.section.servers", render: () => <ServersPanel /> },
   { key: "statistiques", title: "ed2k.section.stats", render: () => <StatsPanel /> },
+  { key: "bibliotheque", title: "ed2k.section.bridge", render: () => <BridgePanel /> },
+  { key: "journal", title: "ed2k.section.logs", render: () => <LogsPanel /> },
   { key: "parametres", title: "ed2k.section.settings", render: () => null },
 ] as const satisfies readonly [Section, ...Section[]];
 

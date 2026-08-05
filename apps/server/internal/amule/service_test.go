@@ -24,6 +24,9 @@ type fakeRepo struct {
 	stored  *StoredDaemon
 	saveErr error
 	getErr  error
+
+	destinations map[int]Destination
+	publications map[string]Publication
 }
 
 func (f *fakeRepo) GetDaemon(context.Context) (StoredDaemon, error) {
@@ -294,4 +297,65 @@ func rendu(t *testing.T, v any) string {
 		t.Fatalf("sérialisation : %v", err)
 	}
 	return string(body) + " " + fmt.Sprintf("%+v", v)
+}
+
+// ─── Pont vers la bibliothèque ───────────────────────────────────────────────
+//
+// Le dépôt doublé tient les destinations et les publications en mémoire. Cela
+// suffit à exercer le pont : ce qu'il faut vérifier est sa LOGIQUE — qui est
+// publié, qui est laissé sur disque, et qu'un fichier ne l'est pas deux fois —
+// pas la façon dont PostgreSQL range les lignes.
+
+func (f *fakeRepo) ListDestinations(context.Context) ([]Destination, error) {
+	out := make([]Destination, 0, len(f.destinations))
+	for _, d := range f.destinations {
+		out = append(out, d)
+	}
+	return out, nil
+}
+
+func (f *fakeRepo) GetDestination(_ context.Context, category int) (Destination, error) {
+	d, ok := f.destinations[category]
+	if !ok {
+		return Destination{}, ErrNoDestination
+	}
+	return d, nil
+}
+
+func (f *fakeRepo) SaveDestination(_ context.Context, d Destination) (Destination, error) {
+	if f.destinations == nil {
+		f.destinations = map[int]Destination{}
+	}
+	f.destinations[d.Category] = d
+	return d, nil
+}
+
+func (f *fakeRepo) ClaimPublication(_ context.Context, p Publication) (bool, error) {
+	if f.publications == nil {
+		f.publications = map[string]Publication{}
+	}
+	if _, exists := f.publications[p.Hash]; exists {
+		return false, nil
+	}
+	p.Status = PublicationPending
+	f.publications[p.Hash] = p
+	return true, nil
+}
+
+func (f *fakeRepo) SetPublicationResult(_ context.Context, hash string, result Publication) error {
+	p := f.publications[hash]
+	p.Status = result.Status
+	p.Detail = result.Detail
+	p.LibraryID = result.LibraryID
+	p.ComicID = result.ComicID
+	f.publications[hash] = p
+	return nil
+}
+
+func (f *fakeRepo) ListPublications(context.Context, int) ([]Publication, error) {
+	out := make([]Publication, 0, len(f.publications))
+	for _, p := range f.publications {
+		out = append(out, p)
+	}
+	return out, nil
 }

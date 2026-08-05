@@ -900,4 +900,34 @@ export const en: Record<MessageKey, string> = {
   "ed2k.search.shared":
     "The daemon holds one search at a time: starting a new one wipes the previous results, including someone else's.",
 
+
+  // ── Library bridge ─────────────────────────────────────────────────────────
+  "ed2k.section.bridge": "Library",
+  "ed2k.col.category": "Category",
+  "ed2k.col.detail": "Detail",
+  "ed2k.bridge.hint":
+    "What a finished file becomes. The category the daemon gave it decides: stay on disk, or enter a library and become an indexed album.",
+  "ed2k.bridge.rules": "Rules per category",
+  "ed2k.bridge.ruleHint":
+    "The category is the one the daemon numbers — zero is its default. Without a library, the file stays where the daemon put it, which is right for anything that is not a comic.",
+  "ed2k.bridge.label": "Name",
+  "ed2k.bridge.library": "Destination",
+  "ed2k.bridge.folder": "Folder",
+  "ed2k.bridge.onDisk": "Leave on disk",
+  "ed2k.bridge.history": "What the bridge did",
+  "ed2k.bridge.empty": "No finished file",
+  "ed2k.bridge.emptyHint": "Completed downloads will show up here, with what became of them.",
+  "ed2k.pub.pending": "In progress",
+  "ed2k.pub.published": "Published",
+  "ed2k.pub.skipped": "On disk",
+  "ed2k.pub.error": "Failed",
+
+  // ── Daemon log ─────────────────────────────────────────────────────────────
+  "ed2k.section.logs": "Log",
+  "ed2k.logs.hint":
+    "The daemon's operational log. boxincloud does not keep it: amuled holds a sliding window and loses it on every restart.",
+  "ed2k.logs.clear": "Clear",
+  "ed2k.logs.empty": "Empty log",
+  "ed2k.logs.emptyHint": "The daemon has written nothing since it last started.",
+
 };

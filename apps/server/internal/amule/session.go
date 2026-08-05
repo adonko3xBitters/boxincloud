@@ -114,6 +114,19 @@ func (s *Service) Start() {
 		}
 	}
 
+	/*
+		Après chaque instantané, le pont regarde ce qui est terminé.
+
+		Branché ICI plutôt que dans la boucle : la scrutation n'a pas à savoir
+		qu'une bibliothèque existe, et le pont n'a pas à savoir qu'il y a une
+		boucle. Le contexte est détaché — publier un fichier de plusieurs
+		gigaoctets peut durer bien plus qu'un tour de scrutation, et le lier au
+		tour l'interromprait à mi-course.
+	*/
+	p.onSnapshot = func(snapshot *Snapshot) {
+		go s.publishCompleted(context.Background(), snapshot)
+	}
+
 	s.session.poller = p
 	p.Start()
 

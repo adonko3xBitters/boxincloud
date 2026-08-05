@@ -172,9 +172,16 @@ export function Text({
 }: {
   children: ReactNode;
   title?: string;
-  tone?: "fg" | "muted" | "subtle";
+  tone?: "fg" | "muted" | "subtle" | "danger";
 }) {
-  const tones = { fg: "text-fg", muted: "text-muted", subtle: "text-subtle" };
+  const tones = {
+    fg: "text-fg",
+    muted: "text-muted",
+    subtle: "text-subtle",
+    // Un détail d'échec doit se distinguer d'un détail ordinaire : c'est la
+    // seule colonne où l'on cherche du regard ce qui ne va pas.
+    danger: "text-danger",
+  };
 
   return (
     <span className={cx("truncate", tones[tone])} title={title}>

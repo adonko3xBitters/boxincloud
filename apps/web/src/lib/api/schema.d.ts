@@ -1870,6 +1870,88 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/ed2k/destinations": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Destinations par catégorie
+         * @description Ce que devient un fichier terminé, selon la catégorie que le démon lui a
+         *     donnée. C'est la décision fondatrice du module : « Linux » reste sur
+         *     disque, « BD » entre dans une bibliothèque et devient un album.
+         *
+         *     Une catégorie sans règle laisse ses fichiers sur disque — le défaut, et
+         *     le bon comportement pour tout ce qui n'est pas une bande dessinée.
+         */
+        get: operations["listEd2kDestinations"];
+        /**
+         * Déclarer la destination d'une catégorie
+         * @description Une bibliothèque nulle rétablit le défaut — laisser sur disque — sans
+         *     faire disparaître le libellé qu'on voudra revoir.
+         */
+        put: operations["setEd2kDestination"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ed2k/publications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Ce que le pont a fait
+         * @description Le journal des fichiers terminés et de leur sort : publiés dans une
+         *     bibliothèque, laissés sur disque, ou en erreur.
+         *
+         *     Il existe aussi pour une raison technique : les événements du flux sont
+         *     DÉRIVÉS de la comparaison de deux instantanés, et un téléchargement qui
+         *     démarre et se termine entre deux tours n'en produit aucun. La détection
+         *     repose donc sur l'état, et cette liste est ce qui en garde la trace.
+         */
+        get: operations["listEd2kPublications"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ed2k/logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Journal du démon
+         * @description Le journal d'exploitation, tel que le démon l'écrit. Il n'est pas
+         *     conservé par boxincloud : amuled tient une fenêtre glissante qu'il perd
+         *     à chaque redémarrage.
+         *
+         *     Le journal de mise au point existe dans le protocole mais n'est pas
+         *     exposé : il noierait ce qu'on vient chercher ici.
+         */
+        get: operations["getEd2kLogs"];
+        put?: never;
+        post?: never;
+        /** Vider le journal du démon */
+        delete: operations["clearEd2kLogs"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -2806,6 +2888,52 @@ export interface components {
             completeSources: number;
             /** @description Déjà présent dans la file de téléchargement. */
             alreadyQueued: boolean;
+        };
+        /** @description Ce que devient un fichier terminé d'une catégorie donnée. */
+        Ed2kDestination: {
+            /**
+             * @description La catégorie telle que le démon la numérote. Zéro est sa catégorie
+             *     par défaut, celle de tout fichier ajouté sans précision.
+             */
+            category: number;
+            label: string;
+            /**
+             * Format: uuid
+             * @description Absent signifie « laisser sur disque » — le défaut, et le bon
+             *     comportement pour ce qui n'est pas une bande dessinée.
+             */
+            libraryId?: string;
+            /** @description Dossier dans la bibliothèque. Vide pour la racine. */
+            folder: string;
+        };
+        Ed2kDestinationInput: {
+            category: number;
+            label: string;
+            /** Format: uuid */
+            libraryId?: string | null;
+            folder?: string;
+        };
+        /** @description Le sort d'un fichier terminé. */
+        Ed2kPublication: {
+            hash: string;
+            name: string;
+            /** Format: int64 */
+            size: number;
+            category: number;
+            /**
+             * @description `skipped` n'est pas un échec : c'est le cas nominal d'une catégorie
+             *     qui laisse ses fichiers sur disque.
+             * @enum {string}
+             */
+            status: "pending" | "published" | "skipped" | "error";
+            detail?: string;
+            /** Format: uuid */
+            libraryId?: string;
+            /**
+             * Format: uuid
+             * @description L'album créé, quand la publication a réussi.
+             */
+            comicId?: string;
         };
         /**
          * @description Erreur au format RFC 9457, servie avec le type MIME
@@ -5936,6 +6064,132 @@ export interface operations {
             403: components["responses"]["Forbidden"];
             409: components["responses"]["Ed2kDisabled"];
             422: components["responses"]["ValidationFailed"];
+        };
+    };
+    listEd2kDestinations: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Règles déclarées */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        destinations: components["schemas"]["Ed2kDestination"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Ed2kDisabled"];
+        };
+    };
+    setEd2kDestination: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["Ed2kDestinationInput"];
+            };
+        };
+        responses: {
+            /** @description Règle enregistrée */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ed2kDestination"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Ed2kDisabled"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    listEd2kPublications: {
+        parameters: {
+            query?: {
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Publications récentes */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        publications: components["schemas"]["Ed2kPublication"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Ed2kDisabled"];
+        };
+    };
+    getEd2kLogs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Lignes du journal, la plus ancienne d'abord */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        lines: string[];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Ed2kDisabled"];
+        };
+    };
+    clearEd2kLogs: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Commande transmise au démon */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Ed2kDisabled"];
         };
     };
 }

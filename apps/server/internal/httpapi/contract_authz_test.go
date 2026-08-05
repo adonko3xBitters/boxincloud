@@ -108,6 +108,15 @@ func adminOnlyRoutes(h *contractHarness) []adminRoute {
 		{http.MethodGet, "/api/v1/ed2k/search", nil},
 		{http.MethodDelete, "/api/v1/ed2k/search", nil},
 		{http.MethodPost, "/api/v1/ed2k/search/" + strings.Repeat("ab", 16) + "/download", nil},
+
+		// Le pont et les journaux. Les destinations décident où atterrit du
+		// contenu ; les journaux exposent l'activité réseau de l'instance.
+		{http.MethodGet, "/api/v1/ed2k/destinations", nil},
+		{http.MethodPut, "/api/v1/ed2k/destinations",
+			map[string]any{"category": 0, "label": "essai"}},
+		{http.MethodGet, "/api/v1/ed2k/publications", nil},
+		{http.MethodGet, "/api/v1/ed2k/logs", nil},
+		{http.MethodDelete, "/api/v1/ed2k/logs", nil},
 	}
 }
 

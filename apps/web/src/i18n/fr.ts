@@ -929,6 +929,37 @@ export const fr = {
   "ed2k.search.shared":
     "Le démon ne tient qu'une recherche à la fois : en lancer une nouvelle efface les résultats de la précédente, y compris ceux de quelqu'un d'autre.",
 
+
+  // ── Pont vers la bibliothèque ──────────────────────────────────────────────
+  "ed2k.section.bridge": "Bibliothèque",
+  "ed2k.col.category": "Catégorie",
+  "ed2k.col.detail": "Détail",
+  "ed2k.bridge.hint":
+    "Ce qu'un fichier terminé devient. La catégorie donnée par le démon décide : rester sur disque, ou entrer dans une bibliothèque et devenir un album indexé.",
+  "ed2k.bridge.rules": "Règles par catégorie",
+  "ed2k.bridge.ruleHint":
+    "La catégorie est celle que le démon numérote — zéro est la sienne par défaut. Sans bibliothèque, le fichier reste où le démon l'a mis, ce qui est le bon comportement pour tout ce qui n'est pas une bande dessinée.",
+  "ed2k.bridge.label": "Nom",
+  "ed2k.bridge.library": "Destination",
+  "ed2k.bridge.folder": "Dossier",
+  "ed2k.bridge.onDisk": "Laisser sur disque",
+  "ed2k.bridge.history": "Ce que le pont a fait",
+  "ed2k.bridge.empty": "Aucun fichier terminé",
+  "ed2k.bridge.emptyHint":
+    "Les téléchargements achevés apparaîtront ici, avec ce qu'il en a été fait.",
+  "ed2k.pub.pending": "En cours",
+  "ed2k.pub.published": "Publié",
+  "ed2k.pub.skipped": "Sur disque",
+  "ed2k.pub.error": "Échec",
+
+  // ── Journal du démon ───────────────────────────────────────────────────────
+  "ed2k.section.logs": "Journal",
+  "ed2k.logs.hint":
+    "Le journal d'exploitation du démon. Il n'est pas conservé par boxincloud : amuled tient une fenêtre glissante qu'il perd à chaque redémarrage.",
+  "ed2k.logs.clear": "Vider",
+  "ed2k.logs.empty": "Journal vide",
+  "ed2k.logs.emptyHint": "Le démon n'a rien écrit depuis son dernier démarrage.",
+
 } as const;
 
 /** Les clés du catalogue. Toute traduction doit les couvrir toutes. */

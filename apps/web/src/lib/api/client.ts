@@ -34,6 +34,8 @@ export type Ed2kDaemon = Schemas["Ed2kDaemon"];
   l'interface, ce qui est exactement le moment où on veut l'apprendre.
 */
 export type Ed2kSnapshot = Schemas["Ed2kSnapshot"];
+export type Ed2kDestination = Schemas["Ed2kDestination"];
+export type Ed2kPublication = Schemas["Ed2kPublication"];
 export type Ed2kDownload = Schemas["Ed2kDownload"];
 export type Ed2kDownloadStatus = Schemas["Ed2kDownloadStatus"];
 export type Ed2kSourceCounts = Schemas["Ed2kSourceCounts"];
