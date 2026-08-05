@@ -229,7 +229,8 @@ Deux pièges qu'elle nomme explicitement plutôt que de les laisser deviner :
   se contourne pas, elle se met à jour des deux côtés.
 
 Le module doit être actif (`BOXINCLOUD_ED2K_ENABLED=true`) et un démon déclaré
-depuis l'interface, page **eD2k / Kad**.
+depuis l'interface, page **eD2k / Kad**. Le guide complet du module est dans
+[docs/06-ed2k-kad.md](06-ed2k-kad.md).
 
 ---
 

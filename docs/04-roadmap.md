@@ -337,8 +337,9 @@ Par ordre de valeur décroissante pour l'adoption :
 5. **Notifications push** — nouveautés dans une série suivie.
 6. **Applications de bureau** — Flutter desktop, réutilise M5/M6.
 7. **Recommandations** — d'abord par similarité de métadonnées, sans IA.
-8. **Plugins et extensions** — n'ouvrir une API d'extension qu'une fois les frontières internes stabilisées par l'usage.
-9. **IA : organisation, recherche sémantique, OCR, traduction** — puissant, mais coûteux et clivant sur ce public. À traiter en module optionnel, désactivé par défaut, jamais dans le chemin critique.
+8. ~~**eD2k / Kad**~~ — **fait.** Un client complet adossé au démon aMule, avec son pont vers la bibliothèque. Voir [docs/06-ed2k-kad.md](06-ed2k-kad.md). Désactivé par défaut : un client pair-à-pair ouvre des ports et publie l'adresse de l'instance sur deux réseaux publics, ce qui ne doit arriver qu'à qui l'a demandé.
+9. **Plugins et extensions** — n'ouvrir une API d'extension qu'une fois les frontières internes stabilisées par l'usage.
+10. **IA : organisation, recherche sémantique, OCR, traduction** — puissant, mais coûteux et clivant sur ce public. À traiter en module optionnel, désactivé par défaut, jamais dans le chemin critique.
 
 ---
 
