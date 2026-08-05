@@ -859,4 +859,23 @@ export const en: Record<MessageKey, string> = {
   "ed2k.stats.banned": "Banned peers",
   "ed2k.stats.networks": "Network size",
 
+
+  // ── eD2k module commands ───────────────────────────────────────────────────
+  "ed2k.col.actions": "Actions",
+  "ed2k.action.pause": "Pause",
+  "ed2k.action.resume": "Resume",
+  "ed2k.action.cancel": "Cancel",
+  "ed2k.action.cancelConfirm": "Confirm?",
+  "ed2k.link.add": "Add a link",
+  "ed2k.link.label": "ed2k:// link",
+  "ed2k.link.hint":
+    "Paste an ed2k:// link. Its shape is validated by the daemon, which knows it better than we do; only other protocols are refused up front.",
+  "ed2k.link.submit": "Queue it",
+  "ed2k.servers.connect": "Connect",
+  "ed2k.servers.connectAuto": "Connect automatically",
+  "ed2k.servers.disconnect": "Disconnect",
+  "ed2k.shared.reload": "Rescan",
+  "ed2k.kad.start": "Start Kad",
+  "ed2k.kad.stop": "Stop Kad",
+
 };

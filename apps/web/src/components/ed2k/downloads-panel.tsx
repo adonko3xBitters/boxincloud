@@ -16,13 +16,14 @@
 import { Fragment, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
-import { Badge } from "@/components/ui";
+import { Badge, Button, Input } from "@/components/ui";
 import { useT } from "@/i18n";
 import * as api from "@/lib/api/endpoints";
 import type { Ed2kDownload } from "@/lib/api/client";
 
 import { DASH, receivedShare, useEd2kFormat } from "./format";
 import { PRIORITY_LABELS, STATUS_LABELS, STATUS_TONES } from "./labels";
+import { ActionButton, CommandError, ConfirmButton, PanelAction, useCommand } from "./commands";
 import { Async, PanelHeader, REFRESH_MS } from "./panel";
 import { Expansion, Num, Progress, Row, Table, Text, type Column } from "./table";
 
@@ -36,6 +37,7 @@ const COLUMNS: Column[] = [
   { key: "parts", label: "ed2k.col.parts", width: "88px", align: "right" },
   { key: "priority", label: "ed2k.col.priority", width: "96px" },
   { key: "status", label: "ed2k.col.status", width: "120px" },
+  { key: "actions", label: "ed2k.col.actions", width: "150px" },
 ];
 
 export function DownloadsPanel() {
@@ -57,13 +59,25 @@ export function DownloadsPanel() {
     refetchInterval: REFRESH_MS,
   });
 
+  const command = useCommand();
+  const [adding, setAdding] = useState(false);
+
   return (
     <section>
       <PanelHeader
         title={t("ed2k.section.downloads")}
         hint={t("ed2k.downloads.hint")}
         takenAt={query.data?.takenAt}
-      />
+      >
+        <PanelAction
+          label={t("ed2k.link.add")}
+          variant="primary"
+          onClick={() => setAdding((open) => !open)}
+        />
+      </PanelHeader>
+
+      {adding && <AddLinkForm command={command} onDone={() => setAdding(false)} />}
+      <CommandError error={command.error} onDismiss={command.clearError} />
 
       <Async
         query={query}
@@ -81,6 +95,7 @@ export function DownloadsPanel() {
                   onToggle={() =>
                     setOpened((current) => (current === download.hash ? null : download.hash))
                   }
+                  command={command}
                 />
                 {opened === download.hash && (
                   <Expansion>
@@ -101,11 +116,13 @@ function DownloadRow({
   striped,
   expanded,
   onToggle,
+  command,
 }: {
   download: Ed2kDownload;
   striped: boolean;
   expanded: boolean;
   onToggle: () => void;
+  command: ReturnType<typeof useCommand>;
 }) {
   const t = useT();
   const format = useEd2kFormat();
@@ -165,6 +182,34 @@ function DownloadRow({
         <Badge tone={STATUS_TONES[download.status] === "danger" ? "danger" : "neutral"}>
           {t(STATUS_LABELS[download.status])}
         </Badge>
+      </span>
+
+      {/*
+        Un seul bouton de bascule plutôt que deux : « pause » et « reprendre »
+        ne peuvent jamais s'appliquer en même temps, et les afficher tous les
+        deux ferait chercher lequel est actif.
+      */}
+      <span className="flex min-w-0 items-center gap-0.5">
+        {download.status === "paused" ? (
+          <ActionButton
+            label={t("ed2k.action.resume")}
+            disabled={command.busy}
+            onClick={() => void command.run(() => api.actOnEd2kDownload(download.hash, "resume"))}
+          />
+        ) : (
+          <ActionButton
+            label={t("ed2k.action.pause")}
+            disabled={command.busy}
+            onClick={() => void command.run(() => api.actOnEd2kDownload(download.hash, "pause"))}
+          />
+        )}
+
+        <ConfirmButton
+          label={t("ed2k.action.cancel")}
+          confirmLabel={t("ed2k.action.cancelConfirm")}
+          disabled={command.busy}
+          onConfirm={() => void command.run(() => api.actOnEd2kDownload(download.hash, "cancel"))}
+        />
       </span>
     </Row>
   );
@@ -235,5 +280,58 @@ function SourceList({ hash }: { hash: string }) {
         </Table>
       )}
     </Async>
+  );
+}
+
+/**
+ * Ajout d'un lien ed2k://.
+ *
+ * Un champ, pas une boîte de dialogue : le geste consiste à coller et valider,
+ * et une modale ajouterait deux clics à une action qu'on répète.
+ *
+ * Le champ se vide APRÈS le succès seulement. Un lien refusé — mauvais
+ * protocole, forme invalide — doit rester à l'écran pour être corrigé plutôt
+ * que d'être à recoller.
+ */
+function AddLinkForm({
+  command,
+  onDone,
+}: {
+  command: ReturnType<typeof useCommand>;
+  onDone: () => void;
+}) {
+  const t = useT();
+  const [link, setLink] = useState("");
+
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        void command.run(() => api.addEd2kLink(link)).then(() => {
+          setLink("");
+          onDone();
+        });
+      }}
+      className="mb-3 flex flex-wrap items-end gap-2 rounded-lg border border-border bg-surface p-3"
+    >
+      <div className="min-w-[280px] flex-1">
+        <Input
+          name="link"
+          label={t("ed2k.link.label")}
+          hint={t("ed2k.link.hint")}
+          value={link}
+          onChange={(event) => setLink(event.target.value)}
+          placeholder="ed2k://|file|…"
+          autoComplete="off"
+        />
+      </div>
+
+      <Button type="submit" size="sm" loading={command.busy} disabled={link.trim() === ""}>
+        {t("ed2k.link.submit")}
+      </Button>
+      <Button type="button" variant="ghost" size="sm" onClick={onDone}>
+        {t("action.cancel")}
+      </Button>
+    </form>
   );
 }

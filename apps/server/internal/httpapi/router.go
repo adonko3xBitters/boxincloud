@@ -356,6 +356,17 @@ func NewRouter(d Deps) http.Handler {
 			r.Get("/ed2k/servers", ed2kHandler.Servers)
 			r.Get("/ed2k/shared", ed2kHandler.SharedFiles)
 			r.Get("/ed2k/stats", ed2kHandler.Stats)
+
+			// Ce qui agit. Toutes répondent 202 : amuled n'accuse que
+			// réception, jamais l'effet, et prétendre le contraire ferait
+			// croire que la réponse décrit le résultat.
+			r.Post("/ed2k/downloads/{hash}/action", ed2kHandler.Act)
+			r.Put("/ed2k/downloads/{hash}/priority", ed2kHandler.SetPriority)
+			r.Post("/ed2k/links", ed2kHandler.AddLink)
+			r.Post("/ed2k/servers/connect", ed2kHandler.ConnectServer)
+			r.Post("/ed2k/servers/disconnect", ed2kHandler.DisconnectServer)
+			r.Post("/ed2k/kad", ed2kHandler.SetKad)
+			r.Post("/ed2k/shared/reload", ed2kHandler.ReloadShared)
 		})
 
 		// ── Opérations longues sur l'arborescence ───────────────────────

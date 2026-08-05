@@ -87,6 +87,19 @@ func adminOnlyRoutes(h *contractHarness) []adminRoute {
 		{http.MethodGet, "/api/v1/ed2k/servers", nil},
 		{http.MethodGet, "/api/v1/ed2k/shared", nil},
 		{http.MethodGet, "/api/v1/ed2k/stats", nil},
+
+		// Les commandes. Un compte ordinaire ne doit pas pouvoir mettre en
+		// pause le téléchargement d'un autre, ni couper le serveur.
+		{http.MethodPost, "/api/v1/ed2k/downloads/" + strings.Repeat("ab", 16) + "/action",
+			map[string]any{"action": "pause"}},
+		{http.MethodPut, "/api/v1/ed2k/downloads/" + strings.Repeat("ab", 16) + "/priority",
+			map[string]any{"priority": "high"}},
+		{http.MethodPost, "/api/v1/ed2k/links",
+			map[string]any{"link": "ed2k://|file|x|1|" + strings.Repeat("AB", 16) + "|/"}},
+		{http.MethodPost, "/api/v1/ed2k/servers/connect", nil},
+		{http.MethodPost, "/api/v1/ed2k/servers/disconnect", nil},
+		{http.MethodPost, "/api/v1/ed2k/kad", map[string]any{"running": false}},
+		{http.MethodPost, "/api/v1/ed2k/shared/reload", nil},
 	}
 }
 

@@ -24,11 +24,14 @@ import type { Ed2kConnection } from "@/lib/api/client";
 
 import { DASH, useEd2kFormat } from "./format";
 import { ID_LABELS, ID_TONES } from "./labels";
+import { CommandError, PanelAction, useCommand } from "./commands";
 import { Async, PanelHeader, REFRESH_MS } from "./panel";
 
 export function StatsPanel() {
   const t = useT();
   const format = useEd2kFormat();
+
+  const command = useCommand();
 
   const query = useQuery({
     queryKey: ["ed2k", "stats"],
@@ -42,7 +45,28 @@ export function StatsPanel() {
         title={t("ed2k.section.stats")}
         hint={t("ed2k.stats.hint")}
         takenAt={query.data?.takenAt}
-      />
+      >
+        {/*
+          Le bouton suit l'état courant. Kad démarré mais pas encore connecté
+          compte comme démarré : ce qu'on propose est de l'arrêter, pas de le
+          redémarrer.
+        */}
+        {query.data && (
+          <PanelAction
+            label={
+              query.data.connection.kad.running ? t("ed2k.kad.stop") : t("ed2k.kad.start")
+            }
+            busy={command.busy}
+            onClick={() =>
+              void command.run(() =>
+                api.setEd2kKadRunning(!query.data.connection.kad.running),
+              )
+            }
+          />
+        )}
+      </PanelHeader>
+
+      <CommandError error={command.error} onDismiss={command.clearError} />
 
       <Async
         query={query}

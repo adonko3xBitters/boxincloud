@@ -20,6 +20,7 @@ import type {
   Ed2kSource,
   Ed2kStats,
   Ed2kStatus,
+  Ed2kPriority,
   Ed2kUpload,
   Library,
   Manifest,
@@ -645,3 +646,32 @@ export function ed2kEventsURL(): string {
   const url = `${API_BASE}/ed2k/events`;
   return token ? `${url}?token=${encodeURIComponent(token)}` : url;
 }
+
+// ─── Module eD2k : commandes ─────────────────────────────────────────────────
+//
+// Toutes répondent 202 sans corps : amuled n'accuse que réception, jamais
+// l'effet. C'est l'instantané suivant qui dit ce qui s'est passé — et il arrive
+// dans la seconde, la commande réveillant la scrutation.
+
+export type Ed2kDownloadAction = "pause" | "resume" | "stop" | "cancel";
+
+export const actOnEd2kDownload = (hash: string, action: Ed2kDownloadAction) =>
+  request<void>(`/ed2k/downloads/${hash}/action`, { method: "POST", body: { action } });
+
+export const setEd2kDownloadPriority = (hash: string, priority: Ed2kPriority) =>
+  request<void>(`/ed2k/downloads/${hash}/priority`, { method: "PUT", body: { priority } });
+
+export const addEd2kLink = (link: string) =>
+  request<void>("/ed2k/links", { method: "POST", body: { link } });
+
+export const connectEd2kServer = (target?: { ip: string; port: number }) =>
+  request<void>("/ed2k/servers/connect", { method: "POST", body: target ?? {} });
+
+export const disconnectEd2kServer = () =>
+  request<void>("/ed2k/servers/disconnect", { method: "POST" });
+
+export const setEd2kKadRunning = (running: boolean) =>
+  request<void>("/ed2k/kad", { method: "POST", body: { running } });
+
+export const reloadEd2kSharedFiles = () =>
+  request<void>("/ed2k/shared/reload", { method: "POST" });

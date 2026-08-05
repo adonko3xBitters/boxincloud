@@ -888,6 +888,25 @@ export const fr = {
   "ed2k.stats.banned": "Pairs bannis",
   "ed2k.stats.networks": "Taille des réseaux",
 
+
+  // ── Commandes du module eD2k ───────────────────────────────────────────────
+  "ed2k.col.actions": "Actions",
+  "ed2k.action.pause": "Pause",
+  "ed2k.action.resume": "Reprendre",
+  "ed2k.action.cancel": "Annuler",
+  "ed2k.action.cancelConfirm": "Confirmer ?",
+  "ed2k.link.add": "Ajouter un lien",
+  "ed2k.link.label": "Lien ed2k://",
+  "ed2k.link.hint":
+    "Collez un lien ed2k://. La forme est validée par le démon, qui la connaît mieux que nous ; seuls les autres protocoles sont refusés d'emblée.",
+  "ed2k.link.submit": "Mettre en file",
+  "ed2k.servers.connect": "Se connecter",
+  "ed2k.servers.connectAuto": "Connexion automatique",
+  "ed2k.servers.disconnect": "Se déconnecter",
+  "ed2k.shared.reload": "Reparcourir",
+  "ed2k.kad.start": "Démarrer Kad",
+  "ed2k.kad.stop": "Arrêter Kad",
+
 } as const;
 
 /** Les clés du catalogue. Toute traduction doit les couvrir toutes. */

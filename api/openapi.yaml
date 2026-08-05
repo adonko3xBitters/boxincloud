@@ -2853,6 +2853,208 @@ paths:
         "409":
           $ref: "#/components/responses/Ed2kDisabled"
 
+  /ed2k/downloads/{hash}/action:
+    post:
+      operationId: actOnEd2kDownload
+      summary: Agir sur un téléchargement
+      description: |
+        Met en pause, reprend, arrête ou annule un fichier.
+
+        `stop` n'est pas une pause : il libère les sources, et reprendre ensuite
+        les fait toutes rechercher — plusieurs minutes avant que le transfert ne
+        reparte. `pause` les garde.
+
+        `cancel` efface ce qui a été reçu et ne se défait pas.
+
+        La réponse ne confirme rien d'autre que la réception : amuled n'accuse
+        pas l'effet. L'état suivant, servi par le flux d'événements ou par
+        `/ed2k/snapshot`, fait foi.
+      tags: [ed2k]
+      parameters:
+        - $ref: "#/components/parameters/Ed2kHash"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action]
+              properties:
+                action:
+                  type: string
+                  enum: [pause, resume, stop, cancel]
+      responses:
+        "202":
+          description: Commande transmise au démon
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /ed2k/downloads/{hash}/priority:
+    put:
+      operationId: setEd2kDownloadPriority
+      summary: Changer la priorité d'un téléchargement
+      description: |
+        `auto` n'est pas une valeur mais un mode : le démon monte alors la
+        priorité d'un fichier presque terminé et abaisse celle d'un fichier sans
+        source.
+      tags: [ed2k]
+      parameters:
+        - $ref: "#/components/parameters/Ed2kHash"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [priority]
+              properties:
+                priority:
+                  $ref: "#/components/schemas/Ed2kPriority"
+      responses:
+        "202":
+          description: Commande transmise au démon
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /ed2k/links:
+    post:
+      operationId: addEd2kLink
+      summary: Mettre un lien ed2k:// en file
+      description: |
+        Seuls les liens `ed2k://` sont acceptés — ni magnet, ni HTTP. Ce n'est
+        pas une limite temporaire : le module ne parle que ces deux réseaux.
+
+        La grammaire du lien est validée par amuled, pas ici : c'est lui qui la
+        connaît et la fait évoluer. Seul le protocole est vérifié en amont, pour
+        que le refus dise ce qu'on attendait.
+      tags: [ed2k]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [link]
+              properties:
+                link:
+                  type: string
+                  minLength: 1
+                  example: "ed2k://|file|debian.iso|1234|ABCDEF...|/"
+      responses:
+        "202":
+          description: Lien transmis au démon
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /ed2k/servers/connect:
+    post:
+      operationId: connectEd2kServer
+      summary: Joindre un serveur
+      description: |
+        Sans adresse, le démon choisit : il prend le premier serveur de sa liste
+        qui répond. C'est le geste courant — on veut être connecté, rarement à
+        un serveur précis.
+      tags: [ed2k]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ip: { type: string }
+                port: { type: integer, minimum: 1, maximum: 65535 }
+      responses:
+        "202":
+          description: Commande transmise au démon
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+
+  /ed2k/servers/disconnect:
+    post:
+      operationId: disconnectEd2kServer
+      summary: Quitter le serveur courant
+      tags: [ed2k]
+      responses:
+        "202":
+          description: Commande transmise au démon
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+
+  /ed2k/kad:
+    post:
+      operationId: setEd2kKadRunning
+      summary: Démarrer ou arrêter Kad
+      description: |
+        Démarrer n'est pas se connecter : Kad met plusieurs minutes à trouver
+        ses pairs, et l'état distingue les deux.
+
+        Un démon dont la configuration désactive Kad refuse la commande, en
+        disant pourquoi. Le refus remonte tel quel.
+      tags: [ed2k]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [running]
+              properties:
+                running: { type: boolean }
+      responses:
+        "202":
+          description: Commande transmise au démon
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+
+  /ed2k/shared/reload:
+    post:
+      operationId: reloadEd2kSharedFiles
+      summary: Reparcourir les répertoires partagés
+      description: |
+        Le parcours est asynchrone côté démon : la commande rend la main tout de
+        suite, et la liste se met à jour au fil des instantanés suivants.
+      tags: [ed2k]
+      responses:
+        "202":
+          description: Commande transmise au démon
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Ed2kDisabled"
+
 components:
   securitySchemes:
     bearerAuth:

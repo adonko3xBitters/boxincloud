@@ -69,7 +69,15 @@ fausse, ce qui est pire que pas de mesure du tout.
 L'expression exige une majuscule ou un accent, et refuse ce qui contient une
 accolade : `{t("clé")}` est déjà traduit, et le compter serait absurde.
 */
-const JSX_TEXT = />\s*([A-ZÀ-Üa-zà-ü][^<>{}\n]{2,}?)\s*</g;
+/*
+  Le `>` d'une fermeture de balise, jamais celui d'une flèche.
+
+  Sans la garde, `=> Promise<unknown>` est lu comme du texte JSX : le `>` de la
+  flèche ouvre la capture, `Promise` la remplit, et le `<` du générique la
+  ferme. Le contrôle signalait donc une signature TypeScript comme une chaîne
+  française à traduire.
+*/
+const JSX_TEXT = /(?<!=)>\s*([A-ZÀ-Üa-zà-ü][^<>{}\n]{2,}?)\s*</g;
 
 /** Ce qui ressemble à du texte mais n'en est pas. */
 const NOT_TEXT = [

@@ -1647,6 +1647,167 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/ed2k/downloads/{hash}/action": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Agir sur un téléchargement
+         * @description Met en pause, reprend, arrête ou annule un fichier.
+         *
+         *     `stop` n'est pas une pause : il libère les sources, et reprendre ensuite
+         *     les fait toutes rechercher — plusieurs minutes avant que le transfert ne
+         *     reparte. `pause` les garde.
+         *
+         *     `cancel` efface ce qui a été reçu et ne se défait pas.
+         *
+         *     La réponse ne confirme rien d'autre que la réception : amuled n'accuse
+         *     pas l'effet. L'état suivant, servi par le flux d'événements ou par
+         *     `/ed2k/snapshot`, fait foi.
+         */
+        post: operations["actOnEd2kDownload"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ed2k/downloads/{hash}/priority": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Changer la priorité d'un téléchargement
+         * @description `auto` n'est pas une valeur mais un mode : le démon monte alors la
+         *     priorité d'un fichier presque terminé et abaisse celle d'un fichier sans
+         *     source.
+         */
+        put: operations["setEd2kDownloadPriority"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ed2k/links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Mettre un lien ed2k:// en file
+         * @description Seuls les liens `ed2k://` sont acceptés — ni magnet, ni HTTP. Ce n'est
+         *     pas une limite temporaire : le module ne parle que ces deux réseaux.
+         *
+         *     La grammaire du lien est validée par amuled, pas ici : c'est lui qui la
+         *     connaît et la fait évoluer. Seul le protocole est vérifié en amont, pour
+         *     que le refus dise ce qu'on attendait.
+         */
+        post: operations["addEd2kLink"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ed2k/servers/connect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Joindre un serveur
+         * @description Sans adresse, le démon choisit : il prend le premier serveur de sa liste
+         *     qui répond. C'est le geste courant — on veut être connecté, rarement à
+         *     un serveur précis.
+         */
+        post: operations["connectEd2kServer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ed2k/servers/disconnect": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Quitter le serveur courant */
+        post: operations["disconnectEd2kServer"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ed2k/kad": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Démarrer ou arrêter Kad
+         * @description Démarrer n'est pas se connecter : Kad met plusieurs minutes à trouver
+         *     ses pairs, et l'état distingue les deux.
+         *
+         *     Un démon dont la configuration désactive Kad refuse la commande, en
+         *     disant pourquoi. Le refus remonte tel quel.
+         */
+        post: operations["setEd2kKadRunning"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ed2k/shared/reload": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reparcourir les répertoires partagés
+         * @description Le parcours est asynchrone côté démon : la commande rend la main tout de
+         *     suite, et la liste se met à jour au fil des instantanés suivants.
+         */
+        post: operations["reloadEd2kSharedFiles"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -5370,6 +5531,203 @@ export interface operations {
                         connection: components["schemas"]["Ed2kConnection"];
                     };
                 };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Ed2kDisabled"];
+        };
+    };
+    actOnEd2kDownload: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description Empreinte eD2k du fichier, en hexadécimal minuscule. C'est l'identité
+                 *     du fichier sur le réseau, et la seule clé stable : le nom change, le
+                 *     numéro interne du démon aussi d'un redémarrage à l'autre.
+                 */
+                hash: components["parameters"]["Ed2kHash"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @enum {string} */
+                    action: "pause" | "resume" | "stop" | "cancel";
+                };
+            };
+        };
+        responses: {
+            /** @description Commande transmise au démon */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Ed2kDisabled"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    setEd2kDownloadPriority: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description Empreinte eD2k du fichier, en hexadécimal minuscule. C'est l'identité
+                 *     du fichier sur le réseau, et la seule clé stable : le nom change, le
+                 *     numéro interne du démon aussi d'un redémarrage à l'autre.
+                 */
+                hash: components["parameters"]["Ed2kHash"];
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    priority: components["schemas"]["Ed2kPriority"];
+                };
+            };
+        };
+        responses: {
+            /** @description Commande transmise au démon */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Ed2kDisabled"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    addEd2kLink: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** @example ed2k://|file|debian.iso|1234|ABCDEF...|/ */
+                    link: string;
+                };
+            };
+        };
+        responses: {
+            /** @description Lien transmis au démon */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Ed2kDisabled"];
+            422: components["responses"]["ValidationFailed"];
+        };
+    };
+    connectEd2kServer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": {
+                    ip?: string;
+                    port?: number;
+                };
+            };
+        };
+        responses: {
+            /** @description Commande transmise au démon */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Ed2kDisabled"];
+        };
+    };
+    disconnectEd2kServer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Commande transmise au démon */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Ed2kDisabled"];
+        };
+    };
+    setEd2kKadRunning: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    running: boolean;
+                };
+            };
+        };
+        responses: {
+            /** @description Commande transmise au démon */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Ed2kDisabled"];
+        };
+    };
+    reloadEd2kSharedFiles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Commande transmise au démon */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];

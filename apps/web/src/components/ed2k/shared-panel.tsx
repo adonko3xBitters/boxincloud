@@ -22,6 +22,7 @@ import * as api from "@/lib/api/endpoints";
 
 import { DASH, useEd2kFormat } from "./format";
 import { PRIORITY_LABELS } from "./labels";
+import { CommandError, PanelAction, useCommand } from "./commands";
 import { Async, PanelHeader, REFRESH_MS } from "./panel";
 import { Num, Row, Table, Text, type Column } from "./table";
 
@@ -39,6 +40,8 @@ export function SharedPanel() {
   const t = useT();
   const format = useEd2kFormat();
 
+  const command = useCommand();
+
   const query = useQuery({
     queryKey: ["ed2k", "shared"],
     queryFn: api.listEd2kSharedFiles,
@@ -54,7 +57,17 @@ export function SharedPanel() {
         title={t("ed2k.section.shared")}
         hint={t("ed2k.shared.hint")}
         takenAt={query.data?.takenAt}
-      />
+      >
+        {/* Le parcours est asynchrone côté démon : le bouton se libère tout de
+            suite, et la liste se remplit au fil des instantanés. */}
+        <PanelAction
+          label={t("ed2k.shared.reload")}
+          busy={command.busy}
+          onClick={() => void command.run(api.reloadEd2kSharedFiles)}
+        />
+      </PanelHeader>
+
+      <CommandError error={command.error} onDismiss={command.clearError} />
 
       <Async
         query={query}
