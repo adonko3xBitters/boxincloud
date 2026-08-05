@@ -185,28 +185,28 @@ func decodeServer(tag ec.Tag) Server {
 			}
 		case ec.TagServerPort:
 			if v, ok := child.Uint(); ok {
-				server.Port = int(v)
+				server.Port = asInt(v)
 			}
 
 		case ec.TagServerPing:
 			if v, ok := child.Uint(); ok {
-				server.Ping = int(v)
+				server.Ping = asInt(v)
 			}
 		case ec.TagServerUsers:
 			if v, ok := child.Uint(); ok {
-				server.Users = int(v)
+				server.Users = asInt(v)
 			}
 		case ec.TagServerUsersMax:
 			if v, ok := child.Uint(); ok {
-				server.MaxUsers = int(v)
+				server.MaxUsers = asInt(v)
 			}
 		case ec.TagServerFiles:
 			if v, ok := child.Uint(); ok {
-				server.Files = int(v)
+				server.Files = asInt(v)
 			}
 		case ec.TagServerFailed:
 			if v, ok := child.Uint(); ok {
-				server.Failed = int(v)
+				server.Failed = asInt(v)
 			}
 
 		case ec.TagServerStatic:
@@ -398,10 +398,10 @@ type qui les contienne, et « 1.0.0.0 » arrive donc sur un seul octet.
 */
 func serverIPv4FromUint(v uint64) string {
 	addr := netip.AddrFrom4([4]byte{
-		byte(v),
-		byte(v >> 8),
-		byte(v >> 16),
-		byte(v >> 24),
+		asByte(v),
+		asByte(v >> 8),
+		asByte(v >> 16),
+		asByte(v >> 24),
 	})
 	return addr.String()
 }

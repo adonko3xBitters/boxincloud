@@ -3,6 +3,7 @@ package amule
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log/slog"
 	"sync"
 	"sync/atomic"
@@ -83,17 +84,30 @@ func (f dialerFunc) Open(ctx context.Context) (*ec.Conn, error) { return f(ctx) 
 /*
 ecCollector est le collecteur réel, celui qui interroge le démon.
 
-À CETTE ÉTAPE il ne rapporte que l'horodatage. Les fonctions qui demandent la
-file, les serveurs, l'état de connexion, les statistiques, les envois et les
-fichiers partagés — requestXxx/decodeXxx — vivent dans les fichiers mapping_*.go
-du même paquet et sont écrites en parallèle. Leur branchement est le geste
-d'INTÉGRATION : une ligne par domaine dans Collect, et rien d'autre à changer
-ici. C'est tout l'intérêt d'avoir passé par une interface.
+Six allers-retours pour un instantané complet. Le protocole n'offre pas de
+requête unique qui rendrait tout, et les grouper n'aurait pas de sens : ils sont
+sérialisés sur la même session, sans identifiant de corrélation.
 
-L'aller-retour EC_OP_GET_CONNSTATE, lui, est déjà indispensable et le restera :
-c'est la requête la moins coûteuse du protocole, et c'est ce qui fait CONSTATER
-la perte de la session. Sans elle, la boucle tournerait indéfiniment sans jamais
-s'apercevoir que le démon est parti.
+L'ORDRE compte, et pas pour des raisons esthétiques.
+
+L'état de connexion vient EN PREMIER. C'est la requête la moins coûteuse du
+protocole, et c'est elle qui fait constater la perte de la session : la placer
+en tête fait échouer tout l'instantané tout de suite, plutôt qu'après avoir
+demandé une file de mille fichiers à un démon qui n'est plus là.
+
+Les fichiers partagés viennent EN DERNIER. C'est de loin la réponse la plus
+lourde — une bibliothèque de dizaines de milliers de fichiers y passe en
+entier — et la seule dont l'absence n'empêche pas d'afficher quelque chose
+d'utile.
+
+# Un échec partiel reste un échec
+
+Aucune des six requêtes n'est tolérée en erreur. Un instantané où les serveurs
+manqueraient sans que rien ne le dise ferait afficher « aucun serveur » à
+quelqu'un qui en a douze, et la comparaison avec l'instantané suivant
+produirait douze faux événements de disparition puis douze de réapparition.
+Mieux vaut ne pas rendre d'instantané du tout : la boucle réessaie au tour
+suivant, et l'interface garde le dernier état cohérent.
 */
 type ecCollector struct{}
 
@@ -104,12 +118,71 @@ func (ecCollector) Collect(ctx context.Context, conn *ec.Conn) (Snapshot, error)
 
 	snapshot := Snapshot{TakenAt: time.Now()}
 
-	if _, err := conn.Do(ctx, ec.New(ec.OpGetConnstate)); err != nil {
-		return Snapshot{}, err
+	// Chaque étape nomme ce qu'elle demandait : « réception après OpStatReq »
+	// ne dit pas à quelqu'un qui lit un journal ce qui manquait à l'écran.
+	steps := []struct {
+		what    string
+		request ec.Packet
+		apply   func(ec.Packet) error
+	}{
+		{"état de connexion", requestConnection(), func(p ec.Packet) error {
+			connection, err := decodeConnection(p)
+			snapshot.Connection = connection
+			return err
+		}},
+		{"statistiques", requestStats(), func(p ec.Packet) error {
+			stats, err := decodeStats(p)
+			snapshot.Stats = stats
+			return err
+		}},
+		{"file de téléchargement", requestDownloads(), func(p ec.Packet) error {
+			downloads, err := decodeDownloads(p)
+			snapshot.Downloads = downloads
+			return err
+		}},
+		{"serveurs", requestServers(), func(p ec.Packet) error {
+			servers, err := decodeServers(p)
+			snapshot.Servers = servers
+			return err
+		}},
+		{"envois", requestUploads(), func(p ec.Packet) error {
+			uploads, queued, err := decodeUploads(p)
+			snapshot.Uploads = uploads
+			snapshot.QueuedPeers = queued
+			return err
+		}},
+		{"fichiers partagés", requestSharedFiles(), func(p ec.Packet) error {
+			shared, err := decodeSharedFiles(p)
+			snapshot.SharedFiles = shared
+			return err
+		}},
 	}
 
-	// Intégration : renseigner ici Connection, Stats, Downloads, Uploads,
-	// QueuedPeers, Servers et SharedFiles depuis les mapping_*.go.
+	for _, step := range steps {
+		resp, err := conn.Do(ctx, step.request)
+		if err != nil {
+			return Snapshot{}, fmt.Errorf("%s : %w", step.what, err)
+		}
+		if err := step.apply(resp); err != nil {
+			return Snapshot{}, fmt.Errorf("%s : %w", step.what, err)
+		}
+	}
+
+	/*
+		Le serveur joint est connu deux fois, et il faut les réconcilier.
+
+		L'état de connexion porte le serveur auquel on est relié ; la liste des
+		serveurs, elle, les porte tous sans savoir lequel est actif. Sans ce
+		rapprochement, l'interface afficherait une liste où rien ne distingue le
+		serveur courant — alors que le bandeau, juste au-dessus, le nomme.
+	*/
+	if server := snapshot.Connection.Ed2k.Server; server != nil {
+		for i := range snapshot.Servers {
+			if snapshot.Servers[i].IP == server.IP && snapshot.Servers[i].Port == server.Port {
+				snapshot.Servers[i].Connected = true
+			}
+		}
+	}
 
 	return snapshot, nil
 }

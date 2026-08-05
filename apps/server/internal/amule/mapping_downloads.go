@@ -179,7 +179,7 @@ func decodeDownloadIDs(p ec.Packet) (map[uint32]string, error) {
 			continue
 		}
 		if hash := dlChildHashHex(tag, ec.TagPartfileHash); hash != "" {
-			ids[uint32(ecid)] = hash
+			ids[asUint32(ecid)] = hash
 		}
 	}
 	return ids, nil
@@ -519,7 +519,7 @@ func addSource(byFile map[uint32][]Source, tag ec.Tag) {
 	if !ok || fileID == 0 {
 		return
 	}
-	byFile[uint32(fileID)] = append(byFile[uint32(fileID)], sourceFromTag(tag))
+	byFile[asUint32(fileID)] = append(byFile[asUint32(fileID)], sourceFromTag(tag))
 }
 
 // sourceFromTag traduit un tag de pair.
@@ -551,7 +551,7 @@ func sourceFromTag(tag ec.Tag) Source {
 	// croire qu'on peut l'atteindre. Le type Source promet le vide dans ce cas.
 	if !s.LowID {
 		if ip, ok := dlChildUint(tag, ec.TagClientUserIP); ok {
-			s.IP = dlIPv4(uint32(ip))
+			s.IP = dlIPv4(asUint32(ip))
 		}
 	}
 

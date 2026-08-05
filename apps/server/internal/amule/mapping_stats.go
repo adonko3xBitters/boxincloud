@@ -181,39 +181,39 @@ func decodeStats(p ec.Packet) (Stats, error) {
 
 		switch tag.Name {
 		case ec.TagStatsUlSpeed:
-			stats.UpSpeed = int64(v)
+			stats.UpSpeed = asInt64(v)
 		case ec.TagStatsDlSpeed:
-			stats.DownSpeed = int64(v)
+			stats.DownSpeed = asInt64(v)
 
 		// Plafonds déjà convertis en octets par seconde par le démon. Zéro n'est
 		// pas « débit nul » mais « aucune limite » : c'est la valeur
 		// qu'amuled donne à un plafond désactivé (UNLIMITED vaut 0 chez lui), et
 		// c'est ce que documente `Stats`.
 		case ec.TagStatsUlSpeedLimit:
-			stats.UpLimit = int64(v)
+			stats.UpLimit = asInt64(v)
 		case ec.TagStatsDlSpeedLimit:
-			stats.DownLimit = int64(v)
+			stats.DownLimit = asInt64(v)
 
 		case ec.TagStatsUpOverhead:
-			stats.UpOverhead = int64(v)
+			stats.UpOverhead = asInt64(v)
 		case ec.TagStatsDownOverhead:
-			stats.DownOverhead = int64(v)
+			stats.DownOverhead = asInt64(v)
 
 		case ec.TagStatsTotalSrcCount:
-			stats.TotalSources = int(v)
+			stats.TotalSources = asInt(v)
 		case ec.TagStatsBannedCount:
-			stats.BannedPeers = int(v)
+			stats.BannedPeers = asInt(v)
 		case ec.TagStatsUlQueueLen:
-			stats.UploadQueueLength = int(v)
+			stats.UploadQueueLength = asInt(v)
 
 		case ec.TagStatsEd2kUsers:
-			stats.Ed2kUsers = int(v)
+			stats.Ed2kUsers = asInt(v)
 		case ec.TagStatsKadUsers:
-			stats.KadUsers = int(v)
+			stats.KadUsers = asInt(v)
 		case ec.TagStatsEd2kFiles:
-			stats.Ed2kFiles = int(v)
+			stats.Ed2kFiles = asInt(v)
 		case ec.TagStatsKadFiles:
-			stats.KadFiles = int(v)
+			stats.KadFiles = asInt(v)
 		}
 	}
 
@@ -342,7 +342,7 @@ func decodeUpload(tag ec.Tag) Upload {
 			}
 		case ec.TagClientUserPort:
 			if v, ok := child.Uint(); ok {
-				upload.Port = int(v)
+				upload.Port = asInt(v)
 			}
 
 		case ec.TagPartfileName:
@@ -354,23 +354,23 @@ func decodeUpload(tag ec.Tag) Upload {
 			// Déjà en octets par seconde : le démon divise une somme d'octets
 			// par une durée en millisecondes (UploadClient.cpp).
 			if v, ok := child.Uint(); ok {
-				upload.Speed = int64(v)
+				upload.Speed = asInt64(v)
 			}
 
 		case ec.TagClientUploadSession:
 			if v, ok := child.Uint(); ok {
-				upload.SessionUploaded = int64(v)
+				upload.SessionUploaded = asInt64(v)
 				// Le démon n'expose pas d'autre compteur d'octets SORTANTS pour
 				// ce transfert : `Transferred` et `SessionUploaded` portent donc
 				// la même valeur. Le tag voisin qui ressemble à un compteur de
 				// transfert (TagPartfileSizeXfer) mesure l'autre sens — ce que
 				// ce pair NOUS a envoyé — et le recopier ici afficherait un
 				// envoi qui n'a pas eu lieu.
-				upload.Transferred = int64(v)
+				upload.Transferred = asInt64(v)
 			}
 		case ec.TagClientUploadTotal:
 			if v, ok := child.Uint(); ok {
-				upload.TotalUploaded = int64(v)
+				upload.TotalUploaded = asInt64(v)
 			}
 		}
 	}
@@ -399,12 +399,12 @@ func decodeQueuedPeer(tag ec.Tag) QueuedPeer {
 			}
 		case ec.TagClientUserPort:
 			if v, ok := child.Uint(); ok {
-				peer.Port = int(v)
+				peer.Port = asInt(v)
 			}
 
 		case ec.TagClientScore:
 			if v, ok := child.Uint(); ok {
-				peer.Score = int(v)
+				peer.Score = asInt(v)
 			}
 		}
 	}
@@ -504,7 +504,7 @@ func decodeSharedFile(tag ec.Tag) SharedFile {
 			file.Name, _ = child.Text()
 		case ec.TagPartfileSizeFull:
 			if v, ok := child.Uint(); ok {
-				file.Size = int64(v)
+				file.Size = asInt64(v)
 			}
 
 		case ec.TagKnownfileFilename:
@@ -519,15 +519,15 @@ func decodeSharedFile(tag ec.Tag) SharedFile {
 
 		case ec.TagKnownfileReqCountAll:
 			if v, ok := child.Uint(); ok {
-				file.Requests = int64(v)
+				file.Requests = asInt64(v)
 			}
 		case ec.TagKnownfileAcceptCountAll:
 			if v, ok := child.Uint(); ok {
-				file.Accepted = int64(v)
+				file.Accepted = asInt64(v)
 			}
 		case ec.TagKnownfileXferredAll:
 			if v, ok := child.Uint(); ok {
-				file.Transferred = int64(v)
+				file.Transferred = asInt64(v)
 			}
 		}
 	}

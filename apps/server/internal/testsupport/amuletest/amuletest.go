@@ -27,6 +27,21 @@ import (
 	"github.com/testcontainers/testcontainers-go/wait"
 )
 
+/*
+Plafonds de débit du démon de test, en OCTETS par seconde.
+
+Exportés parce qu'ils sont un point de vérification : un test qui décode les
+statistiques les compare à ces valeurs, et c'est ce qui distingue « décodé
+correctement » de « tout à zéro parce que rien n'a été lu ».
+
+aMule les configure en kilo-octets et les rend en octets — la conversion est
+faite ici une fois, plutôt que dans chaque test.
+*/
+const (
+	MaxDownloadBytesPerSecond = 64 * 1024
+	MaxUploadBytesPerSecond   = 32 * 1024
+)
+
 // Env décrit le démon démarré pour un test.
 type Env struct {
 	Host     string // hôte joignable depuis le test
@@ -81,6 +96,20 @@ const bootstrap = `mkdir -p ` + amuleHome +
 // clair et c'est le démon qui compare les empreintes.
 const confTemplate = `[eMule]
 Nick=boxincloud-test
+
+# Des plafonds de débit, alors que ce démon ne transfère jamais rien.
+#
+# Ils ne servent pas à limiter : ils servent de TÉMOIN. Sur un démon au repos,
+# tous les compteurs valent légitimement zéro, si bien qu'un instantané
+# entièrement nul est indiscernable d'un décodeur qui n'aurait rien lu. Deux
+# valeurs non nulles, connues d'avance et stables, rendent la vérification
+# possible.
+#
+# aMule les exprime en kilo-octets par seconde ; l'API du projet, elle, rend
+# des octets par seconde. Voir MaxDownloadBytesPerSecond dans ce paquet.
+MaxDownload=64
+MaxUpload=32
+
 Port=4662
 UDPPort=4672
 UDPEnable=0
