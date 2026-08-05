@@ -26,6 +26,29 @@ export type Ed2kStatus = Schemas["Ed2kStatus"];
 export type Ed2kState = Schemas["Ed2kState"];
 export type Ed2kDaemon = Schemas["Ed2kDaemon"];
 
+/*
+  Lecture du module eD2k.
+
+  Tous dérivés du schéma généré, comme le reste : ce sont des alias, pas des
+  copies. Un champ qui change de nom dans le contrat casse la compilation de
+  l'interface, ce qui est exactement le moment où on veut l'apprendre.
+*/
+export type Ed2kSnapshot = Schemas["Ed2kSnapshot"];
+export type Ed2kDownload = Schemas["Ed2kDownload"];
+export type Ed2kDownloadStatus = Schemas["Ed2kDownloadStatus"];
+export type Ed2kSourceCounts = Schemas["Ed2kSourceCounts"];
+export type Ed2kSource = Schemas["Ed2kSource"];
+export type Ed2kUpload = Schemas["Ed2kUpload"];
+export type Ed2kQueuedPeer = Schemas["Ed2kQueuedPeer"];
+export type Ed2kSharedFile = Schemas["Ed2kSharedFile"];
+export type Ed2kServer = Schemas["Ed2kServer"];
+export type Ed2kConnection = Schemas["Ed2kConnection"];
+export type Ed2kNetworkState = Schemas["Ed2kNetworkState"];
+export type Ed2kKadState = Schemas["Ed2kKadState"];
+export type Ed2kStats = Schemas["Ed2kStats"];
+export type Ed2kPriority = Schemas["Ed2kPriority"];
+export type Ed2kIdType = Schemas["Ed2kIdType"];
+
 /**
  * Base de l'API.
  *

@@ -10,8 +10,17 @@ import type {
   Comic,
   ComicPage,
   Device,
+  Ed2kConnection,
   Ed2kDaemon,
+  Ed2kDownload,
+  Ed2kQueuedPeer,
+  Ed2kServer,
+  Ed2kSharedFile,
+  Ed2kSnapshot,
+  Ed2kSource,
+  Ed2kStats,
   Ed2kStatus,
+  Ed2kUpload,
   Library,
   Manifest,
   Progress,
@@ -593,6 +602,36 @@ export const setEd2kDaemon = (input: {
 }) => request<Ed2kDaemon>("/ed2k/daemon", { method: "PUT", body: input });
 
 export const forgetEd2kDaemon = () => request<void>("/ed2k/daemon", { method: "DELETE" });
+
+/*
+  Lecture du module.
+
+  Chaque réponse porte `takenAt` : le serveur rend le dernier instantané scruté,
+  pas une mesure faite à la demande. Sans cette date, l'interface afficherait
+  des chiffres figés depuis dix minutes avec l'assurance de chiffres frais.
+*/
+
+export const getEd2kSnapshot = () => request<Ed2kSnapshot>("/ed2k/snapshot");
+
+export const listEd2kDownloads = () =>
+  request<{ takenAt: string; downloads: Ed2kDownload[] }>("/ed2k/downloads");
+
+export const listEd2kDownloadSources = (hash: string) =>
+  request<{ takenAt: string; sources: Ed2kSource[] }>(`/ed2k/downloads/${hash}/sources`);
+
+export const listEd2kUploads = () =>
+  request<{ takenAt: string; uploads: Ed2kUpload[]; queuedPeers: Ed2kQueuedPeer[] }>(
+    "/ed2k/uploads",
+  );
+
+export const listEd2kServers = () =>
+  request<{ takenAt: string; servers: Ed2kServer[] }>("/ed2k/servers");
+
+export const listEd2kSharedFiles = () =>
+  request<{ takenAt: string; files: Ed2kSharedFile[] }>("/ed2k/shared");
+
+export const getEd2kStats = () =>
+  request<{ takenAt: string; stats: Ed2kStats; connection: Ed2kConnection }>("/ed2k/stats");
 
 /**
  * Adresse du flux d'événements du module.

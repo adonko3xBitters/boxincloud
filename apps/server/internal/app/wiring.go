@@ -158,8 +158,9 @@ func BuildCore(ctx context.Context, cfg *config.Config, pool *db.Pool, log *slog
 		sealer,
 		sse.NewHub(log, sse.Options{}),
 		amule.Options{
-			Enabled:     cfg.Ed2k.Enabled,
-			IncomingDir: cfg.Ed2k.IncomingDir,
+			Enabled:      cfg.Ed2k.Enabled,
+			IncomingDir:  cfg.Ed2k.IncomingDir,
+			PollInterval: cfg.Ed2k.PollInterval,
 		},
 		log,
 	)

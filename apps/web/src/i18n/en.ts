@@ -660,5 +660,181 @@ export const en: Record<MessageKey, string> = {
 
   "ed2k.next.title": "What is not here yet",
   "ed2k.next.hint":
-    "This step declares the daemon and nothing more: no connection is attempted yet. The External Connections client, the download queue, search, servers and Kad land in the next steps.",
+    "This step reads and does not act: no button pauses, resumes, connects or removes anything. Commands, search and eD2k link submission land in the next step.",
+
+  "ed2k.nav.label": "Module sections",
+  "ed2k.section.dashboard": "Dashboard",
+  "ed2k.section.downloads": "Downloads",
+  "ed2k.section.uploads": "Uploads",
+  "ed2k.section.shared": "Shared",
+  "ed2k.section.servers": "Servers",
+  "ed2k.section.kad": "Kad",
+  "ed2k.section.stats": "Statistics",
+  "ed2k.section.settings": "Settings",
+
+  "ed2k.needsDaemon": "No daemon declared",
+  "ed2k.needsDaemonHint":
+    "There is nothing to read until an aMule daemon is declared. Fill in its address and External Connections password under Settings.",
+  "ed2k.openSettings": "Open settings",
+  "ed2k.takenAt": "Read at {time}",
+  "ed2k.readOnly": "Read-only",
+  "ed2k.yes": "yes",
+  "ed2k.no": "no",
+
+  "ed2k.unit.byte": "B",
+  "ed2k.unit.kilo": "kB",
+  "ed2k.unit.mega": "MB",
+  "ed2k.unit.giga": "GB",
+  "ed2k.unit.tera": "TB",
+  "ed2k.unit.perSecond": "{value}/s",
+  "ed2k.unit.second": "{value} s",
+  "ed2k.unit.minute": "{value} min",
+  "ed2k.unit.hour": "{value} h",
+  "ed2k.unit.day": "{value} d",
+
+  "ed2k.col.name": "Name",
+  "ed2k.col.size": "Size",
+  "ed2k.col.progress": "Progress",
+  "ed2k.col.received": "Done",
+  "ed2k.col.speed": "Speed",
+  "ed2k.col.eta": "Left",
+  "ed2k.col.sources": "Sources",
+  "ed2k.col.parts": "Parts",
+  "ed2k.col.priority": "Priority",
+  "ed2k.col.status": "Status",
+  "ed2k.col.peer": "Peer",
+  "ed2k.col.software": "Client",
+  "ed2k.col.address": "Address",
+  "ed2k.col.rank": "Rank",
+  "ed2k.col.available": "Available",
+  "ed2k.col.file": "File",
+  "ed2k.col.sent": "Sent",
+  "ed2k.col.session": "Session",
+  "ed2k.col.total": "Total",
+  "ed2k.col.score": "Score",
+  "ed2k.col.waiting": "Waiting since",
+  "ed2k.col.path": "Path",
+  "ed2k.col.requests": "Requests",
+  "ed2k.col.accepted": "Served",
+  "ed2k.col.complete": "Complete",
+  "ed2k.col.ping": "Ping",
+  "ed2k.col.users": "Users",
+  "ed2k.col.files": "Files",
+  "ed2k.col.failed": "Failures",
+  "ed2k.col.static": "Pinned",
+  "ed2k.col.description": "Description",
+
+  "ed2k.status.waiting": "Waiting",
+  "ed2k.status.downloading": "Downloading",
+  "ed2k.status.paused": "Paused",
+  "ed2k.status.stopped": "Stopped",
+  "ed2k.status.erroneous": "Failed",
+  "ed2k.status.completing": "Completing",
+  "ed2k.status.completed": "Completed",
+  "ed2k.status.hashing": "Hashing",
+  "ed2k.status.allocating": "Allocating",
+  "ed2k.status.unknown": "Unknown state",
+
+  "ed2k.priority.verylow": "Very low",
+  "ed2k.priority.low": "Low",
+  "ed2k.priority.normal": "Normal",
+  "ed2k.priority.high": "High",
+  "ed2k.priority.veryhigh": "Very high",
+  "ed2k.priority.auto": "Auto",
+
+  "ed2k.id.high": "HighID",
+  "ed2k.id.low": "LowID",
+  "ed2k.id.none": "No ID",
+  "ed2k.id.lowHint":
+    "Incoming connections do not get through: sources go via a server, are fewer and drop more often. Open the daemon's TCP port to fix it.",
+
+  "ed2k.dashboard.serverNetwork": "Server network",
+  "ed2k.dashboard.kadNetwork": "Kad network",
+  "ed2k.dashboard.noServer": "No server",
+  "ed2k.dashboard.connecting": "Connecting",
+  "ed2k.dashboard.notConnected": "Not connected",
+  "ed2k.dashboard.activeDownloads": "Active downloads",
+  "ed2k.dashboard.queueLength": "Peers waiting",
+  "ed2k.dashboard.sharedCount": "Shared files",
+  "ed2k.dashboard.knownSources": "Known sources",
+  "ed2k.dashboard.transfers": "What is moving",
+  "ed2k.dashboard.transfersEmpty": "Nothing is moving",
+  "ed2k.dashboard.transfersEmptyHint":
+    "No file is receiving or sending data right now. The queue may be empty, or every source may be queued.",
+  "ed2k.dashboard.seeAll": "See the whole queue",
+
+  "ed2k.downloads.hint":
+    "What the daemon is receiving. A finished file stays here until it is assembled and moved to the incoming directory.",
+  "ed2k.downloads.empty": "Empty queue",
+  "ed2k.downloads.emptyHint":
+    "The daemon is downloading nothing. A file added from aMule, or through an eD2k link, will show up in this list.",
+  "ed2k.downloads.expand": "Show the sources of {name}",
+  "ed2k.downloads.sourcesEmpty": "No source",
+  "ed2k.downloads.sourcesEmptyHint":
+    "None of the peers reached holds this file. A server or Kad has to find one first.",
+  "ed2k.downloads.wasted":
+    "{value} received in excess: corrupted data was rejected on verification.",
+
+  "ed2k.uploads.hint":
+    "What the daemon is sending, and who is waiting. What you give decides what you get: eD2k credits reward the peers you have already served.",
+  "ed2k.uploads.active": "Outgoing transfers",
+  "ed2k.uploads.queue": "Waiting queue",
+  "ed2k.uploads.empty": "No upload",
+  "ed2k.uploads.emptyHint":
+    "Nobody is downloading from this instance right now, and nobody is waiting. That is expected if nothing is shared, or if the daemon just started.",
+  "ed2k.uploads.queueEmpty": "Empty waiting queue",
+
+  "ed2k.shared.hint":
+    "What this instance offers, and what each file actually returned. A file still downloading is shared too — that is how the network works.",
+  "ed2k.shared.empty": "Nothing is shared",
+  "ed2k.shared.emptyHint":
+    "The daemon publishes no file. Check its shared directories in its own configuration: boxincloud reads them, it does not set them.",
+  "ed2k.shared.partial": "partial",
+
+  "ed2k.servers.hint":
+    "Known servers, not just the one in use. A dead server only differs from a never-tried one by its failure counter.",
+  "ed2k.servers.empty": "No known server",
+  "ed2k.servers.emptyHint":
+    "The daemon's list is empty. It fills from a server.met file, loaded by aMule at startup or when its list is updated.",
+  "ed2k.servers.connected": "Connected",
+
+  "ed2k.kad.hint":
+    "Kad needs no server: peers find each other. That is what keeps things running when every server goes down.",
+  "ed2k.kad.running": "Engine running",
+  "ed2k.kad.connected": "Network found",
+  "ed2k.kad.firewalled": "Incoming connections blocked",
+  "ed2k.kad.firewalledUdp": "UDP blocked",
+  "ed2k.kad.firewalledHint":
+    "You can search, but you are harder to find: other peers cannot reach this host.",
+  "ed2k.kad.udpHint":
+    "Kad searches over UDP and transfers over TCP. Both are blocked separately, and a closed UDP port stops every search.",
+  "ed2k.kad.searchingHint":
+    "The engine is running but has not found its peers yet. That takes several minutes on a first start.",
+  "ed2k.kad.stopped": "Kad is stopped",
+  "ed2k.kad.stoppedHint":
+    "The Kademlia engine is not running on this daemon. It is started from aMule's own configuration; boxincloud only reads its state at this step.",
+  "ed2k.kad.users": "Estimated users",
+  "ed2k.kad.files": "Estimated files",
+
+  "ed2k.stats.hint":
+    "The daemon's counters, as it reports them. Network sizes are estimates it computes itself, not measurements.",
+  "ed2k.stats.transfer": "Throughput",
+  "ed2k.stats.network": "Networks",
+  "ed2k.stats.peers": "Peers",
+  "ed2k.stats.downSpeed": "Download",
+  "ed2k.stats.upSpeed": "Upload",
+  "ed2k.stats.downLimit": "Download cap",
+  "ed2k.stats.upLimit": "Upload cap",
+  "ed2k.stats.downOverhead": "Protocol in",
+  "ed2k.stats.upOverhead": "Protocol out",
+  "ed2k.stats.overheadHint":
+    "What the protocol itself consumes, beyond file data. It is the gap between the cap you set and what the router reports.",
+  "ed2k.stats.unlimited": "no cap",
+  "ed2k.stats.totalSources": "Known sources",
+  "ed2k.stats.bannedPeers": "Banned peers",
+  "ed2k.stats.uploadQueue": "Peers waiting",
+  "ed2k.stats.ed2kUsers": "eD2k users",
+  "ed2k.stats.kadUsers": "Kad users",
+  "ed2k.stats.ed2kFiles": "eD2k files",
+  "ed2k.stats.kadFiles": "Kad files",
 };

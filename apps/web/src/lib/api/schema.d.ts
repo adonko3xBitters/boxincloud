@@ -1473,6 +1473,180 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/ed2k/snapshot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * État complet du module en une requête
+         * @description Tout ce que le serveur sait du démon : connexion, compteurs, file de
+         *     téléchargement, envois, file d'attente, serveurs et fichiers partagés.
+         *
+         *     Une seule requête plutôt que six, parce que le serveur les sert de
+         *     toute façon depuis le MÊME instantané : les découper ferait payer six
+         *     allers-retours pour des données déjà cohérentes entre elles, et
+         *     laisserait l'interface afficher une file de téléchargement d'un
+         *     instant à côté de statistiques d'un autre.
+         *
+         *     Les sources d'un fichier n'y sont pas : elles se comptent en centaines
+         *     par fichier et n'intéressent que celui qu'on regarde. Elles ont leur
+         *     propre route.
+         */
+        get: operations["getEd2kSnapshot"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ed2k/downloads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * File de téléchargement
+         * @description Les fichiers en cours de réception, terminés compris tant que le démon
+         *     les garde : un fichier fini reste dans la liste jusqu'à ce qu'il soit
+         *     assemblé et déplacé, et le faire disparaître plus tôt donnerait
+         *     l'impression qu'il a été perdu.
+         *
+         *     L'ordre est celui du démon. Le tri appartient à l'interface, qui seule
+         *     sait sur quelle colonne l'utilisateur a cliqué.
+         */
+        get: operations["listEd2kDownloads"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ed2k/downloads/{hash}/sources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Sources d'un téléchargement
+         * @description Les pairs qui détiennent tout ou partie de ce fichier.
+         *
+         *     Route séparée de la file, et interrogée seulement quand on déplie une
+         *     ligne : un fichier populaire compte plusieurs centaines de sources, et
+         *     les joindre à la file multiplierait par cent le poids d'un écran dont
+         *     on ne regarde qu'une ligne à la fois.
+         */
+        get: operations["listEd2kDownloadSources"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ed2k/uploads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Envois en cours et file d'attente
+         * @description Les deux ensembles arrivent ensemble parce qu'ils se lisent ensemble :
+         *     ce qui part maintenant, et qui attend son tour. Séparés, on ne verrait
+         *     jamais qu'une file de trois cents pairs alimente les cinq transferts
+         *     d'à côté.
+         */
+        get: operations["listEd2kUploads"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ed2k/servers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Serveurs eD2k connus
+         * @description La liste entière, pas seulement le serveur joint : un serveur mort ne
+         *     se distingue d'un serveur qu'on n'a jamais essayé que par son compteur
+         *     d'échecs, et c'est en voyant la liste complète qu'on décide d'en
+         *     changer.
+         */
+        get: operations["listEd2kServers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ed2k/shared": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Fichiers partagés par l'instance
+         * @description Ce que ce démon met à disposition du réseau, avec ce que chaque fichier
+         *     a réellement rapporté. C'est le seul endroit qui répond à « qu'est-ce
+         *     que je donne, et à qui ça sert » — une question qu'on ne se pose qu'une
+         *     fois, mais dont la réponse décide de ce qu'on garde en partage.
+         */
+        get: operations["listEd2kSharedFiles"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/ed2k/stats": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Compteurs du démon
+         * @description Débits, plafonds, tailles estimées des deux réseaux. Séparé de
+         *     l'instantané complet parce qu'un affichage de compteurs se rafraîchit
+         *     plus souvent que des listes de plusieurs centaines de lignes, et n'a
+         *     aucune raison de les transporter à chaque fois.
+         */
+        get: operations["getEd2kStats"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1956,6 +2130,444 @@ export interface components {
             label?: string;
         };
         /**
+         * @description État d'un téléchargement.
+         *
+         *     L'énumération est complète dès maintenant, y compris les valeurs qu'une
+         *     instance ne produit pas encore : ajouter une valeur à une énumération
+         *     de réponse casse un client strict, et la déclarer d'avance évite
+         *     d'imposer cette rupture plus tard.
+         *
+         *     `unknown` est le repli explicite pour un code que le serveur ne
+         *     reconnaît pas. Il vaut mieux qu'une valeur inventée : l'interface peut
+         *     dire « état inconnu » au lieu d'affirmer quelque chose de faux.
+         * @enum {string}
+         */
+        Ed2kDownloadStatus: "waiting" | "downloading" | "paused" | "stopped" | "erroneous" | "completing" | "completed" | "hashing" | "allocating" | "unknown";
+        /**
+         * @description Priorité d'un fichier, en téléchargement comme en partage. `auto`
+         *     signifie que le démon la gère lui-même, ce qui n'est pas une valeur de
+         *     plus dans l'échelle mais l'absence de choix.
+         *
+         *     Énumération complète dès maintenant, pour la même raison
+         *     qu'`Ed2kDownloadStatus`.
+         * @enum {string}
+         */
+        Ed2kPriority: "verylow" | "low" | "normal" | "high" | "veryhigh" | "auto";
+        /**
+         * @description Distingue un client joignable d'un client qui ne l'est pas.
+         *
+         *     - `high` — les connexions entrantes arrivent, tout fonctionne ;
+         *     - `low` — elles n'arrivent pas ; le client reste utilisable mais dépend
+         *       d'intermédiaires, ce qui limite ses sources ;
+         *     - `none` — pas connecté, la question ne se pose pas encore.
+         *
+         *     Énumération complète dès maintenant, pour la même raison
+         *     qu'`Ed2kDownloadStatus`.
+         * @enum {string}
+         */
+        Ed2kIdType: "high" | "low" | "none";
+        /**
+         * @description D'où viennent les sources d'un fichier.
+         *
+         *     Les quatre nombres ne s'additionnent pas : `transferring` est un
+         *     sous-ensemble de `total`, et `a4af` compte des sources qui travaillent
+         *     sur un AUTRE fichier et pourraient basculer sur celui-ci.
+         */
+        Ed2kSourceCounts: {
+            /** Format: int32 */
+            total: number;
+            /**
+             * Format: int32
+             * @description Sources connues mais pas engagées sur ce fichier.
+             */
+            notCurrent: number;
+            /**
+             * Format: int32
+             * @description Sources qui envoient effectivement des données.
+             */
+            transferring: number;
+            /**
+             * Format: int32
+             * @description « Asked For Another File » — sources occupées sur un autre de nos
+             *     fichiers, qui basculeront sur celui-ci quand il aura la priorité.
+             */
+            a4af: number;
+        };
+        /** @description Un fichier en cours de réception. */
+        Ed2kDownload: {
+            /**
+             * @description Empreinte eD2k en hexadécimal minuscule. Identité du fichier sur le
+             *     réseau, et clé stable de l'interface.
+             */
+            hash: string;
+            name: string;
+            /**
+             * Format: int64
+             * @description Taille finale du fichier, en octets.
+             */
+            size: number;
+            /**
+             * Format: int64
+             * @description Octets acquis ET vérifiés. C'est ce nombre qui fait la barre de
+             *     progression.
+             */
+            sizeDone: number;
+            /**
+             * Format: int64
+             * @description Octets ayant transité, corruption comprise. L'écart avec `sizeDone`
+             *     est ce qui explique un téléchargement qui « recule ».
+             */
+            sizeXfer: number;
+            /**
+             * Format: int64
+             * @description Octets par seconde.
+             */
+            speed: number;
+            status: components["schemas"]["Ed2kDownloadStatus"];
+            priority: components["schemas"]["Ed2kPriority"];
+            /**
+             * Format: int32
+             * @description Catégorie du démon. Zéro pour « aucune ».
+             */
+            category: number;
+            sources: components["schemas"]["Ed2kSourceCounts"];
+            /**
+             * Format: int32
+             * @description Nombre de parties du fichier.
+             */
+            partCount: number;
+            /**
+             * Format: int32
+             * @description Parties qu'au moins une source détient. Un fichier dont certaines
+             *     parties manquent partout ne finira jamais, et c'est la seule façon
+             *     de le voir avant d'avoir attendu des heures.
+             */
+            availableParts: number;
+            /**
+             * Format: int64
+             * @description Temps restant estimé, en secondes. **Absent** quand l'estimation
+             *     n'a pas de sens : vitesse nulle, fichier en pause, ou terminé.
+             *     Rendre « l'infini » obligerait chaque client à le détecter.
+             */
+            etaSeconds?: number;
+            /**
+             * Format: date-time
+             * @description Dernière fois qu'une source détenait le fichier entier. Absent si
+             *     cela n'est jamais arrivé — ce qui est en soi l'information.
+             */
+            lastSeenComplete?: string;
+        };
+        /** @description Un pair qui détient tout ou partie d'un fichier. */
+        Ed2kSource: {
+            /**
+             * @description Identifie le client sur le réseau, indépendamment de son IP. C'est
+             *     la seule identité qui survit à un changement d'adresse.
+             */
+            userHash: string;
+            name: string;
+            /** @description « eMule », « aMule », « Shareaza »… */
+            software: string;
+            version: string;
+            /**
+             * @description Vide si le pair est en LowID : il n'a alors pas d'adresse
+             *     joignable.
+             */
+            ip: string;
+            /** Format: int32 */
+            port: number;
+            /**
+             * @description Le pair n'accepte pas de connexion entrante. Il passe par un
+             *     serveur, ce qui coûte plus cher et échoue plus souvent.
+             */
+            lowId: boolean;
+            /**
+             * Format: int64
+             * @description Octets par seconde, sur ce fichier.
+             */
+            speed: number;
+            /**
+             * Format: int32
+             * @description Notre rang dans la file d'attente de ce pair. Zéro signifie « pas
+             *     en file » — soit on transfère, soit il ne nous a pas classés.
+             */
+            queueRank: number;
+            /**
+             * Format: int32
+             * @description Parties que ce pair détient, sur `Ed2kDownload.partCount`.
+             */
+            availableParts: number;
+            /** @description Vrai si ce pair nous envoie des données en ce moment. */
+            downloading: boolean;
+        };
+        /** @description Un transfert sortant en cours. */
+        Ed2kUpload: {
+            userHash: string;
+            name: string;
+            software: string;
+            version: string;
+            ip: string;
+            /** Format: int32 */
+            port: number;
+            /** @description Empreinte eD2k du fichier servi. */
+            fileHash: string;
+            fileName: string;
+            /**
+             * Format: int64
+             * @description Octets par seconde.
+             */
+            speed: number;
+            /**
+             * Format: int64
+             * @description Octets envoyés sur ce transfert.
+             */
+            transferred: number;
+            /**
+             * Format: int64
+             * @description Cumul historique envoyé à ce pair, toutes sessions confondues.
+             *     C'est la base du système de crédits : ce qu'on a donné à quelqu'un
+             *     détermine ce qu'il nous rend.
+             */
+            totalUploaded: number;
+            /**
+             * Format: int64
+             * @description Envoyé depuis que ce pair est connecté.
+             */
+            sessionUploaded: number;
+        };
+        /** @description Un pair en attente d'un de nos fichiers. */
+        Ed2kQueuedPeer: {
+            userHash: string;
+            name: string;
+            ip: string;
+            /** Format: int32 */
+            port: number;
+            fileHash: string;
+            /**
+             * Format: int32
+             * @description Note calculée par le démon : elle mêle ancienneté dans la file et
+             *     crédits acquis. Elle n'est pas un rang — deux pairs peuvent la
+             *     partager.
+             */
+            score: number;
+            /**
+             * Format: date-time
+             * @description Depuis quand ce pair patiente. Absent si le démon l'ignore.
+             */
+            waitedSince?: string;
+        };
+        /** @description Un fichier que cette instance met à disposition. */
+        Ed2kSharedFile: {
+            hash: string;
+            name: string;
+            /** Format: int64 */
+            size: number;
+            /** @description Chemin du fichier tel que le démon le voit, pas ce serveur. */
+            path: string;
+            priority: components["schemas"]["Ed2kPriority"];
+            /**
+             * Format: int64
+             * @description Nombre de fois où le fichier a été demandé.
+             */
+            requests: number;
+            /**
+             * Format: int64
+             * @description Nombre de fois où il a été effectivement servi. L'écart avec
+             *     `requests` mesure ce que la file d'attente a refusé.
+             */
+            accepted: number;
+            /**
+             * Format: int64
+             * @description Octets envoyés depuis ce fichier.
+             */
+            transferred: number;
+            /**
+             * @description Faux pour un fichier encore en cours de téléchargement — il est
+             *     partagé lui aussi, c'est le principe du réseau.
+             */
+            complete: boolean;
+        };
+        /** @description Un serveur eD2k connu de l'instance. */
+        Ed2kServer: {
+            ip: string;
+            /** Format: int32 */
+            port: number;
+            name: string;
+            description: string;
+            version: string;
+            /**
+             * Format: int32
+             * @description Latence en millisecondes. Zéro signifie « jamais mesurée ».
+             */
+            ping: number;
+            /** Format: int32 */
+            users: number;
+            /**
+             * Format: int32
+             * @description Plafond annoncé par le serveur. Zéro signifie « non annoncé ».
+             */
+            maxUsers: number;
+            /** Format: int32 */
+            files: number;
+            /**
+             * Format: int32
+             * @description Échecs de connexion consécutifs. Un serveur mort le reste, et ce
+             *     compteur est ce qui permet de le voir.
+             */
+            failed: number;
+            /**
+             * @description Serveur épinglé par l'utilisateur : il survit aux mises à jour de
+             *     la liste, contrairement aux autres.
+             */
+            static: boolean;
+            priority: components["schemas"]["Ed2kPriority"];
+            /** @description Serveur auquel l'instance est reliée. Un seul à la fois. */
+            connected: boolean;
+        };
+        /**
+         * @description Lien avec le réseau serveur.
+         *
+         *     Nommé `Ed2kNetworkState` et non `Ed2kState` : ce dernier est déjà
+         *     l'énumération qui décrit la situation du MODULE — activé, démon
+         *     déclaré, connecté. Les deux répondent à des questions différentes, et
+         *     leur donner le même nom obligerait à lire le contexte pour savoir
+         *     laquelle on regarde.
+         */
+        Ed2kNetworkState: {
+            connected: boolean;
+            /**
+             * @description Distinct de `connected` : une tentative en cours n'est ni un
+             *     succès ni un échec, et l'interface doit pouvoir dire laquelle des
+             *     trois.
+             */
+            connecting: boolean;
+            /** @description Serveur joint. Absent si aucun. */
+            server?: components["schemas"]["Ed2kServer"];
+            /**
+             * Format: int64
+             * @description Identifiant attribué par le serveur. Sur 32 bits non signés, d'où
+             *     le `int64` — un `int32` ferait déborder la moitié des valeurs
+             *     légitimes en négatif.
+             */
+            clientId: number;
+            id: components["schemas"]["Ed2kIdType"];
+        };
+        /** @description Lien avec le réseau Kademlia. */
+        Ed2kKadState: {
+            /**
+             * @description Le moteur Kad tourne. Distinct de `connected` : un Kad démarré peut
+             *     chercher ses pairs pendant plusieurs minutes.
+             */
+            running: boolean;
+            /** @description Le moteur a trouvé le réseau. */
+            connected: boolean;
+            /**
+             * @description Les connexions entrantes n'arrivent pas. Kad fonctionne alors en
+             *     dégradé — on peut chercher, mais on est moins trouvable.
+             */
+            firewalled: boolean;
+            /**
+             * @description Distinct de `firewalled` : Kad utilise UDP pour ses recherches et
+             *     TCP pour les transferts, et les deux peuvent être bloqués
+             *     séparément.
+             */
+            firewalledUdp: boolean;
+        };
+        /**
+         * @description Les deux réseaux, ensemble. Ils sont indépendants — on peut être
+         *     connecté à Kad sans serveur, et l'inverse — et les afficher séparément
+         *     laisserait croire qu'une panne de l'un est une panne du module.
+         */
+        Ed2kConnection: {
+            ed2k: components["schemas"]["Ed2kNetworkState"];
+            kad: components["schemas"]["Ed2kKadState"];
+        };
+        /** @description Instantané des compteurs du démon. */
+        Ed2kStats: {
+            /**
+             * Format: int64
+             * @description Octets par seconde.
+             */
+            upSpeed: number;
+            /**
+             * Format: int64
+             * @description Octets par seconde.
+             */
+            downSpeed: number;
+            /**
+             * Format: int64
+             * @description Plafond configuré, en octets par seconde. Zéro signifie « aucune
+             *     limite », ce qui n'est pas la même chose que « débit nul ».
+             */
+            upLimit: number;
+            /**
+             * Format: int64
+             * @description Plafond configuré. Zéro signifie « aucune limite ».
+             */
+            downLimit: number;
+            /**
+             * Format: int64
+             * @description Débit consommé par le protocole lui-même, hors données de fichier.
+             *     Sur une liaison domestique, il explique la différence entre le
+             *     plafond réglé et ce que mesure la box.
+             */
+            upOverhead: number;
+            /** Format: int64 */
+            downOverhead: number;
+            /**
+             * Format: int32
+             * @description Sources connues, tous fichiers confondus.
+             */
+            totalSources: number;
+            /**
+             * Format: int32
+             * @description Pairs écartés pour comportement abusif.
+             */
+            bannedPeers: number;
+            /**
+             * Format: int32
+             * @description Pairs qui attendent un de nos fichiers. C'est la mesure de ce qu'on
+             *     doit au réseau.
+             */
+            uploadQueueLength: number;
+            /**
+             * Format: int32
+             * @description Taille estimée du réseau serveur. Zéro tant qu'aucune estimation n'existe.
+             */
+            ed2kUsers: number;
+            /**
+             * Format: int32
+             * @description Taille estimée du réseau Kad.
+             */
+            kadUsers: number;
+            /** Format: int32 */
+            ed2kFiles: number;
+            /** Format: int32 */
+            kadFiles: number;
+        };
+        /**
+         * @description État complet du démon à un instant.
+         *
+         *     C'est l'unité de travail de la scrutation côté serveur : on en prend
+         *     un, on le compare au précédent, et la différence produit les
+         *     événements du flux SSE. Le servir tel quel évite qu'un client
+         *     reconstitue à six requêtes une cohérence que le serveur avait déjà.
+         */
+        Ed2kSnapshot: {
+            /**
+             * Format: date-time
+             * @description Date de l'instantané. L'interface en a besoin pour dire depuis
+             *     combien de temps elle regarde des chiffres qui ne bougent plus.
+             */
+            takenAt: string;
+            connection: components["schemas"]["Ed2kConnection"];
+            stats: components["schemas"]["Ed2kStats"];
+            downloads: components["schemas"]["Ed2kDownload"][];
+            uploads: components["schemas"]["Ed2kUpload"][];
+            queuedPeers: components["schemas"]["Ed2kQueuedPeer"][];
+            servers: components["schemas"]["Ed2kServer"][];
+            sharedFiles: components["schemas"]["Ed2kSharedFile"][];
+        };
+        /**
          * @description Erreur au format RFC 9457, servie avec le type MIME
          *     `application/problem+json`.
          */
@@ -2063,6 +2675,12 @@ export interface components {
         Cursor: string;
         /** @description Nombre d'éléments. Défaut 50, plafond 200. */
         Limit: number;
+        /**
+         * @description Empreinte eD2k du fichier, en hexadécimal minuscule. C'est l'identité
+         *     du fichier sur le réseau, et la seule clé stable : le nom change, le
+         *     numéro interne du démon aussi d'un redémarrage à l'autre.
+         */
+        Ed2kHash: string;
         /**
          * @description Jeton d'accès, accepté en repli pour les requêtes qui ne peuvent pas
          *     porter d'en-tête `Authorization` — une balise `<img>`, par exemple.
@@ -4537,6 +5155,221 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Ed2kDisabled"];
+        };
+    };
+    getEd2kSnapshot: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Instantané courant */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["Ed2kSnapshot"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Ed2kDisabled"];
+        };
+    };
+    listEd2kDownloads: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description File courante */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * Format: date-time
+                         * @description Date de l'instantané d'où sortent ces lignes.
+                         */
+                        takenAt: string;
+                        downloads: components["schemas"]["Ed2kDownload"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Ed2kDisabled"];
+        };
+    };
+    listEd2kDownloadSources: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /**
+                 * @description Empreinte eD2k du fichier, en hexadécimal minuscule. C'est l'identité
+                 *     du fichier sur le réseau, et la seule clé stable : le nom change, le
+                 *     numéro interne du démon aussi d'un redémarrage à l'autre.
+                 */
+                hash: components["parameters"]["Ed2kHash"];
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Sources connues pour ce fichier */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * Format: date-time
+                         * @description Date de l'instantané d'où sortent ces sources.
+                         */
+                        takenAt: string;
+                        sources: components["schemas"]["Ed2kSource"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            404: components["responses"]["NotFound"];
+            409: components["responses"]["Ed2kDisabled"];
+        };
+    };
+    listEd2kUploads: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Transferts sortants et pairs en attente */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * Format: date-time
+                         * @description Date de l'instantané d'où sortent ces lignes.
+                         */
+                        takenAt: string;
+                        /** @description Transferts sortants actifs. */
+                        uploads: components["schemas"]["Ed2kUpload"][];
+                        /** @description Pairs qui attendent un de nos fichiers. */
+                        queuedPeers: components["schemas"]["Ed2kQueuedPeer"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Ed2kDisabled"];
+        };
+    };
+    listEd2kServers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Serveurs connus de l'instance */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * Format: date-time
+                         * @description Date de l'instantané d'où sort cette liste.
+                         */
+                        takenAt: string;
+                        servers: components["schemas"]["Ed2kServer"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Ed2kDisabled"];
+        };
+    };
+    listEd2kSharedFiles: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Fichiers partagés */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * Format: date-time
+                         * @description Date de l'instantané d'où sort cette liste.
+                         */
+                        takenAt: string;
+                        files: components["schemas"]["Ed2kSharedFile"][];
+                    };
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            403: components["responses"]["Forbidden"];
+            409: components["responses"]["Ed2kDisabled"];
+        };
+    };
+    getEd2kStats: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Compteurs courants */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        /**
+                         * Format: date-time
+                         * @description Date de l'instantané d'où sortent ces chiffres.
+                         */
+                        takenAt: string;
+                        stats: components["schemas"]["Ed2kStats"];
+                        connection: components["schemas"]["Ed2kConnection"];
+                    };
+                };
             };
             401: components["responses"]["Unauthorized"];
             403: components["responses"]["Forbidden"];

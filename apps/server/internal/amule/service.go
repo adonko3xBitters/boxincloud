@@ -8,6 +8,7 @@ import (
 	"net"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/adonko3xBitters/boxincloud/server/internal/platform/crypto"
 	"github.com/adonko3xBitters/boxincloud/server/internal/platform/netguard"
@@ -24,6 +25,16 @@ type Options struct {
 	// journal, à la ligne « Connecting client ». C'est ce qui rend une instance
 	// identifiable dans les journaux d'un démon qui en accueille plusieurs.
 	Version string
+
+	// PollInterval est la cadence de base de la scrutation du démon.
+	//
+	// De base seulement : elle se relâche progressivement quand rien ne change,
+	// et s'arrête entièrement quand aucun navigateur n'est abonné au flux
+	// d'événements. Voir poller.go et
+	// docs/adr/005-temps-reel-sse-evenements-derives.md.
+	//
+	// Zéro prend le défaut de la boucle — une seconde.
+	PollInterval time.Duration
 }
 
 /*
