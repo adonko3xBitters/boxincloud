@@ -123,6 +123,11 @@ func (a *App) Run(ctx context.Context) error {
 		a.log.Info("module eD2k/Kad actif",
 			slog.String("incoming_dir", a.cfg.Ed2k.IncomingDir),
 			slog.Duration("poll_interval", a.cfg.Ed2k.PollInterval))
+
+		// Armer, pas connecter : la boucle attend qu'un navigateur regarde
+		// avant d'ouvrir la moindre session. Une instance dont personne
+		// n'ouvre la page ne parle jamais au démon.
+		a.core.Ed2k.Start()
 	} else {
 		a.log.Info("module eD2k/Kad désactivé (BOXINCLOUD_ED2K_ENABLED=false)")
 	}
@@ -159,6 +164,11 @@ func (a *App) shutdown() error {
 	if err := a.http.Shutdown(ctx); err != nil {
 		errs = append(errs, fmt.Errorf("arrêt du serveur HTTP : %w", err))
 	}
+
+	// Avant les workers : la scrutation tient une session vers un démon
+	// extérieur, et rien ne sert de la laisser tourner pendant qu'on attend la
+	// fin des jobs.
+	a.core.Ed2k.Stop()
 
 	// Après le serveur HTTP : un job en cours peut avoir été déclenché par une
 	// requête qui vient tout juste de se terminer.

@@ -51,6 +51,9 @@ type Service struct {
 	hub    *sse.Hub
 	log    *slog.Logger
 	opts   Options
+
+	// session porte la scrutation, armée par Start. Voir session.go.
+	session sessionState
 }
 
 func NewService(repo Repository, sealer *crypto.Sealer, hub *sse.Hub, opts Options, log *slog.Logger) *Service {

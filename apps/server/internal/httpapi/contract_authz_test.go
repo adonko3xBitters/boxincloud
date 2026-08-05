@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 )
 
@@ -75,6 +76,17 @@ func adminOnlyRoutes(h *contractHarness) []adminRoute {
 			"host": "amuled", "port": 4712, "password": "essai",
 		}},
 		{http.MethodDelete, "/api/v1/ed2k/daemon", nil},
+
+		// Les routes de lecture. Elles exposent les adresses IP de pairs
+		// tiers, ce qui suffit à les réserver — indépendamment du fait
+		// qu'elles décrivent ce que l'instance télécharge.
+		{http.MethodGet, "/api/v1/ed2k/snapshot", nil},
+		{http.MethodGet, "/api/v1/ed2k/downloads", nil},
+		{http.MethodGet, "/api/v1/ed2k/downloads/" + strings.Repeat("ab", 16) + "/sources", nil},
+		{http.MethodGet, "/api/v1/ed2k/uploads", nil},
+		{http.MethodGet, "/api/v1/ed2k/servers", nil},
+		{http.MethodGet, "/api/v1/ed2k/shared", nil},
+		{http.MethodGet, "/api/v1/ed2k/stats", nil},
 	}
 }
 

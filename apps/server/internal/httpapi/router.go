@@ -341,6 +341,21 @@ func NewRouter(d Deps) http.Handler {
 			r.Get("/ed2k/daemon", ed2kHandler.GetDaemon)
 			r.Put("/ed2k/daemon", ed2kHandler.SetDaemon)
 			r.Delete("/ed2k/daemon", ed2kHandler.ForgetDaemon)
+
+			// Lecture de l'état. Toutes servent l'instantané que la
+			// scrutation tient à jour, sans parler au démon — sans quoi dix
+			// onglets ouverts décupleraient la charge sur lui.
+			//
+			// La seule exception est la liste des sources d'un fichier, qui
+			// ne figure pas dans l'instantané : la collecter coûterait une
+			// requête par fichier à chaque tour.
+			r.Get("/ed2k/snapshot", ed2kHandler.Snapshot)
+			r.Get("/ed2k/downloads", ed2kHandler.Downloads)
+			r.Get("/ed2k/downloads/{hash}/sources", ed2kHandler.Sources)
+			r.Get("/ed2k/uploads", ed2kHandler.Uploads)
+			r.Get("/ed2k/servers", ed2kHandler.Servers)
+			r.Get("/ed2k/shared", ed2kHandler.SharedFiles)
+			r.Get("/ed2k/stats", ed2kHandler.Stats)
 		})
 
 		// ── Opérations longues sur l'arborescence ───────────────────────
