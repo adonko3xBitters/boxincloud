@@ -1,11 +1,18 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { BrandLockup } from "@/components/brand";
-import { Badge, Button, EmptyState, ErrorState, Input, Spinner, cx } from "@/components/ui";
+import { Badge, EmptyState, ErrorState, Spinner, cx } from "@/components/ui";
+import { DownloadsPanel } from "@/components/ed2k/downloads-panel";
+import { ServersPanel } from "@/components/ed2k/servers-panel";
+import { SharedPanel } from "@/components/ed2k/shared-panel";
+import { StatsPanel } from "@/components/ed2k/stats-panel";
+import { UploadsPanel } from "@/components/ed2k/uploads-panel";
+import { DaemonForm, DisabledNotice } from "@/components/ed2k/settings-panel";
 import * as api from "@/lib/api/endpoints";
 import type { Ed2kState, Ed2kStatus } from "@/lib/api/client";
 import { useCurrentUser, useRequireAuth } from "@/lib/auth";
@@ -14,20 +21,46 @@ import { useT, type MessageKey } from "@/i18n";
 /**
  * Module eD2k / Kad.
  *
- * Une page, comme la configuration : une adresse qu'on garde en signet, un
- * bouton Retour qui fait ce qu'on attend, et toute la largeur pour des tableaux
- * qui seront denses.
+ * Une page à rail latéral, sur le patron de la configuration : la section vit
+ * dans l'URL, ce qui la rend partageable, rechargeable, et compatible avec le
+ * bouton Retour.
  *
- * # Pourquoi il n'y a pas encore de rail latéral
- *
- * La cible en porte un — Téléchargements, Recherche, Partagés, Serveurs, Kad,
- * Statistiques, Journal, Paramètres. À cette étape, sept de ces huit entrées
- * n'ouvriraient sur rien.
- *
- * Un rail de portes mortes est pire que pas de rail : il promet huit écrans,
- * n'en tient qu'un, et rien ne dit lesquels sont vides avant d'avoir cliqué
- * partout. Les entrées apparaîtront à mesure que leur contenu existe.
+ * Le rail n'apparaît que maintenant. Tant que six de ses sept entrées
+ * n'ouvraient sur rien, il aurait promis sept écrans pour n'en tenir qu'un, et
+ * rien n'aurait dit lesquels étaient vides avant d'avoir cliqué partout.
  */
+
+type SectionKey =
+  | "telechargements"
+  | "envois"
+  | "partages"
+  | "serveurs"
+  | "statistiques"
+  | "parametres";
+
+type Section = {
+  key: SectionKey;
+  title: MessageKey;
+  /** Rendu du panneau. Une fonction, pour n'en monter qu'un à la fois. */
+  render: () => React.ReactNode;
+};
+
+/*
+  Un tuple, pas un tableau : le premier élément est la section par défaut, et
+  le typage doit garantir qu'il existe. Avec un `Section[]`, `SECTIONS[0]` est
+  « peut-être indéfini » — et le repli qu'il faudrait écrire ne pourrait mener
+  nulle part.
+*/
+const SECTIONS = [
+  { key: "telechargements", title: "ed2k.section.downloads", render: () => <DownloadsPanel /> },
+  { key: "envois", title: "ed2k.section.uploads", render: () => <UploadsPanel /> },
+  { key: "partages", title: "ed2k.section.shared", render: () => <SharedPanel /> },
+  { key: "serveurs", title: "ed2k.section.servers", render: () => <ServersPanel /> },
+  { key: "statistiques", title: "ed2k.section.stats", render: () => <StatsPanel /> },
+  { key: "parametres", title: "ed2k.section.settings", render: () => null },
+] as const satisfies readonly [Section, ...Section[]];
+
+
 export default function Page() {
   const authenticated = useRequireAuth();
 
@@ -39,7 +72,15 @@ export default function Page() {
     );
   }
 
-  return <Ed2kCenter />;
+  /*
+    `useSearchParams` suspend au premier rendu en export statique : la page est
+    construite sans connaître l'URL sous laquelle elle sera servie.
+  */
+  return (
+    <Suspense fallback={<Frame />}>
+      <Ed2kCenter />
+    </Suspense>
+  );
 }
 
 /** Libellé d'un état. Le serveur rend un code stable, l'interface le traduit. */
@@ -61,6 +102,8 @@ const STATE_TONES: Record<Ed2kState, "neutral" | "accent" | "success" | "warning
 
 function Ed2kCenter() {
   const t = useT();
+  const router = useRouter();
+  const params = useSearchParams();
   const { data: user } = useCurrentUser();
 
   const status = useQuery({
@@ -68,15 +111,10 @@ function Ed2kCenter() {
     queryFn: api.getEd2kStatus,
   });
 
-  /*
-    Le flux d'événements écrit dans le cache de requêtes.
-
-    Aucun composant ne connaît EventSource : ils lisent une requête, comme
-    partout ailleurs dans l'application. C'est ce qui permettra d'ajouter des
-    panneaux sans que chacun gère sa propre connexion — et de n'en ouvrir
-    qu'UNE, quel que soit le nombre de panneaux affichés.
-  */
   useEd2kEvents(status.isSuccess);
+
+  const requested = params.get("section") as SectionKey | null;
+  const active = SECTIONS.find((s) => s.key === requested) ?? SECTIONS[0];
 
   // L'API refuserait de toute façon ; le dire ici évite un écran d'erreur pour
   // ce qui est une question de droits, pas une panne.
@@ -106,18 +144,56 @@ function Ed2kCenter() {
     );
   }
 
-  return (
-    <Frame>
-      <Header status={status.data} />
+  /*
+    Module éteint : ni rail, ni panneaux.
 
-      {status.data.enabled ? (
-        <div className="mt-4 flex flex-col gap-4">
-          <DaemonForm status={status.data} />
-          <NextStep />
-        </div>
-      ) : (
+    Les six premières sections interrogeraient une API qui répond 409, et la
+    septième proposerait de déclarer un démon que rien n'irait joindre. Un
+    écran qui dit pourquoi, et comment l'activer, vaut mieux que sept écrans
+    qui échouent chacun à leur façon.
+  */
+  if (!status.data.enabled) {
+    return (
+      <Frame status={status.data}>
         <DisabledNotice />
-      )}
+      </Frame>
+    );
+  }
+
+  return (
+    <Frame status={status.data}>
+      <div className="flex min-h-0 flex-1 gap-4">
+        <nav
+          aria-label={t("ed2k.title")}
+          className="w-44 shrink-0 border-r border-border pr-2"
+        >
+          {SECTIONS.map((section) => (
+            <button
+              key={section.key}
+              onClick={() => router.push(`/ed2k?section=${section.key}`)}
+              aria-current={section.key === active.key ? "page" : undefined}
+              className={cx(
+                "pressable mb-0.5 block w-full rounded px-2 py-1.5 text-left text-ui",
+                section.key === active.key
+                  ? "bg-accent-subtle font-medium text-accent-text"
+                  : "text-muted hover:bg-surface-hover hover:text-fg",
+              )}
+            >
+              {t(section.title)}
+            </button>
+          ))}
+        </nav>
+
+        <div className="min-w-0 flex-1">
+          {active.key === "parametres" ? (
+            <div className="flex flex-col gap-4">
+              <DaemonForm status={status.data} />
+            </div>
+          ) : (
+            active.render()
+          )}
+        </div>
+      </div>
     </Frame>
   );
 }
@@ -128,6 +204,11 @@ function Ed2kCenter() {
  * Un seul `EventSource` pour toute la page. Il n'est ouvert qu'une fois l'état
  * initial chargé : sans cela, un jeton pas encore rafraîchi ferait échouer la
  * connexion, et `EventSource` réessaierait en boucle sans jamais le dire.
+ *
+ * Il porte aujourd'hui l'état du module et les changements de session. Les
+ * panneaux, eux, redemandent leur instantané à leur propre cadence — le jour où
+ * le flux portera un événement par domaine, c'est ici que l'écriture directe
+ * dans le cache remplacera ce sondage, sans qu'aucun panneau ne change.
  */
 function useEd2kEvents(ready: boolean) {
   const queryClient = useQueryClient();
@@ -147,251 +228,32 @@ function useEd2kEvents(ready: boolean) {
       }
     });
 
+    /*
+      Un changement de session invalide tout ce qui vient du démon.
+
+      Quand la connexion tombe ou revient, les instantanés en cache décrivent un
+      autre monde. Les invalider fait repartir chaque panneau visible sur des
+      données fraîches, au lieu d'afficher une file figée à côté d'un bandeau
+      qui annonce « déconnecté ».
+    */
+    for (const kind of ["daemon.connected", "daemon.disconnected"]) {
+      source.addEventListener(kind, () => {
+        void queryClient.invalidateQueries({ queryKey: ["ed2k"] });
+      });
+    }
+
     return () => source.close();
   }, [ready, queryClient]);
 }
 
-function Header({ status }: { status: Ed2kStatus }) {
-  const t = useT();
-
-  return (
-    <header className="flex flex-col gap-2">
-      <div className="flex items-center gap-3">
-        <h1 className="text-title font-semibold text-fg">{t("ed2k.title")}</h1>
-        <Badge tone={STATE_TONES[status.state]}>{t(STATE_LABELS[status.state])}</Badge>
-      </div>
-      <p className="max-w-prose text-meta text-muted">{t("ed2k.intro")}</p>
-      {/* Le détail vient du serveur : il dit POURQUOI l'état est celui-là,
-          ce qu'un libellé d'état seul ne peut pas porter. */}
-      {status.detail && <p className="text-meta text-subtle">{status.detail}</p>}
-    </header>
-  );
-}
-
-function DisabledNotice() {
-  const t = useT();
-
-  return (
-    <section className="mt-4 rounded-lg border border-border bg-surface p-4">
-      <h2 className="text-ui font-medium text-fg">{t("ed2k.disabledTitle")}</h2>
-      <p className="mt-1 max-w-prose text-meta text-muted">{t("ed2k.disabledHint")}</p>
-      <code className="mt-3 block w-fit rounded bg-surface-sunken px-2 py-1 text-meta text-fg">
-        BOXINCLOUD_ED2K_ENABLED=true
-      </code>
-    </section>
-  );
-}
-
-function DaemonForm({ status }: { status: Ed2kStatus }) {
-  const t = useT();
-  const queryClient = useQueryClient();
-
-  const declared = status.daemon;
-
-  const [host, setHost] = useState(declared?.host ?? "amuled");
-  const [port, setPort] = useState(String(declared?.port ?? 4712));
-  const [password, setPassword] = useState("");
-  const [label, setLabel] = useState(declared?.label ?? "");
-
-  const [busy, setBusy] = useState(false);
-  const [confirming, setConfirming] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [fields, setFields] = useState<Record<string, string>>({});
-
-  async function save(event: React.FormEvent) {
-    event.preventDefault();
-    setBusy(true);
-    setError(null);
-    setFields({});
-
-    try {
-      await api.setEd2kDaemon({
-        host,
-        port: Number(port),
-        password,
-        label: label || undefined,
-      });
-      // Le mot de passe n'est jamais réaffiché : le champ se vide, comme il se
-      // videra au prochain chargement de la page.
-      setPassword("");
-      await queryClient.invalidateQueries({ queryKey: ["ed2k"] });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("error.generic"));
-      if (err && typeof err === "object" && "fieldErrors" in err) {
-        setFields((err as { fieldErrors: Record<string, string> }).fieldErrors);
-      }
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function forget() {
-    setBusy(true);
-    setError(null);
-    try {
-      await api.forgetEd2kDaemon();
-      setConfirming(false);
-      setPassword("");
-      await queryClient.invalidateQueries({ queryKey: ["ed2k"] });
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("error.generic"));
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <section className="rounded-lg border border-border bg-surface p-4">
-      <h2 className="text-ui font-medium text-fg">{t("ed2k.daemon.title")}</h2>
-      <p className="mt-1 max-w-prose text-meta text-muted">{t("ed2k.daemon.hint")}</p>
-
-      <form onSubmit={(event) => void save(event)} className="mt-4 flex flex-col gap-3">
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <Input
-            name="host"
-            label={t("ed2k.daemon.host")}
-            value={host}
-            onChange={(event) => setHost(event.target.value)}
-            error={fields.host}
-            autoComplete="off"
-          />
-          <div className="sm:w-40">
-            <Input
-              name="port"
-              type="number"
-              min={1}
-              max={65535}
-              label={t("ed2k.daemon.port")}
-              value={port}
-              onChange={(event) => setPort(event.target.value)}
-              hint={t("ed2k.daemon.portHint")}
-              error={fields.port}
-            />
-          </div>
-        </div>
-
-        <Input
-          name="password"
-          type="password"
-          label={t("ed2k.daemon.password")}
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          hint={t("ed2k.daemon.passwordHint")}
-          error={fields.password}
-          autoComplete="new-password"
-        />
-
-        <Input
-          name="label"
-          label={t("ed2k.daemon.label")}
-          value={label}
-          onChange={(event) => setLabel(event.target.value)}
-          hint={t("ed2k.daemon.labelHint")}
-        />
-
-        {error && <p className="text-meta text-danger">{error}</p>}
-
-        <div className="flex flex-wrap items-center gap-2">
-          <Button type="submit" loading={busy} size="sm">
-            {t("ed2k.daemon.save")}
-          </Button>
-
-          {declared && !confirming && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setConfirming(true)}
-              disabled={busy}
-            >
-              {t("ed2k.daemon.forget")}
-            </Button>
-          )}
-        </div>
-
-        {confirming && (
-          <div className="rounded-md border border-border bg-surface-sunken p-3">
-            <p className="max-w-prose text-meta text-muted">{t("ed2k.daemon.forgetConfirm")}</p>
-            <div className="mt-2 flex gap-2">
-              <Button
-                type="button"
-                variant="danger"
-                size="sm"
-                loading={busy}
-                onClick={() => void forget()}
-              >
-                {t("action.confirm")}
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setConfirming(false)}
-              >
-                {t("action.cancel")}
-              </Button>
-            </div>
-          </div>
-        )}
-      </form>
-
-      <dl className="mt-4 grid gap-2 border-t border-border pt-3 sm:grid-cols-2">
-        <Fact term={t("ed2k.incoming")} hint={t("ed2k.incomingHint")}>
-          <code className="text-meta text-fg">{status.incomingDir}</code>
-        </Fact>
-
-        {declared && (
-          <Fact term={t("ed2k.daemon.lastSeen")}>
-            <span className="text-meta text-fg">
-              {declared.lastSeenAt
-                ? new Date(declared.lastSeenAt).toLocaleString()
-                : t("ed2k.daemon.never")}
-            </span>
-          </Fact>
-        )}
-      </dl>
-    </section>
-  );
-}
-
-function Fact({
-  term,
-  hint,
+/** Frame porte l'ossature commune, y compris pendant la suspension. */
+function Frame({
+  status,
   children,
 }: {
-  term: string;
-  hint?: string;
-  children: React.ReactNode;
+  status?: Ed2kStatus;
+  children?: React.ReactNode;
 }) {
-  return (
-    <div className="min-w-0">
-      <dt className="text-micro uppercase tracking-wide text-subtle">{term}</dt>
-      <dd className="mt-0.5 min-w-0 break-all">{children}</dd>
-      {hint && <p className="mt-1 max-w-prose text-micro text-subtle">{hint}</p>}
-    </div>
-  );
-}
-
-/**
- * Ce qui n'est pas encore là.
- *
- * Annoncé plutôt que laissé deviner : une page qui déclare un démon sans jamais
- * s'y connecter ressemble à une panne, et la seule chose qui distingue les deux
- * est de le dire.
- */
-function NextStep() {
-  const t = useT();
-
-  return (
-    <section className="rounded-lg border border-dashed border-border p-4">
-      <h2 className="text-ui font-medium text-fg">{t("ed2k.next.title")}</h2>
-      <p className="mt-1 max-w-prose text-meta text-muted">{t("ed2k.next.hint")}</p>
-    </section>
-  );
-}
-
-/** Frame porte l'ossature commune, comme la page de configuration. */
-function Frame({ children }: { children?: React.ReactNode }) {
   const t = useT();
 
   return (
@@ -406,12 +268,21 @@ function Frame({ children }: { children?: React.ReactNode }) {
           <span className="text-ui font-medium text-fg">{t("ed2k.title")}</span>
         </nav>
 
-        {/* Le retour est explicite : on peut arriver ici par un signet, auquel
-            cas l'historique n'a nulle part où revenir. */}
+        {/* L'état du module vit dans l'en-tête, pas dans un panneau : il vaut
+            pour tous, et le chercher section par section serait absurde. */}
+        {status && (
+          <>
+            <Badge tone={STATE_TONES[status.state]}>{t(STATE_LABELS[status.state])}</Badge>
+            <span className="hidden truncate text-meta text-subtle sm:block">
+              {status.detail}
+            </span>
+          </>
+        )}
+
         <Link
           href="/"
           className={cx(
-            "pressable ml-auto rounded-md border border-border px-2.5 py-1",
+            "pressable ml-auto shrink-0 rounded-md border border-border px-2.5 py-1",
             "text-ui text-muted hover:bg-surface-hover hover:text-fg",
           )}
         >
@@ -420,8 +291,9 @@ function Frame({ children }: { children?: React.ReactNode }) {
       </header>
 
       <main className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto flex min-h-full w-full max-w-4xl flex-col p-4">{children}</div>
+        <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col p-4">{children}</div>
       </main>
     </div>
   );
 }
+

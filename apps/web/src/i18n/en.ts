@@ -837,4 +837,26 @@ export const en: Record<MessageKey, string> = {
   "ed2k.stats.kadUsers": "Kad users",
   "ed2k.stats.ed2kFiles": "eD2k files",
   "ed2k.stats.kadFiles": "Kad files",
+
+  // ── eD2k and Kad networks ──────────────────────────────────────────────────
+  "ed2k.net.ed2k": "eD2k network",
+  "ed2k.net.kad": "Kad network",
+  "ed2k.net.connected": "Connected",
+  "ed2k.net.connecting": "Connecting…",
+  "ed2k.net.disconnected": "Disconnected",
+  "ed2k.net.stopped": "Stopped",
+  "ed2k.net.searching": "Looking for the network…",
+  "ed2k.net.noServer": "No server joined",
+  "ed2k.net.firewalled": "Firewalled",
+  "ed2k.net.firewalledUdp": "UDP blocked",
+  "ed2k.net.lowIdHint":
+    "Incoming connections are not getting through. The client still works, but relies on intermediaries and finds far fewer sources. Forwarding the TCP port to this machine fixes it.",
+  "ed2k.net.kadHint":
+    "Kad works without a server. It takes several minutes to find its peers after a start.",
+  "ed2k.net.kadStoppedHint":
+    "Kad is stopped. Without it, only sources known to the servers are found.",
+  "ed2k.servers.static": "Pinned",
+  "ed2k.stats.banned": "Banned peers",
+  "ed2k.stats.networks": "Network size",
+
 };

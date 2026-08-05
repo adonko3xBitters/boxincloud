@@ -866,6 +866,28 @@ export const fr = {
   "ed2k.stats.kadUsers": "Utilisateurs Kad",
   "ed2k.stats.ed2kFiles": "Fichiers eD2k",
   "ed2k.stats.kadFiles": "Fichiers Kad",
+
+  // ── Réseaux eD2k et Kad ────────────────────────────────────────────────────
+  "ed2k.net.ed2k": "Réseau eD2k",
+  "ed2k.net.kad": "Réseau Kad",
+  "ed2k.net.connected": "Connecté",
+  "ed2k.net.connecting": "Connexion…",
+  "ed2k.net.disconnected": "Déconnecté",
+  "ed2k.net.stopped": "Arrêté",
+  "ed2k.net.searching": "Recherche du réseau…",
+  "ed2k.net.noServer": "Aucun serveur joint",
+  "ed2k.net.firewalled": "Derrière un pare-feu",
+  "ed2k.net.firewalledUdp": "UDP bloqué",
+  "ed2k.net.lowIdHint":
+    "Les connexions entrantes n'arrivent pas. Le client reste utilisable, mais dépend d'intermédiaires et trouve nettement moins de sources. Rediriger le port TCP vers cette machine corrige le problème.",
+  "ed2k.net.kadHint":
+    "Kad fonctionne sans serveur. Il met plusieurs minutes à trouver ses pairs après un démarrage.",
+  "ed2k.net.kadStoppedHint":
+    "Kad est arrêté. Sans lui, seules les sources connues des serveurs sont trouvées.",
+  "ed2k.servers.static": "Épinglé",
+  "ed2k.stats.banned": "Pairs bannis",
+  "ed2k.stats.networks": "Taille des réseaux",
+
 } as const;
 
 /** Les clés du catalogue. Toute traduction doit les couvrir toutes. */
