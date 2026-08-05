@@ -46,8 +46,6 @@ func (e RefusedError) Error() string {
 	return "le démon a refusé " + e.Op + " : " + e.Detail
 }
 
-var ()
-
 // Conn est une session External Connections avec un démon aMule.
 //
 // Sûre d'emploi concurrent : les échanges sont sérialisés. Le protocole n'a

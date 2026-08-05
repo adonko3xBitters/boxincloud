@@ -9,6 +9,83 @@ cela, l'historique git et les documents d'architecture sont plus précis.
 
 ## [Non publié]
 
+## [0.1.6] — 2026-08-05
+
+La gestion des serveurs eD2k, qui manquait, et trois corrections dont une qui
+faisait agir le démon sur le mauvais serveur.
+
+### Ajouté
+
+- **Import d'une liste de serveurs, ajout et retrait à la main.** C'est le
+  premier geste sur une instance neuve : sans serveurs, rien ne fonctionne — ni
+  connexion, ni recherche, ni source. Écran **Serveurs** → **Importer une
+  liste**, avec l'adresse d'un `server.met` publié. C'est le démon qui va la
+  chercher, pas votre navigateur.
+
+- **eD2k / Kad devient un onglet**, en haut de page, à côté de
+  « Bibliothèque ». Il vivait dans le menu du compte, derrière un avatar. C'est
+  un endroit où l'on passe du temps — on cherche, on surveille une file, on
+  revient voir où en est un téléchargement — et cela ne se range pas derrière
+  deux clics et une icône qui ne l'annonce pas. Réservé aux administrateurs,
+  comme avant.
+
+### Corrigé
+
+- **« Se connecter à ce serveur-ci » joignait un autre serveur.** La commande
+  désignait sa cible par une chaîne « adresse:port » là où le protocole attend
+  six octets. Le démon acceptait sans broncher, ne trouvait aucun serveur à
+  cette désignation, et se rabattait sur son comportement par défaut : se
+  connecter à n'importe lequel. Rien ne le signalait. Le retrait d'un serveur
+  souffrait du même défaut, et le nom d'un serveur ajouté était perdu.
+
+- **Une commande réussie s'affichait en rouge.** Les commandes du module
+  répondent « transmis au démon » sans corps ; l'interface tentait de lire ce
+  corps vide comme du JSON et signalait une erreur.
+
+- **Le module annonçait qu'il n'était pas implémenté** alors qu'il
+  fonctionnait. Un texte d'attente était resté dans l'état du module, au-dessus
+  d'une recherche qui marchait.
+
+- **Les messages d'erreur du module passent en français.** Une exception
+  assumée : quand le démon aMule refuse une commande, ses mots sont conservés
+  tels quels — en anglais, encadrés et attribués. « Kad is disabled in
+  preferences » dit exactement quoi faire ; une phrase de notre cru ne dirait
+  rien.
+
+### Modifié
+
+- **Le pêle-mêle est la vue d'ouverture de la bibliothèque**, à la place de la
+  grille. Il montre une couverture en grand, ce qui l'entoure, et la liste
+  complète en dessous — là où la grille seule donne des vignettes, mais ni les
+  pages, ni la taille, ni la série.
+
+## [0.1.5] — 2026-08-05
+
+> Cette entrée est écrite après coup : la version a été publiée sans passer par
+> ce journal.
+
+### Ajouté
+
+- **Le module eD2k / Kad.** Un client eD2k et Kad accessible depuis le
+  navigateur, adossé au démon aMule — boxincloud ne réimplémente aucun
+  protocole pair-à-pair, il pilote `amuled` par son protocole officiel
+  *External Connections* et remplace `amuleweb`.
+
+  Téléchargements et leurs sources, recherche sur serveur, globale ou Kad,
+  envois et file d'attente des pairs, fichiers partagés, serveurs,
+  statistiques, journal du démon — le tout en temps réel par un flux
+  Server-Sent Events.
+
+  Et un pont vers la bibliothèque : une règle par catégorie du démon décide si
+  un téléchargement terminé devient un album indexé, lisible depuis le
+  navigateur et l'application Android, ou reste sur disque.
+
+  **Désactivé par défaut.** Il s'active en deux gestes —
+  `docker compose --profile ed2k up -d` pour ajouter le démon, et
+  `BOXINCLOUD_ED2K_ENABLED=true` pour que boxincloud le pilote. La promesse
+  « deux conteneurs » ne vaut plus quand il est actif ; elle reste vraie pour
+  qui n'active rien. Voir [`docs/06-ed2k-kad.md`](docs/06-ed2k-kad.md).
+
 ## [0.1.4] — 2026-08-03
 
 Deux modes de lecture au lieu d'un, sur mobile. Rien ne change côté serveur ;
@@ -233,7 +310,9 @@ aurait fait croire à une régression silencieuse.
 publier son propre catalogue et aller chercher ailleurs sont deux choses
 différentes.
 
-[Non publié]: https://github.com/adonko3xBitters/boxincloud/compare/v0.1.4...HEAD
+[Non publié]: https://github.com/adonko3xBitters/boxincloud/compare/v0.1.6...HEAD
+[0.1.6]: https://github.com/adonko3xBitters/boxincloud/compare/v0.1.5...v0.1.6
+[0.1.5]: https://github.com/adonko3xBitters/boxincloud/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/adonko3xBitters/boxincloud/compare/v0.1.3...v0.1.4
 [0.1.3]: https://github.com/adonko3xBitters/boxincloud/compare/v0.1.2...v0.1.3
 [0.1.2]: https://github.com/adonko3xBitters/boxincloud/compare/v0.1.1...v0.1.2
