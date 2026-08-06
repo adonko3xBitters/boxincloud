@@ -16,8 +16,8 @@ require (
 	github.com/oapi-codegen/runtime v1.6.0
 	github.com/pdfcpu/pdfcpu v0.11.1
 	github.com/pressly/goose/v3 v3.27.3
-	github.com/riverqueue/river v0.41.1
-	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.41.1
+	github.com/riverqueue/river v0.42.0
+	github.com/riverqueue/river/riverdriver/riverpgxv5 v0.42.0
 	github.com/testcontainers/testcontainers-go v0.43.0
 	golang.org/x/crypto v0.54.0
 	golang.org/x/image v0.44.0
@@ -88,9 +88,9 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
-	github.com/riverqueue/river/riverdriver v0.41.1 // indirect
-	github.com/riverqueue/river/rivershared v0.41.1 // indirect
-	github.com/riverqueue/river/rivertype v0.41.1 // indirect
+	github.com/riverqueue/river/riverdriver v0.42.0 // indirect
+	github.com/riverqueue/river/rivershared v0.42.0 // indirect
+	github.com/riverqueue/river/rivertype v0.42.0 // indirect
 	github.com/rs/xid v1.6.0 // indirect
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.2 // indirect
 	github.com/sethvargo/go-retry v0.4.0 // indirect
