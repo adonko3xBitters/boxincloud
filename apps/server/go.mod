@@ -6,7 +6,7 @@ require (
 	github.com/bodgit/sevenzip v1.6.5
 	github.com/gen2brain/avif v0.6.0
 	github.com/gen2brain/webp v0.6.4
-	github.com/getkin/kin-openapi v0.145.0
+	github.com/getkin/kin-openapi v0.146.0
 	github.com/go-chi/chi/v5 v5.3.1
 	github.com/go-chi/cors v1.2.2
 	github.com/google/uuid v1.6.0
