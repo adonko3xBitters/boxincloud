@@ -113,7 +113,22 @@ final libraryProvider = FutureProvider<LibraryView>((ref) async {
   d'abord serait un mauvais échange.
   */
   try {
-    await ProgressSync(db: db, serverId: serverId).push(session.client);
+    final sync = ProgressSync(db: db, serverId: serverId);
+    await sync.push(session.client);
+
+    /*
+      Puis on ÉCOUTE.
+
+      Dans cet ordre : pousser d'abord met le serveur au courant de ce que lui
+      seul ignore, et le rapatriement qui suit ne peut donc plus rien écraser.
+      L'inverse ferait fusionner une position distante contre un local pas
+      encore envoyé — sans dommage, la règle retenant la plus avancée, mais
+      pour rien.
+
+      Sans ce rappel, une lecture reprise sur le web n'atteignait jamais le
+      téléphone : il proposait indéfiniment la page où LUI s'était arrêté.
+    */
+    await sync.pull(session.client);
   } on NetworkException {
     // Sans réseau, rien à réconcilier : la file attendra le prochain passage.
   } on ApiException {

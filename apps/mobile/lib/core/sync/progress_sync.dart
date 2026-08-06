@@ -73,29 +73,42 @@ class ProgressSync {
     }
   }
 
-  /// Position à ouvrir pour un album, locale d'abord.
-  ///
-  /// Le local prime : il est forcément au moins aussi avancé que le serveur,
-  /// puisque toute lecture y est écrite avant d'être envoyée.
+  /*
+    Position à ouvrir pour un album.
+
+    Le local NE PRIME PAS, et c'est la correction d'une erreur de raisonnement
+    qui s'est vue à l'usage.
+
+    Le code disait : « le local est forcément au moins aussi avancé que le
+    serveur, puisque toute lecture y est écrite avant d'être envoyée ». C'est
+    vrai d'un appareil isolé, et faux dès qu'il y en a deux. Lire jusqu'à la
+    page 19 dans la voiture, continuer jusqu'à la 57 sur le web au bureau, et
+    le téléphone propose toujours « Reprendre page 19 » : il avait sa réponse
+    en cache et ne demandait plus rien.
+
+    On interroge donc le serveur quand il est joignable, et on garde la
+    position la plus AVANCÉE des deux. Hors ligne, le local répond seul — c'est
+    la promesse du mode déconnecté, et elle reste tenue.
+  */
   Future<int> resumePage(ApiClient? client, String comicId) async {
     final local = await db.progressOf(serverId, comicId);
-    if (local != null) return local.page;
 
-    if (client == null) return 0;
+    if (client == null) return local?.page ?? 0;
 
     try {
       final remote = await client.progress(comicId);
-      await db.saveProgress(
-        serverId: serverId,
+      await mergeRemote(
+        db,
+        serverId,
         comicId: comicId,
-        page: remote.page,
-        pageCount: remote.pageCount,
-        status: remote.status,
-        pending: false,
+        remotePage: remote.page,
+        pageCount: remote.pageCount > 0 ? remote.pageCount : (local?.pageCount ?? 0),
       );
-      return remote.page;
+      return furthest(local?.page ?? 0, remote.page);
     } catch (_) {
-      return 0;
+      // Réseau coupé, album disparu, droits retirés : ce qu'on a en cache vaut
+      // mieux que de rouvrir à la première page.
+      return local?.page ?? 0;
     }
   }
 
@@ -110,6 +123,67 @@ class ProgressSync {
     marquer d'avance perdrait la progression si l'envoi échouait à mi-chemin,
     ce qui est précisément le scénario que cette file existe pour couvrir.
   */
+  /*
+    Rapatrie ce qui a changé ailleurs.
+
+    Cette moitié-là manquait. `GET /sync` existait au contrat et côté serveur,
+    `mergeRemote` était écrite et testée — mais personne ne les appelait, si
+    bien que le téléphone poussait sa lecture sans jamais apprendre celle des
+    autres appareils.
+
+    Le curseur est conservé PAR SERVEUR : deux instances n'ont ni le même
+    historique ni la même horloge, et partager un curseur ferait sauter à l'une
+    les changements de l'autre.
+
+    La boucle suit `hasMore` plutôt que de s'arrêter à une page : quelqu'un qui
+    revient après trois semaines a plus de changements qu'une réponse n'en
+    porte. Elle est bornée, parce qu'un serveur qui rendrait toujours `hasMore`
+    ferait tourner le téléphone jusqu'à la batterie.
+  */
+  static const _pullPageLimit = 500;
+  static const _pullMaxPages = 20;
+
+  Future<SyncOutcome> pull(ApiClient client) async {
+    final key = 'sync.cursor.$serverId';
+    var cursor = await db.preference(key);
+    var pulled = 0;
+
+    try {
+      for (var page = 0; page < _pullMaxPages; page++) {
+        final batch = await client.pullSync(since: cursor, limit: _pullPageLimit);
+
+        for (final change in batch.changes) {
+          await mergeRemote(
+            db,
+            serverId,
+            comicId: change.comicId,
+            remotePage: change.page,
+            pageCount: change.pageCount,
+          );
+        }
+        pulled += batch.changes.length;
+
+        // Le curseur n'avance qu'APRÈS fusion. Interrompu au milieu, le lot
+        // sera rejoué — la règle « la page la plus avancée gagne » rend
+        // l'opération sans conséquence à la répétition.
+        if (batch.cursor.isNotEmpty) {
+          cursor = batch.cursor;
+          await db.setPreference(key, batch.cursor);
+        }
+
+        if (!batch.hasMore) break;
+      }
+
+      return SyncOutcome(pulled: pulled);
+    } on NetworkException {
+      return SyncOutcome(pulled: pulled, offline: true);
+    } on ApiException {
+      // Un serveur plus ancien que cette application n'a pas la route : ne pas
+      // en faire un échec visible, la lecture locale reste juste.
+      return SyncOutcome(pulled: pulled);
+    }
+  }
+
   Future<SyncOutcome> push(ApiClient client) async {
     final pending = await db.pendingProgress(serverId);
     if (pending.isEmpty) return const SyncOutcome();

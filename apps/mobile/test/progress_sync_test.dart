@@ -1,8 +1,13 @@
 // Import ciblé : drift et matcher exportent tous deux `isNull`.
+import 'dart:convert';
+
 import 'package:drift/drift.dart' show Value;
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 
+import 'package:boxincloud/core/api/client.dart';
 import 'package:boxincloud/core/db/database.dart';
 import 'package:boxincloud/core/sync/progress_sync.dart';
 
@@ -137,6 +142,93 @@ void main() {
     });
   });
 
+  /*
+    Deux appareils, un même album.
+
+    Le scénario qui a révélé le défaut, et qu'aucun test ne couvrait : toutes
+    les vérifications de reprise passaient un client nul, c'est-à-dire un
+    téléphone seul au monde. Le code en avait tiré sa règle — « le local est
+    forcément au moins aussi avancé que le serveur » — vraie d'un appareil
+    isolé, fausse dès qu'il y en a deux.
+  */
+  group('lecture reprise sur un autre appareil', () {
+    test('la position du serveur gagne si elle est plus avancée', () async {
+      final sync = ProgressSync(db: db, serverId: 's1');
+
+      // Le matin, dans la voiture : lu jusqu'à la page 19, poussé au serveur.
+      await sync.record(null, comicId: 'c1', page: 19, pageCount: 120);
+
+      // Au bureau, sur le web : la lecture continue jusqu'à la page 57. Le
+      // téléphone n'en sait rien, et c'est ce qu'on corrige.
+      final client = clientServing({'c1': 57}, pageCount: 120);
+
+      expect(await sync.resumePage(client, 'c1'), 57);
+
+      // Et le cache retient la position rapatriée : rouvrir hors ligne ne doit
+      // pas renvoyer à la page 19.
+      expect(await sync.resumePage(null, 'c1'), 57);
+    });
+
+    test('la position locale gagne si le serveur est en retard', () async {
+      final sync = ProgressSync(db: db, serverId: 's1');
+      await sync.record(null, comicId: 'c1', page: 57, pageCount: 120);
+
+      final client = clientServing({'c1': 19}, pageCount: 120);
+
+      expect(await sync.resumePage(client, 'c1'), 57);
+
+      // La ligne reste à pousser : le serveur ignore encore la page 57.
+      final pending = await db.pendingProgress('s1');
+      expect(pending.map((p) => p.comicId), contains('c1'));
+    });
+
+    test('hors ligne, la position locale répond seule', () async {
+      final sync = ProgressSync(db: db, serverId: 's1');
+      await sync.record(null, comicId: 'c1', page: 19, pageCount: 120);
+
+      // Un serveur injoignable ne doit pas rouvrir l'album au début : c'est la
+      // promesse du mode déconnecté.
+      final client = ApiClient(
+        baseUrl: 'https://exemple.test',
+        httpClient: MockClient((_) => throw const SocketExceptionLike()),
+      );
+
+      expect(await sync.resumePage(client, 'c1'), 19);
+    });
+
+    test('le rapatriement fusionne un lot et retient le curseur', () async {
+      final sync = ProgressSync(db: db, serverId: 's1');
+      await sync.record(null, comicId: 'c1', page: 19, pageCount: 120);
+
+      final client = pullServing([
+        {'comicId': 'c1', 'page': 57, 'pageCount': 120},
+        {'comicId': 'c2', 'page': 4, 'pageCount': 30},
+      ], cursor: '2026-08-06T09:00:00Z');
+
+      final outcome = await sync.pull(client);
+      expect(outcome.pulled, 2);
+
+      expect(await sync.resumePage(null, 'c1'), 57);
+      expect(await sync.resumePage(null, 'c2'), 4);
+
+      // Sans curseur retenu, chaque démarrage retéléchargerait tout
+      // l'historique.
+      expect(await db.preference('sync.cursor.s1'), '2026-08-06T09:00:00Z');
+    });
+
+    test('un rapatriement ne fait jamais reculer une lecture', () async {
+      final sync = ProgressSync(db: db, serverId: 's1');
+      await sync.record(null, comicId: 'c1', page: 57, pageCount: 120);
+
+      final client = pullServing([
+        {'comicId': 'c1', 'page': 19, 'pageCount': 120},
+      ], cursor: 'c');
+
+      await sync.pull(client);
+      expect(await sync.resumePage(null, 'c1'), 57);
+    });
+  });
+
   group('cloisonnement des serveurs', () {
     /*
       Deux serveurs ne partagent rien.
@@ -213,4 +305,59 @@ void main() {
       expect(branch.map((c) => c.id), isNot(contains('c')));
     });
   });
+}
+
+/// Un serveur qui connaît la progression de quelques albums.
+ApiClient clientServing(Map<String, int> pages, {required int pageCount}) =>
+    ApiClient(
+      baseUrl: 'https://exemple.test',
+      httpClient: MockClient((request) async {
+        final match = RegExp(r'/comics/([^/]+)/progress').firstMatch(request.url.path);
+        if (match == null) return http.Response('', 404);
+
+        final comicId = match.group(1)!;
+        return http.Response(
+          jsonEncode(progressJson(comicId, pages[comicId] ?? 0, pageCount)),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+    );
+
+/// Un serveur qui rend une page de changements, puis plus rien.
+ApiClient pullServing(List<Map<String, dynamic>> changes, {required String cursor}) =>
+    ApiClient(
+      baseUrl: 'https://exemple.test',
+      httpClient: MockClient((request) async {
+        if (!request.url.path.endsWith('/sync')) return http.Response('', 404);
+
+        return http.Response(
+          jsonEncode({
+            'changes': [
+              for (final c in changes)
+                progressJson(c['comicId'] as String, c['page'] as int, c['pageCount'] as int),
+            ],
+            'cursor': cursor,
+            'hasMore': false,
+          }),
+          200,
+          headers: {'content-type': 'application/json'},
+        );
+      }),
+    );
+
+Map<String, dynamic> progressJson(String comicId, int page, int pageCount) => {
+      'comicId': comicId,
+      'page': page,
+      'pageCount': pageCount,
+      'percent': pageCount == 0 ? 0.0 : page / pageCount,
+      'status': statusFor(page, pageCount),
+      'readCount': 0,
+      'version': 1,
+      'updatedAt': '2026-08-06T09:00:00Z',
+    };
+
+/// Une panne réseau, telle que le client la reconnaît.
+class SocketExceptionLike implements Exception {
+  const SocketExceptionLike();
 }

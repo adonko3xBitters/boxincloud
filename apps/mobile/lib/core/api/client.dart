@@ -415,4 +415,18 @@ extension BoxincloudApi on ApiClient {
   /// Pousse un lot de progressions accumulées hors ligne.
   Future<void> pushSync(List<Map<String, dynamic>> updates) =>
       post('/sync', (_) {}, body: {'updates': updates});
+
+  /// Récupère les progressions modifiées ailleurs depuis `since`.
+  ///
+  /// L'autre moitié de la synchronisation. Sans elle, une lecture reprise sur
+  /// le web n'atteint jamais le téléphone : il ne sait que raconter, pas
+  /// écouter.
+  Future<SyncChanges> pullSync({String? since, int? limit}) => get(
+        '/sync',
+        (json) => SyncChanges.fromJson(json as Map<String, dynamic>),
+        query: {
+          if (since != null && since.isNotEmpty) 'since': since,
+          if (limit != null) 'limit': '$limit',
+        },
+      );
 }
