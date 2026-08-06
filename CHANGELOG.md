@@ -9,6 +9,47 @@ cela, l'historique git et les documents d'architecture sont plus précis.
 
 ## [Non publié]
 
+## [0.1.7] — 2026-08-06
+
+Le module eD2k à l'usage : des tableaux qu'on peut fouiller, une page qui
+occupe l'écran, et des commandes dont on voit l'effet.
+
+### Ajouté
+
+- **Filtre et pagination sur tous les tableaux du module.** Une liste de
+  serveurs importée fait couramment trois cents entrées ; tout afficher donnait
+  une page qui défile sur des mètres, où retrouver une ligne demandait le
+  Cmd-F du navigateur — qui ne cherche que ce qui est déjà rendu. Chaque
+  tableau cherche ce qui a un sens chez lui : nom et adresse pour un serveur,
+  nom de fichier ailleurs.
+
+  Pas de tri par colonne, et c'est délibéré : l'ordre vient du démon et porte
+  du sens — la file est dans l'ordre où elle sera servie, les sources dans
+  l'ordre où elles ont répondu.
+
+### Corrigé
+
+- **« Se connecter » sur un serveur semblait ne rien faire.** Le démon accuse
+  réception avant d'agir : la commande se répond en une milliseconde et met
+  plusieurs secondes à aboutir. L'écran ne bougeait pas pendant dix secondes,
+  ce qui se lit comme un bouton mort.
+
+- **Le journal faisait défiler la page entière.** Pour lire une ligne du haut,
+  il fallait remonter au-dessus de l'en-tête. La carte défile désormais chez
+  elle.
+
+### Modifié
+
+- **La page du module occupe la largeur de l'écran.** Ses tableaux ont huit à
+  dix colonnes ; les borner laissait deux marges vides et rognait la colonne
+  des actions.
+
+- **Les formulaires du module sont plus lisibles.** L'explication remonte en
+  tête du formulaire au lieu d'être répétée sous chaque champ — c'est ce qui
+  désalignait les champs entre eux. Les champs de saisie de toute l'interface
+  gagnent un halo au moment où on les active : une bordure qui change de teinte
+  se remarque mal sur quatre champs alignés.
+
 ## [0.1.6] — 2026-08-05
 
 La gestion des serveurs eD2k, qui manquait, et trois corrections dont une qui
@@ -310,7 +351,8 @@ aurait fait croire à une régression silencieuse.
 publier son propre catalogue et aller chercher ailleurs sont deux choses
 différentes.
 
-[Non publié]: https://github.com/adonko3xBitters/boxincloud/compare/v0.1.6...HEAD
+[Non publié]: https://github.com/adonko3xBitters/boxincloud/compare/v0.1.7...HEAD
+[0.1.7]: https://github.com/adonko3xBitters/boxincloud/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/adonko3xBitters/boxincloud/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/adonko3xBitters/boxincloud/compare/v0.1.4...v0.1.5
 [0.1.4]: https://github.com/adonko3xBitters/boxincloud/compare/v0.1.3...v0.1.4
