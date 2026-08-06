@@ -19,7 +19,7 @@ import * as api from "@/lib/api/endpoints";
 
 import { DASH, useEd2kFormat } from "./format";
 import { Async, PanelHeader, REFRESH_MS } from "./panel";
-import { Num, Row, Table, Text, type Column } from "./table";
+import { DataTable, Num, Row, Text, type Column } from "./table";
 
 const UPLOAD_COLUMNS: Column[] = [
   { key: "peer", label: "ed2k.col.peer", width: "minmax(160px, 2fr)" },
@@ -74,8 +74,14 @@ export function UploadsPanel() {
                   {t("ed2k.uploads.empty")}
                 </p>
               ) : (
-                <Table columns={UPLOAD_COLUMNS} minWidth={980} label={t("ed2k.uploads.active")}>
-                  {data.uploads.map((upload, index) => (
+                <DataTable
+                  items={data.uploads}
+                  columns={UPLOAD_COLUMNS}
+                  minWidth={980}
+                  label={t("ed2k.uploads.active")}
+                  filterHint={t("ed2k.table.filterPeers")}
+                  searchText={(upload) => `${upload.name} ${upload.fileName} ${upload.ip}`}
+                  renderRow={(upload, index) => (
                     <Row key={`${upload.userHash}-${upload.fileHash}`} striped={index % 2 === 1}>
                       <Text tone="fg" title={upload.userHash}>
                         {upload.name || DASH}
@@ -91,8 +97,8 @@ export function UploadsPanel() {
                       <Num>{format.bytes(upload.sessionUploaded)}</Num>
                       <Num tone="subtle">{format.bytes(upload.totalUploaded)}</Num>
                     </Row>
-                  ))}
-                </Table>
+                  )}
+                />
               )}
             </div>
 
@@ -104,8 +110,14 @@ export function UploadsPanel() {
                   {t("ed2k.uploads.queueEmpty")}
                 </p>
               ) : (
-                <Table columns={QUEUE_COLUMNS} minWidth={880} label={t("ed2k.uploads.queue")}>
-                  {data.queuedPeers.map((peer, index) => (
+                <DataTable
+                  items={data.queuedPeers}
+                  columns={QUEUE_COLUMNS}
+                  minWidth={880}
+                  label={t("ed2k.uploads.queue")}
+                  filterHint={t("ed2k.table.filterPeers")}
+                  searchText={(peer) => `${peer.name} ${peer.ip} ${peer.fileHash}`}
+                  renderRow={(peer, index) => (
                     <Row key={`${peer.userHash}-${peer.fileHash}-${index}`} striped={index % 2 === 1}>
                       <Text tone="fg" title={peer.userHash}>
                         {peer.name || DASH}
@@ -121,8 +133,8 @@ export function UploadsPanel() {
                         {peer.waitedSince ? format.since(peer.waitedSince) : DASH}
                       </Num>
                     </Row>
-                  ))}
-                </Table>
+                  )}
+                />
               )}
             </div>
           </div>

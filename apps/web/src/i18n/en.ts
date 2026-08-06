@@ -947,6 +947,18 @@ export const en: Record<MessageKey, string> = {
   "ed2k.logs.empty": "Empty log",
   "ed2k.logs.emptyHint": "The daemon has written nothing since it last started.",
 
+  "ed2k.table.filter": "Filter…",
+  "ed2k.table.count": "{count} rows",
+  "ed2k.table.matching": "{count} of {total}",
+  "ed2k.table.noMatch": "No row contains \u201c{filter}\u201d",
+  "ed2k.table.perPage": "per page",
+  "ed2k.table.page": "{page} / {pages}",
+  "ed2k.table.previous": "Previous page",
+  "ed2k.table.next": "Next page",
+  "ed2k.table.filterServers": "Name or address…",
+  "ed2k.table.filterFiles": "File name…",
+  "ed2k.table.filterPeers": "Peer or file…",
+
   "ed2k.error.disabled":
     "The eD2k module is disabled on this instance. It is enabled through the BOXINCLOUD_ED2K_ENABLED variable, server-side.",
   "ed2k.error.noDaemon":

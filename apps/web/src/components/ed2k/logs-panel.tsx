@@ -25,7 +25,7 @@ import { Async, PanelHeader, REFRESH_MS } from "./panel";
 export function LogsPanel() {
   const t = useT();
   const command = useCommand();
-  const bottom = useRef<HTMLDivElement>(null);
+  const box = useRef<HTMLDivElement>(null);
 
   const logs = useQuery({
     queryKey: ["ed2k", "logs"],
@@ -36,16 +36,28 @@ export function LogsPanel() {
   /*
     Recalage en bas à chaque arrivée.
 
-    `instant` et non `smooth` : un défilement animé toutes les six secondes sur
-    un journal qui bouge donnerait une page qui glisse en permanence.
+    On pousse le conteneur, on ne demande pas à un repère de se rendre visible.
+    `scrollIntoView` remonte jusqu'au premier ancêtre qui défile et l'ajuste
+    LUI AUSSI : la fenêtre entière sautait à chaque rafraîchissement, alors
+    qu'on ne voulait bouger que le journal.
+
+    Pas d'animation : un défilement doux toutes les six secondes sur un journal
+    qui bouge donne une page qui glisse en permanence.
   */
   const count = logs.data?.lines.length ?? 0;
   useEffect(() => {
-    bottom.current?.scrollIntoView({ block: "end" });
+    const node = box.current;
+    if (node) node.scrollTop = node.scrollHeight;
   }, [count]);
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col">
+    /*
+      `h-full` et non `flex-1` : le parent défile, donc sa hauteur est définie,
+      et c'est cette hauteur-là qu'il faut prendre. Avec `flex-1` dans un
+      conteneur qui défile, la section grandit avec le journal — et c'est la
+      colonne entière qui glisse, en emportant l'en-tête et le bouton Vider.
+    */
+    <section className="flex h-full min-h-0 flex-col">
       <PanelHeader title={t("ed2k.section.logs")} hint={t("ed2k.logs.hint")}>
         <PanelAction
           label={t("ed2k.logs.clear")}
@@ -63,7 +75,10 @@ export function LogsPanel() {
         empty={{ title: t("ed2k.logs.empty"), description: t("ed2k.logs.emptyHint") }}
       >
         {(data) => (
-          <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-border bg-surface-sunken p-3">
+          <div
+            ref={box}
+            className="min-h-0 flex-1 overflow-auto overscroll-contain rounded-lg border border-border bg-surface-sunken p-3"
+          >
             {/*
               `pre` et non une liste : les lignes du démon sont alignées à la
               colonne près par ses propres horodatages, et une police
@@ -72,7 +87,6 @@ export function LogsPanel() {
             <pre className="whitespace-pre-wrap break-words text-micro leading-relaxed text-muted">
               {data.lines.join("\n")}
             </pre>
-            <div ref={bottom} />
           </div>
         )}
       </Async>

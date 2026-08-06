@@ -174,7 +174,7 @@ function Ed2kCenter() {
       <div className="flex min-h-0 flex-1 gap-4">
         <nav
           aria-label={t("ed2k.title")}
-          className="w-44 shrink-0 border-r border-border pr-2"
+          className="w-44 shrink-0 overflow-y-auto border-r border-border pr-2"
         >
           {SECTIONS.map((section) => (
             <button
@@ -193,7 +193,14 @@ function Ed2kCenter() {
           ))}
         </nav>
 
-        <div className="min-w-0 flex-1">
+        {/*
+          Le panneau reçoit la hauteur et la gère lui-même.
+
+          `overflow-y-auto` ici plutôt que dans chaque panneau : un tableau
+          paginé n'a plus besoin de défiler, mais le journal si, et il vaut
+          mieux une règle unique qu'un panneau sur huit qui l'oublie.
+        */}
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto">
           {active.key === "parametres" ? (
             <div className="flex flex-col gap-4">
               <DaemonForm status={status.data} />
@@ -283,9 +290,20 @@ function Frame({
         )}
       </header>
 
-      <main className="min-h-0 flex-1 overflow-y-auto">
-        <div className="mx-auto flex min-h-full w-full max-w-7xl flex-col p-4">{children}</div>
-      </main>
+      {/*
+        La coque tient la hauteur, et c'est ce qui rend le défilement local
+        possible.
+
+        `min-h-full` sur un conteneur qui défile lui-même donne l'inverse de ce
+        qu'on veut : la page grandit avec son contenu, et c'est la fenêtre
+        entière qui glisse. Le journal en souffrait le plus — pour lire une
+        ligne du haut, il fallait remonter au-dessus de l'en-tête.
+
+        Plus de `max-w-7xl` non plus. Ces tableaux ont huit à dix colonnes ;
+        les borner à 80rem sur un écran large laissait deux marges vides et
+        rognait la colonne des actions.
+      */}
+      <main className="flex min-h-0 flex-1 flex-col overflow-hidden p-4">{children}</main>
     </div>
   );
 }

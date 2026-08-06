@@ -433,6 +433,67 @@ func TestIntegrationRetraitDUnServeurAbsentNommeLAdresse(t *testing.T) {
 	}
 }
 
+/*
+TestIntegrationConnexionViseLeServeurDemande.
+
+Le test qui manquait, et qui aurait attrapé le défaut le plus coûteux du module.
+
+`EC_OP_SERVER_CONNECT` sans désignation lisible ne produit AUCUNE erreur : le
+démon se rabat sur « connecte-toi à n'importe lequel ». « Se connecter à ce
+serveur-ci » joignait donc un autre serveur, en répondant que tout allait bien.
+Aucune assertion sur le code de retour ne pouvait le voir.
+
+Le journal du démon, lui, nomme sa cible. C'est le seul témoin disponible, et
+il est net : deux serveurs dans la liste, un seul demandé, son nom doit
+apparaître et pas celui de l'autre.
+
+La connexion n'aboutira pas — l'adresse n'est pas routable — et c'est sans
+importance : ce qui se vérifie ici est le CHOIX, pas la poignée de main.
+*/
+func TestIntegrationConnexionViseLeServeurDemande(t *testing.T) {
+	env := amuletest.Start(t)
+	svc := testService(t, env)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+
+	const cible, autre = "cible-choisie", "serveur-a-ne-pas-joindre"
+
+	if err := svc.AddServer(ctx, "203.0.113.10", 4661, cible); err != nil {
+		t.Fatalf("ajout de la cible : %v", err)
+	}
+	if err := svc.AddServer(ctx, "203.0.113.20", 4661, autre); err != nil {
+		t.Fatalf("ajout du second : %v", err)
+	}
+
+	if err := svc.ConnectServer(ctx, "203.0.113.10", 4661); err != nil {
+		t.Fatalf("connexion : %v", err)
+	}
+
+	deadline := time.Now().Add(20 * time.Second)
+	for time.Now().Before(deadline) {
+		lines, err := svc.Logs(ctx)
+		if err != nil {
+			t.Fatalf("journal : %v", err)
+		}
+
+		for _, line := range lines {
+			if !strings.Contains(line.Text, "Connecting to ") {
+				continue
+			}
+			if strings.Contains(line.Text, autre) {
+				t.Fatalf("le démon a visé le mauvais serveur : %s", line.Text)
+			}
+			if strings.Contains(line.Text, cible) {
+				return // le démon a nommé la cible : la désignation a été lue.
+			}
+			t.Fatalf("le démon a visé un serveur non demandé : %s", line.Text)
+		}
+		time.Sleep(500 * time.Millisecond)
+	}
+
+	t.Fatal("le démon n'a tenté aucune connexion : la désignation n'a pas été comprise")
+}
+
 // TestRemoveServerRefuseCeQuiNEstPasUneIPv4 : le tag de désignation ne peut pas
 // porter un nom d'hôte. Le refuser ici plutôt que d'envoyer six octets nuls,
 // qui feraient agir le démon sur autre chose que ce qui était demandé.

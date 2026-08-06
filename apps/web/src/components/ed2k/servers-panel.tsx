@@ -16,15 +16,22 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
-import { Badge, Button, Input } from "@/components/ui";
+import { Badge, Input } from "@/components/ui";
 import { useT } from "@/i18n";
 import * as api from "@/lib/api/endpoints";
 
 import { DASH, useEd2kFormat } from "./format";
 import { PRIORITY_LABELS } from "./labels";
-import { ActionButton, CommandError, ConfirmButton, PanelAction, useCommand } from "./commands";
+import {
+  ActionButton,
+  CommandError,
+  ConfirmButton,
+  PanelAction,
+  PanelForm,
+  useCommand,
+} from "./commands";
 import { Async, PanelHeader, REFRESH_MS } from "./panel";
-import { Num, Row, Table, Text, type Column } from "./table";
+import { DataTable, Num, Row, Text, type Column } from "./table";
 
 const COLUMNS: Column[] = [
   { key: "name", label: "ed2k.col.name", width: "minmax(200px, 3fr)" },
@@ -47,9 +54,13 @@ export function ServersPanel() {
   const query = useQuery({
     queryKey: ["ed2k", "servers"],
     queryFn: api.listEd2kServers,
-    // Une liste de serveurs ne bouge qu'à la connexion ou à l'import : la
-    // scruter à la seconde ne montrerait rien de plus.
-    refetchInterval: REFRESH_MS * 5,
+    /*
+      La LISTE ne bouge qu'à l'import ; le serveur JOINT, lui, change à chaque
+      connexion, et c'est la colonne que l'on regarde en agissant. Dix secondes
+      pour l'apprendre, c'est assez long pour croire que le bouton n'a rien
+      fait et cliquer ailleurs.
+    */
+    refetchInterval: REFRESH_MS * 2,
   });
 
   return (
@@ -111,8 +122,17 @@ export function ServersPanel() {
         }}
       >
         {(data) => (
-          <Table columns={COLUMNS} minWidth={940} label={t("ed2k.section.servers")}>
-            {data.servers.map((server, index) => (
+          <DataTable
+            items={data.servers}
+            columns={COLUMNS}
+            minWidth={940}
+            label={t("ed2k.section.servers")}
+            filterHint={t("ed2k.table.filterServers")}
+            // Le nom et l'adresse, pas les compteurs : chercher « 4232 »
+            // rapporterait tous les serveurs dont le port est standard, ce qui
+            // ne répond à aucune question qu'on se pose devant cet écran.
+            searchText={(server) => `${server.name} ${server.ip}:${server.port}`}
+            renderRow={(server, index) => (
               <Row key={`${server.ip}:${server.port}`} striped={index % 2 === 1}>
                 <span className="flex min-w-0 items-center gap-2">
                   <span className="truncate text-fg" title={server.description || undefined}>
@@ -177,8 +197,8 @@ export function ServersPanel() {
                   />
                 </span>
               </Row>
-            ))}
-          </Table>
+            )}
+          />
         )}
       </Async>
     </section>
@@ -203,31 +223,25 @@ function ImportForm({
   const [url, setUrl] = useState("https://upd.emule-security.org/server.met");
 
   return (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault();
-        void command.run(() => api.importEd2kServerList(url)).then(onDone);
-      }}
-      className="mb-3 flex flex-wrap items-end gap-2 rounded-lg border border-border bg-surface p-3"
+    <PanelForm
+      title={t("ed2k.servers.import")}
+      hint={t("ed2k.servers.importHint")}
+      submitLabel={t("ed2k.servers.importSubmit")}
+      submitDisabled={url.trim() === ""}
+      busy={command.busy}
+      onSubmit={() => void command.run(() => api.importEd2kServerList(url)).then(onDone)}
+      onCancel={onDone}
     >
-      <div className="min-w-[280px] flex-1">
+      <div className="min-w-[320px] flex-1">
         <Input
           name="url"
           label={t("ed2k.servers.importUrl")}
-          hint={t("ed2k.servers.importHint")}
           value={url}
           onChange={(event) => setUrl(event.target.value)}
           autoComplete="off"
         />
       </div>
-
-      <Button type="submit" size="sm" loading={command.busy} disabled={url.trim() === ""}>
-        {t("ed2k.servers.importSubmit")}
-      </Button>
-      <Button type="button" variant="ghost" size="sm" onClick={onDone}>
-        {t("action.cancel")}
-      </Button>
-    </form>
+    </PanelForm>
   );
 }
 
@@ -245,20 +259,24 @@ function AddServerForm({
   const [name, setName] = useState("");
 
   return (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault();
+    <PanelForm
+      title={t("ed2k.servers.add")}
+      hint={t("ed2k.servers.addHint")}
+      submitLabel={t("ed2k.servers.addSubmit")}
+      submitDisabled={ip.trim() === "" || port.trim() === ""}
+      busy={command.busy}
+      onSubmit={() =>
         void command
           .run(() => api.addEd2kServer({ ip, port: Number(port), name: name || undefined }))
-          .then(onDone);
-      }}
-      className="mb-3 flex flex-wrap items-end gap-2 rounded-lg border border-border bg-surface p-3"
+          .then(onDone)
+      }
+      onCancel={onDone}
     >
-      <div className="min-w-[180px] flex-1">
+      <div className="w-56">
         <Input
           name="ip"
           label={t("ed2k.servers.addIp")}
-          hint={t("ed2k.servers.addHint")}
+          placeholder="203.0.113.10"
           value={ip}
           onChange={(event) => setIp(event.target.value)}
           autoComplete="off"
@@ -276,7 +294,7 @@ function AddServerForm({
         />
       </div>
 
-      <div className="min-w-[160px] flex-1">
+      <div className="min-w-[200px] flex-1">
         <Input
           name="name"
           label={t("ed2k.servers.addName")}
@@ -285,18 +303,6 @@ function AddServerForm({
           autoComplete="off"
         />
       </div>
-
-      <Button
-        type="submit"
-        size="sm"
-        loading={command.busy}
-        disabled={ip.trim() === "" || port.trim() === ""}
-      >
-        {t("ed2k.servers.addSubmit")}
-      </Button>
-      <Button type="button" variant="ghost" size="sm" onClick={onDone}>
-        {t("action.cancel")}
-      </Button>
-    </form>
+    </PanelForm>
   );
 }

@@ -24,7 +24,7 @@ import { DASH, useEd2kFormat } from "./format";
 import { PRIORITY_LABELS } from "./labels";
 import { CommandError, PanelAction, useCommand } from "./commands";
 import { Async, PanelHeader, REFRESH_MS } from "./panel";
-import { Num, Row, Table, Text, type Column } from "./table";
+import { DataTable, Num, Row, Text, type Column } from "./table";
 
 const COLUMNS: Column[] = [
   { key: "name", label: "ed2k.col.name", width: "minmax(220px, 3fr)" },
@@ -75,8 +75,14 @@ export function SharedPanel() {
         empty={{ title: t("ed2k.shared.empty"), description: t("ed2k.shared.emptyHint") }}
       >
         {(data) => (
-          <Table columns={COLUMNS} minWidth={940} label={t("ed2k.section.shared")}>
-            {data.files.map((file, index) => (
+          <DataTable
+            items={data.files}
+            columns={COLUMNS}
+            minWidth={940}
+            label={t("ed2k.section.shared")}
+            filterHint={t("ed2k.table.filterFiles")}
+            searchText={(file) => `${file.name} ${file.path}`}
+            renderRow={(file, index) => (
               <Row key={file.hash} striped={index % 2 === 1}>
                 <span className="min-w-0">
                   <span className="block truncate text-fg" title={file.hash}>
@@ -105,8 +111,8 @@ export function SharedPanel() {
                   )}
                 </span>
               </Row>
-            ))}
-          </Table>
+            )}
+          />
         )}
       </Async>
     </section>

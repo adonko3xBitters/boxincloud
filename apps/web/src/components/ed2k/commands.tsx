@@ -17,7 +17,7 @@
  * prochain instantané arrive dans la seconde plutôt qu'au bout de cinq.
  */
 
-import { useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { Button, cx } from "@/components/ui";
@@ -42,6 +42,30 @@ export function useCommand() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  /*
+    Un second rafraîchissement, différé.
+
+    Le premier arrive trop tôt pour certaines commandes, et pas par défaut de
+    conception : le démon accuse réception AVANT d'agir. « Se connecter à ce
+    serveur » se répond en une milliseconde et met plusieurs secondes à
+    aboutir — quitter le serveur courant, ouvrir une socket, échanger.
+
+    L'instantané redemandé dans la foulée décrit donc encore l'état d'avant, et
+    le suivant n'arrivait qu'au tour de sondage du panneau. Entre les deux,
+    l'interface ne bougeait pas d'un pixel : le bouton se lisait comme mort.
+
+    Trois secondes couvrent une poignée de main de serveur eD2k. Ce n'est pas
+    une garantie — rien n'en donne, le démon ne rappelle jamais — mais c'est la
+    différence entre « il ne se passe rien » et « ça bascule ».
+  */
+  const timer = useRef<number | null>(null);
+  useEffect(
+    () => () => {
+      if (timer.current !== null) window.clearTimeout(timer.current);
+    },
+    [],
+  );
+
   async function run(command: () => Promise<unknown>) {
     setBusy(true);
     setError(null);
@@ -50,6 +74,11 @@ export function useCommand() {
       // Tout ce qui vient du démon peut avoir changé : une pause modifie la
       // file, une connexion modifie l'état et la liste des serveurs.
       await queryClient.invalidateQueries({ queryKey: ["ed2k"] });
+
+      if (timer.current !== null) window.clearTimeout(timer.current);
+      timer.current = window.setTimeout(() => {
+        void queryClient.invalidateQueries({ queryKey: ["ed2k"] });
+      }, 3000);
     } catch (err) {
       setError(describe(err));
     } finally {
@@ -190,5 +219,75 @@ export function PanelAction({
     <Button variant={variant} size="sm" loading={busy} onClick={onClick}>
       {label}
     </Button>
+  );
+}
+
+/**
+ * Gabarit des petits formulaires d'un panneau.
+ *
+ * # Ce qu'il corrige
+ *
+ * Ces formulaires étaient une ligne `flex flex-wrap items-end` de champs
+ * portant chacun son texte d'aide. Trois défauts en découlaient, tous visibles
+ * dès qu'il y avait plus d'un champ :
+ *
+ *  - les aides n'ont pas la même longueur, donc pas la même hauteur ; alignés
+ *    par le bas, les champs se retrouvaient à des hauteurs différentes ;
+ *  - une aide un peu longue passait sur deux lignes et poussait son voisin ;
+ *  - la même explication se répétait sous chaque champ d'un même formulaire,
+ *    alors qu'elle porte sur le formulaire entier.
+ *
+ * L'aide remonte donc en tête, une fois, et les champs s'alignent par le haut
+ * sur une grille. Les boutons ferment la ligne, séparés, pour qu'« Annuler » ne
+ * soit jamais à un pixel de « Ajouter ».
+ */
+export function PanelForm({
+  title,
+  hint,
+  submitLabel,
+  submitDisabled,
+  busy,
+  onSubmit,
+  onCancel,
+  children,
+}: {
+  title: string;
+  hint?: string;
+  submitLabel: string;
+  submitDisabled?: boolean;
+  busy?: boolean;
+  onSubmit: () => void;
+  onCancel: () => void;
+  children: ReactNode;
+}) {
+  const t = useT();
+
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault();
+        onSubmit();
+      }}
+      className="mb-3 rounded-lg border border-border bg-surface p-4"
+    >
+      <h3 className="text-ui font-medium text-fg">{title}</h3>
+      {hint && <p className="mt-0.5 max-w-prose text-meta text-muted">{hint}</p>}
+
+      {/*
+        Les champs s'alignent par le HAUT et non par le bas : leurs libellés
+        sont ainsi sur une même ligne, ce qui est la seule chose que l'œil
+        suit quand il balaie un formulaire.
+      */}
+      <div className="mt-3 flex flex-wrap items-start gap-3">{children}</div>
+
+      <div className="mt-3 flex items-center gap-2">
+        <Button type="submit" size="sm" loading={busy} disabled={submitDisabled}>
+          {submitLabel}
+        </Button>
+        <Button type="button" variant="ghost" size="sm" onClick={onCancel}>
+          {t("action.cancel")}
+        </Button>
+      </div>
+    </form>
   );
 }

@@ -16,16 +16,17 @@
 import { Fragment, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
-import { Badge, Button, Input } from "@/components/ui";
+import { Badge, Input } from "@/components/ui";
 import { useT } from "@/i18n";
 import * as api from "@/lib/api/endpoints";
 import type { Ed2kDownload } from "@/lib/api/client";
 
 import { DASH, receivedShare, useEd2kFormat } from "./format";
 import { PRIORITY_LABELS, STATUS_LABELS, STATUS_TONES } from "./labels";
-import { ActionButton, CommandError, ConfirmButton, PanelAction, useCommand } from "./commands";
+import { ActionButton, CommandError, ConfirmButton, PanelAction, useCommand, PanelForm,
+} from "./commands";
 import { Async, PanelHeader, REFRESH_MS } from "./panel";
-import { Expansion, Num, Progress, Row, Table, Text, type Column } from "./table";
+import { DataTable, Expansion, Num, Progress, Row, Table, Text, type Column } from "./table";
 
 const COLUMNS: Column[] = [
   { key: "name", label: "ed2k.col.name", width: "minmax(240px, 3fr)" },
@@ -85,8 +86,14 @@ export function DownloadsPanel() {
         empty={{ title: t("ed2k.downloads.empty"), description: t("ed2k.downloads.emptyHint") }}
       >
         {(data) => (
-          <Table columns={COLUMNS} minWidth={1060} label={t("ed2k.section.downloads")}>
-            {data.downloads.map((download, index) => (
+          <DataTable
+            items={data.downloads}
+            columns={COLUMNS}
+            minWidth={1060}
+            label={t("ed2k.section.downloads")}
+            filterHint={t("ed2k.table.filterFiles")}
+            searchText={(download) => download.name}
+            renderRow={(download, index) => (
               <Fragment key={download.hash}>
                 <DownloadRow
                   download={download}
@@ -103,8 +110,8 @@ export function DownloadsPanel() {
                   </Expansion>
                 )}
               </Fragment>
-            ))}
-          </Table>
+            )}
+          />
         )}
       </Async>
     </section>
@@ -304,34 +311,30 @@ function AddLinkForm({
   const [link, setLink] = useState("");
 
   return (
-    <form
-      onSubmit={(event) => {
-        event.preventDefault();
+    <PanelForm
+      title={t("ed2k.link.label")}
+      hint={t("ed2k.link.hint")}
+      submitLabel={t("ed2k.link.submit")}
+      submitDisabled={link.trim() === ""}
+      busy={command.busy}
+      onSubmit={() =>
         void command.run(() => api.addEd2kLink(link)).then(() => {
           setLink("");
           onDone();
-        });
-      }}
-      className="mb-3 flex flex-wrap items-end gap-2 rounded-lg border border-border bg-surface p-3"
+        })
+      }
+      onCancel={onDone}
     >
-      <div className="min-w-[280px] flex-1">
+      <div className="min-w-[320px] flex-1">
         <Input
           name="link"
           label={t("ed2k.link.label")}
-          hint={t("ed2k.link.hint")}
           value={link}
           onChange={(event) => setLink(event.target.value)}
           placeholder="ed2k://|file|…"
           autoComplete="off"
         />
       </div>
-
-      <Button type="submit" size="sm" loading={command.busy} disabled={link.trim() === ""}>
-        {t("ed2k.link.submit")}
-      </Button>
-      <Button type="button" variant="ghost" size="sm" onClick={onDone}>
-        {t("action.cancel")}
-      </Button>
-    </form>
+    </PanelForm>
   );
 }

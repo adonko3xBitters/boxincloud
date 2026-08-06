@@ -15,7 +15,7 @@
  * l'alignement de celles du dessus.
  */
 
-import { createContext, useContext, type ReactNode } from "react";
+import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 
 import { cx } from "@/components/ui";
 import { useT, type MessageKey } from "@/i18n";
@@ -245,5 +245,263 @@ export function Progress({
 export function Expansion({ children }: { children: ReactNode }) {
   return (
     <div className="border-b border-border bg-surface-sunken/60 px-3 py-2">{children}</div>
+  );
+}
+
+/*
+  ─── Tableau à filtre et pagination ─────────────────────────────────────────
+
+  Les tableaux du module ne comptaient pas leurs lignes. Une liste de serveurs
+  importée fait couramment trois cents entrées, une file d'attente d'envois en
+  fait autant : tout afficher donnait une page qui défile sur des mètres, où
+  retrouver une ligne demandait un Cmd-F du navigateur — qui ne cherche que ce
+  qui est déjà rendu.
+
+  Deux ajouts, et seulement deux.
+
+  Un FILTRE, sur un texte que le panneau fournit lui-même pour chaque ligne.
+  C'est le panneau qui sait ce qui a un sens à chercher — le nom et l'adresse
+  d'un serveur, pas son compteur d'échecs — et une recherche sur tout produirait
+  des correspondances incompréhensibles sur des chiffres.
+
+  Une PAGINATION, à taille choisie. Elle est purement locale : l'API rend
+  l'instantané entier, parce que le démon le rend entier lui aussi. Paginer côté
+  serveur n'économiserait rien et ferait perdre le filtre sur les pages non
+  chargées.
+
+  Ce qui n'y est PAS, et pourquoi. Pas de tri par colonne : l'ordre vient du
+  démon et porte du sens — la file est dans l'ordre où elle sera servie, les
+  sources dans l'ordre où elles ont répondu. Un tri par défaut différent de cet
+  ordre-là ferait croire à une priorité qui n'existe pas.
+*/
+
+const PAGE_SIZES = [25, 50, 100] as const;
+
+export function DataTable<T>({
+  items,
+  columns,
+  minWidth,
+  label,
+  searchText,
+  renderRow,
+  /** Placeholder du filtre, propre au panneau : « nom ou adresse… ». */
+  filterHint,
+}: {
+  items: readonly T[];
+  columns: Column[];
+  minWidth: number;
+  label: string;
+  searchText: (item: T) => string;
+  renderRow: (item: T, index: number) => ReactNode;
+  filterHint?: string;
+}) {
+  const t = useT();
+  const [filter, setFilter] = useState("");
+  const [size, setSize] = useState<number>(PAGE_SIZES[0]);
+  const [page, setPage] = useState(0);
+
+  const needle = filter.trim().toLowerCase();
+  const matching = useMemo(
+    () => (needle === "" ? items : items.filter((i) => searchText(i).toLowerCase().includes(needle))),
+    // `searchText` est redéfinie à chaque rendu du panneau appelant ; la
+    // mémoïser sur elle rendrait le filtre inutile. Les lignes et le motif
+    // suffisent à décider.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [items, needle],
+  );
+
+  const pages = Math.max(1, Math.ceil(matching.length / size));
+
+  /*
+    La page courante est bornée au RENDU, sans effet ni état à resynchroniser.
+
+    Filtrer depuis la page 7 laisse un numéro de page qui n'existe plus. Le
+    corriger dans un `useEffect` afficherait un tableau vide le temps d'un
+    rendu, ce qui se voit — et se lit comme « aucun résultat ».
+  */
+  const current = Math.min(page, pages - 1);
+  const visible = matching.slice(current * size, current * size + size);
+
+  return (
+    <div className="flex min-h-0 flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <FilterField
+          value={filter}
+          onChange={(v) => {
+            setFilter(v);
+            setPage(0);
+          }}
+          placeholder={filterHint ?? t("ed2k.table.filter")}
+        />
+
+        <span className="text-meta tabular-nums text-subtle">
+          {needle === ""
+            ? t("ed2k.table.count", { count: String(items.length) })
+            : t("ed2k.table.matching", {
+                count: String(matching.length),
+                total: String(items.length),
+              })}
+        </span>
+
+        <div className="ml-auto flex items-center gap-2">
+          <PageSize
+            value={size}
+            onChange={(v) => {
+              setSize(v);
+              setPage(0);
+            }}
+          />
+          <Pager page={current} pages={pages} onGo={setPage} />
+        </div>
+      </div>
+
+      <Table columns={columns} minWidth={minWidth} label={label}>
+        {visible.map((item, index) => renderRow(item, index))}
+      </Table>
+
+      {/*
+        Un filtre qui ne rend rien doit le DIRE. Un tableau vide sous un champ
+        rempli se lit comme un chargement qui n'aboutit pas.
+      */}
+      {matching.length === 0 && (
+        <p className="px-3 py-6 text-center text-meta text-subtle">
+          {t("ed2k.table.noMatch", { filter })}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function FilterField({
+  value,
+  onChange,
+  placeholder,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder: string;
+}) {
+  const t = useT();
+
+  return (
+    <div className="relative">
+      <svg
+        viewBox="0 0 16 16"
+        fill="none"
+        aria-hidden="true"
+        className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-subtle"
+      >
+        <circle cx="7" cy="7" r="4.5" stroke="currentColor" strokeWidth="1.4" />
+        <path d="m10.5 10.5 3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+      </svg>
+
+      <input
+        type="search"
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder={placeholder}
+        aria-label={t("ed2k.table.filter")}
+        className={cx(
+          "h-8 w-56 rounded-md border border-border-strong bg-surface pl-8 pr-2.5 text-meta text-fg",
+          "placeholder:text-subtle",
+          "transition-colors duration-(--motion-duration-fast)",
+          "focus:border-accent focus:outline-none",
+        )}
+      />
+    </div>
+  );
+}
+
+function PageSize({ value, onChange }: { value: number; onChange: (value: number) => void }) {
+  const t = useT();
+
+  return (
+    <label className="flex items-center gap-1.5 text-meta text-subtle">
+      <span className="sr-only sm:not-sr-only">{t("ed2k.table.perPage")}</span>
+      <select
+        value={value}
+        onChange={(event) => onChange(Number(event.target.value))}
+        className={cx(
+          "h-8 rounded-md border border-border-strong bg-surface px-1.5 text-meta text-fg",
+          "focus:border-accent focus:outline-none",
+        )}
+      >
+        {PAGE_SIZES.map((option) => (
+          <option key={option} value={option}>
+            {option}
+          </option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+/**
+ * Précédent / suivant, et le rang courant.
+ *
+ * Pas de liste de numéros de page : sur trois cents serveurs à vingt-cinq par
+ * page, elle en compterait douze, et aucun de ces numéros ne veut rien dire —
+ * personne ne sait ce qu'il y a « page 7 ». Le filtre est le vrai moyen
+ * d'atteindre une ligne ; la pagination ne sert qu'à borner ce qui est rendu.
+ */
+function Pager({
+  page,
+  pages,
+  onGo,
+}: {
+  page: number;
+  pages: number;
+  onGo: (page: number) => void;
+}) {
+  const t = useT();
+  if (pages <= 1) return null;
+
+  return (
+    <div className="flex items-center gap-1">
+      <PagerButton
+        label={t("ed2k.table.previous")}
+        disabled={page === 0}
+        onClick={() => onGo(page - 1)}
+        glyph="‹"
+      />
+      <span className="min-w-16 text-center text-meta tabular-nums text-muted">
+        {t("ed2k.table.page", { page: String(page + 1), pages: String(pages) })}
+      </span>
+      <PagerButton
+        label={t("ed2k.table.next")}
+        disabled={page >= pages - 1}
+        onClick={() => onGo(page + 1)}
+        glyph="›"
+      />
+    </div>
+  );
+}
+
+function PagerButton({
+  label,
+  glyph,
+  disabled,
+  onClick,
+}: {
+  label: string;
+  glyph: string;
+  disabled: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={label}
+      className={cx(
+        "pressable grid size-8 place-items-center rounded-md border border-border text-ui",
+        "text-muted hover:bg-surface-hover hover:text-fg",
+        "disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent",
+      )}
+    >
+      <span aria-hidden="true">{glyph}</span>
+    </button>
   );
 }

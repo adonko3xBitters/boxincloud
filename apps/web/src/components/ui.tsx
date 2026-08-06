@@ -125,11 +125,25 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
         className={cx(
           "h-10 w-full rounded-md border bg-surface px-3 text-sm text-fg",
           "placeholder:text-subtle",
-          "transition-colors duration-(--motion-duration-fast)",
+          "transition-[border-color,box-shadow] duration-(--motion-duration-fast)",
           // `border-strong` et non `border` : un champ dont on ne voit pas le
           // contour est un champ qu'on ne trouve pas. C'est la seule bordure du
           // système qui porte de l'information, et la seule tenue à 3:1.
-          error ? "border-danger" : "border-border-strong focus:border-accent",
+          error ? "border-danger" : "border-border-strong hover:border-accent/60",
+          /*
+            Le focus se voit à un HALO, pas seulement à une bordure teintée.
+
+            Un simple changement de couleur de contour se remarque mal sur un
+            formulaire de quatre champs alignés : la différence entre gris fort
+            et accent est de teinte, pas de forme. Le halo ajoute une seconde
+            dimension, et il survit à un thème sombre où les gris se resserrent.
+
+            `outline-none` sans remplaçant serait une régression
+            d'accessibilité ; l'anneau EST le remplaçant, et il porte aussi le
+            champ en erreur.
+          */
+          "focus:outline-none focus:ring-3",
+          error ? "focus:border-danger focus:ring-danger/25" : "focus:border-accent focus:ring-accent/25",
           className,
         )}
         {...props}

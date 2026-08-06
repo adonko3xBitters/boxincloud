@@ -978,6 +978,19 @@ export const fr = {
   "ed2k.logs.empty": "Journal vide",
   "ed2k.logs.emptyHint": "Le démon n'a rien écrit depuis son dernier démarrage.",
 
+  // ── Tableaux : filtre et pagination ───────────────────────────────────────
+  "ed2k.table.filter": "Filtrer…",
+  "ed2k.table.count": "{count} lignes",
+  "ed2k.table.matching": "{count} sur {total}",
+  "ed2k.table.noMatch": "Aucune ligne ne contient « {filter} »",
+  "ed2k.table.perPage": "par page",
+  "ed2k.table.page": "{page} / {pages}",
+  "ed2k.table.previous": "Page précédente",
+  "ed2k.table.next": "Page suivante",
+  "ed2k.table.filterServers": "Nom ou adresse…",
+  "ed2k.table.filterFiles": "Nom de fichier…",
+  "ed2k.table.filterPeers": "Pair ou fichier…",
+
   // ── Échecs propres au module ───────────────────────────────────────────────
   "ed2k.error.disabled":
     "Le module eD2k est désactivé sur cette instance. Il s'active par la variable BOXINCLOUD_ED2K_ENABLED, côté serveur.",

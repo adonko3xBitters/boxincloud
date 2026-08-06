@@ -30,7 +30,7 @@ import type { Ed2kSearchNetwork } from "@/lib/api/endpoints";
 import { ActionButton, CommandError, useCommand } from "./commands";
 import { DASH, useEd2kFormat } from "./format";
 import { Async, PanelHeader } from "./panel";
-import { Num, Row, Table, type Column } from "./table";
+import { DataTable, Num, Row, type Column } from "./table";
 
 const COLUMNS: Column[] = [
   { key: "name", label: "ed2k.col.name", width: "minmax(280px, 4fr)" },
@@ -139,8 +139,17 @@ export function SearchPanel() {
           empty={{ title: t("ed2k.search.empty"), description: t("ed2k.search.emptyHint") }}
         >
           {(data) => (
-            <Table columns={COLUMNS} minWidth={860} label={t("ed2k.section.search")}>
-              {data.results.map((result, index) => (
+            <DataTable
+              items={data.results}
+              columns={COLUMNS}
+              minWidth={860}
+              label={t("ed2k.section.search")}
+              filterHint={t("ed2k.table.filterFiles")}
+              // Affiner SANS relancer : le démon ne tient qu'une recherche à la
+              // fois, et resserrer les mots-clés effacerait ce qui est déjà
+              // remonté. Le filtre travaille sur ce qu'on a.
+              searchText={(result) => result.name}
+              renderRow={(result, index) => (
                 <Row key={result.hash} striped={index % 2 === 1}>
                   <span className="min-w-0">
                     <span className="block truncate text-fg" title={result.hash}>
@@ -175,8 +184,8 @@ export function SearchPanel() {
                     )}
                   </span>
                 </Row>
-              ))}
-            </Table>
+              )}
+            />
           )}
         </Async>
       ) : (

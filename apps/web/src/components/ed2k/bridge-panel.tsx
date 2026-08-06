@@ -27,7 +27,7 @@ import type { Ed2kPublication } from "@/lib/api/client";
 import { CommandError, useCommand } from "./commands";
 import { DASH, useEd2kFormat } from "./format";
 import { Async, PanelHeader, REFRESH_MS } from "./panel";
-import { Num, Row, Table, Text, type Column } from "./table";
+import { DataTable, Num, Row, Text, type Column } from "./table";
 
 const STATUS_LABELS: Record<Ed2kPublication["status"], MessageKey> = {
   pending: "ed2k.pub.pending",
@@ -94,15 +94,21 @@ export function BridgePanel() {
         }}
       >
         {(data) => (
-          <Table columns={COLUMNS} minWidth={900} label={t("ed2k.bridge.history")}>
-            {data.publications.map((publication, index) => (
+          <DataTable
+            items={data.publications}
+            columns={COLUMNS}
+            minWidth={900}
+            label={t("ed2k.bridge.history")}
+            filterHint={t("ed2k.table.filterFiles")}
+            searchText={(publication) => publication.name}
+            renderRow={(publication, index) => (
               <PublicationRow
                 key={publication.hash}
                 publication={publication}
                 striped={index % 2 === 1}
               />
-            ))}
-          </Table>
+            )}
+          />
         )}
       </Async>
     </section>
