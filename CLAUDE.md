@@ -61,6 +61,7 @@ avant de le contourner :
 npm run typecheck && npm run lint && npm run build
 npm run check:css        # classes Tailwind référençant une var CSS avec la mauvaise syntaxe
 npm run check:overlays   # calques qui se ferment sur un stopPropagation inopérant
+npm run check:nested-buttons  # un élément cliquable dans un autre, même à travers un composant
 npm run check:qr         # un code QR produit se relit vraiment
 npm run check:i18n       # couverture de traduction — échoue si le reste-à-faire augmente
 npm run check:contrast   # WCAG AA sur les paires de jetons réellement affichées

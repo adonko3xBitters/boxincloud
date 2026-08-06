@@ -12,6 +12,7 @@
     "generate:api": "openapi-typescript ../../api/openapi.yaml -o src/lib/api/schema.d.ts",
     "generate:tokens": "node ../../packages/design-tokens/build.mjs",
     "check:overlays": "node scripts/check-overlays.mjs",
+    "check:nested-buttons": "node scripts/check-nested-buttons.mjs",
     "check:qr": "node scripts/check-qr.mjs",
     "check:i18n": "node scripts/check-i18n.mjs",
     "check:contrast": "node scripts/check-contrast.mjs"

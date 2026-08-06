@@ -86,54 +86,89 @@ export function Table({
   );
 }
 
+/*
+Row est TOUJOURS un `div`. Jamais un bouton.
+
+Elle l'a été, pour les lignes qui se déplient, et c'était une faute avec des
+conséquences très concrètes.
+
+Une ligne de téléchargement porte des boutons — Pause, Annuler. Un `<button>`
+dans un `<button>` est du HTML invalide, et le résultat n'est pas une erreur
+visible mais un comportement dont on ne comprend rien : le clic sur « Pause »
+déclenchait l'action ET la bascule de la ligne, si bien que le panneau de
+détail s'ouvrait à chaque tentative. Comme les boutons se désactivent le temps
+de la commande, le clic suivant n'atteignait plus que la ligne, qui se
+refermait. On finissait par mettre en pause sans savoir comment.
+
+Ce qui se déplie a donc un bouton À LUI — voir `Disclosure` — placé dans une
+cellule. Le clavier et le lecteur d'écran y gagnent aussi : une cible unique et
+nommée, au lieu d'une ligne entière qui annonçait tout son contenu comme
+libellé.
+*/
 export function Row({
   children,
-  onClick,
-  expanded,
-  label,
   striped = false,
 }: {
   children: ReactNode;
-  onClick?: () => void;
-  /** Présent, la ligne se déplie : elle devient un bouton pour le clavier. */
-  expanded?: boolean;
-  label?: string;
   striped?: boolean;
 }) {
   const template = useContext(TemplateContext);
 
-  const common = cx(
-    "grid w-full items-center gap-x-3 border-b border-border/60 px-3 py-1.5 text-left text-meta",
-    "transition-colors duration-(--motion-duration-fast)",
-    striped && "bg-surface-sunken/40",
-    onClick && "cursor-default hover:bg-surface-hover",
-  );
-
-  if (!onClick) {
-    return (
-      <div role="row" className={common} style={{ gridTemplateColumns: template }}>
-        {children}
-      </div>
-    );
-  }
-
-  /*
-    Un vrai `<button>` pour une ligne qui se déplie.
-
-    Un `<div onClick>` marche à la souris et nulle part ailleurs : ni au
-    clavier, ni au lecteur d'écran, qui n'annoncerait même pas qu'il y a
-    quelque chose à ouvrir.
-  */
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-expanded={expanded}
-      aria-label={label}
-      className={cx(common, "pressable")}
+    <div
+      role="row"
+      className={cx(
+        "grid w-full items-center gap-x-3 border-b border-border/60 px-3 py-1.5 text-left text-meta",
+        "transition-colors duration-(--motion-duration-fast)",
+        "hover:bg-surface-hover",
+        striped && "bg-surface-sunken/40",
+      )}
       style={{ gridTemplateColumns: template }}
     >
       {children}
+    </div>
+  );
+}
+
+/**
+ * Le chevron qui ouvre une ligne.
+ *
+ * Une cible de vingt pixels plutôt qu'une ligne entière. C'est plus petit, et
+ * c'est mieux : une ligne cliquable sur toute sa longueur avale les clics
+ * destinés à ce qu'elle contient, et n'annonce rien de ce qu'elle fera.
+ */
+export function Disclosure({
+  expanded,
+  onToggle,
+  label,
+}: {
+  expanded: boolean;
+  onToggle: () => void;
+  label: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={expanded}
+      aria-label={label}
+      title={label}
+      className={cx(
+        "pressable grid size-5 shrink-0 place-items-center rounded",
+        "text-subtle hover:bg-surface-hover hover:text-fg",
+      )}
+    >
+      <svg
+        viewBox="0 0 16 16"
+        fill="none"
+        aria-hidden="true"
+        className={cx(
+          "size-3.5 transition-transform duration-(--motion-duration-fast)",
+          expanded && "rotate-90",
+        )}
+      >
+        <path d="m6 4 4 4-4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      </svg>
     </button>
   );
 }

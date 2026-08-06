@@ -80,6 +80,14 @@ jobs:
         working-directory: apps/web
         run: npm run check:overlays
 
+      # Un bouton dans un bouton est du HTML invalide que React construit quand
+      # même : le clic intérieur déclenche les deux gestionnaires. C'est
+      # invisible au typage, à l'exécution et à ESLint, qui ne suit pas
+      # l'imbrication à travers un composant.
+      - name: Vérifier les éléments cliquables imbriqués
+        working-directory: apps/web
+        run: npm run check:nested-buttons
+
       # Un code QR illisible s'affiche parfaitement : on ne l'apprend qu'en
       # pointant un téléphone dessus. Le contrôle refait l'aller-retour
       # encodage/décodage avec un décodeur indépendant.

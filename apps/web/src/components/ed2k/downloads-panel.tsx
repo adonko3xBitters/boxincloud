@@ -26,7 +26,17 @@ import { PRIORITY_LABELS, STATUS_LABELS, STATUS_TONES } from "./labels";
 import { ActionButton, CommandError, ConfirmButton, PanelAction, useCommand, PanelForm,
 } from "./commands";
 import { Async, PanelHeader, REFRESH_MS } from "./panel";
-import { DataTable, Expansion, Num, Progress, Row, Table, Text, type Column } from "./table";
+import {
+  DataTable,
+  Disclosure,
+  Expansion,
+  Num,
+  Progress,
+  Row,
+  Table,
+  Text,
+  type Column,
+} from "./table";
 
 const COLUMNS: Column[] = [
   { key: "name", label: "ed2k.col.name", width: "minmax(240px, 3fr)" },
@@ -145,21 +155,31 @@ function DownloadRow({
   const incomplete = download.partCount > 0 && download.availableParts < download.partCount;
 
   return (
-    <Row
-      striped={striped}
-      expanded={expanded}
-      onClick={onToggle}
-      label={t("ed2k.downloads.expand", { name: download.name })}
-    >
-      <span className="min-w-0">
-        <span className="block truncate text-fg" title={download.name}>
-          {download.name}
-        </span>
-        <Progress
-          value={share}
-          tone={STATUS_TONES[download.status]}
-          label={t("ed2k.col.progress")}
+    <Row striped={striped}>
+      {/*
+        Le chevron vit DANS la cellule du nom, pas dans une colonne à lui.
+
+        Une colonne de plus coûterait sa largeur à chacune des dix autres, pour
+        n'y mettre qu'une flèche. Collé au titre, il désigne aussi ce qu'il
+        ouvre — les sources de CE fichier.
+      */}
+      <span className="flex min-w-0 items-center gap-1.5">
+        <Disclosure
+          expanded={expanded}
+          onToggle={onToggle}
+          label={t("ed2k.downloads.expand", { name: download.name })}
         />
+
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-fg" title={download.name}>
+            {download.name}
+          </span>
+          <Progress
+            value={share}
+            tone={STATUS_TONES[download.status]}
+            label={t("ed2k.col.progress")}
+          />
+        </span>
       </span>
 
       <Num
