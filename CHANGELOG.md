@@ -9,6 +9,32 @@ cela, l'historique git et les documents d'architecture sont plus précis.
 
 ## [Non publié]
 
+## [0.1.8] — 2026-08-12
+
+Deux corrections, dont une qui remettait une lecture au mauvais endroit.
+
+### Corrigé
+
+- **Le téléphone ignorait une lecture reprise ailleurs.** S'arrêter page 19 sur
+  mobile le matin, continuer jusqu'à la page 57 sur le web, rouvrir le
+  téléphone : il proposait toujours « Reprendre page 19 ».
+
+  La synchronisation n'avait qu'une moitié. L'application envoyait sa
+  progression au serveur, mais ne lui demandait jamais la sienne — et ouvrir un
+  album rendait la position en cache sans plus rien vérifier. Elle interroge
+  désormais le serveur quand il répond, et retient la position la plus avancée
+  des deux. Hors ligne, le cache répond seul : la lecture déconnectée est
+  intacte.
+
+  Rien à faire pour en profiter : la première ouverture après la mise à jour
+  rattrape ce qui a été lu ailleurs.
+
+- **Le bouton Pause d'un téléchargement eD2k était presque impossible à
+  atteindre.** Cliquer dessus dépliait le détail de la ligne, recliquer le
+  repliait, et la mise en pause finissait par arriver sans qu'on sache
+  comment. La ligne entière était cliquable ; ce qui se déplie a maintenant son
+  propre bouton, un chevron devant le titre.
+
 ## [0.1.7] — 2026-08-06
 
 Le module eD2k à l'usage : des tableaux qu'on peut fouiller, une page qui
@@ -351,7 +377,8 @@ aurait fait croire à une régression silencieuse.
 publier son propre catalogue et aller chercher ailleurs sont deux choses
 différentes.
 
-[Non publié]: https://github.com/adonko3xBitters/boxincloud/compare/v0.1.7...HEAD
+[Non publié]: https://github.com/adonko3xBitters/boxincloud/compare/v0.1.8...HEAD
+[0.1.8]: https://github.com/adonko3xBitters/boxincloud/compare/v0.1.7...v0.1.8
 [0.1.7]: https://github.com/adonko3xBitters/boxincloud/compare/v0.1.6...v0.1.7
 [0.1.6]: https://github.com/adonko3xBitters/boxincloud/compare/v0.1.5...v0.1.6
 [0.1.5]: https://github.com/adonko3xBitters/boxincloud/compare/v0.1.4...v0.1.5
