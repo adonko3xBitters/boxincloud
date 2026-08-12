@@ -16,7 +16,7 @@ jobs:
     name: Valider le contrat
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v4
         with:
@@ -34,7 +34,7 @@ jobs:
     # serveur. Une rupture ne casse pas seulement un navigateur qu'il suffit
     # de rafraîchir.
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
