@@ -362,34 +362,6 @@ class ManifestPage {
 }
 
 /// Progress, tel que décrit par le contrat.
-/// Une page de changements rendue par `GET /sync`.
-class SyncChanges {
-  final List<Progress> changes;
-
-  /// À renvoyer au prochain appel. C'est lui qui rend la synchronisation
-  /// incrémentale : sans le conserver, chaque démarrage retéléchargerait
-  /// l'historique entier.
-  final String cursor;
-
-  /// Une page est disponible IMMÉDIATEMENT. Un client qui rattrape une longue
-  /// absence doit boucler sans attendre le prochain réveil.
-  final bool hasMore;
-
-  const SyncChanges({
-    required this.changes,
-    required this.cursor,
-    required this.hasMore,
-  });
-
-  factory SyncChanges.fromJson(Map<String, dynamic> json) => SyncChanges(
-        changes: ((json['changes'] as List<dynamic>?) ?? const [])
-            .map((e) => Progress.fromJson(e as Map<String, dynamic>))
-            .toList(),
-        cursor: (json['cursor'] as String?) ?? '',
-        hasMore: (json['hasMore'] as bool?) ?? false,
-      );
-}
-
 class Progress {
   final String comicId;
   final int page;
@@ -443,6 +415,31 @@ class Progress {
         'startedAt': startedAt,
         'finishedAt': finishedAt,
         'updatedAt': updatedAt,
+      };
+}
+
+/// SyncChanges, tel que décrit par le contrat.
+class SyncChanges {
+  final List<Progress> changes;
+  final String cursor;
+  final bool hasMore;
+
+  const SyncChanges({
+    required this.changes,
+    required this.cursor,
+    required this.hasMore,
+  });
+
+  factory SyncChanges.fromJson(Map<String, dynamic> json) => SyncChanges(
+        changes: (json['changes'] as List<dynamic>).map((e) => Progress.fromJson(e as Map<String, dynamic>)).toList(),
+        cursor: json['cursor'] as String,
+        hasMore: json['hasMore'] as bool,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'changes': changes.map((e) => e.toJson()).toList(),
+        'cursor': cursor,
+        'hasMore': hasMore,
       };
 }
 

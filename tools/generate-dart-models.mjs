@@ -199,6 +199,7 @@ const WANTED = [
   "Manifest",
   "ManifestPage",
   "Progress",
+  "SyncChanges",
   "Folder",
 ];
 

@@ -2402,17 +2402,7 @@ paths:
           description: Changements
           content:
             application/json:
-              schema:
-                type: object
-                required: [changes, cursor, hasMore]
-                properties:
-                  changes:
-                    type: array
-                    items: { $ref: "#/components/schemas/Progress" }
-                  cursor:
-                    type: string
-                    description: À renvoyer au prochain appel.
-                  hasMore: { type: boolean }
+              schema: { $ref: "#/components/schemas/SyncChanges" }
         "401":
           $ref: "#/components/responses/Unauthorized"
         "422":
@@ -3965,6 +3955,32 @@ components:
     ReadStatus:
       type: string
       enum: [unread, in_progress, read]
+
+    SyncChanges:
+      type: object
+      description: |
+        Une page de changements de progression.
+
+        Nommée, et pas décrite en ligne : les modèles Dart ne sont produits que
+        pour les schémas nommés, et le client mobile en a besoin — sans quoi la
+        moitié « écouter » de la synchronisation doit être écrite à la main
+        dans du code généré.
+      required: [changes, cursor, hasMore]
+      properties:
+        changes:
+          type: array
+          items: { $ref: "#/components/schemas/Progress" }
+        cursor:
+          type: string
+          description: |
+            À renvoyer au prochain appel. C'est lui qui rend la synchronisation
+            incrémentale : un client qui ne le conserve pas retélécharge son
+            historique entier à chaque démarrage.
+        hasMore:
+          type: boolean
+          description: |
+            Une page est disponible immédiatement. Un client qui rattrape une
+            longue absence doit boucler sans attendre.
 
     Progress:
       type: object

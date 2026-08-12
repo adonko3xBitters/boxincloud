@@ -2354,6 +2354,28 @@ export interface components {
         };
         /** @enum {string} */
         ReadStatus: "unread" | "in_progress" | "read";
+        /**
+         * @description Une page de changements de progression.
+         *
+         *     Nommée, et pas décrite en ligne : les modèles Dart ne sont produits que
+         *     pour les schémas nommés, et le client mobile en a besoin — sans quoi la
+         *     moitié « écouter » de la synchronisation doit être écrite à la main
+         *     dans du code généré.
+         */
+        SyncChanges: {
+            changes: components["schemas"]["Progress"][];
+            /**
+             * @description À renvoyer au prochain appel. C'est lui qui rend la synchronisation
+             *     incrémentale : un client qui ne le conserve pas retélécharge son
+             *     historique entier à chaque démarrage.
+             */
+            cursor: string;
+            /**
+             * @description Une page est disponible immédiatement. Un client qui rattrape une
+             *     longue absence doit boucler sans attendre.
+             */
+            hasMore: boolean;
+        };
         Progress: {
             /** Format: uuid */
             comicId: string;
@@ -5414,12 +5436,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        changes: components["schemas"]["Progress"][];
-                        /** @description À renvoyer au prochain appel. */
-                        cursor: string;
-                        hasMore: boolean;
-                    };
+                    "application/json": components["schemas"]["SyncChanges"];
                 };
             };
             401: components["responses"]["Unauthorized"];
